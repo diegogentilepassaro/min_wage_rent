@@ -1,4 +1,4 @@
-# Minimum wage, rent and utilities
+# Minimum wage, rent and amenites
 
 Project description here
 
