@@ -1,5 +1,7 @@
 #' This script formats variable names for Zip code level raw zillow data 
 
+dir.create("../output/zillow/")
+
 # Set dependencies
 lib <- "../../lib/R/"
 datadir <- '../../raw_data/zillow/'

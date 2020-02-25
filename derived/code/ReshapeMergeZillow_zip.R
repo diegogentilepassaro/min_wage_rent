@@ -3,8 +3,8 @@
 # Set dependencies
 lib <- "../../lib/R/"
 datadir <- '../../base/output/zillow/'
-tempdir <- "../temp/"
 outputdir <- "../output/"
+tempdir <- "../temp/"
 
 # Import custom functions
 source(paste0(lib, 'check_packages.R'))
@@ -65,7 +65,7 @@ data.table::setorder(file_combined, zipcode, date)
 
 # final adjustments 
 file_combined[,date:=str_replace_all(date, "-", "_")]
-fwrite_key(file_combined, file = paste0(outputdir,"zillow_clean.csv"))
+fwrite_key(file_combined, file = paste0(tempdir,"zillow_clean.csv"))
 
 # Clean Environment
 rm(list = ls())

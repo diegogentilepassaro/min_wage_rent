@@ -1,5 +1,8 @@
 if (getwd()!= dirname(rstudioapi::getSourceEditorContext()$path)) setwd(dirname(rstudioapi::getSourceEditorContext()$path))
-outputdir <- "../output/"
-file.remove(list.files(outputdir, include.dirs = F, full.names = T, recursive = T))
+
+unlink("../temp", recursive = TRUE)
+unlink("../output", recursive = TRUE)
+dir.create("../temp/")
+dir.create("../output/")
 
 source('ReshapeMergeZillow_zip.R')
