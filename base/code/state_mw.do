@@ -60,7 +60,7 @@ sort date
 // save ${exports}VZ_federal_changes.dta, replace
 
 *Exporting to excel spreadsheet format
-export excel using ${exports}VZ_federal_changes.xlsx, replace firstrow(variables) datestring(%td)
+export delim using ${exports}VZ_federal_changes.xlsx, replace firstrow(variables) datestring(%td)
 
 *Expanding the date variable
 tsset date
@@ -118,7 +118,7 @@ sort stateabb date
 // save ${exports}VZ_state_changes.dta, replace
 
 *Exporting to excel spreadsheet format
-export excel using ${exports}VZ_state_changes.xlsx, replace firstrow(variables) datestring(%td)
+export delim using ${exports}VZ_state_changes.xlsx, replace firstrow(variables) datestring(%td)
 
 *Expanding the date variable
 tsset statefips date
@@ -165,7 +165,7 @@ sort stateabb date
 // save ${exports}VZ_state_daily.dta, replace
 
 *Exporting to excel spreadsheet format
-export excel using ${exports}VZ_state_daily.xlsx, replace firstrow(variables) datestring(%td)
+export delim using ${exports}VZ_state_daily.xlsx, replace firstrow(variables) datestring(%td)
 
 *EXPORTING A MONTHLY DATASET WITH STATE MINIMUM WAGES, FEDERAL MININUMUM WAGES, and VZ's FINAL MINIMUM WAGE (based on the higher level between the state and federal minimum wages)
 use `data', clear
@@ -193,7 +193,7 @@ sort stateabb monthly_date
 // save ${exports}VZ_state_monthly.dta, replace
 
 *Exporting to excel spreadsheet format
-export excel using ${exports}VZ_state_monthly.xlsx, replace firstrow(variables) datestring(%tm)
+export delim using ${exports}VZ_state_monthly.xlsx, replace firstrow(variables) datestring(%tm)
 
 *EXPORTING A QUARTERLY DATASET WITH STATE MINIMUM WAGES, FEDERAL MININUMUM WAGES, and VZ's FINAL MINIMUM WAGE (based on the higher level between the state and federal minimum wages)
 use `data', clear
@@ -221,7 +221,7 @@ sort stateabb quarterly_date
 // save ${exports}VZ_state_quarterly.dta, replace
 
 *Exporting to excel spreadsheet format
-export excel using ${exports}VZ_state_quarterly.xlsx, replace firstrow(variables) datestring(%tq)
+export delim using ${exports}VZ_state_quarterly.xlsx, replace firstrow(variables) datestring(%tq)
 
 *EXPORTING A YEARLY DATASET WITH STATE MINIMUM WAGES, FEDERAL MININUMUM WAGES, and VZ's FINAL MINIMUM WAGE (based on the higher level between the state and federal minimum wages)
 use `data', clear
@@ -249,7 +249,7 @@ sort stateabb year
 // save ${exports}VZ_state_annual.dta, replace
 
 *Exporting to excel spreadsheet format
-export excel using ${exports}VZ_state_annual.xlsx, replace firstrow(variables) datestring(%ty)
+export delim using ${exports}VZ_state_annual.xlsx, replace firstrow(variables) datestring(%ty)
 
 *COMPRESS FILES FOR DISTRIBUTION
 * state - Stata

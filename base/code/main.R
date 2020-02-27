@@ -10,6 +10,9 @@ source("../../lib/R/check_packages.R")
 # Rename Zillow Data
 source("RenameZillowData_zip.R")
 
+# Clean geography references
+source('cleanGeoRelationshipFiles.R')
+
 # Create minimum wage panels
 # devtools::install_github('lbraglia/RStata')
 # # check_packages('RStata')

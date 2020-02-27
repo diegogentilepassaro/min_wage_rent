@@ -6,3 +6,4 @@ dir.create("../temp/")
 dir.create("../output/")
 
 source('ReshapeMergeZillow_zip.R')
+source('addMinWage.R')
