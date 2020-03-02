@@ -22,7 +22,7 @@ local finaldate 01jul2016
 
 *IMPORTING A CROSSWALK FOR FIPS CODES, STATE NAMES, AND STATE ABBREVIATIONS
 *Importing and "loading in" the crosswalk
-import excel using ${raw}FIPS_crosswalk.xlsx, clear firstrow
+import excel using ${raw}FIPS_crosswalk.xlsx, clear firstrow 
 *Renaming variables
 rename Name statename
 rename FIPSStateNumericCode statefips
@@ -64,7 +64,7 @@ sort locality date
 // save ${exports}VZ_substate_changes.dta, replace
 
 *Exporting to excel spreadsheet format
-export excel using ${exports}VZ_substate_changes.xlsx, replace firstrow(variables) datestring(%td)
+export delim using ${exports}VZ_substate_changes.csv, replace 
 
 * populate the first of the year for the initial mw, if it doesn't exist already
 preserve
@@ -79,7 +79,7 @@ sum year
 local minyear = r(min)
 preserve
 // use ${exports}VZ_state_daily.dta, clear
-import excel ${exports}VZ_state_daily.xlsx, clear firstrow
+import delim ${exports}VZ_state_daily.csv, clear 
 g date2 = date(date, "DMY")
 format date2 %td
 order date2, after(date)
@@ -137,7 +137,7 @@ sort locality date
 // save ${exports}VZ_substate_daily.dta, replace
 
 *Exporting to excel spreadsheet format
-export excel using ${exports}VZ_substate_daily.xlsx, replace firstrow(variables) datestring(%td)
+export delim using ${exports}VZ_substate_daily.csv, replace 
 
 *EXPORTING A MONTHLY DATASET WITH SUBSTATE MINIMUM WAGE
 use `data', clear
@@ -161,7 +161,7 @@ sort locality monthly_date
 // save ${exports}VZ_substate_monthly.dta, replace
 
 *Exporting to excel spreadsheet format
-export excel using ${exports}VZ_substate_monthly.xlsx, replace firstrow(variables) datestring(%tm)
+export delim using ${exports}VZ_substate_monthly.csv, replace 
 
 *EXPORTING A QUARTERLY DATASET WITH SUBSTATE MINIMUM WAGE
 use `data', clear
@@ -186,7 +186,7 @@ sort locality quarterly_date
 // save ${exports}VZ_substate_quarterly.dta, replace
 
 *Exporting to excel spreadsheet format
-export excel using ${exports}VZ_substate_quarterly.xlsx, replace firstrow(varlabels) datestring(%tq)
+export delim using ${exports}VZ_substate_quarterly.csv, replace 
 
 *EXPORTING A YEARLY DATASET WITH STATE MINIMUM WAGES, FEDERAL MININUMUM WAGES, and VZ's FINAL MINIMUM WAGE (based on the higher level between the state and federal minimum wages)
 use `data', clear
@@ -210,7 +210,7 @@ sort locality year
 // save ${exports}VZ_substate_annual.dta, replace
 
 *Exporting to excel spreadsheet format
-export excel using ${exports}VZ_substate_annual.xlsx, replace firstrow(variables) datestring(%ty)
+export delim using ${exports}VZ_substate_annual.csv, replace 
 
 * COMPRESS FILES FOR DISTRIBUTION
 * Substate - Stata
