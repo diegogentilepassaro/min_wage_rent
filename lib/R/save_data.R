@@ -5,33 +5,35 @@ library(dplyr)
 save_data <- function(df, key, filename, logfile = NULL) {
   
   filetype <- substr(filename, nchar(filename) - 2, nchar(filename))
-  dirname <- dirname(filename)
-    
+  dirname  <- dirname(filename)
+  
   df <- check_key(df, key)
   
   if (filetype == "csv") {
     
     fwrite(df, file = filename)
-    sprintf("File %s saved successfully.")
+    sprintf("File %s saved successfully.", filename)
     
   } else if (filetype == "dta") {
     
     write.dta(df, filename)
-    sprintf("File %s saved successfully.")
+    sprintf("File %s saved successfully.", filename)
     
   } else {
     stop("Incorrect format. Only .csv and .dta are allowed.")
   }
   
   if (!is.null(logfile)) {
-    generate_log_file(df, logfile)
+    generate_log_file(df, key, logfile)
   } else {
-    generate_log_file(df, sprintf("%s/data_file_manifest.log", dirname))
+    generate_log_file(df, key, sprintf("%s/data_file_manifest.log", dirname))
   }
 }
 
 check_key <- function(df, key) {
   
+  df <- as.data.frame(df)
+    
   if (!any(key %in% colnames(df))) {
     
     stop("KeyError: Key variables are not in df.")
@@ -47,12 +49,13 @@ check_key <- function(df, key) {
     df <- df[order(key), ]
     df <- df[reordered_colnames]
     
-    return(df)
+    return(list(df))
   }
 }
 
-generate_log_file <- function(df, filename) {
+generate_log_file <- function(df, key, filename) {
   
+  df <- as.data.frame(df)
   df_summary <- t(sapply(df, summarize_var))
   
   if (!file.exists(filename)) {
@@ -93,16 +96,7 @@ generate_log_file <- function(df, filename) {
 }
 
 summarize_var <- function(x, ...){
-  if (typeof(x) == "character") {
-    
-    c(mean   = "NA",
-      sd     = "NA",
-      median = "NA",
-      min    = "NA",
-      max    = "NA", 
-      n      = "NA",
-      na_count = length(x))
-  } else {
+  if (typeof(x) == "double") {
     
     x_not_na <- x[!is.na(x)]
     
@@ -115,5 +109,15 @@ summarize_var <- function(x, ...){
         n      = length(x_not_na),
         na_count = length(x) - length(x_not_na))
       , 2))
+    
+  } else {
+    
+    c(mean   = "NA",
+      sd     = "NA",
+      median = "NA",
+      min    = "NA",
+      max    = "NA", 
+      n      = "NA",
+      na_count = length(x))
   }
 }
