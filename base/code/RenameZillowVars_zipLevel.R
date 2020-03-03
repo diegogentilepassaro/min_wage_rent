@@ -7,13 +7,13 @@ tempdir <- "../temp/"
 outputdir <- "../output/zillow/"
 
 # Import custom functions
-source(paste0(lib, 'check_packages.R'))
+source(paste0(lib, 'load_packages.R'))
 source(paste0(lib, 'fwrite_key.R'))
 source(paste0(lib, 'setkey_unique.R'))
 
 
 # Import libraries
-check_packages(c('tidyverse', 'data.table'))
+load_packages(c('tidyverse', 'data.table'))
 
 main <- function() {
    rename_zillow_vars()

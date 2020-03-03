@@ -9,12 +9,12 @@ outputdir <- "../output/"
 tempdir <- "../temp/"
 
 # Import custom functions
-source(paste0(lib, 'check_packages.R'))
+source(paste0(lib, 'load_packages.R'))
 source(paste0(lib, 'fwrite_key.R'))
 source(paste0(lib, 'setkey_unique.R'))
 
 # Import libraries
-check_packages(c('tidyverse', 'data.table', 'matrixStats'))
+load_packages(c('tidyverse', 'data.table', 'matrixStats'))
 
 
 main <- function(){
@@ -88,9 +88,13 @@ assemble_data <- function(l) {
 }
 
 create_minwage_eventvars <- function(x){
-   x[,min_actual_mw:= rowMaxs(as.matrix(x[,c('min_fed_mw', 'min_state_mw', 'min_county_mw', 'min_local_mw')]), na.rm = T)][,min_actual_mw:= ifelse(min_actual_mw==-Inf, NA, min_actual_mw)]
-   x[,mean_actual_mw:= rowMaxs(as.matrix(x[,c('mean_fed_mw', 'mean_state_mw', 'mean_county_mw', 'mean_local_mw')]), na.rm = T)][,mean_actual_mw:= ifelse(mean_actual_mw==-Inf, NA, mean_actual_mw)]
-   x[,max_actual_mw:= rowMaxs(as.matrix(x[,c('max_fed_mw', 'max_state_mw', 'max_county_mw', 'max_local_mw')]), na.rm = T)][,max_actual_mw:= ifelse(max_actual_mw==-Inf, NA, max_actual_mw)]
+   min_mwage_vars<-c('min_fed_mw', 'min_state_mw', 'min_county_mw', 'min_local_mw')
+   mean_mwage_vars<-c('mean_fed_mw', 'mean_state_mw', 'mean_county_mw', 'mean_local_mw')
+   max_mwage_vars<-c('max_fed_mw', 'max_state_mw', 'max_county_mw', 'max_local_mw')
+   
+   x[,min_actual_mw:= rowMaxs(as.matrix(x[,min_mwage_vars]), na.rm = T)][,min_actual_mw:= ifelse(min_actual_mw==-Inf, NA, min_actual_mw)]
+   x[,mean_actual_mw:= rowMaxs(as.matrix(x[,mean_mwage_vars]), na.rm = T)][,mean_actual_mw:= ifelse(mean_actual_mw==-Inf, NA, mean_actual_mw)]
+   x[,max_actual_mw:= rowMaxs(as.matrix(x[,max_mwage_vars]), na.rm = T)][,max_actual_mw:= ifelse(max_actual_mw==-Inf, NA, max_actual_mw)]
    
    
    setorderv(x, cols = c('zipcode', 'date'))

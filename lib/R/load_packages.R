@@ -1,4 +1,4 @@
-check_packages = function(names)
+load_packages = function(names)
 {
   for(name in names)
   {
