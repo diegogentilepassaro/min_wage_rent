@@ -1,7 +1,22 @@
+#source("save_data.R")
+#source("load_packages.R")
+
 library(foreign)
 library(eeptools)
 library(dplyr)
 library(knitr)
+
+load_packages = function(packages_names) {
+  
+  for(name in packages_names) {
+    if (!(name %in% installed.packages())) {
+      install.packages(name)
+    }
+    
+    library(name, character.only = TRUE)
+  }
+}
+
 
 save_data <- function(df, key, filename, logfile = NULL) {
   
@@ -34,7 +49,7 @@ save_data <- function(df, key, filename, logfile = NULL) {
 check_key <- function(df, key) {
   
   df <- as.data.frame(df)
-    
+  
   if (!any(key %in% colnames(df))) {
     
     stop("KeyError: Key variables are not in df.")
@@ -44,7 +59,7 @@ check_key <- function(df, key) {
     stop("KeyError: Key variables do not uniquely identify observations.")
     
   } else {
-
+    
     reordered_colnames <- c(key, colnames(df[!colnames(df) %in% grep(paste0(key, collapse = "|"), key, value = T)]))
     
     df <- df[order(key), ]
@@ -67,7 +82,8 @@ generate_log_file <- function(df, key, filename) {
     writeLines(sprintf("Filename: %s", filename), logfile)
     writeLines(sprintf("Key: %s\n", paste(key, collapse = ", ")), logfile)
     writeLines(kable(df_summary), logfile)
-
+    writeLines("\n", logfile)
+    
     writeLines("=====================================================\n", logfile)
     
   } else {
@@ -79,16 +95,18 @@ generate_log_file <- function(df, key, filename) {
     logfile <- file(filename, open = "w")
     
     writeLines(old_logfile_content, logfile)
-
+    writeLines("\n \n", logfile)
+    
     writeLines("=====================================================\n", logfile)
     
     writeLines(sprintf("Filename: %s", filename), logfile)
     writeLines(sprintf("Key: %s\n", paste(key, collapse = ", ")), logfile)
     writeLines(kable(df_summary), logfile)
-
+    writeLines("\n", logfile)
+    
     writeLines("=====================================================\n", logfile)
   }  
-
+  
   close(logfile)
   print("Log file generated successfully.")
 }
