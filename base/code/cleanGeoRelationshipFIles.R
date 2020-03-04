@@ -1,7 +1,3 @@
-#' This script cleans relationship files to crosswalk between US geogrpahies
-# if (getwd()!= dirname(rstudioapi::getSourceEditorContext()$path)) setwd(dirname(rstudioapi::getSourceEditorContext()$path))
-
-
 dir.create("../output/census/")
 
 # Set dependencies
