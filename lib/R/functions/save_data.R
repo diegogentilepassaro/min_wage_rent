@@ -30,7 +30,6 @@ save_data <- function(df, key, filename, logfile = NULL) {
   } else {
     generate_log_file(df, key, filename, sprintf("%s/data_file_manifest.log", dir))
   }
-  print("Log file generated successfully.")
 }
 
 check_key <- function(df, key) {
@@ -61,14 +60,14 @@ generate_log_file <- function(df, key, filename, logname) {
   dim_df <- dim(df)
   
   df <- as.data.frame(df)
-  
+
   skim_vars <- c("skim_variable", "skim_type", "n_missing", 
-                 "character.min", "character.max", "character.empty", "character.n_unique",
-                 "numeric.mean", "numeric.sd")
+                 "character.min", "character.max", "character.n_unique",
+                 "numeric.mean", "numeric.sd", "numeric.p0", "numeric.p50", "numeric.p100")
   df_summary <- as.data.frame(suppressWarnings(skim(df)[skim_vars]))
   
-  colnames(df_summary) <- c("var", "type", "n_missing", "char.min", "char.max", "char.empty", 
-                            "char.n_unique", "num.mean", "num.sd")
+  colnames(df_summary) <- c("var", "type", "n_NA", "ch.min", "ch.max", "char.n_unique", 
+                            "num.mean", "num.sd", "num.p0", "num.p50", "num.p100")
   
   if (!file.exists(logname)) {
     logfile <- file(logname, open = "w")
@@ -103,7 +102,8 @@ generate_log_file <- function(df, key, filename, logname) {
     
     writeLines("=========================================================================================\n", logfile)
   }  
-
+  
+  print("Log file generated successfully.")
   close(logfile)
 }
 
