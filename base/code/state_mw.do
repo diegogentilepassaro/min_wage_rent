@@ -3,63 +3,67 @@ clear all
 
 *SETTING GLOBAL DIRECTORIES
 cap mkdir "../output/min_wage/"
-global raw "../../raw_data/min_wage/"
-global exports "../output/min_wage/"
-global temp "../temp/"
 
+program main
+	
+	local raw "../../raw_data/min_wage/"
+	local exports "../output/min_wage/"
+	local temp "../temp/"
 
-
-program main 	
-	import_crosswalk
+	import_crosswalk, instub(`raw') outstub(`temp')
 	local fips = r(fips)
-	fed_min_wage_change "VZ_FederalMinimumWage_Changes"
-	add_state_to_fedmw "`fips'"
-	state_min_wage_change "VZ_StateMinimumWage_Changes"
+
+	fed_min_wage_change, instub(`raw') outstub(`exports') 
+	add_state_to_fedmw,  fips("`fips'") outstub(`temp')
+	state_min_wage_change, instub(`raw') outstub(`exports') temp(`temp')
 	
-	prepare_finaldata 01may1974 01jul2016
+	prepare_finaldata, begindate(01may1974) finaldate(01jul2016)           ///
+					   outstub(`temp') temp(`temp')
 	
-	export_state_daily
-	export_state_monthly	
-	export_state_quarterly
-	export_state_annually
+	export_state_daily,     instub(`temp') outstub(`exports')
+	export_state_monthly,   instub(`temp') outstub(`exports')
+	export_state_quarterly, instub(`temp') outstub(`exports')
+	export_state_annually,  instub(`temp') outstub(`exports')
 end
 
 program import_crosswalk, rclass
-	import excel using ${raw}FIPS_crosswalk.xlsx, clear firstrow
-	rename Name statename
-	rename FIPSStateNumericCode statefips
-	rename OfficialUSPSCode stateabb
-	replace stateabb = upper(stateabb)
-	keep statename statefips stateabb
-	label var stateabb "State Abbreviation"
+	syntax, instub(str) outstub(str)
 
-	save ${temp}crosswalk.dta, replace
+	import excel using `instub'FIPS_crosswalk.xlsx, clear firstrow
+	rename (Name       FIPSStateNumericCode  OfficialUSPSCode)           ///
+		   (statename  statefips             stateabb)
+	drop sname
+
+	replace stateabb = upper(stateabb)
+	label var stateabb "State Abbreviation"
+	
+	save_data `outstub'crosswalk.dta, replace key(statename) log(none)
 
 	levelsof statefips, local(fips)
 	return local fips "`fips'"
 end
 
 program fed_min_wage_change
-	args fedfile
-	import excel using ${raw}`fedfile'.xlsx, clear firstrow
+	syntax, instub(str) outstub(str)
+
+	import excel using `instub'VZ_FederalMinimumWage_Changes.xlsx, clear firstrow
 	rename Fed_mw fed_mw
 	keep year month day fed_mw source
 
-	gen date = mdy(month,day,year)
+	gen date = mdy(month, day, year)
 	format date %td
 
-	rename fed_mw old_fed_mw
-	gen double fed_mw = round(old_fed_mw, .01)
-	drop old_fed_mw
+	replace fed_mw = round(fed_mw, .01)
 	label var fed_mw "Federal Minimum Wage"
+
 	order year month day date fed_mw source
 
-	sort date
-	export delim using ${exports}VZ_federal_changes.csv, replace
+	isid date, sort
+	export delim using `outstub'VZ_federal_changes.csv, replace
 end
 
 program add_state_to_fedmw
-	args fips 
+	syntax, fips(str) outstub(str)
 	
 	tsset date
 	tsfill
@@ -70,7 +74,6 @@ program add_state_to_fedmw
 
 	tempfile temp
 	save `temp'
-	di "`fips'"
 	
 	foreach i in `fips' {
 		use `temp', clear
@@ -84,23 +87,23 @@ program add_state_to_fedmw
 	}
 
 	compress
-	save ${temp}fedmw.dta, replace
-
+	save `outstub'fedmw.dta, replace
 end
 
 program state_min_wage_change 
-	args states
-	import excel using ${raw}`states'.xlsx, clear firstrow
+	syntax, instub(str) outstub(str) temp(str)
+
+	import excel using `instub'VZ_StateMinimumWage_Changes.xlsx, clear firstrow
 
 	gen date = mdy(month,day,year)
 	format date %td
 
 	gen double mw = round(VZ_mw, .01)
 	gen double mw_healthinsurance = round(VZ_mw_healthinsurance, .01)
-	gen double mw_smallbusiness = round(VZ_mw_smallbusiness, .01)
+	gen double mw_smallbusiness   = round(VZ_mw_smallbusiness, .01)
 	drop VZ_mw*
 
-	merge m:1 statefips using ${temp}crosswalk.dta, nogen assert(3)
+	merge m:1 statefips using `temp'crosswalk.dta, nogen assert(3)
 
 	order statefips statename stateabb year month day date mw* source source_2 source_notes
 	label var statefips "State FIPS Code"
@@ -108,7 +111,8 @@ program state_min_wage_change
 
 	sort stateabb date
 	
-	export delim using ${exports}VZ_state_changes.csv, replace 
+	isid statefips date, sort
+	export delim using `outstub'VZ_state_changes.csv, replace 
 
 	tsset statefips date
 	tsfill
@@ -116,19 +120,18 @@ program state_min_wage_change
 	keep statefips date mw* source_notes
 
 	foreach x of varlist source_notes {
-	  bysort statefips (date): replace `x' = `x'[_n-1] if `x' == ""
+		bysort statefips (date): replace `x' = `x'[_n-1] if `x' == ""
 	}
 	foreach x of varlist mw* {
-	  bysort statefips (date): replace `x' = `x'[_n-1] if `x' == .
+		bysort statefips (date): replace `x' = `x'[_n-1] if `x' == .
 	}
-
 end 
 
 program prepare_finaldata	
-	args begindate finaldate
+	syntax, begindate(str) finaldate(str) outstub(str) temp(str)
 
-	merge 1:1 statefips date using ${temp}fedmw.dta, nogenerate
-	merge m:1 statefips using ${temp}crosswalk.dta, nogen assert(3)
+	merge 1:1 statefips date using `temp'fedmw.dta, nogenerate
+	merge m:1 statefips using `temp'crosswalk.dta, nogen assert(3)
 
 	gen mw_adj = mw
 	replace mw_adj = fed_mw if fed_mw >= mw & fed_mw ~= .
@@ -142,93 +145,91 @@ program prepare_finaldata
 	label var mw "State Minimum Wage"
 	notes mw: The mw variable represents the higher rate between the state and federal minimum wage
 
-	save ${temp}data.dta, replace
+	save_data `outstub'data.dta, replace key(statefips date) log(none)
 end
 
-
 program export_state_daily
-	use ${temp}data.dta, clear
+	syntax, instub(str) outstub(str)
 
-	sort stateabb date
+	use `instub'data.dta, clear
 
-	export delim using ${exports}VZ_state_daily.csv, replace 
-
+	isid stateabb date, sort
+	export delim using `outstub'VZ_state_daily.csv, replace 
 end
 
 program export_state_monthly
-	use ${temp}data.dta, clear
+	syntax, instub(str) outstub(str)
+
+	use `instub'data.dta, clear
 
 	gen monthly_date = mofd(date)
 	format monthly_date %tm
 
-	collapse (min) min_fed_mw = fed_mw min_mw = mw (mean) mean_fed_mw = fed_mw mean_mw = mw (max) max_fed_mw = fed_mw max_mw = mw, by(statefips statename stateabb monthly_date)
+	collapse (min) min_fed_mw = fed_mw min_mw = mw           ///
+	         (mean) mean_fed_mw = fed_mw mean_mw = mw        ///
+	         (max) max_fed_mw = fed_mw max_mw = mw,          ///
+	         by(statefips statename stateabb monthly_date)
 
 	label var monthly_date "Monthly Date"
-	label var min_fed_mw "Monthly Federal Minimum"
-	label var min_mw "Monthly State Minimum"
+	label_mw_vars, time_level("Monthly")
 
-	label var mean_fed_mw "Monthly Federal Average"
-	label var mean_mw "Monthly State Average"
-
-	label var max_fed_mw "Monthly Federal Maximum"
-	label var max_mw "Monthly State Maximum"
-
-	sort stateabb monthly_date
-
-	export delim using ${exports}VZ_state_monthly.csv, replace
+	isid stateabb monthly_date, sort
+	export delim using `outstub'VZ_state_monthly.csv, replace
 end
 
 program export_state_quarterly
-	use ${temp}data.dta, clear
+	syntax, instub(str) outstub(str)
+
+	use `instub'data.dta, clear
 
 	gen quarterly_date = qofd(date)
 	format quarterly_date %tq
 
-
-	collapse (min) min_fed_mw = fed_mw min_mw = mw (mean) mean_fed_mw = fed_mw mean_mw = mw (max) max_fed_mw = fed_mw max_mw = mw, by(statefips statename stateabb quarterly_date)
+	collapse (min) min_fed_mw = fed_mw min_mw = mw           ///
+	         (mean) mean_fed_mw = fed_mw mean_mw = mw        ///
+	         (max) max_fed_mw = fed_mw max_mw = mw,          ///
+	         by(statefips statename stateabb quarterly_date)
 
 	label var quarterly_date "Quarterly Date"
-	label var min_fed_mw "Quarterly Federal Minimum"
-	label var min_mw "Quarterly State Minimum"
-
-	label var mean_fed_mw "Quarterly Federal Average"
-	label var mean_mw "Quarterly State Average"
-
-	label var max_fed_mw "Quarterly Federal Maximum"
-	label var max_mw "Quarterly State Maximum"
+	label_mw_vars, time_level("Quarterly")
 
 	sort stateabb quarterly_date
 
-	export delim using ${exports}VZ_state_quarterly.csv, replace 
+	export delim using `outstub'VZ_state_quarterly.csv, replace 
 end
 
 program export_state_annually
-	use ${temp}data.dta, clear
+	syntax, instub(str) outstub(str)
+
+	use `instub'data.dta, clear
 
 	gen year = yofd(date)
 	format year %ty
 
-	collapse (min) min_fed_mw = fed_mw min_mw = mw (mean) mean_fed_mw = fed_mw mean_mw = mw (max) max_fed_mw = fed_mw max_mw = mw, by(statefips statename stateabb year)
+	collapse (min) min_fed_mw = fed_mw min_mw = mw           ///
+	         (mean) mean_fed_mw = fed_mw mean_mw = mw        ///
+	         (max) max_fed_mw = fed_mw max_mw = mw,          ///
+	         by(statefips statename stateabb year)
 
 	label var year "Year"
-	label var min_fed_mw "Annual Federal Minimum"
-	label var min_mw "Annual State Minimum"
-
-	label var mean_fed_mw "Annual Federal Average"
-	label var mean_mw "Annual State Average"
-
-	label var max_fed_mw "Annual Federal Maximum"
-	label var max_mw "Annual State Maximum"
+	label_mw_vars, time_level("Annual")
 
 	sort stateabb year
 
-	export delim using ${exports}VZ_state_annual.csv, replace 
+	export delim using `outstub'VZ_state_annual.csv, replace 
 end
 
+program label_mw_vars
+	syntax, time_level(str)
 
+	label var min_fed_mw  "`time_level' Federal Minimum"
+	label var min_mw      "`time_level' State Minimum"
 
+	label var mean_fed_mw "`time_level' Federal Average"
+	label var mean_mw     "`time_level' State Average"
 
-
-
+	label var max_fed_mw  "`time_level' Federal Maximum"
+	label var max_mw      "`time_level' State Maximum"	
+end
 
 main 
