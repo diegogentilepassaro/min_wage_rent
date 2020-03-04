@@ -1,25 +1,20 @@
 set more off
 clear all
-cd "C:\Users\el_he\Documents\GitHub\min_wage_rent\base\code"
 
 *SETTING GLOBAL DIRECTORIES
 cap mkdir "../output/min_wage/"
-
-	global raw "../../raw_data/min_wage/"
-	global exports "../output/min_wage/"
-	global temp "../temp/"
 
 program main
 	
 	local raw "../../raw_data/min_wage/"
 	local exports "../output/min_wage/"
 	local temp "../temp/"
-	
+
 	import_crosswalk, instub(`raw') outstub(`temp')
 	local fips = r(fips)
 
 	fed_min_wage_change, instub(`raw') outstub(`exports') 
-	add_state_to_fedmw, fips("`fips'") outstub(`temp')
+	add_state_to_fedmw,  fips("`fips'") outstub(`temp')
 	state_min_wage_change, instub(`raw') outstub(`exports') temp(`temp')
 	
 	prepare_finaldata, begindate(01may1974) finaldate(01jul2016)           ///
@@ -227,15 +222,14 @@ end
 program label_mw_vars
 	syntax, time_level(str)
 
-	label var min_fed_mw "`time_level' Federal Minimum"
-	label var min_mw "`time_level' State Minimum"
+	label var min_fed_mw  "`time_level' Federal Minimum"
+	label var min_mw      "`time_level' State Minimum"
 
 	label var mean_fed_mw "`time_level' Federal Average"
-	label var mean_mw "`time_level' State Average"
+	label var mean_mw     "`time_level' State Average"
 
-	label var max_fed_mw "`time_level' Federal Maximum"
-	label var max_mw "`time_level' State Maximum"	
+	label var max_fed_mw  "`time_level' Federal Maximum"
+	label var max_mw      "`time_level' State Maximum"	
 end
-
 
 main 
