@@ -8,17 +8,25 @@ datadir <- '../../raw_data/census/'
 tempdir <- "../temp/"
 outputdir <- "../output/census/"
 
+# Import custom functions
+source(paste0(lib, 'load_packages.R'))
+source(paste0(lib, 'fwrite_key.R'))
+source(paste0(lib, 'setkey_unique.R'))
+
+
+# Import libraries
+load_packages(c('tidyverse', 'data.table', 'tidycensus'))
 
 main <- function(){
-   clean_2010census_gazzetter_file()
-   clean_zip_place_relantionship_file()
-   clean_zip_county_relantionship_file()
+   clean_2010census_gazzetter_file('Gaz_places_national.txt')
+   clean_zip_place_relantionship_file('zcta_place_rel_10.txt')
+   clean_zip_county_relantionship_file('zcta_county_rel_10.txt')
 }
 
 
-clean_2010census_gazzetter_file <- function(){
+clean_2010census_gazzetter_file <- function(filename){
+   places10 <- fread(paste0(datadir, filename))  
    
-   places10 <- fread(paste0(datadir, 'Gaz_places_national.txt'))  
    places10 <- places10[USPS!='PR',]                                 
    places10[,GEOID:=str_pad(as.character(GEOID), 7, pad = "0")]
    places10[, c('state', 'place') := .((substr(GEOID, 1, 2)), (substr(GEOID, 3, 7)))]
@@ -34,9 +42,9 @@ clean_2010census_gazzetter_file <- function(){
 }
 
 
-clean_zip_place_relantionship_file <- function(){
-   
-   zctaPlace10 <- fread(paste0(datadir,'zcta_place_rel_10.txt'))
+clean_zip_place_relantionship_file <- function(filename){
+   zctaPlace10 <- fread(paste0(datadir,filename))
+
    zctaPlace10[,c('ZCTA5', 'PLACE'):= .(str_pad(as.character(ZCTA5),5 , pad = '0'), str_pad(as.character(PLACE),5, pad = '0'))]
    zctaPlace10[,STATE := str_pad(as.character(STATE), 2, pad = "0")]
    zcta_newvars <- c('zipcode', 'place', 'state', 'zippop10', 'relpop10', 'zippctpop10', 'placepctpop10', 'ziphouse10', 'zippcthouse10', 'placehouse10', 'placepcthouse10', 'zippctland')
@@ -52,8 +60,8 @@ clean_zip_place_relantionship_file <- function(){
 
 
 clean_zip_county_relantionship_file <- function() {
-   
    zctaCounty10 <- fread(paste0(datadir,'zcta_county_rel_10.txt'))
+
    county_newvars <- c('zipcode', 'state', 'county', 'zippctpop10', 'zippcthouse10', 'zippctland')
    setnames(zctaCounty10, old = c('ZCTA5', 'STATE', 'COUNTY', 'ZPOPPCT', 'ZHUPCT', 'ZAREALANDPCT'), new = county_newvars)
    zctaCounty10 <- zctaCounty10[,..county_newvars]

@@ -1,273 +1,236 @@
-*TITLE: HISTORICAL MINIMUM WAGES, Expanding the VZ Daily Minimum Wage Changes File
-*Date Created: 12.04.2015
-*Date Edited: 08.29.2016
-
-*Description: This .do file expands the VZ daily minimum wage changes by state file and merges it with a daily federal minimum wage changes file.
-
 set more off
 clear all
+adopath + ../../lib/stata/gslab_misc/ado
 
 *SETTING GLOBAL DIRECTORIES
-*You will need to change the $home directory to an appropriate value.
 cap mkdir "../output/min_wage/"
-// global home "C:/Users/gabriel/Desktop/VZ_historicalminwage-master/"
-global raw "../../raw_data/min_wage/"
-global exports "../output/min_wage/"
-// global release "${home}release/"
 
-local federal "VZ_FederalMinimumWage_Changes"
-local states "VZ_StateMinimumWage_Changes"
+program main
+	local raw "../../raw_data/min_wage/"
+	local exports "../output/min_wage/"
+	local temp "../temp/"
 
-local begindate 01may1974
-local finaldate 01jul2016
+	import_crosswalk, instub(`raw') outstub(`temp')
+	local fips = r(fips)
 
+	fed_min_wage_change, instub(`raw') outstub(`exports') 
+	add_state_to_fedmw,  fips("`fips'") outstub(`temp')
+	state_min_wage_change, instub(`raw') outstub(`exports') temp(`temp')
+	
+	prepare_finaldata, begindate(01may1974) finaldate(01jul2016)           ///
+					   outstub(`temp') temp(`temp')
+	
+	export_state_daily,     instub(`temp') outstub(`exports')
+	export_state_monthly,   instub(`temp') outstub(`exports')
+	export_state_quarterly, instub(`temp') outstub(`exports')
+	export_state_annually,  instub(`temp') outstub(`exports')
+end
 
-*IMPORTING A CROSSWALK FOR FIPS CODES, STATE NAMES, AND STATE ABBREVIATIONS
-*Importing and "loading in" the crosswalk
-import excel using ${raw}FIPS_crosswalk.xlsx, clear firstrow
+program import_crosswalk, rclass
+	syntax, instub(str) outstub(str)
 
-*Renaming variables
-rename Name statename
-rename FIPSStateNumericCode statefips
-rename OfficialUSPSCode stateabb
-replace stateabb = upper(stateabb)
-keep statename statefips stateabb
-label var stateabb "State Abbreviation"
-*Saving crosswalk as a temporary file
-tempfile crosswalk
-save `crosswalk'
-*Storing the levels of State FIPS for use in expanding the federal file
-levelsof statefips, local(fips)
+	import excel using `instub'FIPS_crosswalk.xlsx, clear firstrow
+	rename (Name       FIPSStateNumericCode  OfficialUSPSCode)           ///
+		   (statename  statefips             stateabb)
+	drop sname
 
-*PREPARING THE FEDERAL MINIMUM WAGE CHANGES FILE
-*Loading in the VZ federal minimum wage data
-import excel using ${raw}`federal'.xlsx, clear firstrow
-rename Fed_mw fed_mw
-keep year month day fed_mw source
+	replace stateabb = upper(stateabb)
+	label var stateabb "State Abbreviation"
+	
+	save_data `outstub'crosswalk.dta, replace key(statename) log(none)
 
-*Creating a daily date variable
-gen date = mdy(month,day,year)
-format date %td
+	levelsof statefips, local(fips)
+	return local fips "`fips'"
+end
 
-rename fed_mw old_fed_mw
-gen double fed_mw = round(old_fed_mw, .01)
-drop old_fed_mw
-label var fed_mw "Federal Minimum Wage"
-order year month day date fed_mw source
+program fed_min_wage_change
+	syntax, instub(str) outstub(str)
 
-*Exporting to Stata .dta file
-sort date
-// save ${exports}VZ_federal_changes.dta, replace
+	import excel using `instub'VZ_FederalMinimumWage_Changes.xlsx, clear firstrow
+	rename Fed_mw fed_mw
+	keep year month day fed_mw source
 
-*Exporting to excel spreadsheet format
-export delim using ${exports}VZ_federal_changes.xlsx, replace firstrow(variables) datestring(%td)
+	gen date = mdy(month, day, year)
+	format date %td
 
-*Expanding the date variable
-tsset date
-tsfill
+	replace fed_mw = round(fed_mw, .01)
+	label var fed_mw "Federal Minimum Wage"
 
-*Filling in the missing parts of the data
-carryforward year month day fed_mw, replace
+	order year month day date fed_mw source
 
-*Dropping the year, month, and date variables and rearranging order of dataset
-keep date fed_mw
+	isid date, sort
+	export delim using `outstub'VZ_federal_changes.csv, replace
+end
 
-*Creating a loop to add State FIPS codes to the federal minimum wage daily file so that we can create a file that has the federal minimum wage changes per state
-tempfile temp
-save `temp'
+program add_state_to_fedmw
+	syntax, fips(str) outstub(str)
+	
+	tsset date
+	tsfill
 
-foreach i in `fips' {
-	use `temp', clear
-	gen statefips = `i'
-	tempfile state`i'
-	save `state`i''
-}
+	carryforward year month day fed_mw, replace
 
-foreach i in `fips' {
-	if `i' == 1 use `state`i'', clear
-	else quietly append using `state`i''
-}
+	keep date fed_mw
 
-*Saving a tempfile
-compress
-tempfile fedmw
-save `fedmw'
+	tempfile temp
+	save `temp'
+	
+	foreach i in `fips' {
+		use `temp', clear
+		gen statefips = `i'
+		tempfile state`i'
+		save `state`i''
+	}
+	foreach i in `fips' {
+		if `i' == 1 use `state`i'', clear
+		else quietly append using `state`i''
+	}
 
+	compress
+	save `outstub'fedmw.dta, replace
+end
 
-*PREPARING THE STATE MINIMUM WAGE CHANGES FILE
-*Loading in the VZ State by State minimum wage data
-import excel using ${raw}`states'.xlsx, clear firstrow
+program state_min_wage_change 
+	syntax, instub(str) outstub(str) temp(str)
 
-*Creating a daily date variable
-gen date = mdy(month,day,year)
-format date %td
+	import excel using `instub'VZ_StateMinimumWage_Changes.xlsx, clear firstrow
 
-gen double mw = round(VZ_mw, .01)
-gen double mw_healthinsurance = round(VZ_mw_healthinsurance, .01)
-gen double mw_smallbusiness = round(VZ_mw_smallbusiness, .01)
-drop VZ_mw*
+	gen date = mdy(month,day,year)
+	format date %td
 
-merge m:1 statefips using `crosswalk', nogen assert(3)
+	gen double mw = round(VZ_mw, .01)
+	gen double mw_healthinsurance = round(VZ_mw_healthinsurance, .01)
+	gen double mw_smallbusiness   = round(VZ_mw_smallbusiness, .01)
+	drop VZ_mw*
 
-order statefips statename stateabb year month day date mw* source source_2 source_notes
-label var statefips "State FIPS Code"
-label var statename "State"
+	merge m:1 statefips using `temp'crosswalk.dta, nogen assert(3)
 
-*Exporting to Stata .dta file
-sort stateabb date
-// save ${exports}VZ_state_changes.dta, replace
+	order statefips statename stateabb year month day date mw* source source_2 source_notes
+	label var statefips "State FIPS Code"
+	label var statename "State"
 
-*Exporting to excel spreadsheet format
-export delim using ${exports}VZ_state_changes.xlsx, replace firstrow(variables) datestring(%td)
+	sort stateabb date
+	
+	isid statefips date, sort
+	export delim using `outstub'VZ_state_changes.csv, replace 
 
-*Expanding the date variable
-tsset statefips date
-tsfill
+	tsset statefips date
+	tsfill
 
-keep statefips date mw* source_notes
+	keep statefips date mw* source_notes
 
-*Filling in the missing parts of the data
-foreach x of varlist source_notes {
-  bysort statefips (date): replace `x' = `x'[_n-1] if `x' == ""
-}
-foreach x of varlist mw* {
-  bysort statefips (date): replace `x' = `x'[_n-1] if `x' == .
-}
+	foreach x of varlist source_notes {
+		bysort statefips (date): replace `x' = `x'[_n-1] if `x' == ""
+	}
+	foreach x of varlist mw* {
+		bysort statefips (date): replace `x' = `x'[_n-1] if `x' == .
+	}
+end 
 
+program prepare_finaldata	
+	syntax, begindate(str) finaldate(str) outstub(str) temp(str)
 
-*MERGING THE FEDERAL AND THE STATE BY STATE DATA SET TO FIND WHERE FEDERAL MINIMUM WAGE SUPERCEDES THE STATE MINIMUM WAGE LEVEL
-*Merging the federal and the state change data together
-merge 1:1 statefips date using `fedmw', nogenerate
-merge m:1 statefips using `crosswalk', nogen assert(3)
+	merge 1:1 statefips date using `temp'fedmw.dta, nogenerate
+	merge m:1 statefips using `temp'crosswalk.dta, nogen assert(3)
 
-*Picking the higher minimum wage or replacing the missing minimum wages with the Federal minimum wage
-gen mw_adj = mw
-replace mw_adj = fed_mw if fed_mw >= mw & fed_mw ~= .
-replace mw_adj = fed_mw if mw == . & fed_mw ~= .
-drop mw
-rename mw_adj mw
+	gen mw_adj = mw
+	replace mw_adj = fed_mw if fed_mw >= mw & fed_mw ~= .
+	replace mw_adj = fed_mw if mw == . & fed_mw ~= .
+	drop mw
+	rename mw_adj mw
 
-*Keeping overlapping data only (May 1, 1974 to July 1, 2016)
-keep if date >= td(`begindate') & date <= td(`finaldate')
+	keep if date >= td(`begindate') & date <= td(`finaldate')
 
-order statefips statename stateabb date fed_mw mw
-label var mw "State Minimum Wage"
-notes mw: The mw variable represents the higher rate between the state and federal minimum wage
+	order statefips statename stateabb date fed_mw mw
+	label var mw "State Minimum Wage"
+	notes mw: The mw variable represents the higher rate between the state and federal minimum wage
 
-*Saving a temporary file
-tempfile data
-save `data'
+	save_data `outstub'data.dta, replace key(statefips date) log(none)
+end
 
-*EXPORTING A DAILY DATASET WITH STATE MINIMUM WAGES, FEDERAL MININUMUM WAGES, and VZ's FINAL MINIMUM WAGE (based on the higher level between the state and federal minimum wages)
-use `data', clear
-*Exporting to Stata .dta file
-sort stateabb date
-// save ${exports}VZ_state_daily.dta, replace
+program export_state_daily
+	syntax, instub(str) outstub(str)
 
-*Exporting to excel spreadsheet format
-export delim using ${exports}VZ_state_daily.xlsx, replace firstrow(variables) datestring(%td)
+	use `instub'data.dta, clear
 
-*EXPORTING A MONTHLY DATASET WITH STATE MINIMUM WAGES, FEDERAL MININUMUM WAGES, and VZ's FINAL MINIMUM WAGE (based on the higher level between the state and federal minimum wages)
-use `data', clear
+	isid stateabb date, sort
+	export delim using `outstub'VZ_state_daily.csv, replace 
+end
 
-*Creating a monthly date variables
-gen monthly_date = mofd(date)
-format monthly_date %tm
+program export_state_monthly
+	syntax, instub(str) outstub(str)
 
-*Collapsing the data by the monthly date to get lowest, mean, and highest minimum wages for each month.
-collapse (min) min_fed_mw = fed_mw min_mw = mw (mean) mean_fed_mw = fed_mw mean_mw = mw (max) max_fed_mw = fed_mw max_mw = mw, by(statefips statename stateabb monthly_date)
+	use `instub'data.dta, clear
 
-*Labeling variables
-label var monthly_date "Monthly Date"
-label var min_fed_mw "Monthly Federal Minimum"
-label var min_mw "Monthly State Minimum"
+	gen monthly_date = mofd(date)
+	format monthly_date %tm
 
-label var mean_fed_mw "Monthly Federal Average"
-label var mean_mw "Monthly State Average"
+	collapse (min) min_fed_mw = fed_mw min_mw = mw           ///
+	         (mean) mean_fed_mw = fed_mw mean_mw = mw        ///
+	         (max) max_fed_mw = fed_mw max_mw = mw,          ///
+	         by(statefips statename stateabb monthly_date)
 
-label var max_fed_mw "Monthly Federal Maximum"
-label var max_mw "Monthly State Maximum"
+	label var monthly_date "Monthly Date"
+	label_mw_vars, time_level("Monthly")
 
-*Exporting to Stata .dta file
-sort stateabb monthly_date
-// save ${exports}VZ_state_monthly.dta, replace
+	isid stateabb monthly_date, sort
+	export delim using `outstub'VZ_state_monthly.csv, replace
+end
 
-*Exporting to excel spreadsheet format
-export delim using ${exports}VZ_state_monthly.xlsx, replace firstrow(variables) datestring(%tm)
+program export_state_quarterly
+	syntax, instub(str) outstub(str)
 
-*EXPORTING A QUARTERLY DATASET WITH STATE MINIMUM WAGES, FEDERAL MININUMUM WAGES, and VZ's FINAL MINIMUM WAGE (based on the higher level between the state and federal minimum wages)
-use `data', clear
+	use `instub'data.dta, clear
 
-*Creating a quarterly date variables
-gen quarterly_date = qofd(date)
-format quarterly_date %tq
+	gen quarterly_date = qofd(date)
+	format quarterly_date %tq
 
-*Collapsing the data by the quarterly date to get lowest, mean, and highest minimum wages for each month.
-collapse (min) min_fed_mw = fed_mw min_mw = mw (mean) mean_fed_mw = fed_mw mean_mw = mw (max) max_fed_mw = fed_mw max_mw = mw, by(statefips statename stateabb quarterly_date)
+	collapse (min) min_fed_mw = fed_mw min_mw = mw           ///
+	         (mean) mean_fed_mw = fed_mw mean_mw = mw        ///
+	         (max) max_fed_mw = fed_mw max_mw = mw,          ///
+	         by(statefips statename stateabb quarterly_date)
 
-*Labeling variables
-label var quarterly_date "Quarterly Date"
-label var min_fed_mw "Quarterly Federal Minimum"
-label var min_mw "Quarterly State Minimum"
+	label var quarterly_date "Quarterly Date"
+	label_mw_vars, time_level("Quarterly")
 
-label var mean_fed_mw "Quarterly Federal Average"
-label var mean_mw "Quarterly State Average"
+	sort stateabb quarterly_date
 
-label var max_fed_mw "Quarterly Federal Maximum"
-label var max_mw "Quarterly State Maximum"
+	export delim using `outstub'VZ_state_quarterly.csv, replace 
+end
 
-*Exporting to Stata .dta file
-sort stateabb quarterly_date
-// save ${exports}VZ_state_quarterly.dta, replace
+program export_state_annually
+	syntax, instub(str) outstub(str)
 
-*Exporting to excel spreadsheet format
-export delim using ${exports}VZ_state_quarterly.xlsx, replace firstrow(variables) datestring(%tq)
+	use `instub'data.dta, clear
 
-*EXPORTING A YEARLY DATASET WITH STATE MINIMUM WAGES, FEDERAL MININUMUM WAGES, and VZ's FINAL MINIMUM WAGE (based on the higher level between the state and federal minimum wages)
-use `data', clear
+	gen year = yofd(date)
+	format year %ty
 
-*Creating a yearly date variables
-gen year = yofd(date)
-format year %ty
+	collapse (min) min_fed_mw = fed_mw min_mw = mw           ///
+	         (mean) mean_fed_mw = fed_mw mean_mw = mw        ///
+	         (max) max_fed_mw = fed_mw max_mw = mw,          ///
+	         by(statefips statename stateabb year)
 
-*Collapsing the data by the annual date to get lowest, mean, and highest minimum wages for each month.
-collapse (min) min_fed_mw = fed_mw min_mw = mw (mean) mean_fed_mw = fed_mw mean_mw = mw (max) max_fed_mw = fed_mw max_mw = mw, by(statefips statename stateabb year)
+	label var year "Year"
+	label_mw_vars, time_level("Annual")
 
-*Labeling variables
-label var year "Year"
-label var min_fed_mw "Annual Federal Minimum"
-label var min_mw "Annual State Minimum"
+	sort stateabb year
 
-label var mean_fed_mw "Annual Federal Average"
-label var mean_mw "Annual State Average"
+	export delim using `outstub'VZ_state_annual.csv, replace 
+end
 
-label var max_fed_mw "Annual Federal Maximum"
-label var max_mw "Annual State Maximum"
+program label_mw_vars
+	syntax, time_level(str)
 
-*Exporting to Stata .dta file
-sort stateabb year
-// save ${exports}VZ_state_annual.dta, replace
+	label var min_fed_mw  "`time_level' Federal Minimum"
+	label var min_mw      "`time_level' State Minimum"
 
-*Exporting to excel spreadsheet format
-export delim using ${exports}VZ_state_annual.xlsx, replace firstrow(variables) datestring(%ty)
+	label var mean_fed_mw "`time_level' Federal Average"
+	label var mean_mw     "`time_level' State Average"
 
-*COMPRESS FILES FOR DISTRIBUTION
-* state - Stata
-// !cp ${exports}VZ_state*.dta .
-// zipfile VZ_state_annual.dta VZ_state_quarterly.dta VZ_state_monthly.dta VZ_state_daily.dta VZ_state_changes.dta, saving(VZ_state_stata.zip, replace)
-// !mv VZ_state_stata.zip ${release}
-// rm VZ_state_annual.dta
-// rm VZ_state_quarterly.dta
-// rm VZ_state_monthly.dta
-// rm VZ_state_daily.dta
-// rm VZ_state_changes.dta
+	label var max_fed_mw  "`time_level' Federal Maximum"
+	label var max_mw      "`time_level' State Maximum"	
+end
 
-// * state - Excel
-// !cp ${exports}VZ_state*.xlsx .
-// zipfile VZ_state_annual.xlsx VZ_state_quarterly.xlsx VZ_state_monthly.xlsx VZ_state_daily.xlsx VZ_state_changes.xlsx, saving(VZ_state_excel.zip, replace)
-// !mv VZ_state_excel.zip ${release}
-// rm VZ_state_annual.xlsx
-// rm VZ_state_quarterly.xlsx
-// rm VZ_state_monthly.xlsx
-// rm VZ_state_daily.xlsx
-// rm VZ_state_changes.xlsx
+*EXECUTE
+main 

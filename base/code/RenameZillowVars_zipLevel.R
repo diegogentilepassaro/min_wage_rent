@@ -8,11 +8,9 @@ datadir <- '../../raw_data/zillow/'
 tempdir <- "../temp/"
 outputdir <- "../output/zillow/"
 
-
 main <- function() {
    rename_zillow_vars()
 }
-
 
 rename_zillow_vars <- function(){
    filenames <- list.files(paste0(datadir))
@@ -33,6 +31,5 @@ rename_zillow_vars <- function(){
                 filename = paste0(outputdir, x))
    })
 }
-
 
 main()
