@@ -1,6 +1,3 @@
-#' Add minimum wage data to Zillow data
-# if (getwd()!= dirname(rstudioapi::getSourceEditorContext()$path)) setwd(dirname(rstudioapi::getSourceEditorContext()$path))
-
 # Set dependencies
 lib <- "../../lib/R/"
 datadir_zillow <- '../temp/'
@@ -92,9 +89,9 @@ create_minwage_eventvars <- function(x){
    mean_mwage_vars<-c('mean_fed_mw', 'mean_state_mw', 'mean_county_mw', 'mean_local_mw')
    max_mwage_vars<-c('max_fed_mw', 'max_state_mw', 'max_county_mw', 'max_local_mw')
    
-   x[,min_actual_mw:= rowMaxs(as.matrix(x[,min_mwage_vars]), na.rm = T)][,min_actual_mw:= ifelse(min_actual_mw==-Inf, NA, min_actual_mw)]
-   x[,mean_actual_mw:= rowMaxs(as.matrix(x[,mean_mwage_vars]), na.rm = T)][,mean_actual_mw:= ifelse(mean_actual_mw==-Inf, NA, mean_actual_mw)]
-   x[,max_actual_mw:= rowMaxs(as.matrix(x[,max_mwage_vars]), na.rm = T)][,max_actual_mw:= ifelse(max_actual_mw==-Inf, NA, max_actual_mw)]
+   x[,min_actual_mw:= rowMaxs(as.matrix(x[,..min_mwage_vars]), na.rm = T)][,min_actual_mw:= ifelse(min_actual_mw==-Inf, NA, min_actual_mw)]
+   x[,mean_actual_mw:= rowMaxs(as.matrix(x[,..mean_mwage_vars]), na.rm = T)][,mean_actual_mw:= ifelse(mean_actual_mw==-Inf, NA, mean_actual_mw)]
+   x[,max_actual_mw:= rowMaxs(as.matrix(x[,..max_mwage_vars]), na.rm = T)][,max_actual_mw:= ifelse(max_actual_mw==-Inf, NA, max_actual_mw)]
    
    
    setorderv(x, cols = c('zipcode', 'date'))

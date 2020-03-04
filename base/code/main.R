@@ -5,7 +5,6 @@ unlink("../output", recursive = TRUE)
 dir.create("../temp/")
 dir.create("../output/")
 
-source("../../lib/R/load_packages.R")
 
 source("RenameZillowVars_zipLevel.R")
 rm(list = ls())
