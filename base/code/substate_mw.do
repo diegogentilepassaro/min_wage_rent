@@ -1,11 +1,11 @@
 set more off
 clear all
+adopath + ../../lib/stata/gslab_misc/ado
 
 cap mkdir "../output/min_wage/"
 global raw "../../raw_data/min_wage/"
 global exports "../output/min_wage/"
 global temp "../temp/"
-
 
 program main 
 
@@ -19,11 +19,7 @@ program main
 	export_substate_monthly
 	export_substate_quarterly
 	export_substate_annually
-
-	
-
 end 
-
 
 program import_crosswalk
 	import excel using ${raw}FIPS_crosswalk.xlsx, clear firstrow 
@@ -62,9 +58,7 @@ program substate_min_wage_change
 
 	sort locality date
 	export delim using ${exports}VZ_substate_changes.csv, replace 
-	
 end
-
 
 program prepare_local
 	preserve
@@ -94,8 +88,6 @@ program prepare_state
 	rename mw state_mw
 	save ${temp}statemw.dta, replace
 	restore
-	
-
 end
 
 program prepare_finaldata
@@ -130,13 +122,11 @@ program prepare_finaldata
 	
 end
 
-
 program export_substate_daily	
 		use ${temp}data.dta, clear
 		sort locality date
 		export delim using ${exports}VZ_substate_daily.csv, replace
 end
-
 
 program export_substate_monthly
 	use ${temp}data.dta, clear
@@ -194,8 +184,6 @@ program export_substate_annually
 
 	export delim using ${exports}VZ_substate_annual.csv, replace 
 end
- 
 
-
-
+* EXECUTE
 main 

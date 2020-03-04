@@ -1,11 +1,11 @@
 set more off
 clear all
+adopath + ../../lib/stata/gslab_misc/ado
 
 *SETTING GLOBAL DIRECTORIES
 cap mkdir "../output/min_wage/"
 
 program main
-	
 	local raw "../../raw_data/min_wage/"
 	local exports "../output/min_wage/"
 	local temp "../temp/"
@@ -232,4 +232,5 @@ program label_mw_vars
 	label var max_mw      "`time_level' State Maximum"	
 end
 
+*EXECUTE
 main 
