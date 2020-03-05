@@ -2,13 +2,9 @@ set more off
 clear all
 adopath + ../../lib/stata/gslab_misc/ado
 
-*SETTING DIRECTORIES
-cap mkdir "../output/min_wage/"
-
-
 program main 
 	local raw "../../raw_data/min_wage/"
-	local exports "../output/min_wage/"
+	local exports "../output/"
 	local temp "../temp/"
 
 	import_crosswalk, instub(`raw') outstub(`exports')
@@ -112,7 +108,6 @@ program prepare_finaldata
 	  bysort locality_temp (date): replace `x' = `x'[_n-1] if `x' == .
 	}
 
-
 	keep if date <= td(`finaldate')
 
 	merge 1:m statefips locality date using `temp'statemw.dta, assert(2 3) nogenerate
@@ -126,7 +121,6 @@ program prepare_finaldata
 	notes mw: The mw variable represents the most applicable minimum wage across the locality.
 
 	save `temp'data.dta, replace
-	
 end
 
 program export_substate_daily

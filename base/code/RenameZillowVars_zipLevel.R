@@ -1,13 +1,10 @@
-# Preliminaries
 source("../../lib/R/library.R")
 load_packages(c('tidyverse', 'data.table'))
-
-dir.create("../output/zillow/")
 
 main <- function() {
    
    datadir <- '../../raw_data/zillow/'
-   outputdir <- "../output/zillow/"
+   outputdir <- "../output/"
    
    rename_zillow_vars(infiles = datadir, outdir = outputdir)
 }

@@ -2,12 +2,9 @@ set more off
 clear all
 adopath + ../../lib/stata/gslab_misc/ado
 
-*SETTING GLOBAL DIRECTORIES
-cap mkdir "../output/min_wage/"
-
 program main
 	local raw "../../raw_data/min_wage/"
-	local exports "../output/min_wage/"
+	local exports "../output/"
 	local temp "../temp/"
 
 	import_crosswalk, instub(`raw') outstub(`temp')

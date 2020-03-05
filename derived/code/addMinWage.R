@@ -11,11 +11,11 @@ main <- function(){
    tempdir    <- "../temp/"
    
    data <- load_data(infile_zillow = paste0(tempdir, 'zillow_clean.csv'), 
-                     infile_statemw = paste0(datadir, 'min_wage/VZ_state_monthly.csv'), 
-                     infile_localmw = paste0(datadir, 'min_wage/VZ_substate_monthly.csv'), 
-                     infile_place = paste0(datadir, 'census/places10.csv'), 
-                     infile_county = paste0(datadir,'census/zip_county10.csv'), 
-                     infile_zipplace = paste0(datadir,'census/zip_places10.csv'))
+                     infile_statemw = paste0(datadir, 'VZ_state_monthly.csv'), 
+                     infile_localmw = paste0(datadir, 'VZ_substate_monthly.csv'), 
+                     infile_place = paste0(datadir, 'places10.csv'), 
+                     infile_county = paste0(datadir,'zip_county10.csv'), 
+                     infile_zipplace = paste0(datadir,'zip_places10.csv'))
    
    data <- assemble_data(data)
    

@@ -1,16 +1,14 @@
-# Preliminaries
 source("../../lib/R/library.R")
 load_packages(c('tidyverse', 'data.table', 'tidycensus'))
 
-dir.create("../output/census/")
-
-# Import libraries
-load_packages(c('tidyverse', 'data.table', 'tidycensus'))
+datadir <- '../../raw_data/census/'
+tempdir <- "../temp/"
+outputdir <- "../output/"
 
 main <- function(){
    
    datadir   <- '../../raw_data/census/'
-   outputdir <- "../output/census/"
+   outputdir <- "../output/"
    
    clean_2010census_gazzetter(instub  = paste0(datadir, 'Gaz_places_national.txt'),
                               outstub = paste0(outputdir, 'places10.csv'),
