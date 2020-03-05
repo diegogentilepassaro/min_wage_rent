@@ -12,14 +12,6 @@ from gslab_make.make_link_logs import *
 from gslab_make.run_program import *
 from gslab_make.dir_mod import *
 
-stata_exe = os.environ.get('STATAEXE')
-if stata_exe:
-    import copy
-    default_run_stata = copy.copy(run_stata)
-    def run_stata(**kwargs):
-        kwargs['executable'] = stata_exe
-        default_run_stata(**kwargs)
-
 #****************************************************
 # MAKE.PY STARTS
 #****************************************************
@@ -31,12 +23,10 @@ delete_files('../output/*')
 
 start_make_logging()
 
-# os.system('Rscript RenameZillowVars_zipLevel.R')
-# os.system('Rscript cleanGeoRelationshipFiles.R')
 run_rbatch(program = 'RenameZillowVars_zipLevel.R')
 run_rbatch(program = 'cleanGeoRelationshipFiles.R')
-run_stata(program = 'state_mw.do')
-run_stata(program = 'substate_mw.do')
+run_stata(program = 'state_mw.do', executable = 'stataSE')
+run_stata(program = 'substate_mw.do', executable = 'stataSE')
 
 end_make_logging()
 
