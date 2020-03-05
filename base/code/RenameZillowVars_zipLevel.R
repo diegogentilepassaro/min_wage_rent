@@ -1,13 +1,7 @@
-# this.dir <- dirname(parent.frame(2)$ofile)
-# setwd(this.dir)
-# rm(list = ls())
-# options(scipen=999)
-
 source('../../lib/R/fwrite_key.R')
 source('../../lib/R/setkey_unique.R')
 source('../../lib/R/load_packages.R')
-library(tidyverse)
-library(data.table)
+load_packages(c('tidyverse', 'data.table'))
 
 datadir <- '../../raw_data/zillow/'
 tempdir <- "../temp/"

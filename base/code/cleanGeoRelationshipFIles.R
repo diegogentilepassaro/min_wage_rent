@@ -1,9 +1,7 @@
 source('../../lib/R/fwrite_key.R')
 source('../../lib/R/setkey_unique.R')
 source('../../lib/R/load_packages.R')
-library(tidyverse)
-library(data.table)
-library(tidycensus)
+load_packages(c('tidyverse', 'data.table', 'tidycensus'))
 
 datadir <- '../../raw_data/census/'
 tempdir <- "../temp/"

@@ -1,5 +1,4 @@
 #! /usr/bin/env python
-#! /usr/bin/Rscript
 #****************************************************
 # GET LIBRARY
 #****************************************************
@@ -32,8 +31,10 @@ delete_files('../output/*')
 
 start_make_logging()
 
-os.system('Rscript RenameZillowVars_zipLevel.R')
-os.system('Rscript cleanGeoRelationshipFiles.R')
+# os.system('Rscript RenameZillowVars_zipLevel.R')
+# os.system('Rscript cleanGeoRelationshipFiles.R')
+run_rbatch(program = 'RenameZillowVars_zipLevel.R')
+run_rbatch(program = 'cleanGeoRelationshipFiles.R')
 run_stata(program = 'state_mw.do')
 run_stata(program = 'substate_mw.do')
 
