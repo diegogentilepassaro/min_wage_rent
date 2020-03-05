@@ -23,10 +23,17 @@ delete_files('../output/*')
 
 start_make_logging()
 
+envir_vars = os.getenv('Path')
+if "StataSE" in envir_vars:
+	stata = "StataSE"
+elif "StataMP-64" in envir_vars:
+	stata = "StataMP-64"
+
+
 run_rbatch(program = 'RenameZillowVars_zipLevel.R')
 run_rbatch(program = 'cleanGeoRelationshipFiles.R')
-run_stata(program = 'state_mw.do', executable = 'stataSE')
-run_stata(program = 'substate_mw.do', executable = 'stataSE')
+run_stata(program = 'state_mw.do', executable = stata)
+run_stata(program = 'substate_mw.do', executable = stata)
 
 end_make_logging()
 

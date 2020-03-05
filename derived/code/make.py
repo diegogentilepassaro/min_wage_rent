@@ -23,6 +23,12 @@ delete_files('../output/*')
 
 start_make_logging()
 
+envir_vars = os.getenv('Path')
+if "StataSE" in envir_vars:
+	stata = "StataSE"
+elif "StataMP-64" in envir_vars:
+	stata = "StataMP-64"
+
 run_rbatch(program = 'ReshapeMergeZillow_zip.R')
 run_rbatch(program = 'addMinWage.R')
 
