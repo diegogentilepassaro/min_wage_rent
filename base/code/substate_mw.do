@@ -17,10 +17,10 @@ program main
 	prepare_state, outstub(`exports') temp(`temp') finaldate(01Jul2016)
 	prepare_finaldata, temp(`temp') finaldate(01Jul2016)
 
-	export_substate_daily, outstub(`exports') temp(`temp')
-	export_substate_monthly, outstub(`exports') temp(`temp')
+	export_substate_daily,     outstub(`exports') temp(`temp')
+	export_substate_monthly,   outstub(`exports') temp(`temp')
 	export_substate_quarterly, outstub(`exports') temp(`temp')
-	export_substate_annually, outstub(`exports') temp(`temp')
+	export_substate_annually,  outstub(`exports') temp(`temp')
 end 
 
 program import_crosswalk, rclass
@@ -131,9 +131,10 @@ end
 
 program export_substate_daily
 	syntax, outstub(str) temp(str)	
-		use `temp'data.dta, clear
-		sort locality date
-		export delim using `outstub'VZ_substate_daily.csv, replace
+		
+	use `temp'data.dta, clear
+	sort locality date
+	export delim using `outstub'VZ_substate_daily.csv, replace
 end
 
 program export_substate_monthly
@@ -146,10 +147,7 @@ program export_substate_monthly
 	collapse (min) min_mw = mw (mean) mean_mw = mw (max) max_mw = mw abovestate, by(statefips statename stateabb locality monthly_date)
 
 	label var monthly_date "Monthly Date"
-	label var min_mw "Monthly Minimum"
-	label var mean_mw "Monthly Average"
-	label var max_mw "Monthly Maximum"
-	label var abovestate "Local > State min wage"
+	label_mw_vars, time_level("Monthly")
 
 	sort locality monthly_date
 
@@ -166,10 +164,7 @@ program export_substate_quarterly
 	collapse (min) min_mw = mw (mean) mean_mw = mw (max) max_mw = mw abovestate, by(statefips statename stateabb locality quarterly_date)
 
 	label var quarterly_date "Quarterly Date"
-	label var min_mw "Quarterly Minimum"
-	label var mean_mw "Quarterly Average"
-	label var max_mw "Quarterly Maximum"
-	label var abovestate "Local > State min wage"
+	label_mw_vars, time_level("Quarterly")
 
 	sort locality quarterly_date
 
@@ -186,14 +181,20 @@ program export_substate_annually
 	collapse (min) min_mw = mw (mean) mean_mw = mw (max) max_mw = mw abovestate, by(statefips statename stateabb locality year)
 
 	label var year "Year"
-	label var min_mw "Annual Minimum"
-	label var mean_mw "Annual Average"
-	label var max_mw "Annual Maximum"
-	label var abovestate "Local > State min wage"
+	label_mw_vars, time_level("Annual")
 
 	sort locality year
 
 	export delim using `outstub'VZ_substate_annual.csv, replace 
+end
+
+program label_mw_vars
+	syntax, time_level(str)
+
+	label var min_mw     "`time_level' Minimum"
+	label var mean_mw    "`time_level' Average"
+	label var max_mw     "`time_level' Maximum"
+	label var abovestate "Local > State min wage"	
 end
 
 * EXECUTE

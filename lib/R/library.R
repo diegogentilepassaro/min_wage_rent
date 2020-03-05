@@ -77,7 +77,7 @@ generate_log_file <- function(df, key, filename, logname) {
                  "numeric.mean", "numeric.sd", "numeric.p0", "numeric.p50", "numeric.p100")
   df_summary <- as.data.frame(suppressWarnings(skim(df)[skim_vars]))
   
-  colnames(df_summary) <- c("var", "type", "n_NA", "ch.min", "ch.max", "char.n_unique", 
+  colnames(df_summary) <- c("var", "type", "n_NA", "ch.min", "ch.max", "ch.n_unique", 
                             "num.mean", "num.sd", "num.p0", "num.p50", "num.p100")
   
   if (!file.exists(logname)) {
