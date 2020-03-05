@@ -84,7 +84,7 @@ program add_state_to_fedmw
 	}
 
 	compress
-	save `outstub'fedmw.dta, replace
+	save_data `outstub'fedmw.dta, replace key(date statefips) log(none)
 end
 
 program state_min_wage_change 
@@ -150,7 +150,7 @@ program export_state_daily
 
 	use `instub'data.dta, clear
 
-	isid stateabb date, sort
+	isid statefips date, sort
 	export delim using `outstub'VZ_state_daily.csv, replace 
 end
 
@@ -170,7 +170,7 @@ program export_state_monthly
 	label var monthly_date "Monthly Date"
 	label_mw_vars, time_level("Monthly")
 
-	isid stateabb monthly_date, sort
+	isid statefips monthly_date, sort
 	export delim using `outstub'VZ_state_monthly.csv, replace
 end
 
@@ -190,8 +190,7 @@ program export_state_quarterly
 	label var quarterly_date "Quarterly Date"
 	label_mw_vars, time_level("Quarterly")
 
-	sort stateabb quarterly_date
-
+	isid statefips quarterly_date, sort
 	export delim using `outstub'VZ_state_quarterly.csv, replace 
 end
 
@@ -211,9 +210,8 @@ program export_state_annually
 	label var year "Year"
 	label_mw_vars, time_level("Annual")
 
-	sort stateabb year
-
-	export delim using `outstub'VZ_state_annual.csv, replace 
+	isid statefips year, sort
+	export delim using `outstub'VZ_state_annual.csv, replace
 end
 
 program label_mw_vars
