@@ -25,8 +25,8 @@ start_make_logging()
 
 run_rbatch(program = 'RenameZillowVars_zipLevel.R')
 run_rbatch(program = 'cleanGeoRelationshipFiles.R')
-run_stata(program = 'state_mw.do', executable = 'StataMP-64')
-run_stata(program = 'substate_mw.do', executable = 'StataMP-64')
+run_stata(program = 'state_mw.do', executable = 'stataSE')
+run_stata(program = 'substate_mw.do', executable = 'stataSE')
 
 end_make_logging()
 

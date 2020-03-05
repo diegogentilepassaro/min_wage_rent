@@ -23,10 +23,8 @@ delete_files('../output/*')
 
 start_make_logging()
 
-run_rbatch(program = 'RenameZillowVars_zipLevel.R')
-run_rbatch(program = 'cleanGeoRelationshipFiles.R')
-run_stata(program = 'state_mw.do', executable = 'stataSE')
-run_stata(program = 'substate_mw.do', executable = 'stataSE')
+run_rbatch(program = 'ReshapeMergeZillow_zip.R')
+run_rbatch(program = 'addMinWage.R')
 
 end_make_logging()
 
