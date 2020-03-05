@@ -1,28 +1,26 @@
-# Set dependencies
-lib <- "../../lib/R/"
-datadir_zillow <- '../temp/'
-datadir <- '../../base/output/'
-outputdir <- "../output/"
-tempdir <- "../temp/"
-
-# Import custom functions
-source(paste0(lib, 'load_packages.R'))
-source(paste0(lib, 'fwrite_key.R'))
-source(paste0(lib, 'setkey_unique.R'))
-
-# Import libraries
+# Preliminaries
+source("../../lib/R/library.R")
 load_packages(c('tidyverse', 'data.table', 'matrixStats'))
+
+# Set dependencies
+datadir_zillow <- '../temp/'
+datadir    <- '../../base/output/'
+outputdir  <- "../output/"
+tempdir    <- "../temp/"
 
 
 main <- function(){
    data <- load_data()
    data <- assemble_data(data)
-   create_minwage_eventvars(data)
+   data <- create_minwage_eventvars(data)
+   
+   save_data(df = data, filename = paste0(outputdir, 'data_clean.csv'), 
+             key = c('zipcode', 'date'))
 }
-
 
 load_data <- function(){
    dfZillow <- fread(paste0(datadir_zillow, 'zillow_clean.csv'))
+   
    dfZillow[, zipcode := str_pad(as.character(zipcode), 5, pad = 0)]
    dfZillow[,date := as.Date(paste0(date, "_01"), "%Y_%m_%d")]
    dfZillow[,county:=NULL]
@@ -39,10 +37,12 @@ load_data <- function(){
    dfLocalmw[,iscounty:=str_extract_all(locality, " County")][,iscounty:= ifelse(iscounty==" County", 1, 0)]
    
    dfCountymw <- dfLocalmw[iscounty==1,][,iscounty:=NULL]
-   setnames(dfCountymw, old = c('locality', 'min_mw', 'mean_mw', 'max_mw', 'abovestate'), new = c('countyname', 'min_county_mw', 'mean_county_mw', 'max_county_mw', 'countyabovestate'))
+   setnames(dfCountymw, old = c('locality', 'min_mw', 'mean_mw', 'max_mw', 'abovestate'), 
+                        new = c('countyname', 'min_county_mw', 'mean_county_mw', 'max_county_mw', 'countyabovestate'))
    
    dfLocalmw <- dfLocalmw[iscounty==0,][,iscounty:=NULL]
-   setnames(dfLocalmw, old = c('locality', 'min_mw', 'mean_mw', 'max_mw', 'abovestate'), new = c('placename', 'min_local_mw', 'mean_local_mw', 'max_local_mw', 'localabovestate'))              
+   setnames(dfLocalmw, old = c('locality', 'min_mw', 'mean_mw', 'max_mw', 'abovestate'), 
+                       new = c('placename', 'min_local_mw', 'mean_local_mw', 'max_local_mw', 'localabovestate'))              
    
    
    place10 <- fread(paste0(datadir, 'census/places10.csv'))
@@ -67,7 +67,9 @@ load_data <- function(){
    zip_places10 <- zip_places10[, c('zipcode','place', 'placename', 'placetype', 'placepop10')]
 
    
-   list('df_zillow' = dfZillow, 'df_state_mw' = dfStatemw, 'df_county_mw' = dfCountymw, 'df_local_mw' = dfLocalmw, 'zip_county' = zip_county10, 'zip_place' = zip_places10)   
+   return(list('df_zillow'    = dfZillow,     'df_state_mw' = dfStatemw, 
+               'df_county_mw' = dfCountymw,   'df_local_mw' = dfLocalmw, 
+               'zip_county'   = zip_county10, 'zip_place'   = zip_places10))
 }
 
 assemble_data <- function(l) {
@@ -78,7 +80,8 @@ assemble_data <- function(l) {
    DF <- l[['df_county_mw']][DF, on = c('state', 'statename', 'stateabb', 'countyname', 'date')]   
    DF <- l[['df_local_mw']][DF, on = c('state', 'statename', 'stateabb', 'placename', 'date')]     
    
-   colorder1 <- c('date', 'zipcode', 'place', 'placename', 'city', 'msa', 'county', 'countyname', 'state', 'stateabb', 'statename')
+   colorder1 <- c('date', 'zipcode', 'place', 'placename', 'city', 'msa', 'county', 
+                  'countyname', 'state', 'stateabb', 'statename')
    colorder2 <- setdiff(colorder1, names(DF))
    setcolorder(DF, c(colorder1,colorder2))
    return(DF)
@@ -89,20 +92,22 @@ create_minwage_eventvars <- function(x){
    mean_mwage_vars<-c('mean_fed_mw', 'mean_state_mw', 'mean_county_mw', 'mean_local_mw')
    max_mwage_vars<-c('max_fed_mw', 'max_state_mw', 'max_county_mw', 'max_local_mw')
    
-   x[,min_actual_mw:= rowMaxs(as.matrix(x[,..min_mwage_vars]), na.rm = T)][,min_actual_mw:= ifelse(min_actual_mw==-Inf, NA, min_actual_mw)]
-   x[,mean_actual_mw:= rowMaxs(as.matrix(x[,..mean_mwage_vars]), na.rm = T)][,mean_actual_mw:= ifelse(mean_actual_mw==-Inf, NA, mean_actual_mw)]
-   x[,max_actual_mw:= rowMaxs(as.matrix(x[,..max_mwage_vars]), na.rm = T)][,max_actual_mw:= ifelse(max_actual_mw==-Inf, NA, max_actual_mw)]
-   
+   x[ , min_actual_mw := 
+        rowMaxs(as.matrix(x[,..min_mwage_vars]), na.rm = T)][ , min_actual_mw:= ifelse(min_actual_mw == -Inf, 
+                                                                                        NA, min_actual_mw)]
+   x[ , mean_actual_mw := 
+        rowMaxs(as.matrix(x[,..mean_mwage_vars]), na.rm = T)][ ,mean_actual_mw:= ifelse(mean_actual_mw == -Inf, 
+                                                                                        NA, mean_actual_mw)]
+   x[ , max_actual_mw := 
+        rowMaxs(as.matrix(x[,..max_mwage_vars]), na.rm = T)][ ,max_actual_mw:= ifelse(max_actual_mw == -Inf,
+                                                                                      NA, max_actual_mw)]
    
    setorderv(x, cols = c('zipcode', 'date'))
-   x[,Dmin_actual_mw := min_actual_mw - shift(min_actual_mw), by = 'zipcode'][,min_event := ifelse(Dmin_actual_mw>0,1,0)]
-   x[,Dmean_actual_mw := mean_actual_mw - shift(mean_actual_mw), by = 'zipcode'][,mean_event := ifelse(Dmean_actual_mw>0,1,0)]
-   x[,Dmax_actual_mw := max_actual_mw - shift(max_actual_mw), by = 'zipcode'][,max_event := ifelse(Dmax_actual_mw>0,1,0)]
-   
+   x[,Dmin_actual_mw := min_actual_mw - shift(min_actual_mw), by = 'zipcode'][,min_event := ifelse(Dmin_actual_mw > 0 , 1, 0)]
+   x[,Dmean_actual_mw := mean_actual_mw - shift(mean_actual_mw), by = 'zipcode'][,mean_event := ifelse(Dmean_actual_mw > 0 , 1, 0)]
+   x[,Dmax_actual_mw := max_actual_mw - shift(max_actual_mw), by = 'zipcode'][,max_event := ifelse(Dmax_actual_mw > 0 , 1, 0)]
     
-   setkey_unique(x, cols = c('zipcode', 'date'))
-   fwrite_key(x, file = paste0(outputdir, 'data_clean.csv'))
+   return(x)
 }
-
 
 main()
