@@ -4,7 +4,7 @@ library(dplyr)
 library(knitr)
 library(skimr)
 
-save_data <- function(df, key, filename, logfile = NULL) {
+save_data <- function(df, key, filename, logfile = NULL, nolog = FALSE) {
   
   filetype <- substr(filename, nchar(filename) - 2, nchar(filename))
   dir      <- dirname(filename)
@@ -14,21 +14,23 @@ save_data <- function(df, key, filename, logfile = NULL) {
   if (filetype == "csv") {
     
     fwrite(df, file = filename)
-    print(sprintf("File '%s' saved successfully.", filename))
+    print(paste0("File '", filename, "' saved successfully."))
     
   } else if (filetype == "dta") {
     
     write.dta(df, filename)
-    print(sprintf("File '%s' saved successfully.", filename))
+    print(paste0("File '", filename, "' saved successfully."))
     
   } else {
     stop("Incorrect format. Only .csv and .dta are allowed.")
   }
   
-  if (!is.null(logfile)) {
-    generate_log_file(df, key, filename, logfile)
-  } else {
-    generate_log_file(df, key, filename, sprintf("%s/data_file_manifest.log", dir))
+  if (!nolog) {
+    if (!is.null(logfile)) {
+      generate_log_file(df, key, filename, logfile)
+    } else {
+      generate_log_file(df, key, filename, sprintf("%s/data_file_manifest.log", dir))
+    }
   }
 }
 

@@ -13,7 +13,7 @@ load_packages = function(packages_names) {
 load_packages(c("foreign", "eeptools", "dplyr", "knitr", "skimr"))
 
 ## =========== save_data =========== ##
-save_data <- function(df, key, filename, logfile = NULL) {
+save_data <- function(df, key, filename, logfile = NULL, nolog = FALSE) {
   
   filetype <- substr(filename, nchar(filename) - 2, nchar(filename))
   dir      <- dirname(filename)
@@ -34,10 +34,12 @@ save_data <- function(df, key, filename, logfile = NULL) {
     stop("Incorrect format. Only .csv and .dta are allowed.")
   }
   
-  if (!is.null(logfile)) {
-    generate_log_file(df, key, filename, logfile)
-  } else {
-    generate_log_file(df, key, filename, sprintf("%s/data_file_manifest.log", dir))
+  if (!nolog) {
+    if (!is.null(logfile)) {
+      generate_log_file(df, key, filename, logfile)
+    } else {
+      generate_log_file(df, key, filename, sprintf("%s/data_file_manifest.log", dir))
+    }
   }
 }
 
