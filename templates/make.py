@@ -34,8 +34,8 @@ elif "StataMP-64" in envir_vars:
     
 run_rbatch(program = 'RenameZillowVars_zipLevel.R')
 run_rbatch(program = 'cleanGeoRelationshipFiles.R')
-run_stata(program = 'state_mw.do', executable = 'stataSE')
-run_stata(program = 'substate_mw.do', executable = 'stataSE')
+run_stata(program = 'state_mw.do', executable = stata)
+run_stata(program = 'substate_mw.do', executable = stata)
 
 end_make_logging()
 
