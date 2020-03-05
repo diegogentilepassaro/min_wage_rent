@@ -3,35 +3,42 @@ source("../../lib/R/library.R")
 load_packages(c('tidyverse', 'data.table', 'matrixStats'))
 
 # Set dependencies
-datadir_zillow <- '../temp/'
-datadir    <- '../../base/output/'
-outputdir  <- "../output/"
-tempdir    <- "../temp/"
 
 
 main <- function(){
-   data <- load_data()
+   datadir    <- '../../base/output/'
+   outputdir  <- "../output/"
+   tempdir    <- "../temp/"
+   
+   data <- load_data(infile_zillow = paste0(tempdir, 'zillow_clean.csv'), 
+                     infile_statemw = paste0(datadir, 'min_wage/VZ_state_monthly.csv'), 
+                     infile_localmw = paste0(datadir, 'min_wage/VZ_substate_monthly.csv'), 
+                     infile_place = paste0(datadir, 'census/places10.csv'), 
+                     infile_county = paste0(datadir,'census/zip_county10.csv'), 
+                     infile_zipplace = paste0(datadir,'census/zip_places10.csv'))
+   
    data <- assemble_data(data)
+   
    data <- create_minwage_eventvars(data)
    
    save_data(df = data, filename = paste0(outputdir, 'data_clean.csv'), 
              key = c('zipcode', 'date'))
 }
 
-load_data <- function(){
-   dfZillow <- fread(paste0(datadir_zillow, 'zillow_clean.csv'))
+load_data <- function(infile_zillow, infile_statemw, infile_localmw, infile_place, infile_county, infile_zipplace){
+   dfZillow <- fread(infile_zillow)
    
    dfZillow[, zipcode := str_pad(as.character(zipcode), 5, pad = 0)]
    dfZillow[,date := as.Date(paste0(date, "_01"), "%Y_%m_%d")]
    dfZillow[,county:=NULL]
    
 
-   dfStatemw <- fread(paste0(datadir, 'min_wage/VZ_state_monthly.csv'))
+   dfStatemw <- fread(infile_statemw)
    setnames(dfStatemw, old = c('statefips', 'monthly_date'), new = c('state', 'date'))
    dfStatemw[,date := str_replace_all(date, "m", "_")][,date:= as.Date(paste0(date, "_01"), "%Y_%m_%d")]
    setnames(dfStatemw, old = c('min_mw', 'mean_mw', 'max_mw'), new = c('min_state_mw', 'mean_state_mw', 'max_state_mw'))
    
-   dfLocalmw <- fread(paste0(datadir, 'min_wage/VZ_substate_monthly.csv'))
+   dfLocalmw <- fread(infile_localmw)
    setnames(dfLocalmw, old = c('statefips', 'monthly_date'), new = c('state', 'date'))
    dfLocalmw[,date := str_replace_all(date, "m", "_")][,date:= as.Date(paste0(date, "_01"), "%Y_%m_%d")]
    dfLocalmw[,iscounty:=str_extract_all(locality, " County")][,iscounty:= ifelse(iscounty==" County", 1, 0)]
@@ -45,16 +52,16 @@ load_data <- function(){
                        new = c('placename', 'min_local_mw', 'mean_local_mw', 'max_local_mw', 'localabovestate'))              
    
    
-   place10 <- fread(paste0(datadir, 'census/places10.csv'))
+   place10 <- fread(infile_place)
    place10 <- place10[placetype=="city",] 
-   zip_places10 <- fread(paste0(datadir,'census/zip_places10.csv'))
+   zip_places10 <- fread(infile_zipplace)
    setorder(zip_places10, zipcode)
    zip_places10 <- zip_places10[zippcthouse10>=50,] 
    zip_places10 <- place10[zip_places10, on = c('state', 'place')]
    zip_places10[, zipcode := str_pad(as.character(zipcode), 5, pad = 0)]
    
    
-   zip_county10 <- fread(paste0(datadir,'census/zip_county10.csv'))
+   zip_county10 <- fread(infile_county)
    setorder(zip_county10, zipcode)
    zip_county10 <- zip_county10[zippcthouse10>=50,]
    zip_county10[, ind := max(zippctpop10, na.rm = T), by = 'zipcode'][, ind:= ifelse(ind==zippctpop10, 1, 0)]
