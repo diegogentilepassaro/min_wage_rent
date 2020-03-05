@@ -1,19 +1,17 @@
-dir.create("../output/zillow/")
+# this.dir <- dirname(parent.frame(2)$ofile)
+# setwd(this.dir)
+# rm(list = ls())
+# options(scipen=999)
 
-# Set dependencies
-lib <- "../../lib/R/"
+source('../../lib/R/fwrite_key.R')
+source('../../lib/R/setkey_unique.R')
+source('../../lib/R/load_packages.R')
+library(tidyverse)
+library(data.table)
+
 datadir <- '../../raw_data/zillow/'
 tempdir <- "../temp/"
-outputdir <- "../output/zillow/"
-
-# Import custom functions
-source(paste0(lib, 'load_packages.R'))
-source(paste0(lib, 'fwrite_key.R'))
-source(paste0(lib, 'setkey_unique.R'))
-
-
-# Import libraries
-load_packages(c('tidyverse', 'data.table'))
+outputdir <- "../output/"
 
 main <- function() {
    rename_zillow_vars()

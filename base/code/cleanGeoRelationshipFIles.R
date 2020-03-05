@@ -1,31 +1,19 @@
-#' This script cleans relationship files to crosswalk between US geogrpahies
-# if (getwd()!= dirname(rstudioapi::getSourceEditorContext()$path)) setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+source('../../lib/R/fwrite_key.R')
+source('../../lib/R/setkey_unique.R')
+source('../../lib/R/load_packages.R')
+library(tidyverse)
+library(data.table)
+library(tidycensus)
 
-
-dir.create("../output/census/")
-
-# Set dependencies
-lib <- "../../lib/R/"
 datadir <- '../../raw_data/census/'
 tempdir <- "../temp/"
-outputdir <- "../output/census/"
-
-# Import custom functions
-source(paste0(lib, 'load_packages.R'))
-source(paste0(lib, 'fwrite_key.R'))
-source(paste0(lib, 'setkey_unique.R'))
-
-
-# Import libraries
-load_packages(c('tidyverse', 'data.table', 'tidycensus'))
-
+outputdir <- "../output/"
 
 main <- function(){
    clean_2010census_gazzetter_file('Gaz_places_national.txt')
    clean_zip_place_relantionship_file('zcta_place_rel_10.txt')
    clean_zip_county_relantionship_file('zcta_county_rel_10.txt')
 }
-
 
 clean_2010census_gazzetter_file <- function(filename){
    places10 <- fread(paste0(datadir, filename))  
@@ -75,6 +63,5 @@ clean_zip_county_relantionship_file <- function(filename) {
    setkey_unique(zctaCounty10, c('state', 'county', 'zipcode'))
    fwrite_key(zctaCounty10, file = paste0(outputdir,'zip_county10.csv'))
 }
-
 
 main()

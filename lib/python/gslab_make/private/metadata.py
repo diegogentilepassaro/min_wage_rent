@@ -45,7 +45,7 @@ option_overlaps = {
 }
 
 default_executables = {
-    'statawin'      : '%STATAEXE%',
+    'statawin'      : '"C:\Program Files (x86)\Stata14\StataSE-64.exe"',
     'stataunix'     : 'statamp',
     'matlab'        : 'matlab',
     'perl'          : 'perl',

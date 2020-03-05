@@ -2,13 +2,7 @@ set more off
 clear all
 adopath + ../../lib/stata/gslab_misc/ado
 
-cap mkdir "../output/min_wage/"
-global raw "../../raw_data/min_wage/"
-global exports "../output/min_wage/"
-global temp "../temp/"
-
 program main 
-
 	import_crosswalk
 	substate_min_wage_change "VZ_SubstateMinimumWage_Changes"
 	prepare_local
@@ -22,7 +16,7 @@ program main
 end 
 
 program import_crosswalk
-	import excel using ${raw}FIPS_crosswalk.xlsx, clear firstrow 
+	import excel using "../../raw_data/min_wage/FIPS_crosswalk.xlsx", clear firstrow 
 	
 	rename Name statename
 	rename FIPSStateNumericCode statefips
@@ -35,7 +29,7 @@ end
 
 program substate_min_wage_change
 	args substate
-	import excel using ${raw}`substate'.xlsx, clear firstrow
+	import excel using "../../raw_data/min_wage/`substate'.xlsx", clear firstrow
 
 	gen date = mdy(month,day,year)
 	format date %td
@@ -48,7 +42,7 @@ program substate_min_wage_change
 	gen double mw_hotel = round(VZ_mw_hotel, .01)
 	drop VZ_mw*
 
-	merge m:1 statefips using ${temp}crosswalk.dta, nogen keep(3)
+	merge m:1 statefips using "../temp/crosswalk.dta", nogen keep(3)
 	label var statefips "State FIPS Code"
 	label var statename "State"
 	label var stateabb "State Abbreviation"
@@ -57,7 +51,7 @@ program substate_min_wage_change
 	order statefips statename stateabb locality year month day date mw mw_* source source_2 source_notes
 
 	sort locality date
-	export delim using ${exports}VZ_substate_changes.csv, replace 
+	export delim using "../output/VZ_substate_changes.csv", replace 
 end
 
 program prepare_local
@@ -66,7 +60,7 @@ program prepare_local
 	keep if tag == 1
 	keep statefips locality
 
-	save ${temp}localities.dta, replace
+	save "../temp/localities.dta", replace
 	restore
 end
 
@@ -105,7 +99,6 @@ program prepare_finaldata
 	  bysort locality_temp (date): replace `x' = `x'[_n-1] if `x' == .
 	}
 
-
 	keep if date <= td(`finaldate')
 
 	merge 1:m statefips locality date using ${temp}statemw.dta, assert(2 3) nogenerate
@@ -118,18 +111,18 @@ program prepare_finaldata
 	order statefips statename stateabb date locality mw mw_* abovestate source_notes
 	notes mw: The mw variable represents the most applicable minimum wage across the locality.
 
-	save ${temp}data.dta, replace
+	save "../temp/data.dta", replace
 	
 end
 
 program export_substate_daily	
-		use ${temp}data.dta, clear
+		use "../temp/data.dta", clear
 		sort locality date
-		export delim using ${exports}VZ_substate_daily.csv, replace
+		export delim using "../output/VZ_substate_daily.csv", replace
 end
 
 program export_substate_monthly
-	use ${temp}data.dta, clear
+	use "../temp/data.dta", clear
 
 	gen monthly_date = mofd(date)
 	format monthly_date %tm
@@ -144,11 +137,11 @@ program export_substate_monthly
 
 	sort locality monthly_date
 
-	export delim using ${exports}VZ_substate_monthly.csv, replace 
+	export delim using "../output/VZ_substate_monthly.csv", replace 
 end 
 
 program export_substate_quarterly
-	use ${temp}data.dta, clear
+	use "../temp/data.dta", clear
 
 	gen quarterly_date = qofd(date)
 	format quarterly_date %tq
@@ -163,11 +156,11 @@ program export_substate_quarterly
 
 	sort locality quarterly_date
 
-	export delim using ${exports}VZ_substate_quarterly.csv, replace
+	export delim using "../output/VZ_substate_quarterly.csv", replace
 end 
 
 program export_substate_annually
-	use ${temp}data.dta, clear
+	use "../temp/data.dta", clear
 
 	gen year = yofd(date)
 	format year %ty
@@ -182,7 +175,7 @@ program export_substate_annually
 
 	sort locality year
 
-	export delim using ${exports}VZ_substate_annual.csv, replace 
+	export delim using "../output/VZ_substate_annual.csv", replace 
 end
 
 * EXECUTE
