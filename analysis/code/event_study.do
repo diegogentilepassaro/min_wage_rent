@@ -24,7 +24,7 @@ end
 program create_dep_var
 	syntax, mw_var(str) time_frame(int)
 	local mw_var "mean_actual_mw"
-	bysort zipcode date: gen mw_change = (d`mw_var' != 0)
+	bysort zipcode date: gen mw_change = (d`mw_var' != 0 & !missing(d`mw_var'))
 	bysort zipcode date: gen mw_change_date = monthly_date if mw_change == 1
 	local time_frame 10
 	gen mw_change_event = (mw_change == 1)
@@ -34,7 +34,7 @@ program create_dep_var
 		replace mw_change_event = 1 if mw_change[_n+`i'] == 1 & zipcode == zipcode[_n+`i']
 	}
 	local time_frame 10
-	gen mw_change_event_date = 0
+	gen mw_change_event_date = 0 if mw_change == 1
 	forvalues i = 1/`time_frame' {
 		replace mw_change_event_date = mw_change_date[_n-`i'] - monthly_date             ///
 							if mw_change[_n-`i'] == 1
