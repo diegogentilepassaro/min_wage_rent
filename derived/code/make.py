@@ -31,6 +31,9 @@ if "StataSE" in envir_vars:
     stata = "stataSE"
 elif "StataMP-64" in envir_vars:
     stata = "StataMP-64"
+elif "Stata15" in envir_vars:
+	stata = "StataMP-64"
+    
 
 run_rbatch(program = 'ReshapeMergeZillow_zip.R')
 run_rbatch(program = 'addMinWage.R')
