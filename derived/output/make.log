@@ -1,328 +1,246 @@
 
- make.py started: 2020-03-05 17:30:29 C:\Users\gabriel\Dropbox (Brown)\research\min_wage_rent\derived\code 
+ make.py started: 2020-03-06 13:31:35 C:\Users\gabriel\Dropbox (Brown)\research\min_wage_rent\derived\code 
 
 
 
 
-Execute:  R CMD BATCH --no-save "./ReshapeMergeZillow_zip.R" ReshapeMergeZillow_zip.Rout
+Execute:  StataMP-64 /e do "./label_final_dta.do"
 
-R version 3.6.1 (2019-07-05) -- "Action of the Toes"
-Copyright (C) 2019 The R Foundation for Statistical Computing
-Platform: x86_64-w64-mingw32/x64 (64-bit)
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
 
-R is free software and comes with ABSOLUTELY NO WARRANTY.
-You are welcome to redistribute it under certain conditions.
-Type 'license()' or 'licence()' for distribution details.
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
 
-  Natural language support but running in an English locale
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
 
-R is a collaborative project with many contributors.
-Type 'contributors()' for more information and
-'citation()' on how to cite R or R packages in publications.
+. do ./label_final_dta.do 
 
-Type 'demo()' for some demos, 'help()' for on-line help, or
-'help.start()' for an HTML browser interface to help.
-Type 'q()' to quit R.
+. set more off
 
-> # Preliminaries
-> source("../../lib/R/library.R")
-Loading required package: ggplot2
+. clear all
 
-Attaching package: 'dplyr'
+. adopath + ../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files (x86)\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files (x86)\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../lib/stata/gslab_misc/ado"
 
-The following objects are masked from 'package:stats':
+. adopath + ../../lib/stata/mental_coupons/ado
+  [1]  (BASE)      "C:\Program Files (x86)\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files (x86)\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../lib/stata/gslab_misc/ado"
+  [8]              "../../lib/stata/mental_coupons/ado"
 
-    filter, lag
+. 
+. cap mkdir "../output/"
 
-The following objects are masked from 'package:base':
+. 
+. 
+. program main 
+  1.         local csv_data "../output/"
+  2.         local temp "../temp/"
+  3. 
+.         import_csv, instub(`csv_data')
+  4.         clean_vars
+  5.         label_vars
+  6. 
+.         local output "../output/"
+  7.         compress
+  8.         save_data `output'data_ready.dta, key(year_month zipcode) replace
+  9. end 
 
-    intersect, setdiff, setequal, union
+. 
+. program import_csv
+  1.         syntax, instub(str)
+  2.         import delim `instub'data_clean.csv, delim(",")
+  3. end 
 
-Warning messages:
-1: package 'eeptools' was built under R version 3.6.3 
-2: package 'ggplot2' was built under R version 3.6.2 
-3: package 'dplyr' was built under R version 3.6.2 
-4: package 'skimr' was built under R version 3.6.3 
-> load_packages(c('tidyverse', 'data.table', 'tidycensus'))
--- Attaching packages --------------------------------------- tidyverse 1.3.0 --
-v tibble  2.1.3     v purrr   0.3.3
-v tidyr   1.0.0     v stringr 1.4.0
-v readr   1.3.1     v forcats 0.4.0
--- Conflicts ------------------------------------------ tidyverse_conflicts() --
-x dplyr::filter() masks stats::filter()
-x dplyr::lag()    masks stats::lag()
+. 
+. program clean_vars
+  1.         *clean date
+.         g year_month = date(date, "YMD")
+  2.         replace year_month = mofd(year_month)
+  3.         format year_month %tm 
+  4.         order year_month, after(date)
+  5.         drop date 
+  6. 
+.         drop if missing(year_month)
+  7. 
+.         * Remove obs with no data on minimum wage 
+.         bys zipcode (year_month): egen no_mw_min_data = min(min_actual_mw)
+  8.         bys zipcode (year_month): egen no_mw_mean_data = min(mean_actual_m
+> w)
+  9.         bys zipcode (year_month): egen no_mw_max_data = min(max_actual_mw)
+>       
+ 10.         drop if missing(no_mw_min_data) & missing(no_mw_mean_data) & missi
+> ng(no_mw_max_data)    
+ 11.         drop no_mw_min_data no_mw_mean_data no_mw_max_data
+ 12. 
+.         *clean place/city name: since city has no missing keep that (BUT ZIP 
+> CODE CAN BELONG TO DIFFERENT CITIES!!!!!)
+.         * als, there are some 70000s zipcode-date where placename and city do
+> esn't match (why)
+.         drop placename 
+ 13.         local dropwords = `" " Town$" "^Town of " " Township$" "'
+ 14.                 foreach w in `dropwords' {
+ 15.                         replace city = regexr(city, "`w'", "")
+ 16.         }
+ 17. 
+. end
 
-Attaching package: 'data.table'
+. 
+. 
+. program label_vars 
+  1.         sort state county city zipcode year_month
+  2. 
+.         foreach var in city msa {
+  3.                 encode `var', g(`var'2)
+  4.                 order `var'2, after(`var')
+  5.                 drop `var'
+  6.                 rename `var'2 `var'
+  7.         }
+  8.         
+.         bysort state (statename): replace statename = statename[_N]
+  9.         labmask state, values(statename)
+ 10.         drop statename 
+ 11.         
+.         g countyfips = string(state, "%02.0f") + string(county, "%03.0f") 
+ 12.         destring countyfips, replace force 
+ 13.         order countyfips, after(county)
+ 14.         labmask countyfips, values(countyname)
+ 15.         drop countyname
+ 16. 
+.         order placetype, after(stateabb)
+ 17.         encode placetype, g(ptype2)
+ 18.         order ptype2, after(placetype)
+ 19.         drop placetype
+ 20.         rename ptype2 placetype
+ 21. 
+. 
+.         sort state county city zipcode year_month       
+ 22. 
+.         tsset year_month zipcode
+ 23. end 
 
-The following object is masked from 'package:purrr':
+. 
+. 
+. 
+. 
+. 
+. 
+. 
+. main
+(43 vars, 7,719,943 obs)
+(26,985 missing values generated)
+(7,692,958 real changes made)
+(26,985 observations deleted)
+(95475 missing values generated)
+(95475 missing values generated)
+(95475 missing values generated)
+(95,475 observations deleted)
+(1,140 real changes made)
+(102,030 real changes made)
+(289,560 real changes made)
+(1,093,429 real changes made)
+countyfips: all characters numeric; replaced as long
+       panel variable:  year_month (unbalanced)
+        time variable:  zipcode, 1001 to 99901, but with gaps
+                delta:  1 unit
+  variable year_month was float now int
+  variable city was long now int
+  variable msa was long now int
+  variable placetype was long now byte
+  (68,377,347 bytes saved)
+(data already sorted by year_month zipcode)
+  (0 bytes saved)
+===============================================================================
+> ===================
+File: ../output/data_ready.dta
+Key: year_month zipcode
+===============================================================================
+> ===================
+  7597483:41(60979):1799046850:4094407296
 
-    transpose
-
-The following objects are masked from 'package:dplyr':
-
-    between, first, last
-
-Warning messages:
-1: package 'tidyverse' was built under R version 3.6.2 
-2: package 'tidyr' was built under R version 3.6.2 
-3: package 'purrr' was built under R version 3.6.2 
-> 
-> main <- function(){
-+    datadir <- '../../base/output/'
-+    tempdir <- "../temp/"
-+    
-+    filelist <- reshape_zillow_zip_level(infiles = datadir)
-+    merge_zillow(l = filelist, outstub = paste0(tempdir,"zillow_clean.csv"),
-+                 key = c('zipcode', 'date'))
-+ }
-> 
-> 
-> reshape_zillow_zip_level <- function(infiles){
-+    
-+    filenames <- list.files(infiles)
-+    filenames <- filenames[str_detect(filenames, "Zip_*")]
-+    filenames <- filenames[!str_detect(filenames, "_Summary.csv")]
-+    
-+    value_names <- c('rent2BR_median', 'rent2BR_psqft_median', 'rent_psqft_median_SFR', 'zhvi2BR')
-+    
-+    zillow_data <- mapply(function(filename, valname){
-+             idvars <- c('zipcode', 'city', 'stateabb', 'msa', 'county')
-+             
-+             data <- fread(paste0(infiles, filename), stringsAsFactors = F)
-+             data <- data.table::melt(data,
-+                                      id.vars = idvars,
-+                                      variable.name = 'date',
-+                                       value.name = valname)
-+             return(data)}, 
-+       filename = filenames,
-+       valname = value_names,
-+       SIMPLIFY = F)
-+    
-+    return(zillow_data)
-+ }
-> 
-> merge_zillow <- function(l, outstub, key){
-+    idvars <- c('zipcode', 'city', 'stateabb', 'msa', 'county')
-+    mvars <- c(idvars, 'date')
-+    
-+    file_combined <-  Reduce(function(x,y,m = mvars){merge(x,y,all = T, by = m)}, l)
-+    data.table::setorder(file_combined, zipcode, date)
-+    
-+    file_combined[,date:=str_replace_all(date, "-", "_")]
-+    save_data(file_combined, file = outstub, key = key, nolog = TRUE)
-+ }
-> 
-> main()
-[1] "File '../temp/zillow_clean.csv' saved successfully."
-Warning message:
-In melt.data.table(data, id.vars = idvars, variable.name = "date",  :
-  'measure.vars' [2010-09, 2010-10, 2010-11, 2010-12, ...] are not all of the same type. By order of hierarchy, the molten data value column will be of type 'double'. All measure variables not of type 'double' will be coerced too. Check DETAILS in ?melt.data.table for more on coercion.
-> 
-> proc.time()
-   user  system elapsed 
-  42.59    4.31   48.71 
-
-
-Execute:  R CMD BATCH --no-save "./addMinWage.R" addMinWage.Rout
-
-R version 3.6.1 (2019-07-05) -- "Action of the Toes"
-Copyright (C) 2019 The R Foundation for Statistical Computing
-Platform: x86_64-w64-mingw32/x64 (64-bit)
-
-R is free software and comes with ABSOLUTELY NO WARRANTY.
-You are welcome to redistribute it under certain conditions.
-Type 'license()' or 'licence()' for distribution details.
-
-  Natural language support but running in an English locale
-
-R is a collaborative project with many contributors.
-Type 'contributors()' for more information and
-'citation()' on how to cite R or R packages in publications.
-
-Type 'demo()' for some demos, 'help()' for on-line help, or
-'help.start()' for an HTML browser interface to help.
-Type 'q()' to quit R.
-
-> # Preliminaries
-> source("../../lib/R/library.R")
-Loading required package: ggplot2
-
-Attaching package: 'dplyr'
-
-The following objects are masked from 'package:stats':
-
-    filter, lag
-
-The following objects are masked from 'package:base':
-
-    intersect, setdiff, setequal, union
-
-Warning messages:
-1: package 'eeptools' was built under R version 3.6.3 
-2: package 'ggplot2' was built under R version 3.6.2 
-3: package 'dplyr' was built under R version 3.6.2 
-4: package 'skimr' was built under R version 3.6.3 
-> load_packages(c('tidyverse', 'data.table', 'matrixStats'))
--- Attaching packages --------------------------------------- tidyverse 1.3.0 --
-v tibble  2.1.3     v purrr   0.3.3
-v tidyr   1.0.0     v stringr 1.4.0
-v readr   1.3.1     v forcats 0.4.0
--- Conflicts ------------------------------------------ tidyverse_conflicts() --
-x dplyr::filter() masks stats::filter()
-x dplyr::lag()    masks stats::lag()
-
-Attaching package: 'data.table'
-
-The following object is masked from 'package:purrr':
-
-    transpose
-
-The following objects are masked from 'package:dplyr':
-
-    between, first, last
-
-
-Attaching package: 'matrixStats'
-
-The following object is masked from 'package:dplyr':
-
-    count
-
-Warning messages:
-1: package 'tidyverse' was built under R version 3.6.2 
-2: package 'tidyr' was built under R version 3.6.2 
-3: package 'purrr' was built under R version 3.6.2 
-> 
-> # Set dependencies
-> 
-> 
-> main <- function(){
-+    datadir    <- '../../base/output/'
-+    outputdir  <- "../output/"
-+    tempdir    <- "../temp/"
-+    
-+    data <- load_data(infile_zillow = paste0(tempdir, 'zillow_clean.csv'), 
-+                      infile_statemw = paste0(datadir, 'VZ_state_monthly.csv'), 
-+                      infile_localmw = paste0(datadir, 'VZ_substate_monthly.csv'), 
-+                      infile_place = paste0(datadir, 'places10.csv'), 
-+                      infile_county = paste0(datadir,'zip_county10.csv'), 
-+                      infile_zipplace = paste0(datadir,'zip_places10.csv'))
-+    
-+    data <- assemble_data(data)
-+    
-+    data <- create_minwage_eventvars(data)
-+    
-+    save_data(df = data, filename = paste0(outputdir, 'data_clean.csv'), 
-+              key = c('zipcode', 'date'))
-+ }
-> 
-> load_data <- function(infile_zillow, infile_statemw, infile_localmw, infile_place, infile_county, infile_zipplace){
-+    dfZillow <- fread(infile_zillow)
-+    
-+    dfZillow[, zipcode := str_pad(as.character(zipcode), 5, pad = 0)]
-+    dfZillow[,date := as.Date(paste0(date, "_01"), "%Y_%m_%d")]
-+    dfZillow[,county:=NULL]
-+    
-+ 
-+    dfStatemw <- fread(infile_statemw)
-+    setnames(dfStatemw, old = c('statefips', 'monthly_date'), new = c('state', 'date'))
-+    dfStatemw[,date := str_replace_all(date, "m", "_")][,date:= as.Date(paste0(date, "_01"), "%Y_%m_%d")]
-+    setnames(dfStatemw, old = c('min_mw', 'mean_mw', 'max_mw'), new = c('min_state_mw', 'mean_state_mw', 'max_state_mw'))
-+    
-+    dfLocalmw <- fread(infile_localmw)
-+    setnames(dfLocalmw, old = c('statefips', 'monthly_date'), new = c('state', 'date'))
-+    dfLocalmw[,date := str_replace_all(date, "m", "_")][,date:= as.Date(paste0(date, "_01"), "%Y_%m_%d")]
-+    dfLocalmw[,iscounty:=str_extract_all(locality, " County")][,iscounty:= ifelse(iscounty==" County", 1, 0)]
-+    
-+    dfCountymw <- dfLocalmw[iscounty==1,][,iscounty:=NULL]
-+    setnames(dfCountymw, old = c('locality', 'min_mw', 'mean_mw', 'max_mw', 'abovestate'), 
-+                         new = c('countyname', 'min_county_mw', 'mean_county_mw', 'max_county_mw', 'countyabovestate'))
-+    
-+    dfLocalmw <- dfLocalmw[iscounty==0,][,iscounty:=NULL]
-+    setnames(dfLocalmw, old = c('locality', 'min_mw', 'mean_mw', 'max_mw', 'abovestate'), 
-+                        new = c('placename', 'min_local_mw', 'mean_local_mw', 'max_local_mw', 'localabovestate'))              
-+    
-+    
-+    place10 <- fread(infile_place)
-+    place10 <- place10[placetype=="city",] 
-+    zip_places10 <- fread(infile_zipplace)
-+    setorder(zip_places10, zipcode)
-+    zip_places10 <- zip_places10[zippcthouse10>=50,] 
-+    zip_places10 <- place10[zip_places10, on = c('state', 'place')]
-+    zip_places10[, zipcode := str_pad(as.character(zipcode), 5, pad = 0)]
-+    
-+    
-+    zip_county10 <- fread(infile_county)
-+    setorder(zip_county10, zipcode)
-+    zip_county10 <- zip_county10[zippcthouse10>=50,]
-+    zip_county10[, ind := max(zippctpop10, na.rm = T), by = 'zipcode'][, ind:= ifelse(ind==zippctpop10, 1, 0)]
-+    zip_county10 <- zip_county10[ind==1,]
-+    zip_county10 <- zip_county10[, ind:=NULL]
-+    zip_county10[, zipcode := str_pad(as.character(zipcode), 5, pad = 0)]
-+    
-+    
-+    zip_county10<- zip_county10[, c('state', 'county', 'countyname', 'zipcode', 'zippctpop10', 'zippcthouse10', 'zippctland')]
-+    zip_places10 <- zip_places10[, c('zipcode','place', 'placename', 'placetype', 'placepop10')]
-+ 
-+    
-+    return(list('df_zillow'    = dfZillow,     'df_state_mw' = dfStatemw, 
-+                'df_county_mw' = dfCountymw,   'df_local_mw' = dfLocalmw, 
-+                'zip_county'   = zip_county10, 'zip_place'   = zip_places10))
-+ }
-> 
-> assemble_data <- function(l) {
-+    DF <- l[['df_zillow']]
-+    DF <- l[['zip_county']][l[['df_zillow']], on = 'zipcode']
-+    DF <- l[['zip_place']][DF, on = 'zipcode']                                                 
-+    DF <- l[['df_state_mw']][DF, on = c('state', 'stateabb', 'date')]                               
-+    DF <- l[['df_county_mw']][DF, on = c('state', 'statename', 'stateabb', 'countyname', 'date')]   
-+    DF <- l[['df_local_mw']][DF, on = c('state', 'statename', 'stateabb', 'placename', 'date')]     
-+    
-+    colorder1 <- c('date', 'zipcode', 'place', 'placename', 'city', 'msa', 'county', 
-+                   'countyname', 'state', 'stateabb', 'statename')
-+    colorder2 <- setdiff(colorder1, names(DF))
-+    setcolorder(DF, c(colorder1,colorder2))
-+    return(DF)
-+ }
-> 
-> create_minwage_eventvars <- function(x){
-+    min_mwage_vars<-c('min_fed_mw', 'min_state_mw', 'min_county_mw', 'min_local_mw')
-+    mean_mwage_vars<-c('mean_fed_mw', 'mean_state_mw', 'mean_county_mw', 'mean_local_mw')
-+    max_mwage_vars<-c('max_fed_mw', 'max_state_mw', 'max_county_mw', 'max_local_mw')
-+    
-+    x[ , min_actual_mw := 
-+         rowMaxs(as.matrix(x[,..min_mwage_vars]), na.rm = T)][ , min_actual_mw:= ifelse(min_actual_mw == -Inf, 
-+                                                                                         NA, min_actual_mw)]
-+    x[ , mean_actual_mw := 
-+         rowMaxs(as.matrix(x[,..mean_mwage_vars]), na.rm = T)][ ,mean_actual_mw:= ifelse(mean_actual_mw == -Inf, 
-+                                                                                         NA, mean_actual_mw)]
-+    x[ , max_actual_mw := 
-+         rowMaxs(as.matrix(x[,..max_mwage_vars]), na.rm = T)][ ,max_actual_mw:= ifelse(max_actual_mw == -Inf,
-+                                                                                       NA, max_actual_mw)]
-+    
-+    setorderv(x, cols = c('zipcode', 'date'))
-+    x[,Dmin_actual_mw := min_actual_mw - shift(min_actual_mw), by = 'zipcode'][,min_event := ifelse(Dmin_actual_mw > 0 , 1, 0)]
-+    x[,Dmean_actual_mw := mean_actual_mw - shift(mean_actual_mw), by = 'zipcode'][,mean_event := ifelse(Dmean_actual_mw > 0 , 1, 0)]
-+    x[,Dmax_actual_mw := max_actual_mw - shift(max_actual_mw), by = 'zipcode'][,max_event := ifelse(Dmax_actual_mw > 0 , 1, 0)]
-+     
-+    return(x)
-+ }
-> 
-> main()
-[1] "File '../output/data_clean.csv' saved successfully."
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  year_month |  7,597,483    577.0246     82.2744        435        719
+     zipcode |  7,597,483    48426.78    27595.03       1001      99901
+       place |  3,648,166    41872.93     23865.7        100      89300
+        city |  7,597,483    6443.842    3747.067          1      13034
+         msa |  5,984,668    436.7477    244.9903          1        859
+-------------+---------------------------------------------------------
+      county |  7,597,483     83.3507    83.45062          1        840
+  countyfips |  7,597,483    29835.41    15130.56       1001      56045
+       state |  7,597,483    29.75206    15.11902          1         56
+    stateabb |          0
+   placetype |  2,350,204           1           0          1          1
+-------------+---------------------------------------------------------
+min_local_mw |     60,400    8.052595    1.205039       5.15      15.24
+mean_local~w |     60,400    8.054255    1.206666       5.15      15.24
+max_local_mw |     60,400    8.055538    1.206877       5.15      15.24
+localabove~e |     60,400    .1940563    .3954757          0          1
+min_county~w |     58,437    7.582709    1.094743       5.15      10.91
+-------------+---------------------------------------------------------
+mean_count~w |     58,437    7.583254    1.094215       5.15      10.91
+max_county~w |     58,437    7.585026    1.093746       5.15      10.91
+countyabov~e |     58,437    .0549994     .227981          0          1
+  min_fed_mw |  6,504,054    5.936359    1.023754       4.25       7.25
+min_state_mw |  6,504,054    6.261964    1.228608       4.25       11.5
+-------------+---------------------------------------------------------
+ mean_fed_mw |  6,504,054     5.93858     1.02376       4.25       7.25
+mean_state~w |  6,504,054    6.262971    1.228386       4.25       11.5
+  max_fed_mw |  6,504,054    5.944964    1.025931       4.25       7.25
+max_state_mw |  6,504,054    6.265792    1.229233       4.25       11.5
+  placepop10 |  2,350,204    390591.8     1262634         49    8175133
+-------------+---------------------------------------------------------
+ zippctpop10 |  7,597,483    96.09259    9.688794          0        100
+zippcthou~10 |  7,597,483    96.03763    9.564327         50        100
+  zippctland |  7,597,483    93.35915    14.75699         .4        100
+rent2br_me~n |    106,315    1764.751    877.7131        475      19500
+rent2br_ps~n |     92,450    1.682024    .8027275   .5015197   12.55461
+-------------+---------------------------------------------------------
+rent_psqft~r |    144,062    1.145787    1.003317   .1039069   24.48466
+     zhvi2br |  5,511,420    146088.1    132845.4       7100    3893638
+min_actual~w |  6,504,054    6.264558    1.234563       4.25      15.24
+mean_actua~w |  6,504,054    6.265579    1.234377       4.25      15.24
+max_actual~w |  6,504,054    6.268411    1.235238       4.25      15.24
+-------------+---------------------------------------------------------
+dmin_actua~w |  6,477,385    .0155776    .1027601         -1       5.81
+   min_event |  6,477,385    .0312018    .1738627          0          1
+dmean_actu~w |  6,477,385    .0155756    .0984937         -1       5.81
+  mean_event |  6,477,385    .0381443    .1915444          0          1
+dmax_actua~w |  6,477,385    .0155739    .1027536         -1       5.81
+-------------+---------------------------------------------------------
+   max_event |  6,477,385    .0311927    .1738381          0          1
 
 
-[1] "Log file generated successfully."
-Warning messages:
-1: In `[.data.table`(x, , ..min_mwage_vars) :
-  Both 'min_mwage_vars' and '..min_mwage_vars' exist in calling scope. Please remove the '..min_mwage_vars' variable in calling scope for clarity.
-2: In `[.data.table`(x, , ..mean_mwage_vars) :
-  Both 'mean_mwage_vars' and '..mean_mwage_vars' exist in calling scope. Please remove the '..mean_mwage_vars' variable in calling scope for clarity.
-3: In `[.data.table`(x, , ..max_mwage_vars) :
-  Both 'max_mwage_vars' and '..max_mwage_vars' exist in calling scope. Please remove the '..max_mwage_vars' variable in calling scope for clarity.
-> 
-> proc.time()
-   user  system elapsed 
- 248.18   13.89  260.46 
 
- make.py ended: 2020-03-05 17:35:40
+
+(note: file ../output/data_ready.dta not found)
+file ../output/data_ready.dta saved
+
+. 
+end of do-file
+
+ make.py ended: 2020-03-06 14:08:56

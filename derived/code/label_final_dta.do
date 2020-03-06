@@ -8,28 +8,38 @@ cap mkdir "../output/"
 
 program main 
 	local csv_data "../output/"
-	local output "../output/"
 	local temp "../temp/"
 
-	import_csv, instub(`csv_data') outstub(`output')
+	import_csv, instub(`csv_data')
+	clean_vars
+	label_vars
 
+	local output "../output/"
+	compress
+	save_data `output'data_ready.dta, key(year_month zipcode) replace
 end 
 
 program import_csv
-	syntax, instub(str) outstub(str)
-
+	syntax, instub(str)
 	import delim `instub'data_clean.csv, delim(",")
 end 
 
-program label_vars 
-	
+program clean_vars
 	*clean date
-	g date2 = date(date, "YMD")
-	replace date2 = ym(year(date2), month(date2))
-	format date2 %tm 
-	order date2, after(date)
+	g year_month = date(date, "YMD")
+	replace year_month = mofd(year_month)
+	format year_month %tm 
+	order year_month, after(date)
 	drop date 
-	rename date2 date
+
+	drop if missing(year_month)
+
+	* Remove obs with no data on minimum wage 
+	bys zipcode (year_month): egen no_mw_min_data = min(min_actual_mw)
+	bys zipcode (year_month): egen no_mw_mean_data = min(mean_actual_mw)
+	bys zipcode (year_month): egen no_mw_max_data = min(max_actual_mw)	
+	drop if missing(no_mw_min_data) & missing(no_mw_mean_data) & missing(no_mw_max_data)	
+	drop no_mw_min_data no_mw_mean_data no_mw_max_data
 
 	*clean place/city name: since city has no missing keep that (BUT ZIP CODE CAN BELONG TO DIFFERENT CITIES!!!!!)
 	* als, there are some 70000s zipcode-date where placename and city doesn't match (why)
@@ -39,21 +49,11 @@ program label_vars
 			replace city = regexr(city, "`w'", "")
 	}
 
-	*clean county : no need 
-	g countyfips = string(state, "%02.0f") + string(county, "%03.0f") 
-	destring countyfips, replace 
-	order countyfips, after(county)
+end
 
-	*clean state
-	br if !missing(state) & missing(statename)
 
-	bysort state (statename): replace statename = statename[_N]
-	bysort stateabb (statename): replace statename = statename[_N]
-	bysort stateabb (state): replace state = state[1] 
-
-	drop stateabb 
-	* make labels 
-	sort state county city zipcode date
+program label_vars 
+	sort state county city zipcode year_month
 
 	foreach var in city msa {
 		encode `var', g(`var'2)
@@ -61,20 +61,27 @@ program label_vars
 		drop `var'
 		rename `var'2 `var'
 	}
-
-	labmask countyfips, values(countyname)
-
-	bys countyfips (countyname): g diff = countyname[1]!= countyname[_N]
-	br if diff
-
-	foreach var in countyfips state {
-		labmask `var', values(`var'name)
-	}
-
-
 	
+	bysort state (statename): replace statename = statename[_N]
+	labmask state, values(statename)
+	drop statename 
+	
+	g countyfips = string(state, "%02.0f") + string(county, "%03.0f") 
+	destring countyfips, replace force 
+	order countyfips, after(county)
+	labmask countyfips, values(countyname)
+	drop countyname
+
+	order placetype, after(stateabb)
+	encode placetype, g(ptype2)
+	order ptype2, after(placetype)
+	drop placetype
+	rename ptype2 placetype
 
 
+	sort state county city zipcode year_month	
+
+	tsset year_month zipcode
 end 
 
 
