@@ -33,6 +33,7 @@ program clean_vars
 	drop date 
 
 	drop if missing(year_month)
+	drop if missing(zipcode)
 
 	* Remove obs with no data on minimum wage 
 	bys zipcode (year_month): egen no_mw_min_data = min(min_actual_mw)
@@ -48,13 +49,10 @@ program clean_vars
 		foreach w in `dropwords' {
 			replace city = regexr(city, "`w'", "")
 	}
-
 end
 
 
 program label_vars 
-	sort state county city zipcode year_month
-
 	foreach var in city msa {
 		encode `var', g(`var'2)
 		order `var'2, after(`var')
@@ -65,7 +63,7 @@ program label_vars
 	bysort state (statename): replace statename = statename[_N]
 	labmask state, values(statename)
 	drop statename 
-	
+
 	g countyfips = string(state, "%02.0f") + string(county, "%03.0f") 
 	destring countyfips, replace force 
 	order countyfips, after(county)
@@ -78,10 +76,7 @@ program label_vars
 	drop placetype
 	rename ptype2 placetype
 
-
-	sort state county city zipcode year_month	
-
-	tsset zipcode year_month 
+	xtset zipcode year_month 
 end 
 
 

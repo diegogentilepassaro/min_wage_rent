@@ -1,84 +1,73 @@
 clear all
 set more off
 adopath + ../../lib/stata/mental_coupons/ado
+adopath + ../../lib/stata/gslab_misc/ado
+set maxvar 32000 
 
 program main
 	local instub  "../../derived/output/"
 	local outstub "../output/"
 
-	import delim `instub'data_clean.csv, clear
+	use ../../derived/output/data_ready.dta, clear
 
 	prepare_data
 
-	*plot_average, depvar(`rent2br_median') indepvar(`mw_change_event_date')
+	/*preserve
+	collapse rent2br_median, by(rel_months_min_event)
+	
+	tset rel_months_min_event
+	tsline rent2br_median if rel_months != 1000 ///
+	   graphregion(color(white)) bgcolor(white)
+	restore*/
+	
+    areg rent2br_psqft_median ib12.rel_months_min_event ///
+        i.calendar_month i.year_month, absorb(zipcode) vce(cluster zipcode)
+    
+	coefplot, drop(*.year_month *.state 1000.rel_months_min_event _cons) ///
+	    base vertical graphregion(color(white)) bgcolor(white)
 end
 
 program prepare_data
+    gen date = dofm(year_month)
+    gen calendar_month = month(date)
+	drop date
 
-	rename date date_string
-	gen daily_date   = date(date_string, "YMD")
-	gen year_month = mofd(daily_date)
-	format year_month %tm
-    	
-	bysort zipcode: egen alo_event_min = max(min_event)
-	*bysort zipcode: egen alo_event_mean = max(mean_event)
-	*bysort zipcode: egen alo_event_max = max(max_event)
-	
-	keep if alo_event_min == 1
-	gen event_min_month = year_month if min_event == 1
-	bysort zipcode (year_month): carryforward event_min_month, replace
-	
-	gen neg_year_month = -year_month
-	bysort zipcode (neg_year_month): carryforward event_min_month, gen(back_event_min_month)
-	
-	bysort zipcode: egen nbr_event_min = sum(min_event)
-	
-	gen min_event_non_overlapping = min_event
-	local window 12
-	
-	forvalues i = 1:12 {
-		replace min_event_non_overlapping = 0 if min_event[_n -`i'] == 1
-	}
-	
-	*relative_time, num_periods(6) time(year_month) event_date()
+	create_event_vars, event_dummy(min_event) window(12) ///
+	    time_var(year_month) geo_unit(zipcode)
 end
 
-/*program create_dep_var
-	syntax, mw_var(str) time_frame(int)
-	local mw_var "mean_actual_mw"
-	bysort zipcode date: gen mw_change = (d`mw_var' != 0 & !missing(d`mw_var'))
-	bysort zipcode date: gen mw_change_date = monthly_date if mw_change == 1
-	local time_frame 10
-	gen mw_change_event = (mw_change == 1)
+program create_event_vars
+	syntax, event_dummy(str) window(str) time_var(str) geo_unit(str)
+	
+	local window_span = 2*`window' + 1
+		
+	gen `event_dummy'_`time_var' = `time_var' if `event_dummy' == 1
+	format `event_dummy'_`time_var' %tm
+	bysort `geo_unit' (`time_var'): carryforward `event_dummy'_`time_var', replace
 
-	forvalues i = 1/`time_frame' {
-		replace mw_change_event = 1 if mw_change[_n-`i'] == 1 & zipcode == zipcode[_n-`i']
-		replace mw_change_event = 1 if mw_change[_n+`i'] == 1 & zipcode == zipcode[_n+`i']
-	}
-	local time_frame 10
-	gen mw_change_event_date = 0 if mw_change == 1
-	forvalues i = 1/`time_frame' {
-		replace mw_change_event_date = mw_change_date[_n-`i'] - monthly_date             ///
-							if mw_change[_n-`i'] == 1
-		replace mw_change_event_date = monthly_date - mw_change_date[_n+`i']             ///
-							if mw_change[_n+`i'] == 1
-	}
-end*/
+	gen f`window'_`event_dummy'_`time_var' = F`window'.`event_dummy'_`time_var'
+	format f`window'_`event_dummy'_`time_var' %tm
 
-program relative_time
-syntax, num_periods(int) time(str) event_date(str)
-	if "`time'" == "anio_sem" {
-		gen t = `time' - hofd(`event_date')
-	}
-	else {
-		gen t = `time' - yofd(`event_date')
-	}
-	replace t = -1000    if t < -`num_periods'
-	replace t = 1000 if t >  `num_periods'
-	replace t = t + `num_periods' + 1 if (t != -1000 & t != 1000)
-	replace t = 0 if t == -1000
-	assert !mi(t)
-	tab t, m
+	gen rel_months_`event_dummy' = `time_var' - `event_dummy'_`time_var'
+    replace rel_months_`event_dummy' = rel_months_`event_dummy' + `window' + 1
+	replace rel_months_`event_dummy' = 1000 if rel_months_`event_dummy' > `window_span'
+
+    gen f`window'_rel_months_`event_dummy' = `time_var' - f`window'_`event_dummy'_`time_var' + `window' + 1
+	replace rel_months_`event_dummy' = f`window'_rel_months_`event_dummy' ///
+	    if rel_months_`event_dummy' == 1000 & inrange(f`window'_rel_months_`event_dummy', 1, `window')
+
+	replace `event_dummy'_`time_var' = f`window'_`event_dummy'_`time_var' ///
+	    if inrange(rel_months_`event_dummy', 1, `window')
+	replace `event_dummy'_`time_var' = . if rel_months_`event_dummy' == 1000
+
+	bysort `geo_unit' `event_dummy'_`time_var': ///
+	    egen min_rel_months_`event_dummy' = min(rel_months_`event_dummy')
+	drop if min_rel_months_`event_dummy' == `window' + 1
+
+	drop f`window'_`event_dummy'_`time_var' f`window'_rel_months_`event_dummy' ///
+	    min_rel_months_`event_dummy'
+		
+	sort zipcode year_month
 end
 
 main
