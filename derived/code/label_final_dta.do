@@ -81,7 +81,7 @@ program label_vars
 
 	sort state county city zipcode year_month	
 
-	tsset year_month zipcode
+	tsset zipcode year_month 
 end 
 
 
