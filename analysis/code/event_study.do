@@ -10,34 +10,25 @@ program main
 
 	use ../../derived/output/data_ready.dta, clear
 
-	prepare_data
-
-	/*preserve
-	collapse rent2br_median, by(rel_months_min_event)
+	local window = 12
+	prepare_data, window(`window')
 	
-	tset rel_months_min_event
-	tsline rent2br_median if rel_months != 1000 ///
-	   graphregion(color(white)) bgcolor(white)
-	restore*/
-	
-    areg rent2br_psqft_median ib12.rel_months_min_event ///
-        i.calendar_month i.year_month, absorb(zipcode) vce(cluster zipcode)
-    
-	coefplot, drop(*.year_month *.state 1000.rel_months_min_event _cons) ///
-	    base vertical graphregion(color(white)) bgcolor(white)
+	create_event_plot, depvar(rent2br_median) rel_event_var(rel_months_min_event) ///
+	    window(`window')
 end
 
 program prepare_data
+    syntax, window(int)
     gen date = dofm(year_month)
     gen calendar_month = month(date)
 	drop date
 
-	create_event_vars, event_dummy(min_event) window(12) ///
+	create_event_vars, event_dummy(min_event) window(`window') ///
 	    time_var(year_month) geo_unit(zipcode)
 end
 
 program create_event_vars
-	syntax, event_dummy(str) window(str) time_var(str) geo_unit(str)
+	syntax, event_dummy(str) window(int) time_var(str) geo_unit(str)
 	
 	local window_span = 2*`window' + 1
 		
@@ -68,6 +59,23 @@ program create_event_vars
 	    min_rel_months_`event_dummy'
 		
 	sort zipcode year_month
+end
+
+program create_event_plot
+    syntax, depvar(str) rel_event_var(str) window(int)
+
+	local window_plus1 = `window' + 1
+	local window_span = 2*`window' + 1
+	
+    areg `depvar' ib`window'.`rel_event_var' ///
+        i.calendar_month i.calendar_month#i.state ///
+		i.year_month, absorb(zipcode) vce(cluster zipcode)
+    
+	coefplot, drop(*.calendar_month *.calendar_month#*.state *.year_month _cons) ///
+	    base vertical graphregion(color(white)) bgcolor(white) ///
+		xlabel(1 "-`window'" `window_plus1' "0" `window_span' "`window'") ///
+		xline(`window_plus1', lcol(grey) lpat(dot))
+	graph export ../output/`depvar'_event_w`window'.png, replace	
 end
 
 main

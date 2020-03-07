@@ -1,0 +1,987 @@
+
+ make.py started: 2020-03-06 19:36:43 /Users/dgentil1/Desktop/Diego/min_wage_rent/analysis/code 
+
+
+
+
+Execute:  stataSE -e do "./event_study.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   16.1   Copyright 1985-2019 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     Special Edition                  College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+120-user Stata network perpetual license:
+       Serial number:  401606201670
+         Licensed to:  Brown University
+                       Brown University
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./event_study.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../lib/stata/mental_coupons/ado
+  [1]  (BASE)      "/Applications/Stata/ado/base/"
+  [2]  (SITE)      "/Applications/Stata/ado/site/"
+  [3]              "."
+  [4]  (PERSONAL)  "/Users/dgentil1/Documents/Stata/ado/personal/"
+  [5]  (PLUS)      "/Users/dgentil1/Library/Application Support/Stata/ado/plus/"
+  [6]  (OLDPLACE)  "~/ado/"
+  [7]              "../../lib/stata/mental_coupons/ado"
+
+. adopath + ../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "/Applications/Stata/ado/base/"
+  [2]  (SITE)      "/Applications/Stata/ado/site/"
+  [3]              "."
+  [4]  (PERSONAL)  "/Users/dgentil1/Documents/Stata/ado/personal/"
+  [5]  (PLUS)      "/Users/dgentil1/Library/Application Support/Stata/ado/plus/"
+  [6]  (OLDPLACE)  "~/ado/"
+  [7]              "../../lib/stata/mental_coupons/ado"
+  [8]              "../../lib/stata/gslab_misc/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.         local instub  "../../derived/output/"
+  2.         local outstub "../output/"
+  3. 
+.         use ../../derived/output/data_ready.dta, clear
+  4. 
+.         local window = 12
+  5.         prepare_data, window(`window')
+  6.         
+.         create_event_plot, depvar(rent2br_median) rel_event_var(rel_months_min_event) ///
+>             window(`window')
+  7. end
+
+. 
+. program prepare_data
+  1.     syntax, window(int)
+  2.     gen date = dofm(year_month)
+  3.     gen calendar_month = month(date)
+  4.         drop date
+  5. 
+.         create_event_vars, event_dummy(min_event) window(`window') ///
+>             time_var(year_month) geo_unit(zipcode)
+  6. end
+
+. 
+. program create_event_vars
+  1.         syntax, event_dummy(str) window(int) time_var(str) geo_unit(str)
+  2.         
+.         local window_span = 2*`window' + 1
+  3.                 
+.         gen `event_dummy'_`time_var' = `time_var' if `event_dummy' == 1
+  4.         format `event_dummy'_`time_var' %tm
+  5.         bysort `geo_unit' (`time_var'): carryforward `event_dummy'_`time_var', replace
+  6. 
+.         gen f`window'_`event_dummy'_`time_var' = F`window'.`event_dummy'_`time_var'
+  7.         format f`window'_`event_dummy'_`time_var' %tm
+  8. 
+.         gen rel_months_`event_dummy' = `time_var' - `event_dummy'_`time_var'
+  9.     replace rel_months_`event_dummy' = rel_months_`event_dummy' + `window' + 1
+ 10.         replace rel_months_`event_dummy' = 1000 if rel_months_`event_dummy' > `window_span'
+ 11. 
+.     gen f`window'_rel_months_`event_dummy' = `time_var' - f`window'_`event_dummy'_`time_var' + `window' + 1
+ 12.         replace rel_months_`event_dummy' = f`window'_rel_months_`event_dummy' ///
+>             if rel_months_`event_dummy' == 1000 & inrange(f`window'_rel_months_`event_dummy', 1, `window')
+ 13. 
+.         replace `event_dummy'_`time_var' = f`window'_`event_dummy'_`time_var' ///
+>             if inrange(rel_months_`event_dummy', 1, `window')
+ 14.         replace `event_dummy'_`time_var' = . if rel_months_`event_dummy' == 1000
+ 15. 
+.         bysort `geo_unit' `event_dummy'_`time_var': ///
+>             egen min_rel_months_`event_dummy' = min(rel_months_`event_dummy')
+ 16.         drop if min_rel_months_`event_dummy' == `window' + 1
+ 17. 
+.         drop f`window'_`event_dummy'_`time_var' f`window'_rel_months_`event_dummy' ///
+>             min_rel_months_`event_dummy'
+ 18.                 
+.         sort zipcode year_month
+ 19. end
+
+. 
+. program create_event_plot
+  1.     syntax, depvar(str) rel_event_var(str) window(int)
+  2. 
+.         local window_plus1 = `window' + 1
+  3.         local window_span = 2*`window' + 1
+  4.         
+.     areg `depvar' ib`window'.`rel_event_var' ///
+>         i.calendar_month i.calendar_month#i.state ///
+>                 i.year_month, absorb(zipcode) vce(cluster zipcode)
+  5.     
+.         coefplot, drop(*.calendar_month *.calendar_month#*.state *.year_month _cons) ///
+>             base vertical graphregion(color(white)) bgcolor(white) ///
+>                 xlabel(1 "-`window'" `window_plus1' "0" `window_span' "`window'") ///
+>                 xline(`window_plus1', lcol(grey) lpat(dot))
+  6.         graph export ../output/`depvar'_event_w`window'.png, replace    
+  7. end
+
+. 
+. main
+(7,395,377 missing values generated)
+min_event_year_month:  (7,214,363 real changes made)
+(330,876 missing values generated)
+(181,014 missing values generated)
+(7,416,469 real changes made)
+(5,206,155 real changes made)
+(330,876 missing values generated)
+(776,553 real changes made)
+(776,553 real changes made)
+(4,418,670 real changes made, 4,418,670 to missing)
+(1,084,066 observations deleted)
+note: 12.calendar_month#2.state omitted because of collinearity
+note: 12.calendar_month#4.state omitted because of collinearity
+note: 12.calendar_month#5.state omitted because of collinearity
+note: 12.calendar_month#6.state omitted because of collinearity
+note: 12.calendar_month#8.state omitted because of collinearity
+note: 12.calendar_month#9.state omitted because of collinearity
+note: 12.calendar_month#10.state omitted because of collinearity
+note: 12.calendar_month#11.state omitted because of collinearity
+note: 12.calendar_month#12.state omitted because of collinearity
+note: 12.calendar_month#13.state omitted because of collinearity
+note: 12.calendar_month#15.state omitted because of collinearity
+note: 12.calendar_month#16.state omitted because of collinearity
+note: 12.calendar_month#17.state omitted because of collinearity
+note: 12.calendar_month#18.state omitted because of collinearity
+note: 12.calendar_month#19.state omitted because of collinearity
+note: 12.calendar_month#20.state omitted because of collinearity
+note: 12.calendar_month#21.state omitted because of collinearity
+note: 12.calendar_month#22.state omitted because of collinearity
+note: 12.calendar_month#23.state omitted because of collinearity
+note: 12.calendar_month#24.state omitted because of collinearity
+note: 12.calendar_month#25.state omitted because of collinearity
+note: 12.calendar_month#26.state omitted because of collinearity
+note: 12.calendar_month#27.state omitted because of collinearity
+note: 12.calendar_month#28.state omitted because of collinearity
+note: 12.calendar_month#29.state omitted because of collinearity
+note: 12.calendar_month#30.state omitted because of collinearity
+note: 12.calendar_month#31.state omitted because of collinearity
+note: 12.calendar_month#32.state omitted because of collinearity
+note: 12.calendar_month#33.state omitted because of collinearity
+note: 12.calendar_month#34.state omitted because of collinearity
+note: 12.calendar_month#35.state omitted because of collinearity
+note: 12.calendar_month#36.state omitted because of collinearity
+note: 12.calendar_month#37.state omitted because of collinearity
+note: 12.calendar_month#38.state omitted because of collinearity
+note: 12.calendar_month#39.state omitted because of collinearity
+note: 12.calendar_month#40.state omitted because of collinearity
+note: 12.calendar_month#41.state omitted because of collinearity
+note: 12.calendar_month#42.state omitted because of collinearity
+note: 12.calendar_month#44.state omitted because of collinearity
+note: 12.calendar_month#45.state omitted because of collinearity
+note: 12.calendar_month#46.state omitted because of collinearity
+note: 12.calendar_month#47.state omitted because of collinearity
+note: 12.calendar_month#48.state omitted because of collinearity
+note: 12.calendar_month#49.state omitted because of collinearity
+note: 12.calendar_month#50.state omitted because of collinearity
+note: 12.calendar_month#51.state omitted because of collinearity
+note: 12.calendar_month#53.state omitted because of collinearity
+note: 12.calendar_month#54.state omitted because of collinearity
+note: 12.calendar_month#55.state omitted because of collinearity
+note: 12.calendar_month#56.state omitted because of collinearity
+note: 708.year_month omitted because of collinearity
+note: 709.year_month omitted because of collinearity
+note: 710.year_month omitted because of collinearity
+note: 711.year_month omitted because of collinearity
+note: 712.year_month omitted because of collinearity
+note: 713.year_month omitted because of collinearity
+note: 714.year_month omitted because of collinearity
+note: 715.year_month omitted because of collinearity
+note: 717.year_month omitted because of collinearity
+note: 718.year_month omitted because of collinearity
+note: 719.year_month omitted because of collinearity
+
+Linear regression, absorbing indicators         Number of obs     =     97,284
+Absorbed variable: zipcode                      No. of categories =      2,562
+                                                F( 589,   2561)   =          .
+                                                Prob > F          =          .
+                                                R-squared         =     0.9835
+                                                Adj R-squared     =     0.9829
+                                                Root MSE          =   111.6375
+
+                                        (Std. Err. adjusted for 2,562 clusters in zipcode)
+------------------------------------------------------------------------------------------
+                         |               Robust
+          rent2br_median |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------------------+----------------------------------------------------------------
+    rel_months_min_event |
+                      1  |  -4.907687   12.78551    -0.38   0.701    -29.97868     20.1633
+                      2  |   5.425545   12.91074     0.42   0.674    -19.89101     30.7421
+                      3  |   24.59886   12.24421     2.01   0.045     .5892961    48.60843
+                      4  |   24.25377   12.27698     1.98   0.048     .1799436    48.32759
+                      5  |   21.71059   11.12664     1.95   0.051    -.1075438    43.52872
+                      6  |  -14.64321   10.31757    -1.42   0.156    -34.87483    5.588417
+                      7  |  -10.79255   9.892948    -1.09   0.275    -30.19154     8.60644
+                      8  |  -15.28138   8.447772    -1.81   0.071    -31.84654    1.283776
+                      9  |  -2.343087    7.69521    -0.30   0.761    -17.43255    12.74638
+                     10  |  -3.165272   7.469061    -0.42   0.672    -17.81128    11.48074
+                     11  |   3.872829   6.118659     0.63   0.527    -8.125193    15.87085
+                     13  |   21.66295   8.927821     2.43   0.015     4.156467    39.16943
+                     14  |   24.64328   9.008424     2.74   0.006     6.978744    42.30781
+                     15  |   26.45334   9.054471     2.92   0.004     8.698516    44.20817
+                     16  |   28.99668   9.099409     3.19   0.001     11.15373    46.83962
+                     17  |    24.5589   9.612065     2.56   0.011     5.710688     43.4071
+                     18  |   16.86654    10.3465     1.63   0.103    -3.421824     37.1549
+                     19  |   26.93522   10.47469     2.57   0.010     6.395496    47.47494
+                     20  |   28.24681   10.34096     2.73   0.006     7.969327     48.5243
+                     21  |   28.31214    10.2279     2.77   0.006     8.256343    48.36794
+                     22  |   28.67062   9.674911     2.96   0.003     9.699174    47.64206
+                     23  |   22.34253   9.699344     2.30   0.021     3.323178    41.36188
+                     24  |   23.00517    9.48684     2.42   0.015     4.402515    41.60783
+                     25  |   21.05084   11.69869     1.80   0.072    -1.889001    43.99069
+                   1000  |   29.24441   8.886506     3.29   0.001     11.81894    46.66988
+                         |
+          calendar_month |
+                      2  |   5.615957   11.13918     0.50   0.614    -16.22675    27.45867
+                      3  |   19.01578    9.08133     2.09   0.036     1.208282    36.82327
+                      4  |   21.75134   18.34438     1.19   0.236    -14.21998    57.72266
+                      5  |   22.12451   14.34455     1.54   0.123    -6.003595    50.25261
+                      6  |   36.72779   10.80154     3.40   0.001     15.54715    57.90843
+                      7  |    37.8562   12.33575     3.07   0.002     13.66715    62.04525
+                      8  |   47.48092    15.3091     3.10   0.002     17.46144    77.50039
+                      9  |  -224.1467   69.37348    -3.23   0.001    -360.1805   -88.11284
+                     10  |   47.19261   17.17475     2.75   0.006      13.5148    80.87041
+                     11  |   43.86558   11.33335     3.87   0.000     21.64212    66.08904
+                     12  |    14.7793    5.67528     2.60   0.009     3.650694     25.9079
+                         |
+    calendar_month#state |
+               1#Alaska  |  -3.808141   8.923146    -0.43   0.670    -21.30546    13.68917
+              1#Arizona  |  -50.93338   8.064454    -6.32   0.000    -66.74689   -35.11987
+             1#Arkansas  |  -4.784149   16.72203    -0.29   0.775    -37.57423    28.00593
+           1#California  |  -39.90335   6.537276    -6.10   0.000    -52.72223   -27.08447
+             1#Colorado  |  -30.09527    7.82208    -3.85   0.000    -45.43352   -14.75703
+          1#Connecticut  |  -1.678927   9.245327    -0.18   0.856      -19.808    16.45015
+             1#Delaware  |  -13.49034   14.43448    -0.93   0.350    -41.79478    14.81411
+ 1#District of Columbia  |  -8.356257   19.11711    -0.44   0.662    -45.84281     29.1303
+              1#Florida  |   -24.3574   6.333815    -3.85   0.000    -36.77731   -11.93748
+              1#Georgia  |  -17.65779    7.79725    -2.26   0.024    -32.94734   -2.368233
+               1#Hawaii  |   23.53869   20.42542     1.15   0.249    -16.51333    63.59072
+                1#Idaho  |  -38.63592   9.920007    -3.89   0.000    -58.08797   -19.18387
+             1#Illinois  |  -8.981032   6.174012    -1.45   0.146     -21.0876    3.125532
+              1#Indiana  |  -21.82021   9.078243    -2.40   0.016    -39.62165    -4.01877
+                 1#Iowa  |   23.70896   11.61269     2.04   0.041     .9377413    46.48019
+               1#Kansas  |    -4.0089   14.02391    -0.29   0.775    -31.50825    23.49045
+             1#Kentucky  |  -2.764546   10.70716    -0.26   0.796    -23.76011    18.23102
+            1#Louisiana  |  -6.655355   12.50081    -0.53   0.594    -31.16808    17.85737
+                1#Maine  |   19.12845   17.94287     1.07   0.286    -16.05555    54.31245
+             1#Maryland  |  -11.79151    6.94278    -1.70   0.090    -25.40554    1.822522
+        1#Massachusetts  |  -24.72535   8.030136    -3.08   0.002    -40.47157   -8.979134
+             1#Michigan  |  -13.40036   10.77427    -1.24   0.214    -34.52753    7.726804
+            1#Minnesota  |  -9.326248   10.54891    -0.88   0.377     -30.0115    11.35901
+          1#Mississippi  |  -17.26184   19.09822    -0.90   0.366    -54.71137    20.18769
+             1#Missouri  |  -5.896971   6.618695    -0.89   0.373    -18.87551    7.081567
+              1#Montana  |  -11.76102     10.162    -1.16   0.247    -31.68758    8.165543
+             1#Nebraska  |  -10.86694   9.271613    -1.17   0.241    -29.04756    7.313685
+               1#Nevada  |   -27.7997   7.502588    -3.71   0.000    -42.51145   -13.08794
+        1#New Hampshire  |  -48.60139   15.12418    -3.21   0.001    -78.25825   -18.94453
+           1#New Jersey  |  -9.796883    10.7987    -0.91   0.364    -30.97196    11.37819
+           1#New Mexico  |  -22.53028    17.8003    -1.27   0.206    -57.43473    12.37417
+             1#New York  |  -40.81517   8.342807    -4.89   0.000    -57.17451   -24.45584
+       1#North Carolina  |  -9.050731   7.604991    -1.19   0.234    -23.96329    5.861826
+         1#North Dakota  |  -6.213242   12.07765    -0.51   0.607     -29.8962    17.46972
+                 1#Ohio  |  -3.493374   8.829572    -0.40   0.692     -20.8072    13.82045
+             1#Oklahoma  |  -8.517021   9.074913    -0.94   0.348    -26.31193    9.277893
+               1#Oregon  |  -32.95649   10.72283    -3.07   0.002    -53.98278    -11.9302
+         1#Pennsylvania  |  -17.12323   7.810913    -2.19   0.028    -32.43958   -1.806884
+         1#Rhode Island  |    2.64378   16.48109     0.16   0.873    -29.67385    34.96141
+       1#South Carolina  |  -11.11654   13.84505    -0.80   0.422    -38.26517    16.03209
+         1#South Dakota  |  -18.39069   10.46314    -1.76   0.079    -38.90777    2.126386
+            1#Tennessee  |   -32.2249   10.75962    -2.99   0.003    -53.32333   -11.12647
+                1#Texas  |  -13.61452    6.13148    -2.22   0.026    -25.63768   -1.591354
+                 1#Utah  |  -28.14916   16.43255    -1.71   0.087    -60.37159     4.07327
+              1#Vermont  |   2.081532   5.282706     0.39   0.694    -8.277276    12.44034
+             1#Virginia  |  -11.84779   7.294681    -1.62   0.104    -26.15186    2.456285
+           1#Washington  |  -33.13577   7.827279    -4.23   0.000    -48.48421   -17.78733
+        1#West Virginia  |  -9.275521   14.81924    -0.63   0.531    -38.33444    19.78339
+            1#Wisconsin  |   6.365858   18.89873     0.34   0.736    -30.69249    43.42421
+              1#Wyoming  |  -16.20423   5.418342    -2.99   0.003    -26.82901   -5.579456
+               2#Alaska  |   6.773181   12.25261     0.55   0.580    -17.25285    30.79921
+              2#Arizona  |  -45.87567   12.21517    -3.76   0.000    -69.82827   -21.92306
+             2#Arkansas  |  -18.64868   18.97085    -0.98   0.326    -55.84844    18.55108
+           2#California  |  -40.27302   10.46636    -3.85   0.000     -60.7964   -19.74963
+             2#Colorado  |  -33.84281   12.50356    -2.71   0.007    -58.36092   -9.324702
+          2#Connecticut  |   2.284993   13.17983     0.17   0.862    -23.55922    28.12921
+             2#Delaware  |  -17.42817   11.75223    -1.48   0.138    -40.47301    5.616675
+ 2#District of Columbia  |  -14.09117   18.19334    -0.77   0.439    -49.76632    21.58398
+              2#Florida  |  -28.43438   10.57219    -2.69   0.007     -49.1653   -7.703472
+              2#Georgia  |   -21.0665   11.36278    -1.85   0.064    -43.34766    1.214668
+               2#Hawaii  |   16.87285   25.22269     0.67   0.504    -32.58608    66.33178
+                2#Idaho  |  -45.34343   13.66264    -3.32   0.001    -72.13437   -18.55249
+             2#Illinois  |  -7.580784   10.35245    -0.73   0.464    -27.88081    12.71924
+              2#Indiana  |   -30.3805   13.26628    -2.29   0.022    -56.39422   -4.366782
+                 2#Iowa  |   10.86732   13.63075     0.80   0.425    -15.86109    37.59572
+               2#Kansas  |  -12.36763   13.71131    -0.90   0.367    -39.25401    14.51875
+             2#Kentucky  |  -11.06246   14.67257    -0.75   0.451    -39.83377    17.70886
+            2#Louisiana  |  -.2129566   13.07732    -0.02   0.987    -25.85615    25.43024
+                2#Maine  |   28.89967   9.679558     2.99   0.003     9.919119    47.88023
+             2#Maryland  |  -4.304938   11.12462    -0.39   0.699     -26.1191    17.50923
+        2#Massachusetts  |  -25.43289    11.8359    -2.15   0.032    -48.64179   -2.223985
+             2#Michigan  |  -18.97065   14.41456    -1.32   0.188    -47.23602    9.294726
+            2#Minnesota  |  -10.44011   14.78105    -0.71   0.480    -39.42413    18.54391
+          2#Mississippi  |   12.58535   26.07362     0.48   0.629    -38.54216    63.71287
+             2#Missouri  |  -7.816774   10.50239    -0.74   0.457    -28.41081    12.77726
+              2#Montana  |  -6.170373   14.49742    -0.43   0.670    -34.59822    22.25747
+             2#Nebraska  |  -9.988444   13.24253    -0.75   0.451    -35.95559     15.9787
+               2#Nevada  |  -36.89745   12.28557    -3.00   0.003    -60.98812   -12.80678
+        2#New Hampshire  |  -41.72384   16.14552    -2.58   0.010    -73.38344   -10.06425
+           2#New Jersey  |   -23.3209   12.84595    -1.82   0.070    -48.51041    1.868608
+           2#New Mexico  |  -43.19589   18.49042    -2.34   0.020    -79.45358   -6.938196
+             2#New York  |  -42.60061   11.69214    -3.64   0.000    -65.52761   -19.67362
+       2#North Carolina  |   -6.96857   11.40936    -0.61   0.541    -29.34109    15.40395
+         2#North Dakota  |  -7.316066   11.56373    -0.63   0.527    -29.99127    15.35914
+                 2#Ohio  |  -5.817821   11.89378    -0.49   0.625    -29.14023    17.50459
+             2#Oklahoma  |   -16.1491   11.96948    -1.35   0.177    -39.61994    7.321745
+               2#Oregon  |  -30.65471   12.44164    -2.46   0.014    -55.05141   -6.258019
+         2#Pennsylvania  |  -16.34677   12.66155    -1.29   0.197    -41.17468    8.481137
+         2#Rhode Island  |   7.433082   21.89779     0.34   0.734    -35.50609    50.37225
+       2#South Carolina  |  -23.15007   14.99957    -1.54   0.123    -52.56259    6.262449
+         2#South Dakota  |   2.239375   13.64512     0.16   0.870    -24.51722    28.99597
+            2#Tennessee  |  -38.14118   14.34965    -2.66   0.008    -66.27927   -10.00309
+                2#Texas  |  -13.86733   10.16576    -1.36   0.173    -33.80126    6.066611
+                 2#Utah  |  -15.46885   19.88886    -0.78   0.437    -54.46874    23.53103
+              2#Vermont  |   5.353583   9.538121     0.56   0.575    -13.34963     24.0568
+             2#Virginia  |  -18.05497   11.09613    -1.63   0.104    -39.81327    3.703327
+           2#Washington  |  -23.47657   12.22693    -1.92   0.055    -47.45225    .4991108
+        2#West Virginia  |   5.671791   9.819502     0.58   0.564    -13.58318    24.92676
+            2#Wisconsin  |   11.67727   19.89579     0.59   0.557    -27.33619    50.69073
+              2#Wyoming  |  -34.64642   9.538121    -3.63   0.000    -53.34963    -15.9432
+               3#Alaska  |  -3.380697   14.93345    -0.23   0.821    -32.66355    25.90216
+              3#Arizona  |  -45.28357   12.70937    -3.56   0.000    -70.20525   -20.36188
+             3#Arkansas  |  -5.006576   31.92757    -0.16   0.875    -67.61305     57.5999
+           3#California  |  -37.48652   10.75676    -3.48   0.001    -58.57936   -16.39368
+             3#Colorado  |  -39.09455   12.94389    -3.02   0.003    -64.47612   -13.71299
+          3#Connecticut  |  -7.871248   13.08592    -0.60   0.548    -33.53131    17.78881
+             3#Delaware  |  -6.289234   23.56703    -0.27   0.790    -52.50161    39.92314
+ 3#District of Columbia  |  -32.88284   21.48195    -1.53   0.126    -75.00659    9.240918
+              3#Florida  |  -33.57629   10.91452    -3.08   0.002    -54.97847    -12.1741
+              3#Georgia  |  -22.48128   11.06244    -2.03   0.042    -44.17352   -.7890465
+               3#Hawaii  |    .333646   25.59424     0.01   0.990    -49.85386    50.52115
+                3#Idaho  |  -49.57185    14.9793    -3.31   0.001    -78.94462   -20.19908
+             3#Illinois  |  -12.86086   11.05231    -1.16   0.245    -34.53324    8.811521
+              3#Indiana  |  -32.54985    11.7985    -2.76   0.006    -55.68542   -9.414286
+                 3#Iowa  |  -7.440686   14.00981    -0.53   0.595    -34.91239    20.03102
+               3#Kansas  |  -18.80281   13.31239    -1.41   0.158    -44.90696    7.301337
+             3#Kentucky  |  -12.68071   13.82675    -0.92   0.359    -39.79345    14.43203
+            3#Louisiana  |  -4.462857   13.65724    -0.33   0.744    -31.24321     22.3175
+                3#Maine  |   4.786697   9.950505     0.48   0.631    -14.72516    24.29855
+             3#Maryland  |  -15.81903   11.31373    -1.40   0.162    -38.00401    6.365955
+        3#Massachusetts  |  -20.63466   12.12993    -1.70   0.089    -44.42012    3.150806
+             3#Michigan  |   -10.9259   15.74854    -0.69   0.488    -41.80707    19.95527
+            3#Minnesota  |  -25.76056   12.50581    -2.06   0.040     -50.2831   -1.238028
+          3#Mississippi  |  -3.992101   27.80781    -0.14   0.886    -58.52018    50.53598
+             3#Missouri  |   -23.8456     10.606    -2.25   0.025    -44.64281   -3.048401
+              3#Montana  |   -21.2454    15.2564    -1.39   0.164    -51.16155    8.670737
+             3#Nebraska  |  -4.602216   14.86486    -0.31   0.757    -33.75057    24.54614
+               3#Nevada  |  -42.22467   11.63788    -3.63   0.000    -65.04528   -19.40406
+        3#New Hampshire  |   -33.6838   22.10192    -1.52   0.128    -77.02324    9.655648
+           3#New Jersey  |  -22.24749   13.76364    -1.62   0.106    -49.23647    4.741499
+           3#New Mexico  |  -39.72468   16.40444    -2.42   0.016      -71.892   -7.557357
+             3#New York  |  -54.35413   12.41495    -4.38   0.000    -78.69849   -30.00978
+       3#North Carolina  |  -12.11626   11.46859    -1.06   0.291    -34.60491    10.37239
+         3#North Dakota  |  -23.65328   13.20727    -1.79   0.073    -49.55128     2.24473
+                 3#Ohio  |  -8.641046   11.72298    -0.74   0.461    -31.62853    14.34644
+             3#Oklahoma  |  -20.25819   11.79279    -1.72   0.086    -43.38257     2.86619
+               3#Oregon  |  -36.65736   12.88197    -2.85   0.004    -61.91748   -11.39723
+         3#Pennsylvania  |  -24.57753   12.93462    -1.90   0.058    -49.94091    .7858568
+         3#Rhode Island  |   17.53263   25.46019     0.69   0.491    -32.39203    67.45729
+       3#South Carolina  |  -22.15706   14.85515    -1.49   0.136    -51.28638    6.972267
+         3#South Dakota  |  -1.187759    15.0587    -0.08   0.937    -30.71622     28.3407
+            3#Tennessee  |  -45.62648   14.46657    -3.15   0.002    -73.99384   -17.25911
+                3#Texas  |  -16.73524   10.37413    -1.61   0.107    -37.07776    3.607289
+                 3#Utah  |  -20.77457   23.82819    -0.87   0.383    -67.49905    25.94991
+              3#Vermont  |  -11.07945   9.686066    -1.14   0.253    -30.07277    7.913865
+             3#Virginia  |  -22.11293   11.35068    -1.95   0.052    -44.37038    .1445106
+           3#Washington  |  -21.05526   12.41245    -1.70   0.090    -45.39472    3.284199
+        3#West Virginia  |  -3.510702   9.988268    -0.35   0.725     -23.0966     16.0752
+            3#Wisconsin  |  -.4674343   22.47097    -0.02   0.983    -44.53056    43.59569
+              3#Wyoming  |  -57.74612   9.686066    -5.96   0.000    -76.73943    -38.7528
+               4#Alaska  |    15.2103    23.6469     0.64   0.520    -31.15868    61.57928
+              4#Arizona  |  -43.32755    19.1659    -2.26   0.024    -80.90978   -5.745317
+             4#Arkansas  |   1.559518   27.50282     0.06   0.955    -52.37051    55.48955
+           4#California  |  -30.86066   17.86592    -1.73   0.084    -65.89377    4.172454
+             4#Colorado  |  -19.97704    19.2653    -1.04   0.300    -57.75418    17.80011
+          4#Connecticut  |   1.267441   19.46172     0.07   0.948    -36.89487    39.42975
+             4#Delaware  |  -5.332903   30.58965    -0.17   0.862    -65.31586    54.65006
+ 4#District of Columbia  |  -21.69334   23.98607    -0.90   0.366     -68.7274    25.34072
+              4#Florida  |  -29.17643   17.85366    -1.63   0.102    -64.18552    5.832652
+              4#Georgia  |  -12.00078    17.9115    -0.67   0.503    -47.12328    23.12172
+               4#Hawaii  |   .5019057   32.52347     0.02   0.988    -63.27306    64.27687
+                4#Idaho  |  -39.55526   18.87307    -2.10   0.036    -76.56329   -2.547226
+             4#Illinois  |  -2.455641   18.22082    -0.13   0.893    -38.18468     33.2734
+              4#Indiana  |  -29.02986   18.05201    -1.61   0.108    -64.42787    6.368158
+                 4#Iowa  |  -10.38404   19.65245    -0.53   0.597    -48.92034    28.15226
+               4#Kansas  |  -10.50447   18.86619    -0.56   0.578    -47.49899    26.49006
+             4#Kentucky  |  -6.371543    19.9344    -0.32   0.749    -45.46071    32.71763
+            4#Louisiana  |   3.393373   21.64598     0.16   0.875    -39.05202    45.83877
+                4#Maine  |  -3.492561   17.97641    -0.19   0.846    -38.74233    31.75721
+             4#Maryland  |  -8.500018   18.39753    -0.46   0.644    -44.57557    27.57554
+        4#Massachusetts  |  -2.361547   19.00361    -0.12   0.901    -39.62555    34.90246
+             4#Michigan  |   .4855703   22.22767     0.02   0.983    -43.10046     44.0716
+            4#Minnesota  |  -25.75702   19.76767    -1.30   0.193    -64.51925    13.00522
+          4#Mississippi  |   .5692562   28.35444     0.02   0.984    -55.03069    56.16921
+             4#Missouri  |  -19.25084   17.81759    -1.08   0.280    -54.18918     15.6875
+              4#Montana  |  -21.73953   19.16064    -1.13   0.257    -59.31145     15.8324
+             4#Nebraska  |   3.122357   24.42406     0.13   0.898    -44.77055    51.01527
+               4#Nevada  |  -28.84188   18.18548    -1.59   0.113    -64.50161    6.817855
+        4#New Hampshire  |  -25.95769   25.82601    -1.01   0.315    -76.59968     24.6843
+           4#New Jersey  |   -23.0217   19.99657    -1.15   0.250    -62.23279     16.1894
+           4#New Mexico  |  -36.35704   19.55554    -1.86   0.063    -74.70331    1.989235
+             4#New York  |  -45.75221   19.39541    -2.36   0.018    -83.78449   -7.719919
+       4#North Carolina  |   -2.88386   17.97765    -0.16   0.873    -38.13608    32.36836
+         4#North Dakota  |  -26.05976   18.98692    -1.37   0.170    -63.29104    11.17152
+                 4#Ohio  |  -7.995415   18.93918    -0.42   0.673    -45.13308    29.14225
+             4#Oklahoma  |  -13.15718   19.87761    -0.66   0.508      -52.135    25.82065
+               4#Oregon  |  -30.55948    18.6409    -1.64   0.101    -67.11225    5.993292
+         4#Pennsylvania  |  -13.10012   20.42769    -0.64   0.521    -53.15658    26.95634
+         4#Rhode Island  |   15.81864    35.1073     0.45   0.652    -53.02295    84.66022
+       4#South Carolina  |  -9.823889   20.92031    -0.47   0.639    -50.84633    31.19855
+         4#South Dakota  |  -12.57284   18.99081    -0.66   0.508    -49.81174    24.66606
+            4#Tennessee  |  -32.50834   20.98579    -1.55   0.121    -73.65918    8.642502
+                4#Texas  |   -14.3827   17.57774    -0.82   0.413    -48.85072    20.08532
+                 4#Utah  |  -29.03089   27.42355    -1.06   0.290    -82.80548     24.7437
+              4#Vermont  |  -58.59195   17.12685    -3.42   0.001    -92.17584   -25.00807
+             4#Virginia  |  -10.64386   18.14855    -0.59   0.558    -46.23119    24.94346
+           4#Washington  |   5.966335   19.33776     0.31   0.758     -31.9529    43.88557
+        4#West Virginia  |  -5.423303   21.71399    -0.25   0.803    -48.00206    37.15545
+            4#Wisconsin  |   5.953835   25.55066     0.23   0.816    -44.14821    56.05588
+              4#Wyoming  |  -23.59195   17.12685    -1.38   0.168    -57.17584    9.991933
+               5#Alaska  |  -1.683998   19.66993    -0.09   0.932    -40.25459    36.88659
+              5#Arizona  |  -36.65255   16.81673    -2.18   0.029    -69.62832   -3.676792
+             5#Arkansas  |   3.735747   20.57281     0.18   0.856    -36.60529    44.07678
+           5#California  |  -9.634215    15.6479    -0.62   0.538    -40.31804    21.04961
+             5#Colorado  |  -12.10541   17.37678    -0.70   0.486    -46.17938    21.96856
+          5#Connecticut  |   8.760012   18.38553     0.48   0.634    -27.29201    44.81203
+             5#Delaware  |  -20.19373   22.29564    -0.91   0.365    -63.91303    23.52558
+ 5#District of Columbia  |  -8.240823   28.37419    -0.29   0.772    -63.87951    47.39787
+              5#Florida  |  -27.18055   15.72037    -1.73   0.084    -58.00647    3.645378
+              5#Georgia  |  -5.564135   16.21509    -0.34   0.732    -37.36016    26.23189
+               5#Hawaii  |   8.388256   39.54955     0.21   0.832    -69.16409     85.9406
+                5#Idaho  |  -41.46959   15.66677    -2.65   0.008     -72.1904   -10.74877
+             5#Illinois  |   4.042726   16.15856     0.25   0.802    -27.64245     35.7279
+              5#Indiana  |  -26.81879   16.18447    -1.66   0.098    -58.55477    4.917189
+                 5#Iowa  |  -2.381598   17.74426    -0.13   0.893    -37.17616    32.41296
+               5#Kansas  |  -5.999245   17.69968    -0.34   0.735    -40.70638    28.70789
+             5#Kentucky  |   4.482457   19.73786     0.23   0.820    -34.22132    43.18623
+            5#Louisiana  |   3.345729   18.24225     0.18   0.854    -32.42534     39.1168
+                5#Maine  |  -32.72535   19.78216    -1.65   0.098    -71.51601    6.065308
+             5#Maryland  |  -4.230624   16.05351    -0.26   0.792    -35.70981    27.24856
+        5#Massachusetts  |   17.35461   17.13337     1.01   0.311    -16.24205    50.95128
+             5#Michigan  |   21.94351   20.80894     1.05   0.292    -18.86054    62.74756
+            5#Minnesota  |  -24.28975   19.59884    -1.24   0.215    -62.72094    14.14144
+          5#Mississippi  |   8.861764   18.65457     0.48   0.635    -27.71781    45.44134
+             5#Missouri  |   -2.88508   16.22803    -0.18   0.859    -34.70647    28.93631
+              5#Montana  |  -25.51358   16.54962    -1.54   0.123    -57.96557    6.938413
+             5#Nebraska  |   1.762774   22.03661     0.08   0.936    -41.44862    44.97417
+               5#Nevada  |  -17.09732   15.74735    -1.09   0.278    -47.97615    13.78151
+        5#New Hampshire  |  -13.83358   24.54979    -0.56   0.573    -61.97302    34.30587
+           5#New Jersey  |    2.67846   17.23969     0.16   0.877    -31.12668     36.4836
+           5#New Mexico  |  -23.91355   17.57701    -1.36   0.174    -58.38014    10.55304
+             5#New York  |  -30.63547   17.53334    -1.75   0.081    -65.01643    3.745488
+       5#North Carolina  |   6.700449   15.69355     0.43   0.669    -24.07289    37.47379
+         5#North Dakota  |  -14.08358    17.1516    -0.82   0.412      -47.716    19.54883
+                 5#Ohio  |  -3.745875    17.3443    -0.22   0.829    -37.75615     30.2644
+             5#Oklahoma  |  -19.91109   17.30545    -1.15   0.250    -53.84518      14.023
+               5#Oregon  |  -14.50278   16.60296    -0.87   0.382    -47.05938    18.05381
+         5#Pennsylvania  |  -8.948902   18.05129    -0.50   0.620    -44.34551    26.44771
+         5#Rhode Island  |   27.61314   35.40345     0.78   0.435    -41.80915    97.03543
+       5#South Carolina  |  -2.709686   18.86974    -0.14   0.886    -39.71118    34.29181
+         5#South Dakota  |  -4.444158   19.32373    -0.23   0.818    -42.33588    33.44756
+            5#Tennessee  |  -28.23512   18.55994    -1.52   0.128    -64.62912    8.158885
+                5#Texas  |  -9.785093   15.26462    -0.64   0.522    -39.71734    20.14716
+                 5#Utah  |  -14.15528   24.88707    -0.57   0.570    -62.95611    34.64555
+              5#Vermont  |  -102.7254   14.75643    -6.96   0.000    -131.6611    -73.7896
+             5#Virginia  |   2.366506   16.00986     0.15   0.882    -29.02708    33.76009
+           5#Washington  |   19.81007    17.3928     1.14   0.255    -14.29532    53.91546
+        5#West Virginia  |  -29.70995   20.07595    -1.48   0.139     -69.0767    9.656795
+            5#Wisconsin  |   16.29932    24.0226     0.68   0.498    -30.80638    63.40501
+              5#Wyoming  |   -7.72535   14.75643    -0.52   0.601     -36.6611     21.2104
+               6#Alaska  |  -39.45094   19.06321    -2.07   0.039    -76.83181   -2.070074
+              6#Arizona  |  -39.10899     13.718    -2.85   0.004    -66.00849   -12.20949
+             6#Arkansas  |  -15.85795   16.27116    -0.97   0.330    -47.76392    16.04801
+           6#California  |  -4.860685   11.95098    -0.41   0.684    -28.29526    18.57389
+             6#Colorado  |  -16.13963   14.33123    -1.13   0.260     -44.2416    11.96235
+          6#Connecticut  |   6.177971   14.53753     0.42   0.671    -22.32853    34.68447
+             6#Delaware  |  -31.60175   20.74367    -1.52   0.128    -72.27783    9.074327
+ 6#District of Columbia  |   4.367264   24.37925     0.18   0.858    -43.43779    52.17232
+              6#Florida  |  -32.45775   12.16485    -2.67   0.008     -56.3117    -8.60381
+              6#Georgia  |  -14.54394   12.99115    -1.12   0.263    -40.01816    10.93028
+               6#Hawaii  |   9.801868   35.92083     0.27   0.785    -60.63495    80.23869
+                6#Idaho  |  -58.65278   13.13481    -4.47   0.000    -84.40871   -32.89685
+             6#Illinois  |  -3.096961   12.89857    -0.24   0.810    -28.38965    22.19573
+              6#Indiana  |  -42.10218   13.44866    -3.13   0.002    -68.47353   -15.73083
+                 6#Iowa  |  -18.39109   13.55002    -1.36   0.175    -44.96119     8.17901
+               6#Kansas  |  -21.83016   14.37866    -1.52   0.129    -50.02513    6.364817
+             6#Kentucky  |   3.658954   16.87008     0.22   0.828    -29.42143    36.73934
+            6#Louisiana  |  -10.63744   16.88304    -0.63   0.529    -43.74323    22.46834
+                6#Maine  |  -79.29944    12.5213    -6.33   0.000    -103.8523   -54.74654
+             6#Maryland  |  -12.92369   13.68689    -0.94   0.345    -39.76219    13.91481
+        6#Massachusetts  |   21.27189   13.92458     1.53   0.127    -6.032679    48.57646
+             6#Michigan  |   26.33819   18.66335     1.41   0.158    -10.25859    62.93497
+            6#Minnesota  |   -31.9972   15.96918    -2.00   0.045    -63.31102   -.6833804
+          6#Mississippi  |   24.90734   14.87067     1.67   0.094    -4.252427     54.0671
+             6#Missouri  |  -14.28016   13.07665    -1.09   0.275    -39.92205    11.36172
+              6#Montana  |  -38.40604   12.91518    -2.97   0.003    -63.73129   -13.08078
+             6#Nebraska  |   -12.5961   19.96717    -0.63   0.528    -51.74953    26.55733
+               6#Nevada  |  -27.05472   12.12867    -2.23   0.026    -50.83773   -3.271718
+        6#New Hampshire  |  -11.03185   18.39561    -0.60   0.549    -47.10363    25.03993
+           6#New Jersey  |   9.463079   14.56048     0.65   0.516    -19.08844     38.0146
+           6#New Mexico  |  -15.64799   14.50455    -1.08   0.281    -44.08983    12.79384
+             6#New York  |   -32.5308    14.9224    -2.18   0.029    -61.79199   -3.269612
+       6#North Carolina  |  -5.380738   12.08084    -0.45   0.656    -29.06994    18.30846
+         6#North Dakota  |  -24.01148   13.55258    -1.77   0.077     -50.5866     2.56365
+                 6#Ohio  |  -4.331375   14.42565    -0.30   0.764    -32.61849    23.95574
+             6#Oklahoma  |  -29.91829   13.45567    -2.22   0.026    -56.30339   -3.533191
+               6#Oregon  |   -18.1942   13.49251    -1.35   0.178    -44.65154    8.263139
+         6#Pennsylvania  |  -15.38652   15.35038    -1.00   0.316    -45.48695     14.7139
+         6#Rhode Island  |   17.19707   29.27119     0.59   0.557    -40.20053    74.59468
+       6#South Carolina  |  -23.36499   16.97966    -1.38   0.169    -56.66024    9.930265
+         6#South Dakota  |  -30.91273   13.23207    -2.34   0.020    -56.85937   -4.966081
+            6#Tennessee  |  -30.73192   15.56258    -1.97   0.048    -61.24844    -.215398
+                6#Texas  |  -15.97535   11.56786    -1.38   0.167    -38.65866    6.707964
+                 6#Utah  |  -30.99342   21.79993    -1.42   0.155     -73.7407    11.75386
+              6#Vermont  |  -63.88277   10.82002    -5.90   0.000    -85.09965   -42.66589
+             6#Virginia  |  -2.818645   12.55586    -0.22   0.822    -27.43931    21.80202
+           6#Washington  |   27.76209   14.50856     1.91   0.056    -.6876106    56.21179
+        6#West Virginia  |  -52.79457   15.56605    -3.39   0.001    -83.31789   -22.27125
+            6#Wisconsin  |   2.107446   20.87972     0.10   0.920    -38.83541     43.0503
+              6#Wyoming  |   -57.2161   10.82002    -5.29   0.000    -78.43299   -35.99922
+               7#Alaska  |  -44.22697   22.92388    -1.93   0.054     -89.1782     .724256
+              7#Arizona  |  -31.47541   11.49261    -2.74   0.006    -54.01116   -8.939662
+             7#Arkansas  |  -12.28355   16.77241    -0.73   0.464    -45.17241     20.6053
+           7#California  |  -1.592631   9.866477    -0.16   0.872    -20.93971    17.75445
+             7#Colorado  |   -13.2716   12.14532    -1.09   0.275    -37.08725    10.54405
+          7#Connecticut  |  -4.196254   12.28891    -0.34   0.733    -28.29346    19.90095
+             7#Delaware  |  -18.81577    24.4958    -0.77   0.442    -66.84935    29.21781
+ 7#District of Columbia  |  -5.859127    22.7581    -0.26   0.797    -50.48527    38.76702
+              7#Florida  |  -31.66073   9.816102    -3.23   0.001    -50.90903   -12.41243
+              7#Georgia  |  -7.638623   11.20247    -0.68   0.495    -29.60544    14.32819
+               7#Hawaii  |  -18.05638   38.72773    -0.47   0.641    -93.99721    57.88446
+                7#Idaho  |  -45.39226   14.72721    -3.08   0.002     -74.2707   -16.51381
+             7#Illinois  |   .4406372   11.18674     0.04   0.969    -21.49533    22.37661
+              7#Indiana  |  -43.04724   11.54605    -3.73   0.000     -65.6878   -20.40669
+                 7#Iowa  |  -24.38476   11.04895    -2.21   0.027    -46.05055   -2.718966
+               7#Kansas  |  -16.59142   12.66351    -1.31   0.190    -41.42318    8.240338
+             7#Kentucky  |   .0052502   15.34406     0.00   1.000    -30.08278    30.09328
+            7#Louisiana  |  -6.575175    13.9459    -0.47   0.637    -33.92155     20.7712
+                7#Maine  |  -18.91359   34.86383    -0.54   0.588    -87.27775    49.45056
+             7#Maryland  |  -14.22469   11.49656    -1.24   0.216     -36.7682    8.318816
+        7#Massachusetts  |   21.07976   11.98544     1.76   0.079    -2.422376    44.58189
+             7#Michigan  |   23.08606   15.76422     1.46   0.143    -7.825862    53.99798
+            7#Minnesota  |  -42.73048   16.94666    -2.52   0.012    -75.96103   -9.499933
+          7#Mississippi  |    18.5866   10.27819     1.81   0.071    -1.567804    38.74101
+             7#Missouri  |  -18.56598   10.37005    -1.79   0.074    -38.90052    1.768553
+              7#Montana  |  -18.15192   11.31628    -1.60   0.109    -40.34192    4.038077
+             7#Nebraska  |   -8.66808   15.77392    -0.55   0.583    -39.59902    22.26286
+               7#Nevada  |  -23.90309   10.43762    -2.29   0.022    -44.37013   -3.436047
+        7#New Hampshire  |  -18.94868   20.00546    -0.95   0.344    -58.17721    20.27985
+           7#New Jersey  |   22.39077   14.53327     1.54   0.124    -6.107377    50.88892
+           7#New Mexico  |  -22.12066   12.19329    -1.81   0.070    -46.03037    1.789047
+             7#New York  |   -18.0488   14.23371    -1.27   0.205    -45.95956    9.861955
+       7#North Carolina  |   -.991944   10.05961    -0.10   0.921    -20.71773    18.73384
+         7#North Dakota  |  -26.30924   11.39361    -2.31   0.021    -48.65087   -3.967616
+                 7#Ohio  |   -10.8748   12.13791    -0.90   0.370    -34.67592    12.92632
+             7#Oklahoma  |  -32.67816     11.451    -2.85   0.004    -55.13231     -10.224
+               7#Oregon  |  -9.863114    11.7604    -0.84   0.402    -32.92398    13.19775
+         7#Pennsylvania  |   -13.9275   13.78692    -1.01   0.312    -40.96214    13.10713
+         7#Rhode Island  |   10.64802    25.3379     0.42   0.674    -39.03684    60.33288
+       7#South Carolina  |  -13.10444   16.25565    -0.81   0.420       -44.98    18.77112
+         7#South Dakota  |  -28.56942   9.782415    -2.92   0.004    -47.75166   -9.387169
+            7#Tennessee  |  -19.64858   12.45164    -1.58   0.115     -44.0649     4.76773
+                7#Texas  |  -10.01292   9.361287    -1.07   0.285    -28.36938    8.343544
+                 7#Utah  |  -39.70565   17.18005    -2.31   0.021    -73.39386   -6.017443
+              7#Vermont  |  -76.83026   8.378861    -9.17   0.000    -93.26029   -60.40023
+             7#Virginia  |  -3.693299   10.44315    -0.35   0.724    -24.17118    16.78458
+           7#Washington  |   36.64379   11.93205     3.07   0.002     13.24635    60.04123
+        7#West Virginia  |  -40.42173   17.19472    -2.35   0.019     -74.1387   -6.704765
+            7#Wisconsin  |  -1.336026   17.94336    -0.07   0.941    -36.52099    33.84894
+              7#Wyoming  |  -32.66359   8.378861    -3.90   0.000    -49.09363   -16.23356
+               8#Alaska  |  -50.67716   17.50528    -2.89   0.004    -85.00311   -16.35121
+              8#Arizona  |  -36.55794   13.63327    -2.68   0.007     -63.2913   -9.824584
+             8#Arkansas  |  -28.86299   15.02101    -1.92   0.055    -58.31755    .5915776
+           8#California  |  -8.138768   11.76664    -0.69   0.489    -31.21187    14.93433
+             8#Colorado  |  -15.57618   13.49606    -1.15   0.249    -42.04047    10.88812
+          8#Connecticut  |  -14.11016   14.88611    -0.95   0.343    -43.30019    15.07987
+             8#Delaware  |    1.54033   29.67708     0.05   0.959    -56.65319    59.73385
+ 8#District of Columbia  |   3.712408   23.46886     0.16   0.874    -42.30746    49.73228
+              8#Florida  |  -35.85391   11.84546    -3.03   0.002    -59.08155   -12.62626
+              8#Georgia  |  -23.87513   12.55508    -1.90   0.057    -48.49427    .7440102
+               8#Hawaii  |  -35.30765   39.25127    -0.90   0.368    -112.2751    41.65981
+                8#Idaho  |  -50.74871   12.74671    -3.98   0.000    -75.74361   -25.75381
+             8#Illinois  |  -15.42765   12.55143    -1.23   0.219    -40.03963    9.184323
+              8#Indiana  |  -54.76197   12.80349    -4.28   0.000    -79.86822   -29.65572
+                 8#Iowa  |  -29.56533   12.48885    -2.37   0.018    -54.05459   -5.076069
+               8#Kansas  |  -30.21252   14.36835    -2.10   0.036    -58.38729   -2.037754
+             8#Kentucky  |  -13.84627   14.34219    -0.97   0.334    -41.96974     14.2772
+            8#Louisiana  |  -11.41197   16.34844    -0.70   0.485    -43.46948    20.64554
+                8#Maine  |   8.042595   56.77955     0.14   0.887    -103.2959    119.3811
+             8#Maryland  |  -14.42003   12.83709    -1.12   0.261    -39.59216     10.7521
+        8#Massachusetts  |  -.8849272   13.46596    -0.07   0.948    -27.29021    25.52036
+             8#Michigan  |   10.70424   19.72002     0.54   0.587    -27.96457    49.37305
+            8#Minnesota  |  -45.06639    16.4081    -2.75   0.006    -77.24088   -12.89189
+          8#Mississippi  |  -4.591951   11.53462    -0.40   0.691    -27.21008    18.02618
+             8#Missouri  |   -28.5315   12.22934    -2.33   0.020    -52.51189   -4.551101
+              8#Montana  |  -15.12278    15.0794    -1.00   0.316    -44.69183    14.44627
+             8#Nebraska  |  -14.92705   16.39753    -0.91   0.363    -47.08082    17.22671
+               8#Nevada  |  -30.86399   12.27157    -2.52   0.012     -54.9272   -6.800781
+        8#New Hampshire  |  -23.88204   26.69871    -0.89   0.371    -76.23529    28.47121
+           8#New Jersey  |   5.764879    14.3693     0.40   0.688    -22.41175    33.94151
+           8#New Mexico  |  -30.25384   13.62267    -2.22   0.026    -56.96641   -3.541266
+             8#New York  |  -23.73754   17.00913    -1.40   0.163    -57.09059    9.615508
+       8#North Carolina  |  -15.34149   12.10079    -1.27   0.205    -39.06982    8.386832
+         8#North Dakota  |  -29.19421   14.38402    -2.03   0.042     -57.3997    -.988715
+                 8#Ohio  |  -19.43758   12.90441    -1.51   0.132    -44.74171     5.86656
+             8#Oklahoma  |  -34.04476   12.59068    -2.70   0.007    -58.73371   -9.355816
+               8#Oregon  |  -9.125099    13.1415    -0.69   0.488    -34.89414    16.64394
+         8#Pennsylvania  |    -10.192    14.2053    -0.72   0.473    -38.04704    17.66304
+         8#Rhode Island  |  -3.774594   26.21196    -0.14   0.886    -55.17339     47.6242
+       8#South Carolina  |  -21.98471   15.39871    -1.43   0.154    -52.17989    8.210469
+         8#South Dakota  |  -25.04538   12.31416    -2.03   0.042    -49.19209   -.8986648
+            8#Tennessee  |  -32.80301   14.42885    -2.27   0.023    -61.09641   -4.509612
+                8#Texas  |  -22.99855   11.47875    -2.00   0.045    -45.50712   -.4899782
+                 8#Utah  |  -31.38797   17.49617    -1.79   0.073    -65.69605    2.920119
+              8#Vermont  |  -36.12407   10.83806    -3.33   0.001    -57.37633   -14.87182
+             8#Virginia  |  -21.66186    12.0396    -1.80   0.072     -45.2702    1.946488
+           8#Washington  |   16.07678   12.95008     1.24   0.215    -9.316914    41.47047
+        8#West Virginia  |  -31.83827   22.93925    -1.39   0.165    -76.81963     13.1431
+            8#Wisconsin  |  -15.06446   20.61977    -0.73   0.465    -55.49757    25.36866
+              8#Wyoming  |  -46.12407   10.83806    -4.26   0.000    -67.37633   -24.87182
+               9#Alaska  |   -26.9882   17.80964    -1.52   0.130    -61.91096    7.934557
+              9#Arizona  |   -26.1357   15.04416    -1.74   0.082    -55.63566    3.364253
+             9#Arkansas  |  -9.210286   18.12756    -0.51   0.611    -44.75646    26.33588
+           9#California  |  -2.334889    13.9477    -0.17   0.867    -29.68481    25.01503
+             9#Colorado  |  -6.872712   15.31414    -0.45   0.654    -36.90207    23.15664
+          9#Connecticut  |  -10.94363   16.14824    -0.68   0.498    -42.60855     20.7213
+             9#Delaware  |   13.10636   26.75301     0.49   0.624    -39.35336    65.56608
+ 9#District of Columbia  |  -6.461887    22.9543    -0.28   0.778    -51.47276    38.54898
+              9#Florida  |  -26.21122   13.98153    -1.87   0.061    -53.62747    1.205042
+              9#Georgia  |  -13.96747   14.50542    -0.96   0.336    -42.41102    14.47608
+               9#Hawaii  |  -40.85033   30.83375    -1.32   0.185    -101.3119    19.61128
+                9#Idaho  |   -33.9484   14.45572    -2.35   0.019    -62.29448   -5.602311
+             9#Illinois  |  -9.034738   14.28878    -0.63   0.527    -37.05348    18.98401
+              9#Indiana  |  -30.42279    14.7729    -2.06   0.040    -59.39083   -1.454744
+                 9#Iowa  |  -24.13726   14.75785    -1.64   0.102    -53.07579    4.801271
+               9#Kansas  |  -20.21762   15.60651    -1.30   0.195    -50.82027    10.38503
+             9#Kentucky  |  -11.10392   16.98569    -0.65   0.513      -44.411    22.20316
+            9#Louisiana  |  -9.797402   14.90467    -0.66   0.511    -39.02383    19.42903
+                9#Maine  |   .2730597   40.08215     0.01   0.995    -78.32365    78.86977
+             9#Maryland  |  -13.87423   14.43034    -0.96   0.336    -42.17055    14.42209
+        9#Massachusetts  |  -8.153338   14.54546    -0.56   0.575     -36.6754    20.36873
+             9#Michigan  |   12.21689   19.93257     0.61   0.540    -26.86869    51.30247
+            9#Minnesota  |  -31.18934   17.39638    -1.79   0.073    -65.30173    2.923057
+          9#Mississippi  |  -28.59854    20.5276    -1.39   0.164    -68.85093    11.65385
+             9#Missouri  |  -14.88086    14.4933    -1.03   0.305    -43.30063    13.53892
+              9#Montana  |   -18.7498   15.81066    -1.19   0.236    -49.75278    12.25317
+             9#Nebraska  |  -20.81336   15.68038    -1.33   0.185    -51.56088    9.934152
+               9#Nevada  |   -24.4596    14.1855    -1.72   0.085    -52.27582    3.356618
+        9#New Hampshire  |  -20.01146   20.90068    -0.96   0.338    -60.99542    20.97249
+           9#New Jersey  |  -10.88966    16.0775    -0.68   0.498    -42.41589    20.63656
+           9#New Mexico  |  -19.18448   15.79249    -1.21   0.225    -50.15181    11.78286
+             9#New York  |  -17.53332   19.34945    -0.91   0.365    -55.47548    20.40885
+       9#North Carolina  |  -11.35762   14.46815    -0.79   0.433    -39.72807    17.01283
+         9#North Dakota  |  -20.99777   16.90171    -1.24   0.214    -54.14019    12.14464
+                 9#Ohio  |  -15.04908   14.47261    -1.04   0.299    -43.42828    13.33013
+             9#Oklahoma  |  -34.98168   14.95566    -2.34   0.019    -64.30811   -5.655261
+               9#Oregon  |  -9.534826   15.03206    -0.63   0.526    -39.01105     19.9414
+         9#Pennsylvania  |  -10.53042   15.64793    -0.67   0.501     -41.2143    20.15346
+         9#Rhode Island  |   -26.5779   18.99626    -1.40   0.162    -63.82748    10.67168
+       9#South Carolina  |   -16.1742   15.82852    -1.02   0.307     -47.2122     14.8638
+         9#South Dakota  |  -7.754718   14.48764    -0.54   0.593    -36.16339    20.65395
+            9#Tennessee  |  -20.46055   16.45346    -1.24   0.214    -52.72399    11.80289
+                9#Texas  |  -16.91279    13.7548    -1.23   0.219    -43.88444    10.05886
+                 9#Utah  |  -20.73606    17.6734    -1.17   0.241    -55.39167    13.91956
+              9#Vermont  |   3.689726   13.29131     0.28   0.781    -22.37308    29.75254
+             9#Virginia  |  -17.59978   14.35505    -1.23   0.220    -45.74847     10.5489
+           9#Washington  |   7.993047   14.94647     0.53   0.593    -21.31534    37.30144
+        9#West Virginia  |  -15.80917   22.28843    -0.71   0.478    -59.51435    27.89601
+            9#Wisconsin  |  -27.86467   18.96315    -1.47   0.142    -65.04933    9.319983
+              9#Wyoming  |  -42.97694   13.29131    -3.23   0.001    -69.03975   -16.91413
+              10#Alaska  |  -37.28872   16.87855    -2.21   0.027    -70.38572    -4.19172
+             10#Arizona  |  -37.01108   16.32384    -2.27   0.023    -69.02034   -5.001822
+            10#Arkansas  |  -28.86307   16.42329    -1.76   0.079    -61.06735    3.341201
+          10#California  |  -27.38917   15.17492    -1.80   0.071    -57.14552    2.367178
+            10#Colorado  |  -27.44846   15.63775    -1.76   0.079    -58.11238    3.215447
+         10#Connecticut  |  -26.71764   16.50122    -1.62   0.106    -59.07474    5.639457
+            10#Delaware  |   -4.21483   23.61939    -0.18   0.858    -50.52987    42.10021
+10#District of Columbia  |  -24.14262   21.03874    -1.15   0.251    -65.39728    17.11204
+             10#Florida  |  -37.46545   15.23291    -2.46   0.014    -67.33553   -7.595371
+             10#Georgia  |   -23.8283   15.49421    -1.54   0.124    -54.21075     6.55416
+              10#Hawaii  |  -21.30533   19.44009    -1.10   0.273    -59.42523    16.81456
+               10#Idaho  |  -43.99657   16.35967    -2.69   0.007    -76.07611   -11.91704
+            10#Illinois  |  -30.61113   15.14741    -2.02   0.043    -60.31354   -.9087246
+             10#Indiana  |  -43.64735   16.30108    -2.68   0.007    -75.61198   -11.68272
+                10#Iowa  |  -33.04994   16.11891    -2.05   0.040    -64.65735   -1.442519
+              10#Kansas  |  -36.71898    16.1915    -2.27   0.023    -68.46875   -4.969217
+            10#Kentucky  |   -25.3098   17.55376    -1.44   0.149    -59.73081    9.111211
+           10#Louisiana  |  -29.74651    15.6946    -1.90   0.058    -60.52191     1.02888
+               10#Maine  |  -42.95084   14.89408    -2.88   0.004     -72.1565   -13.74518
+            10#Maryland  |  -28.82818   15.43712    -1.87   0.062    -59.09869    1.442332
+       10#Massachusetts  |  -33.01625   15.54494    -2.12   0.034    -63.49818   -2.534328
+            10#Michigan  |  -17.77918   18.22842    -0.98   0.329    -53.52312    17.96475
+           10#Minnesota  |  -50.13892   18.33427    -2.73   0.006    -86.09043   -14.18741
+         10#Mississippi  |  -28.86167   16.36807    -1.76   0.078    -60.95767    3.234326
+            10#Missouri  |   -31.7195   15.32261    -2.07   0.039    -61.76546   -1.673538
+             10#Montana  |  -29.51186   16.59743    -1.78   0.076     -62.0576    3.033883
+            10#Nebraska  |  -24.32318   16.51926    -1.47   0.141    -56.71564    8.069283
+              10#Nevada  |  -38.23425   15.36418    -2.49   0.013    -68.36173   -8.106762
+       10#New Hampshire  |  -38.63797    15.8543    -2.44   0.015    -69.72653   -7.549412
+          10#New Jersey  |  -31.16963    16.7486    -1.86   0.063    -64.01181    1.672543
+          10#New Mexico  |  -49.87467   18.12921    -2.75   0.006    -85.42408   -14.32526
+            10#New York  |  -36.25332   18.34884    -1.98   0.048     -72.2334   -.2732466
+      10#North Carolina  |  -30.73619   15.79733    -1.95   0.052    -61.71303    .2406614
+        10#North Dakota  |  -34.90917   16.24833    -2.15   0.032    -66.77037   -3.047967
+                10#Ohio  |  -32.76683   15.50534    -2.11   0.035    -63.17111   -2.362553
+            10#Oklahoma  |  -46.45957   16.49155    -2.82   0.005    -78.79771   -14.12144
+              10#Oregon  |  -32.74205    16.4311    -1.99   0.046    -64.96165   -.5224477
+        10#Pennsylvania  |  -36.04801   15.99355    -2.25   0.024    -67.40961   -4.686408
+        10#Rhode Island  |  -23.72311   18.46336    -1.28   0.199    -59.92775    12.48153
+      10#South Carolina  |  -29.53057   16.68329    -1.77   0.077    -62.24468    3.183533
+        10#South Dakota  |  -23.00639   15.99949    -1.44   0.151    -54.37965    8.366862
+           10#Tennessee  |  -44.47348   16.60774    -2.68   0.007    -77.03944   -11.90751
+               10#Texas  |  -34.44646   15.08353    -2.28   0.022    -64.02362   -4.869306
+                10#Utah  |  -39.21352   19.77157    -1.98   0.047    -77.98342   -.4436263
+             10#Vermont  |  -25.45084   14.78449    -1.72   0.085    -54.44161    3.539939
+            10#Virginia  |  -37.37824    15.5166    -2.41   0.016     -67.8046    -6.95187
+          10#Washington  |  -18.01667   15.86994    -1.14   0.256    -49.13589    13.10256
+       10#West Virginia  |  -28.16668   33.80722    -0.83   0.405    -94.45895    38.12559
+           10#Wisconsin  |  -26.07183   16.79849    -1.55   0.121    -59.01183    6.868169
+             10#Wyoming  |  -53.78417   14.78449    -3.64   0.000    -82.77494   -24.79339
+              11#Alaska  |   -23.5342   10.17645    -2.31   0.021    -43.48911   -3.579284
+             11#Arizona  |   -33.8144   8.775258    -3.85   0.000    -51.02172   -16.60708
+            11#Arkansas  |  -19.28749   8.556496    -2.25   0.024    -36.06585    -2.50914
+          11#California  |  -33.38462    7.27466    -4.59   0.000    -47.64943    -19.1198
+            11#Colorado  |  -33.08568   7.642373    -4.33   0.000    -48.07153   -18.09982
+         11#Connecticut  |  -30.61662   8.645937    -3.54   0.000    -47.57036   -13.66288
+            11#Delaware  |  -15.22767   14.22641    -1.07   0.285    -43.12411    12.66877
+11#District of Columbia  |  -50.48719   14.54418    -3.47   0.001    -79.00674   -21.96765
+             11#Florida  |  -26.16816   7.326984    -3.57   0.000    -40.53558   -11.80075
+             11#Georgia  |  -31.38183   7.309111    -4.29   0.000    -45.71419   -17.04946
+              11#Hawaii  |  -36.40287   14.06792    -2.59   0.010    -63.98853   -8.817202
+               11#Idaho  |  -40.87308   8.683953    -4.71   0.000    -57.90137    -23.8448
+            11#Illinois  |  -32.36056   7.131887    -4.54   0.000    -46.34541   -18.37571
+             11#Indiana  |  -34.46696   8.007523    -4.30   0.000    -50.16883   -18.76508
+                11#Iowa  |  -16.64118   9.014774    -1.85   0.065    -34.31816     1.03581
+              11#Kansas  |  -25.77739   7.675209    -3.36   0.001    -40.82764   -10.72714
+            11#Kentucky  |  -31.78505   9.557012    -3.33   0.001     -50.5253   -13.04479
+           11#Louisiana  |  -28.61993   9.138637    -3.13   0.002     -46.5398   -10.70006
+               11#Maine  |  -57.44573    21.9978    -2.61   0.009     -100.581   -14.31045
+            11#Maryland  |  -28.74514   8.009877    -3.59   0.000    -44.45163   -13.03865
+       11#Massachusetts  |  -30.90555   8.068174    -3.83   0.000    -46.72636   -15.08475
+            11#Michigan  |  -33.48236    11.0531    -3.03   0.002    -55.15627   -11.80845
+           11#Minnesota  |  -37.32361   10.71482    -3.48   0.001     -58.3342   -16.31302
+         11#Mississippi  |  -20.16882    16.8768    -1.20   0.232    -53.26239    12.92475
+            11#Missouri  |   -27.6315   7.516777    -3.68   0.000    -42.37108   -12.89192
+             11#Montana  |  -30.51251   10.34669    -2.95   0.003    -50.80123   -10.22378
+            11#Nebraska  |  -27.95284   9.349334    -2.99   0.003    -46.28586   -9.619822
+              11#Nevada  |  -27.67356   7.808064    -3.54   0.000    -42.98432    -12.3628
+       11#New Hampshire  |   -43.2879   11.44026    -3.78   0.000    -65.72101    -20.8548
+          11#New Jersey  |  -31.32261   9.595794    -3.26   0.001    -50.13891   -12.50631
+          11#New Mexico  |  -29.49405   9.123831    -3.23   0.001    -47.38489   -11.60322
+            11#New York  |   -38.3876   12.00208    -3.20   0.001    -61.92235   -14.85284
+      11#North Carolina  |  -28.96181   7.409034    -3.91   0.000    -43.49012   -14.43351
+        11#North Dakota  |   -27.9249   9.344671    -2.99   0.003    -46.24878   -9.601018
+                11#Ohio  |  -30.21695   7.914388    -3.82   0.000     -45.7362    -14.6977
+            11#Oklahoma  |  -36.03832   8.056731    -4.47   0.000    -51.83669   -20.23995
+              11#Oregon  |  -27.01845   8.517784    -3.17   0.002     -43.7209   -10.31601
+        11#Pennsylvania  |  -30.37235   8.577209    -3.54   0.000    -47.19132   -13.55338
+        11#Rhode Island  |  -33.37973   14.68332    -2.27   0.023    -62.17211   -4.587346
+      11#South Carolina  |  -24.99332   8.651156    -2.89   0.004    -41.95729   -8.029348
+        11#South Dakota  |  -25.08462   9.745987    -2.57   0.010    -44.19543   -5.973804
+           11#Tennessee  |  -41.09721   8.632237    -4.76   0.000    -58.02409   -24.17034
+               11#Texas  |  -30.98276   7.103901    -4.36   0.000    -44.91273   -17.05278
+                11#Utah  |   -33.8999    11.1636    -3.04   0.002     -55.7905   -12.00931
+             11#Vermont  |  -37.19573   6.798459    -5.47   0.000    -50.52677   -23.86469
+            11#Virginia  |  -30.52419   7.616459    -4.01   0.000    -45.45923   -15.58914
+          11#Washington  |  -22.61866   7.915551    -2.86   0.004    -38.14019   -7.097129
+       11#West Virginia  |  -30.83212   8.208057    -3.76   0.000    -46.92723   -14.73702
+           11#Wisconsin  |  -29.76864   12.01022    -2.48   0.013    -53.31936   -6.217922
+             11#Wyoming  |   -46.3624   6.798459    -6.82   0.000    -59.69343   -33.03136
+              12#Alaska  |          0  (omitted)
+             12#Arizona  |          0  (omitted)
+            12#Arkansas  |          0  (omitted)
+          12#California  |          0  (omitted)
+            12#Colorado  |          0  (omitted)
+         12#Connecticut  |          0  (omitted)
+            12#Delaware  |          0  (omitted)
+12#District of Columbia  |          0  (omitted)
+             12#Florida  |          0  (omitted)
+             12#Georgia  |          0  (omitted)
+              12#Hawaii  |          0  (omitted)
+               12#Idaho  |          0  (omitted)
+            12#Illinois  |          0  (omitted)
+             12#Indiana  |          0  (omitted)
+                12#Iowa  |          0  (omitted)
+              12#Kansas  |          0  (omitted)
+            12#Kentucky  |          0  (omitted)
+           12#Louisiana  |          0  (omitted)
+               12#Maine  |          0  (omitted)
+            12#Maryland  |          0  (omitted)
+       12#Massachusetts  |          0  (omitted)
+            12#Michigan  |          0  (omitted)
+           12#Minnesota  |          0  (omitted)
+         12#Mississippi  |          0  (omitted)
+            12#Missouri  |          0  (omitted)
+             12#Montana  |          0  (omitted)
+            12#Nebraska  |          0  (omitted)
+              12#Nevada  |          0  (omitted)
+       12#New Hampshire  |          0  (omitted)
+          12#New Jersey  |          0  (omitted)
+          12#New Mexico  |          0  (omitted)
+            12#New York  |          0  (omitted)
+      12#North Carolina  |          0  (omitted)
+        12#North Dakota  |          0  (omitted)
+                12#Ohio  |          0  (omitted)
+            12#Oklahoma  |          0  (omitted)
+              12#Oregon  |          0  (omitted)
+        12#Pennsylvania  |          0  (omitted)
+        12#Rhode Island  |          0  (omitted)
+      12#South Carolina  |          0  (omitted)
+        12#South Dakota  |          0  (omitted)
+           12#Tennessee  |          0  (omitted)
+               12#Texas  |          0  (omitted)
+                12#Utah  |          0  (omitted)
+             12#Vermont  |          0  (omitted)
+            12#Virginia  |          0  (omitted)
+          12#Washington  |          0  (omitted)
+       12#West Virginia  |          0  (omitted)
+           12#Wisconsin  |          0  (omitted)
+             12#Wyoming  |          0  (omitted)
+                         |
+              year_month |
+                    609  |  -353.5023   45.15541    -7.83   0.000    -442.0471   -264.9575
+                    610  |  -370.4676    48.2074    -7.68   0.000     -464.997   -275.9381
+                    611  |  -350.7866   46.57355    -7.53   0.000    -442.1122   -259.4609
+                    612  |  -428.5735   30.81552   -13.91   0.000    -488.9994   -368.1477
+                    613  |  -484.2788   31.23068   -15.51   0.000    -545.5187   -423.0388
+                    614  |  -534.2789   27.70379   -19.29   0.000     -588.603   -479.9548
+                    615  |  -534.8545   27.47601   -19.47   0.000    -588.7319   -480.9771
+                    616  |   -511.762   25.15344   -20.35   0.000    -561.0852   -462.4389
+                    617  |  -517.2252   22.28213   -23.21   0.000    -560.9181   -473.5324
+                    618  |  -503.8928   18.52604   -27.20   0.000    -540.2204   -467.5653
+                    619  |  -482.2293   16.80981   -28.69   0.000    -515.1916   -449.2671
+                    620  |  -211.9381   68.39956    -3.10   0.002    -346.0622   -77.81404
+                    621  |  -457.5921   16.03758   -28.53   0.000      -489.04   -426.1441
+                    622  |  -432.9357   15.47141   -27.98   0.000    -463.2734   -402.5979
+                    623  |  -444.9841   15.90821   -27.97   0.000    -476.1784   -413.7899
+                    624  |  -402.5836   14.77277   -27.25   0.000    -431.5514   -373.6159
+                    625  |  -409.6194   14.05827   -29.14   0.000    -437.1862   -382.0527
+                    626  |  -403.8353   13.57341   -29.75   0.000    -430.4513   -377.2193
+                    627  |  -406.7248   14.17607   -28.69   0.000    -434.5226   -378.9271
+                    628  |  -406.9594   13.40496   -30.36   0.000     -433.245   -380.6737
+                    629  |  -399.5804    13.1543   -30.38   0.000    -425.3745   -373.7862
+                    630  |  -393.8229   13.27869   -29.66   0.000    -419.8609   -367.7848
+                    631  |  -382.6875   12.74044   -30.04   0.000    -407.6701   -357.7049
+                    632  |   -109.424   68.17461    -1.61   0.109     -243.107    24.25893
+                    633  |  -360.1182   12.50501   -28.80   0.000    -384.6391   -335.5972
+                    634  |  -356.4375   12.63952   -28.20   0.000    -381.2222   -331.6527
+                    635  |  -361.0074   12.17969   -29.64   0.000    -384.8904   -337.1243
+                    636  |  -310.6824   13.00507   -23.89   0.000    -336.1839   -285.1809
+                    637  |  -314.4335   12.85822   -24.45   0.000     -339.647   -289.2199
+                    638  |  -314.1965   12.45448   -25.23   0.000    -338.6184   -289.7746
+                    639  |  -318.3752   12.73793   -24.99   0.000    -343.3529   -293.3975
+                    640  |   -314.175   11.98349   -26.22   0.000    -337.6733   -290.6767
+                    641  |  -307.4587   11.53018   -26.67   0.000    -330.0682   -284.8493
+                    642  |    -309.48   11.48057   -26.96   0.000    -331.9921   -286.9679
+                    643  |  -301.0236   11.20354   -26.87   0.000    -322.9925   -279.0547
+                    644  |  -34.28384    67.5324    -0.51   0.612    -166.7075    98.13982
+                    645  |  -294.8852   11.43192   -25.79   0.000     -317.302   -272.4685
+                    646  |   -300.588   11.66606   -25.77   0.000    -323.4638   -277.7121
+                    647  |  -293.9596   10.78618   -27.25   0.000    -315.1101   -272.8091
+                    648  |  -254.4172   11.12977   -22.86   0.000    -276.2415    -232.593
+                    649  |  -260.5339   10.93581   -23.82   0.000    -281.9778     -239.09
+                    650  |  -275.6015   11.19143   -24.63   0.000    -297.5466   -253.6563
+                    651  |  -274.1681   10.97259   -24.99   0.000    -295.6842   -252.6521
+                    652  |  -260.7008   10.90505   -23.91   0.000    -282.0844   -239.3172
+                    653  |  -247.0861   10.66415   -23.17   0.000    -267.9974   -226.1749
+                    654  |   -235.801   10.85926   -21.71   0.000    -257.0948   -214.5072
+                    655  |  -231.4951   11.17004   -20.72   0.000    -253.3984   -209.5919
+                    656  |   23.61486   67.92552     0.35   0.728    -109.5797    156.8094
+                    657  |   -232.707   10.35124   -22.48   0.000    -253.0047   -212.4094
+                    658  |  -227.2549   10.69858   -21.24   0.000    -248.2337   -206.2762
+                    659  |  -222.0689   10.46386   -21.22   0.000    -242.5874   -201.5504
+                    660  |  -212.6483   10.54825   -20.16   0.000    -233.3323   -191.9644
+                    661  |  -215.1242   10.38233   -20.72   0.000    -235.4828   -194.7656
+                    662  |  -229.6205   10.23015   -22.45   0.000    -249.6807   -209.5603
+                    663  |  -228.1095   10.13449   -22.51   0.000    -247.9821   -208.2369
+                    664  |   -225.385   9.910644   -22.74   0.000    -244.8187   -205.9513
+                    665  |  -217.4484   9.668428   -22.49   0.000    -236.4071   -198.4896
+                    666  |  -207.9805    10.4599   -19.88   0.000    -228.4912   -187.4698
+                    667  |  -194.3403   9.931791   -19.57   0.000    -213.8155   -174.8652
+                    668  |   62.77699    67.7163     0.93   0.354    -70.00727    195.5612
+                    669  |  -189.1575   9.373197   -20.18   0.000    -207.5373   -170.7776
+                    670  |  -186.2476   8.544256   -21.80   0.000    -203.0019   -169.4932
+                    671  |  -185.5533   9.330064   -19.89   0.000    -203.8485   -167.2581
+                    672  |  -140.4545   9.609699   -14.62   0.000    -159.2981   -121.6109
+                    673  |  -132.6741   7.310415   -18.15   0.000    -147.0091   -118.3392
+                    674  |  -131.0034   6.878612   -19.05   0.000    -144.4916   -117.5152
+                    675  |  -147.5026    6.71962   -21.95   0.000    -160.6791   -134.3262
+                    676  |  -159.0455   6.578928   -24.17   0.000    -171.9461    -146.145
+                    677  |  -161.0086   6.392365   -25.19   0.000    -173.5434   -148.4739
+                    678  |  -181.9815   7.225012   -25.19   0.000    -196.1489    -167.814
+                    679  |  -177.4023   7.035002   -25.22   0.000    -191.1972   -163.6075
+                    680  |    97.6301   67.71929     1.44   0.150    -35.16004    230.4202
+                    681  |  -178.3003   6.799716   -26.22   0.000    -191.6338   -164.9668
+                    682  |  -180.3365   6.505639   -27.72   0.000    -193.0933   -167.5796
+                    683  |  -197.2142   6.674376   -29.55   0.000    -210.3019   -184.1265
+                    684  |  -126.3578   4.816828   -26.23   0.000    -135.8031   -116.9126
+                    685  |   -101.771   3.839208   -26.51   0.000    -109.2993   -94.24272
+                    686  |   -94.6375   3.744461   -25.27   0.000      -101.98   -87.29502
+                    687  |  -91.19434   3.639162   -25.06   0.000    -98.33034   -84.05834
+                    688  |  -86.47882   3.609828   -23.96   0.000     -93.5573   -79.40034
+                    689  |  -94.21421   3.626719   -25.98   0.000    -101.3258   -87.10261
+                    690  |  -94.95148   3.642536   -26.07   0.000    -102.0941   -87.80887
+                    691  |  -95.37899   3.802282   -25.08   0.000    -102.8348   -87.92313
+                    692  |   165.5634   67.26477     2.46   0.014     33.66456    297.4623
+                    693  |  -95.31426   3.676182   -25.93   0.000    -102.5229   -88.10567
+                    694  |  -100.7557   3.655562   -27.56   0.000    -107.9239   -93.58757
+                    695  |  -98.58047   4.977543   -19.81   0.000    -108.3409   -88.82006
+                    696  |  -57.43025    3.42306   -16.78   0.000     -64.1425     -50.718
+                    697  |  -48.53841   2.901674   -16.73   0.000    -54.22827   -42.84854
+                    698  |  -46.57226   2.875398   -16.20   0.000     -52.2106   -40.93392
+                    699  |  -40.68461   2.901321   -14.02   0.000    -46.37378   -34.99543
+                    700  |  -39.11942   2.793848   -14.00   0.000    -44.59785   -33.64099
+                    701  |  -41.72164   2.855056   -14.61   0.000    -47.32009   -36.12318
+                    702  |   -43.0271   2.924624   -14.71   0.000    -48.76197   -37.29223
+                    703  |  -43.59232   3.002611   -14.52   0.000    -49.48012   -37.70453
+                    704  |   217.2787   67.15632     3.24   0.001     85.59248    348.9649
+                    705  |  -37.31183   3.133089   -11.91   0.000    -43.45548   -31.16819
+                    706  |   -36.6546   3.115161   -11.77   0.000    -42.76309   -30.54611
+                    707  |   -38.1582   3.023698   -12.62   0.000    -44.08734   -32.22906
+                    708  |          0  (omitted)
+                    709  |          0  (omitted)
+                    710  |          0  (omitted)
+                    711  |          0  (omitted)
+                    712  |          0  (omitted)
+                    713  |          0  (omitted)
+                    714  |          0  (omitted)
+                    715  |          0  (omitted)
+                    716  |   261.1279   67.13778     3.89   0.000      129.478    392.7777
+                    717  |          0  (omitted)
+                    718  |          0  (omitted)
+                    719  |          0  (omitted)
+                         |
+                   _cons |   1792.459    10.5888   169.28   0.000     1771.696    1813.223
+------------------------------------------------------------------------------------------
+(note:  named style grey not found in class color, default attributes used)
+(file /Users/dgentil1/Desktop/Diego/min_wage_rent/analysis/code/../output/rent2br_median_event_w12.png written in PNG forma
+> t)
+
+. 
+end of do-file
+
+ make.py ended: 2020-03-06 19:39:15
