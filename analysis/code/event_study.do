@@ -9,21 +9,36 @@ program main
 	local outstub "../output/"
 
 	use ../../derived/output/data_ready.dta, clear
+	gen date = dofm(year_month)
+    gen calendar_month = month(date)
+	drop date
+
+	local window = 3
+	prepare_data, window(`window') event_dummy(min_event)
+	create_event_plot, depvar(rent2br_median) rel_event_var(rel_months_min_event`window') ///
+	    window(`window')
+	create_event_plot, depvar(zhvi2br) rel_event_var(rel_months_min_event`window') ///
+	    window(`window')
+	
+	local window = 6
+	prepare_data, window(`window') event_dummy(min_event)
+	create_event_plot, depvar(rent2br_median) rel_event_var(rel_months_min_event`window') ///
+	    window(`window')
+	create_event_plot, depvar(zhvi2br) rel_event_var(rel_months_min_event`window') ///
+	    window(`window')
 
 	local window = 12
-	prepare_data, window(`window')
-	
-	create_event_plot, depvar(rent2br_median) rel_event_var(rel_months_min_event) ///
+	prepare_data, window(`window') event_dummy(min_event)
+	create_event_plot, depvar(rent2br_median) rel_event_var(rel_months_min_event`window') ///
+	    window(`window')
+	create_event_plot, depvar(zhvi2br) rel_event_var(rel_months_min_event`window') ///
 	    window(`window')
 end
 
 program prepare_data
-    syntax, window(int)
-    gen date = dofm(year_month)
-    gen calendar_month = month(date)
-	drop date
+    syntax, window(int) event_dummy(str)
 
-	create_event_vars, event_dummy(min_event) window(`window') ///
+	create_event_vars, event_dummy(`event_dummy') window(`window') ///
 	    time_var(year_month) geo_unit(zipcode)
 end
 
@@ -57,7 +72,9 @@ program create_event_vars
 
 	drop f`window'_`event_dummy'_`time_var' f`window'_rel_months_`event_dummy' ///
 	    min_rel_months_`event_dummy'
-		
+	
+	rename (rel_months_`event_dummy' `event_dummy'_`time_var') ///
+	    (rel_months_`event_dummy'`window' `event_dummy'_`time_var'`window')
 	sort zipcode year_month
 end
 
@@ -71,7 +88,7 @@ program create_event_plot
         i.calendar_month i.calendar_month#i.state ///
 		i.year_month, absorb(zipcode) vce(cluster zipcode)
     
-	coefplot, drop(*.calendar_month *.calendar_month#*.state *.year_month _cons) ///
+	coefplot, drop(1000.`rel_event_var' *.calendar_month *.calendar_month#*.state *.year_month _cons) ///
 	    base vertical graphregion(color(white)) bgcolor(white) ///
 		xlabel(1 "-`window'" `window_plus1' "0" `window_span' "`window'") ///
 		xline(`window_plus1', lcol(grey) lpat(dot))
