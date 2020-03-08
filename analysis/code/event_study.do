@@ -14,11 +14,9 @@ program main
 
 	foreach var in min_event mean_event max_event {
 		forvalues window = 6(3)15 {
-			di "`var'"
-			di "`window'"
 			create_event_vars, event_dummy(`var') window(`window')                         ///
 			    time_var(year_month) geo_unit(zipcode)
-
+			stop
 			create_event_plot, depvar(rent2br_median) event_var(rel_months_`var'`window')      ///
 			    controls(" ") absorb(zipcode calendar_month#state year_month) window(`window')
 
@@ -56,14 +54,14 @@ program create_event_vars
 	* Santi's approach. Idenfity "beginning of event" and add 12
 	bysort `geo_unit' (`time_var'): gen event_start = 1 if `event_dummy'[_n + `window'] == 1
 	gen event_start_non_overlap = event_start
-	forvalues i = 1(1)`window' {  						// Set to missing if i days ago there was a mw increase
+	forvalues i = 2(1)`window' {  						// Set to missing if i days ago there was a mw increase
 		bysort `geo_unit' (`time_var'): replace event_start_non_overlap = . if `event_dummy'[_n - `i']
 	}
 	
 	local window_span = 2*`window' + 1
-	gen rel_months_`event_dummy' = event_start
-	forvalues i = 1(1)`window_span' {  					// Set to i if i days ago an event started 
-		bysort `geo_unit' (`time_var'): replace rel_months_`event_dummy' = `i' if event_start_non_overlap[_n - `i'] == 1
+	gen rel_months_`event_dummy' = event_start_non_overlap
+	forvalues i = 2(1)`window_span' {  					// Set to i if i days ago an event started 
+		bysort `geo_unit' (`time_var'): replace rel_months_`event_dummy' = `i' if event_start_non_overlap[_n - `i' + 1] == 1
 	}
 	replace rel_months_`event_dummy' = 1000 if rel_months_`event_dummy' == .
 
