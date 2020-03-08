@@ -20,10 +20,10 @@ program main
 			    time_var(year_month) geo_unit(zipcode)
 
 			create_event_plot, depvar(rent2br_median) event_var(rel_months_`var'`window')      ///
-			    controls(" ") absorb(zipcode calendar_month year_month#state) window(`window')
+			    controls(" ") absorb(zipcode calendar_month#state year_month) window(`window')
 
 			create_event_plot, depvar(zhvi2br) event_var(rel_months_`var'`window')             ///
-			    controls(" ") absorb(zipcode calendar_month year_month#state) window(`window')
+			    controls(" ") absorb(zipcode calendar_month#state year_month) window(`window')
 		}
 	}
 	
@@ -56,16 +56,18 @@ program create_event_vars
 	* Santi's approach. Idenfity "beginning of event" and add 12
 	bysort `geo_unit' (`time_var'): gen event_start = 1 if `event_dummy'[_n + `window'] == 1
 	gen event_start_non_overlap = event_start
-	forvalues i = 1(1)6 {  						// Set to missing if i days ago there was a mw increase
+	forvalues i = 1(1)`window' {  						// Set to missing if i days ago there was a mw increase
 		bysort `geo_unit' (`time_var'): replace event_start_non_overlap = . if `event_dummy'[_n - `i']
 	}
 	
+	local window_span = 2*`window' + 1
 	gen rel_months_`event_dummy' = event_start
-	forvalues i = 1(1)13 {  					// Set to i if i days ago an event started 
+	forvalues i = 1(1)`window_span' {  					// Set to i if i days ago an event started 
 		bysort `geo_unit' (`time_var'): replace rel_months_`event_dummy' = `i' if event_start_non_overlap[_n - `i'] == 1
 	}
 	replace rel_months_`event_dummy' = 1000 if rel_months_`event_dummy' == .
 
+	drop event_start event_start_non_overlap
 	rename rel_months_`event_dummy' rel_months_`event_dummy'`window'
 	sort `geo_unit' `time_var'
 end
@@ -78,7 +80,7 @@ program create_event_plot
 	
 	reghdfe `depvar' ib`window'.`event_var' `controls', absorb(`absorb') vce(cluster zipcode)
 	
-	coefplot, drop(1000.`event_var' *.calendar_month *.state *.year_month _cons `controls') ///
+	coefplot, drop(1000.`event_var' _cons `controls') ///
 		base vertical graphregion(color(white)) bgcolor(white) ///
 		xlabel(1 "-`window'" `window_plus1' "0" `window_span' "`window'") ///
 		xline(`window_plus1', lcol(grey) lpat(dot))
