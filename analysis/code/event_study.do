@@ -8,91 +8,81 @@ program main
 	local instub  "../../derived/output/"
 	local outstub "../output/"
 
-	use ../../derived/output/data_ready.dta, clear
-	gen date = dofm(year_month)
-    gen calendar_month = month(date)
-	drop date
+	use `instub'data_ready.dta, clear
 
-	local window = 3
-	prepare_data, window(`window') event_dummy(min_event)
-	create_event_plot, depvar(rent2br_median) rel_event_var(rel_months_min_event`window') ///
-	    window(`window')
-	create_event_plot, depvar(zhvi2br) rel_event_var(rel_months_min_event`window') ///
-	    window(`window')
+	prepare_data, time_var(year_month) geo_unit(zipcode)
+
+	foreach var in min_event mean_event max_event {
+		forvalues window = 6(3)15 {
+			di "`var'"
+			di "`window'"
+			create_event_vars, event_dummy(`var') window(`window')                         ///
+			    time_var(year_month) geo_unit(zipcode)
+
+			create_event_plot, depvar(rent2br_median) event_var(rel_months_`var'`window')      ///
+			    controls(" ") absorb(zipcode calendar_month year_month#state) window(`window')
+
+			create_event_plot, depvar(zhvi2br) event_var(rel_months_`var'`window')             ///
+			    controls(" ") absorb(zipcode calendar_month year_month#state) window(`window')
+		}
+	}
 	
-	local window = 6
-	prepare_data, window(`window') event_dummy(min_event)
-	create_event_plot, depvar(rent2br_median) rel_event_var(rel_months_min_event`window') ///
-	    window(`window')
-	create_event_plot, depvar(zhvi2br) rel_event_var(rel_months_min_event`window') ///
-	    window(`window')
-
-	local window = 12
-	prepare_data, window(`window') event_dummy(min_event)
-	create_event_plot, depvar(rent2br_median) rel_event_var(rel_months_min_event`window') ///
-	    window(`window')
-	create_event_plot, depvar(zhvi2br) rel_event_var(rel_months_min_event`window') ///
-	    window(`window')
 end
 
 program prepare_data
-    syntax, window(int) event_dummy(str)
+    syntax, time_var(str) geo_unit(str)
 
-	create_event_vars, event_dummy(`event_dummy') window(`window') ///
-	    time_var(year_month) geo_unit(zipcode)
+    gen date = dofm(year_month)
+	gen calendar_month = month(date)
+	drop date
+
+    bysort `geo_unit' (`time_var'): gen trend = _n
 end
 
 program create_event_vars
 	syntax, event_dummy(str) window(int) time_var(str) geo_unit(str)
-	
-	local window_span = 2*`window' + 1
 		
-	gen `event_dummy'_`time_var' = `time_var' if `event_dummy' == 1
+	* Diego's approach fixed. Use difference in dates (doesn't exclude overlapping)
+
+	/* gen `event_dummy'_`time_var' = `time_var' if `event_dummy' == 1
 	format `event_dummy'_`time_var' %tm
 	bysort `geo_unit' (`time_var'): carryforward `event_dummy'_`time_var', replace
 
-	gen f`window'_`event_dummy'_`time_var' = F`window'.`event_dummy'_`time_var'
-	format f`window'_`event_dummy'_`time_var' %tm
+	gen rel_months_`event_dummy' = `time_var' - F`window'.`event_dummy'_`time_var'
+	replace rel_months_`event_dummy' = 1000 if !inrange(rel_months_`event_dummy', -`window', `window')
+	replace rel_months_`event_dummy' = rel_months_`event_dummy' + `window' + 1 if rel_months_`event_dummy' < 1000
+	*/
 
-	gen rel_months_`event_dummy' = `time_var' - `event_dummy'_`time_var'
-    replace rel_months_`event_dummy' = rel_months_`event_dummy' + `window' + 1
-	replace rel_months_`event_dummy' = 1000 if rel_months_`event_dummy' > `window_span'
-
-    gen f`window'_rel_months_`event_dummy' = `time_var' - f`window'_`event_dummy'_`time_var' + `window' + 1
-	replace rel_months_`event_dummy' = f`window'_rel_months_`event_dummy' ///
-	    if rel_months_`event_dummy' == 1000 & inrange(f`window'_rel_months_`event_dummy', 1, `window')
-
-	replace `event_dummy'_`time_var' = f`window'_`event_dummy'_`time_var' ///
-	    if inrange(rel_months_`event_dummy', 1, `window')
-	replace `event_dummy'_`time_var' = . if rel_months_`event_dummy' == 1000
-
-	bysort `geo_unit' `event_dummy'_`time_var': ///
-	    egen min_rel_months_`event_dummy' = min(rel_months_`event_dummy')
-	drop if min_rel_months_`event_dummy' == `window' + 1
-
-	drop f`window'_`event_dummy'_`time_var' f`window'_rel_months_`event_dummy' ///
-	    min_rel_months_`event_dummy'
+	* Santi's approach. Idenfity "beginning of event" and add 12
+	bysort `geo_unit' (`time_var'): gen event_start = 1 if `event_dummy'[_n + `window'] == 1
+	gen event_start_non_overlap = event_start
+	forvalues i = 1(1)6 {  						// Set to missing if i days ago there was a mw increase
+		bysort `geo_unit' (`time_var'): replace event_start_non_overlap = . if `event_dummy'[_n - `i']
+	}
 	
-	rename (rel_months_`event_dummy' `event_dummy'_`time_var') ///
-	    (rel_months_`event_dummy'`window' `event_dummy'_`time_var'`window')
-	sort zipcode year_month
+	gen rel_months_`event_dummy' = event_start
+	forvalues i = 1(1)13 {  					// Set to i if i days ago an event started 
+		bysort `geo_unit' (`time_var'): replace rel_months_`event_dummy' = `i' if event_start_non_overlap[_n - `i'] == 1
+	}
+	replace rel_months_`event_dummy' = 1000 if rel_months_`event_dummy' == .
+
+	rename rel_months_`event_dummy' rel_months_`event_dummy'`window'
+	sort `geo_unit' `time_var'
 end
 
 program create_event_plot
-    syntax, depvar(str) rel_event_var(str) window(int)
+	syntax, depvar(str) event_var(str) controls(str) absorb(str) window(int)
 
 	local window_plus1 = `window' + 1
 	local window_span = 2*`window' + 1
 	
-    areg `depvar' ib`window'.`rel_event_var' ///
-        i.calendar_month i.calendar_month#i.state ///
-		i.year_month, absorb(zipcode) vce(cluster zipcode)
-    
-	coefplot, drop(1000.`rel_event_var' *.calendar_month *.calendar_month#*.state *.year_month _cons) ///
-	    base vertical graphregion(color(white)) bgcolor(white) ///
+	reghdfe `depvar' ib`window'.`event_var' `controls', absorb(`absorb') vce(cluster zipcode)
+	
+	coefplot, drop(1000.`event_var' *.calendar_month *.state *.year_month _cons `controls') ///
+		base vertical graphregion(color(white)) bgcolor(white) ///
 		xlabel(1 "-`window'" `window_plus1' "0" `window_span' "`window'") ///
 		xline(`window_plus1', lcol(grey) lpat(dot))
-	graph export ../output/`depvar'_event_w`window'.png, replace	
+	graph export ../output/`depvar'_`event_var'.png, replace	
 end
 
 main
