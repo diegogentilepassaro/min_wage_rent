@@ -13,16 +13,19 @@ program main
 
 	prepare_data, time_var(year_month) geo_unit(zipcode)
 
-	foreach var in min_event mean_event max_event {
+	foreach var in min_event mean_event {
 		forvalues window = 6(6)12 {
 			create_event_vars, event_dummy(`var') window(`window')                         ///
 			    time_var(year_month) geo_unit(zipcode)
 			
 			create_event_plot, depvar(rent2br_median) event_var(rel_months_`var'`window')      ///
-			    controls(" ") absorb(zipcode calendar_month#state year_month) window(`window')
+			    controls(" ") absorb(zipcode calendar_month##state year_month year_month##state) window(`window')
+
+			create_event_plot, depvar(rent2br_psqft_median) event_var(rel_months_`var'`window')      ///
+			    controls(" ") absorb(zipcode calendar_month##state year_month year_month##state) window(`window')
 
 			create_event_plot, depvar(zhvi2br) event_var(rel_months_`var'`window')             ///
-			    controls(" ") absorb(zipcode calendar_month#state year_month) window(`window')
+			    controls(" ") absorb(zipcode calendar_month##state year_month year_month##state) window(`window')
 		}
 	}
 	
