@@ -3,7 +3,6 @@ set more off
 adopath + ../../lib/stata/mental_coupons/ado
 adopath + ../../lib/stata/gslab_misc/ado
 set maxvar 32000 
-cd "C:\Users\el_he\Documents\GitHub\min_wage_rent\analysis\code"
 
 program main
 	local instub  "../../derived/output/"
