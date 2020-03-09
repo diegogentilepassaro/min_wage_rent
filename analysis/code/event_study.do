@@ -8,7 +8,7 @@ program main
 	local instub  "../../derived/output/"
 	local outstub "../output/"
 
-	use `instub'data_ready.dta, clear
+	use `instub'zipcode_yearmonth_panel.dta, clear
 
 	prepare_data, time_var(year_month) geo_unit(zipcode)
 
@@ -36,8 +36,6 @@ program prepare_data
     gen date = dofm(year_month)
 	gen calendar_month = month(date)
 	drop date
-
-    bysort `geo_unit' (`time_var'): gen trend = _n
 end
 
 program create_event_vars
@@ -81,9 +79,9 @@ program create_event_plot
 	
 	reghdfe `depvar' ib`window'.`event_var' `controls', absorb(`absorb') vce(cluster zipcode)
 	
-	coefplot, drop(1000.`event_var' _cons `controls') ///
-		base vertical graphregion(color(white)) bgcolor(white) ///
-		xlabel(1 "-`window'" `window_plus1' "0" `window_span' "`window'") ///
+	coefplot, drop(1000.`event_var' _cons `controls') 							///
+		base vertical graphregion(color(white)) bgcolor(white) 					///
+		xlabel(1 "-`window'" `window_plus1' "0" `window_span' "`window'")		///
 		xline(`window_plus1', lcol(grey) lpat(dot))
 	graph export ../output/`depvar'_`event_var'.png, replace	
 end
