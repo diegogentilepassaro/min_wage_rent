@@ -34,9 +34,7 @@ elif "StataMP-64" in envir_vars:
 elif "Stata15" in envir_vars:
     stata = "StataMP-64"
 
-run_rbatch(program = 'ReshapeMergeZillow_zip.R')
-run_rbatch(program = 'addMinWage.R')
-run_stata(program = 'label_final_dta.do', executable = stata)
+run_stata(program = 'event_study.do', executable = stata)
 
 end_make_logging()
 
