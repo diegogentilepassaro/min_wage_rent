@@ -35,8 +35,10 @@ elif "Stata15" in envir_vars:
     stata = "StataMP-64"
 
 run_stata(program = 'first_last_event_study.do', executable = stata)
+run_stata(program = 'event_study.do', executable = stata)
 
 end_make_logging()
 
 shutil.rmtree('gslab_make')
 input('\n Press <Enter> to exit.')
+

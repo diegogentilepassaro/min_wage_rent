@@ -32,11 +32,11 @@ if "StataSE" in envir_vars:
 elif "StataMP-64" in envir_vars:
     stata = "StataMP-64"
 elif "Stata15" in envir_vars:
-	stata = "StataMP-64"
-    
+    stata = "StataMP-64"
 
 run_rbatch(program = 'ReshapeMergeZillow_zip.R')
 run_rbatch(program = 'addMinWage.R')
+run_stata(program = 'label_final_dta.do', executable = stata)
 
 end_make_logging()
 
