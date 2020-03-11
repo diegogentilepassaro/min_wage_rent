@@ -1,31 +1,615 @@
 
- make.py started: 2020-03-10 10:43:45 C:\Users\gabriel\Dropbox (Brown)\research\min_wage_rent\analysis\code 
+ make.py started: 2020-03-11 14:39:18 /Users/dgentil1/Desktop/Diego/min_wage_rent/analysis/code 
 
 
 
 
-Execute:  StataMP-64 /e do "./event_study.do"
+Execute:  stataSE -e do "./first_last_event_study.do"
 
   ___  ____  ____  ____  ____ (R)
  /__    /   ____/   /   ____/
-___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+___/   /   /___/   /   /___/   16.1   Copyright 1985-2019 StataCorp LLC
   Statistics/Data Analysis            StataCorp
                                       4905 Lakeway Drive
-     MP - Parallel Edition            College Station, Texas 77845 USA
+     Special Edition                  College Station, Texas 77845 USA
                                       800-STATA-PC        http://www.stata.com
                                       979-696-4600        stata@stata.com
                                       979-696-4601 (fax)
 
-Single-user 32-core Stata perpetual license:
-       Serial number:  501506205566
-         Licensed to:  KU Leuven FEB (CES)
-                       KU Leuven
+120-user Stata network perpetual license:
+       Serial number:  401606201670
+         Licensed to:  Brown University
+                       Brown University
 
 Notes:
       1.  Stata is running in batch mode.
       2.  Unicode is supported; see help unicode_advice.
-      3.  More than 2 billion observations are allowed; see help obs_advice.
-      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+      3.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./first_last_event_study.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../lib/stata/mental_coupons/ado
+  [1]  (BASE)      "/Applications/Stata/ado/base/"
+  [2]  (SITE)      "/Applications/Stata/ado/site/"
+  [3]              "."
+  [4]  (PERSONAL)  "/Users/dgentil1/Documents/Stata/ado/personal/"
+  [5]  (PLUS)      "/Users/dgentil1/Library/Application Support/Stata/ado/plus/"
+  [6]  (OLDPLACE)  "~/ado/"
+  [7]              "../../lib/stata/mental_coupons/ado"
+
+. adopath + ../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "/Applications/Stata/ado/base/"
+  [2]  (SITE)      "/Applications/Stata/ado/site/"
+  [3]              "."
+  [4]  (PERSONAL)  "/Users/dgentil1/Documents/Stata/ado/personal/"
+  [5]  (PLUS)      "/Users/dgentil1/Library/Application Support/Stata/ado/plus/"
+  [6]  (OLDPLACE)  "~/ado/"
+  [7]              "../../lib/stata/mental_coupons/ado"
+  [8]              "../../lib/stata/gslab_misc/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.         local instub  "../../derived/output/"
+  2.         local outstub "../output/"
+  3. 
+.         use `instub'data_ready.dta, clear
+  4. 
+.         prepare_data, time_var(year_month) geo_unit(zipcode)
+  5. 
+.         foreach var in min_event {
+  6.                 foreach window in 12 24 {
+  7.                         create_latest_event_vars, event_dummy(`var') window(`window')                         ///
+>                             time_var(year_month) geo_unit(zipcode)
+  8. 
+.                         create_event_plot, depvar(rent2br_median) event_var(last_`var'_rel_months`window')      ///
+>                             controls(" ") window(`window') ///
+>                                 absorb(zipcode calendar_month year_month)
+  9. 
+.                         create_event_plot, depvar(rent2br_psqft_median) event_var(last_`var'_rel_months`window')      ///
+>                             controls(" ") window(`window') ///
+>                                 absorb(zipcode calendar_month year_month)
+ 10. 
+.                         create_event_plot, depvar(zhvi2br) event_var(last_`var'_rel_months`window')      ///
+>                             controls(" ") window(`window') ///
+>                                 absorb(zipcode msa calendar_month year_month)
+ 11.                 }
+ 12.         }
+ 13. end
+
+. 
+. program prepare_data
+  1.     syntax, time_var(str) geo_unit(str)
+  2. 
+.     gen date = dofm(year_month)
+  3.         gen calendar_month = month(date)
+  4.         drop date
+  5.         
+.         replace min_event = 0 if dmin_actual_mw < 0.25
+  6.         replace mean_event = 0 if dmean_actual_mw < 0.25
+  7.         replace max_event = 0 if dmax_actual_mw < 0.25
+  8. 
+.         drop if missing(msa)
+  9.         
+.         keep zipcode year_month state msa calendar_month ///
+>             zhvi2br rent2br_median rent2br_psqft_median ///
+>                 min_event mean_event max_event
+ 10. end
+
+. 
+. program create_latest_event_vars
+  1.         syntax, event_dummy(str) window(int) time_var(str) geo_unit(str) [min_option(str)]
+  2.         
+.         local window_span = `window'*2 + 1 
+  3.         
+.         gen `event_dummy'_`time_var' = `time_var' if `event_dummy' == 1
+  4.         format `event_dummy'_`time_var' %tm
+  5.         
+.         /*bysort `geo_unit': egen first_`event_dummy'_`time_var' = min(`event_dummy'_`time_var') `min_option'
+>         gen first_`event_dummy'_rel_months`window' = `time_var' - first_`event_dummy'_`time_var'
+>         replace first_`event_dummy'_rel_months`window' = first_`event_dummy'_rel_months`window' + `window' + 1
+>         replace first_`event_dummy'_rel_months`window' = 0 ///
+>             if first_`event_dummy'_rel_months`window' <= 0
+>         replace first_`event_dummy'_rel_months`window' = 1000 ////
+>             if first_`event_dummy'_rel_months`window' > `window_span'*/
+.         
+.         bysort `geo_unit': egen last_`event_dummy'_`time_var' = max(`event_dummy'_`time_var')
+  6.         gen last_`event_dummy'_rel_months`window' = `time_var' - last_`event_dummy'_`time_var'
+  7.         replace last_`event_dummy'_rel_months`window' = last_`event_dummy'_rel_months`window' + `window' + 1
+  8.         replace last_`event_dummy'_rel_months`window' = 0 ///
+>             if last_`event_dummy'_rel_months`window' <= 0
+  9.         replace last_`event_dummy'_rel_months`window' = 1000 ///
+>             if last_`event_dummy'_rel_months`window' > `window_span'
+ 10.                 
+.         *drop first_`event_dummy'_`time_var'
+.         drop `event_dummy'_`time_var' last_`event_dummy'_`time_var'
+ 11. end
+
+. 
+. program create_event_plot
+  1.         syntax, depvar(str) event_var(str) controls(str) absorb(str) window(int)
+  2. 
+.         local window_plus1 = `window' + 1
+  3.         local window_span = 2*`window' + 1
+  4. 
+.         forval i = 1(1)`window_span' {
+  5.                 local keep_coeffs = "`keep_coeffs'" + " `i'.`event_var'"
+  6.         }
+  7. 
+.         reghdfe `depvar' ib`window'.`event_var' `controls', nocons ///
+>             absorb(`absorb') vce(cluster zipcode)
+  8.         
+.         coefplot, keep(`keep_coeffs') ///
+>                 base vertical graphregion(color(white)) bgcolor(white) ///
+>                 xlabel(1 "-`window'" `window_plus1' "0" `window_span' "`window'") ///
+>                 xline(`window_plus1', lcol(grey) lpat(dot))
+  9.         graph export ../output/`depvar'_`event_var'.png, replace        
+ 10. end
+
+. 
+. main
+(41,517 real changes made)
+(88,930 real changes made)
+(41,517 real changes made)
+(1,612,815 observations deleted)
+(5,856,357 missing values generated)
+(833 missing values generated)
+(833 missing values generated)
+(5,983,835 real changes made)
+(3,689,711 real changes made)
+(1,748,887 real changes made)
+(MWFE estimator converged in 7 iterations)
+
+HDFE Linear regression                            Number of obs   =    106,315
+Absorbing 3 HDFE groups                           F(  26,   2561) =       2.93
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9836
+                                                  Adj R-squared   =     0.9832
+                                                  Within R-sq.    =     0.0130
+Number of clusters (zipcode) =      2,562         Root MSE        =   113.6864
+
+                                           (Std. Err. adjusted for 2,562 clusters in zipcode)
+---------------------------------------------------------------------------------------------
+                            |               Robust
+             rent2br_median |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+----------------------------+----------------------------------------------------------------
+last_min_event_rel_months12 |
+                         0  |  -65.73333   13.82519    -4.75   0.000    -92.84301   -38.62365
+                         1  |   1.081702   11.20932     0.10   0.923    -20.89855    23.06196
+                         2  |   11.73405   11.30916     1.04   0.300    -10.44198    33.91007
+                         3  |   31.06821   11.65455     2.67   0.008     8.214909     53.9215
+                         4  |   31.61459   11.46607     2.76   0.006     9.130874    54.09831
+                         5  |   21.75407   10.47925     2.08   0.038       1.2054    42.30275
+                         6  |   9.057995    9.57374     0.95   0.344    -9.715064    27.83105
+                         7  |   16.86346   9.012718     1.87   0.061    -.8094928    34.53642
+                         8  |   21.19668    8.37734     2.53   0.011     4.769636    37.62373
+                         9  |     21.182   7.064579     3.00   0.003     7.329129    35.03486
+                        10  |   16.56967   6.962829     2.38   0.017     2.916319    30.22301
+                        11  |   5.910493   5.257825     1.12   0.261    -4.399527    16.22051
+                        13  |  -2.847975    5.86344    -0.49   0.627    -14.34554     8.64959
+                        14  |   5.119302   6.237833     0.82   0.412    -7.112406    17.35101
+                        15  |   2.377281    7.05407     0.34   0.736    -11.45498    16.20954
+                        16  |   15.76126   7.523311     2.09   0.036     1.008869    30.51365
+                        17  |   6.036187    7.85795     0.77   0.442    -9.372393    21.44477
+                        18  |  -2.016686   7.845674    -0.26   0.797    -17.40119    13.36782
+                        19  |  -7.269117    9.01537    -0.81   0.420    -24.94727    10.40904
+                        20  |   3.635234   8.922971     0.41   0.684    -13.86174     21.1322
+                        21  |   4.981714   9.002799     0.55   0.580    -12.67179    22.63522
+                        22  |   7.892078   9.250208     0.85   0.394    -10.24657    26.03072
+                        23  |    5.60123   9.426346     0.59   0.552     -12.8828    24.08526
+                        24  |   4.556706   9.622963     0.47   0.636    -14.31287    23.42628
+                        25  |   7.924997   9.707874     0.82   0.414    -11.11108    26.96108
+                      1000  |   19.93306   10.25151     1.94   0.052    -.1690286    40.03515
+---------------------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+--------------------------------------------------------+
+    Absorbed FE | Categories  - Redundant  = Num. Coefs |
+----------------+---------------------------------------|
+        zipcode |      2562        2562           0    *|
+ calendar_month |        12           0          12     |
+     year_month |       112          12         100     |
+--------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(file /Users/dgentil1/Desktop/Diego/min_wage_rent/analysis/code/../output/rent2br_median_last_min_event_rel_months12.png wr
+> itten in PNG format)
+(dropped 2 singleton observations)
+(MWFE estimator converged in 7 iterations)
+
+HDFE Linear regression                            Number of obs   =     92,448
+Absorbing 3 HDFE groups                           F(  26,   2380) =       5.60
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9857
+                                                  Adj R-squared   =     0.9853
+                                                  Within R-sq.    =     0.0251
+Number of clusters (zipcode) =      2,381         Root MSE        =     0.0973
+
+                                           (Std. Err. adjusted for 2,381 clusters in zipcode)
+---------------------------------------------------------------------------------------------
+                            |               Robust
+       rent2br_psqft_median |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+----------------------------+----------------------------------------------------------------
+last_min_event_rel_months12 |
+                         0  |   -.061239   .0166787    -3.67   0.000    -.0939453   -.0285328
+                         1  |   .0080948   .0108125     0.75   0.454     -.013108    .0292977
+                         2  |   .0106463   .0104137     1.02   0.307    -.0097746    .0310671
+                         3  |   .0190626     .01079     1.77   0.077    -.0020962    .0402213
+                         4  |   .0053916   .0113156     0.48   0.634    -.0167979     .027581
+                         5  |   .0040973   .0103553     0.40   0.692     -.016209    .0244036
+                         6  |  -.0056711   .0095577    -0.59   0.553    -.0244133    .0130711
+                         7  |   .0095756   .0088183     1.09   0.278    -.0077168    .0268679
+                         8  |   .0153001   .0082083     1.86   0.062    -.0007961    .0313962
+                         9  |   .0083499   .0073313     1.14   0.255    -.0060265    .0227262
+                        10  |   .0028431   .0072149     0.39   0.694     -.011305    .0169913
+                        11  |   .0010214   .0058009     0.18   0.860    -.0103538    .0123967
+                        13  |    .005311   .0069023     0.77   0.442    -.0082241    .0188461
+                        14  |   .0150292   .0079951     1.88   0.060     -.000649    .0307073
+                        15  |   .0118656   .0081994     1.45   0.148    -.0042132    .0279443
+                        16  |   .0153505   .0095165     1.61   0.107    -.0033111     .034012
+                        17  |   .0078163   .0101577     0.77   0.442    -.0121025    .0277351
+                        18  |    .003881   .0103454     0.38   0.708     -.016406    .0241679
+                        19  |  -.0004672   .0110127    -0.04   0.966    -.0220627    .0211282
+                        20  |   .0284126   .0107498     2.64   0.008     .0073326    .0494925
+                        21  |   .0203719   .0108346     1.88   0.060    -.0008743    .0416181
+                        22  |   .0274745   .0105463     2.61   0.009     .0067935    .0481555
+                        23  |   .0267344   .0104071     2.57   0.010     .0063264    .0471423
+                        24  |   .0277962   .0109543     2.54   0.011     .0063153    .0492772
+                        25  |   .0256236   .0108809     2.35   0.019     .0042866    .0469606
+                      1000  |   .0644461   .0112118     5.75   0.000     .0424602     .086432
+---------------------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+--------------------------------------------------------+
+    Absorbed FE | Categories  - Redundant  = Num. Coefs |
+----------------+---------------------------------------|
+        zipcode |      2381        2381           0    *|
+ calendar_month |        12           0          12     |
+     year_month |       117          12         105     |
+--------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(file /Users/dgentil1/Desktop/Diego/min_wage_rent/analysis/code/../output/rent2br_psqft_median_last_min_event_rel_months12.
+> png written in PNG format)
+(MWFE estimator converged in 6 iterations)
+
+HDFE Linear regression                            Number of obs   =  4,629,892
+Absorbing 4 HDFE groups                           F(  26,  20990) =      94.43
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.8925
+                                                  Adj R-squared   =     0.8919
+                                                  Within R-sq.    =     0.0009
+Number of clusters (zipcode) =     20,991         Root MSE        = 46081.5744
+
+                                          (Std. Err. adjusted for 20,991 clusters in zipcode)
+---------------------------------------------------------------------------------------------
+                            |               Robust
+                    zhvi2br |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+----------------------------+----------------------------------------------------------------
+last_min_event_rel_months12 |
+                         0  |   -2707.19   365.0707    -7.42   0.000    -3422.756   -1991.623
+                         1  |   -5102.15   143.6513   -35.52   0.000    -5383.717   -4820.582
+                         2  |  -4804.287   134.8735   -35.62   0.000     -5068.65   -4539.925
+                         3  |  -4316.821   123.6347   -34.92   0.000    -4559.154   -4074.487
+                         4  |   -3800.35     111.17   -34.19   0.000    -4018.252   -3582.449
+                         5  |  -3296.467   98.72292   -33.39   0.000    -3489.971   -3102.962
+                         6  |  -2758.531   84.90713   -32.49   0.000    -2924.955   -2592.106
+                         7  |  -2363.847   74.66308   -31.66   0.000    -2510.192   -2217.501
+                         8  |  -1938.603    65.3557   -29.66   0.000    -2066.706   -1810.501
+                         9  |  -1429.082   54.12377   -26.40   0.000    -1535.168   -1322.995
+                        10  |  -868.2472   37.91477   -22.90   0.000     -942.563   -793.9313
+                        11  |  -376.1717    19.3596   -19.43   0.000     -414.118   -338.2254
+                        13  |   257.6746   20.93763    12.31   0.000     216.6352    298.7139
+                        14  |   539.7374   37.34816    14.45   0.000     466.5321    612.9427
+                        15  |   670.3108   49.84389    13.45   0.000      572.613    768.0087
+                        16  |   1049.624   55.91289    18.77   0.000     940.0304    1159.217
+                        17  |   1356.655   61.73436    21.98   0.000     1235.651    1477.659
+                        18  |   1644.229   68.27888    24.08   0.000     1510.397    1778.061
+                        19  |   1750.786   75.68703    23.13   0.000     1602.433    1899.138
+                        20  |   1858.614   82.68436    22.48   0.000     1696.546    2020.681
+                        21  |   1969.769   90.05129    21.87   0.000     1793.261    2146.276
+                        22  |   2206.572   96.94182    22.76   0.000     2016.558    2396.585
+                        23  |   2519.888   103.6528    24.31   0.000     2316.721    2723.056
+                        24  |   2871.208   110.2552    26.04   0.000       2655.1    3087.317
+                        25  |   3054.194   119.1377    25.64   0.000     2820.675    3287.713
+                      1000  |  -5460.341   544.2133   -10.03   0.000    -6527.041   -4393.641
+---------------------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+--------------------------------------------------------+
+    Absorbed FE | Categories  - Redundant  = Num. Coefs |
+----------------+---------------------------------------|
+        zipcode |     20991       20991           0    *|
+            msa |       859           0         859     |
+ calendar_month |        12           1          11     |
+     year_month |       285          12         273    ?|
+--------------------------------------------------------+
+? = number of redundant parameters may be higher
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(file /Users/dgentil1/Desktop/Diego/min_wage_rent/analysis/code/../output/zhvi2br_last_min_event_rel_months12.png written i
+> n PNG format)
+(5,856,357 missing values generated)
+(833 missing values generated)
+(833 missing values generated)
+(5,983,835 real changes made)
+(3,437,691 real changes made)
+(1,496,851 real changes made)
+(MWFE estimator converged in 7 iterations)
+
+HDFE Linear regression                            Number of obs   =    106,315
+Absorbing 3 HDFE groups                           F(  50,   2561) =       2.44
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9838
+                                                  Adj R-squared   =     0.9834
+                                                  Within R-sq.    =     0.0223
+Number of clusters (zipcode) =      2,562         Root MSE        =   113.1653
+
+                                           (Std. Err. adjusted for 2,562 clusters in zipcode)
+---------------------------------------------------------------------------------------------
+                            |               Robust
+             rent2br_median |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+----------------------------+----------------------------------------------------------------
+last_min_event_rel_months24 |
+                         0  |  -105.1963   17.08688    -6.16   0.000    -138.7018   -71.69076
+                         1  |  -36.91378   13.94948    -2.65   0.008    -64.26719   -9.560376
+                         2  |  -27.38627   14.23271    -1.92   0.054    -55.29506    .5225238
+                         3  |  -15.82423   14.01762    -1.13   0.259    -43.31125    11.66278
+                         4  |  -17.11453   13.60314    -1.26   0.208    -43.78879    9.559741
+                         5  |  -20.78731   12.96373    -1.60   0.109    -46.20776    4.633149
+                         6  |  -3.264476   12.78189    -0.26   0.798    -28.32836    21.79941
+                         7  |   12.89966   11.88827     1.09   0.278    -10.41193    36.21125
+                         8  |   12.83789   11.41443     1.12   0.261    -9.544571    35.22035
+                         9  |   .0079683   12.02354     0.00   0.999    -23.56889    23.58482
+                        10  |   7.716281   10.75969     0.72   0.473     -13.3823    28.81486
+                        11  |   5.315478   10.77045     0.49   0.622    -15.80421    26.43516
+                        12  |   10.36019   12.34669     0.84   0.401    -13.85031     34.5707
+                        13  |   11.72722   11.07524     1.06   0.290    -9.990118    33.44456
+                        14  |   20.94451   11.30423     1.85   0.064    -1.221847    43.11086
+                        15  |   38.13299   11.83799     3.22   0.001     14.91998    61.34599
+                        16  |   38.43205   11.57985     3.32   0.001     15.72522    61.13888
+                        17  |   28.17347   10.50279     2.68   0.007     7.578644     48.7683
+                        18  |   15.17657    9.57451     1.59   0.113    -3.597995    33.95114
+                        19  |   16.84114   8.990458     1.87   0.061    -.7881667    34.47045
+                        20  |   21.09631   8.375531     2.52   0.012     4.672806    37.51981
+                        21  |   21.06484   7.058319     2.98   0.003     7.224245    34.90543
+                        22  |   16.29174   6.951037     2.34   0.019     2.661514    29.92196
+                        23  |   5.774496   5.255299     1.10   0.272     -4.53057    16.07956
+                        25  |  -2.283579   5.841434    -0.39   0.696    -13.73799    9.170836
+                        26  |   5.831746   6.214789     0.94   0.348    -6.354776    18.01827
+                        27  |   3.209948   7.044121     0.46   0.649     -10.6028     17.0227
+                        28  |   16.55116   7.528409     2.20   0.028     1.788771    31.31355
+                        29  |   6.859598   7.895372     0.87   0.385    -8.622364    22.34156
+                        30  |  -.6559792   7.884543    -0.08   0.934    -16.11671    14.80475
+                        31  |  -4.956082   9.046958    -0.55   0.584    -22.69618    12.78401
+                        32  |   5.000574   8.880807     0.56   0.573    -12.41372    22.41487
+                        33  |   5.956086   8.955347     0.67   0.506    -11.60437    23.51654
+                        34  |   9.073955   9.177829     0.99   0.323    -8.922765    27.07067
+                        35  |    7.16547   9.316604     0.77   0.442    -11.10337    25.43431
+                        36  |   6.582612    9.51378     0.69   0.489    -12.07287    25.23809
+                        37  |   10.79165   9.621024     1.12   0.262     -8.07413    29.65742
+                        38  |   13.43361   9.669045     1.39   0.165    -5.526329    32.39355
+                        39  |   11.12232   9.836048     1.13   0.258    -8.165091    30.40974
+                        40  |   10.37208   9.648155     1.08   0.282    -8.546899    29.29106
+                        41  |   12.85196   9.817036     1.31   0.191    -6.398174     32.1021
+                        42  |   12.24775   10.03417     1.22   0.222    -7.428155    31.92366
+                        43  |   13.84358   10.15207     1.36   0.173    -6.063526    33.75068
+                        44  |   17.21834    10.2409     1.68   0.093    -2.862944    37.29963
+                        45  |   16.42125   10.22577     1.61   0.108    -3.630367    36.47287
+                        46  |    13.8315   10.24911     1.35   0.177    -6.265881    33.92888
+                        47  |   12.43168   10.39378     1.20   0.232    -7.949377    32.81274
+                        48  |   25.96221   11.72748     2.21   0.027     2.965903    48.95852
+                        49  |   32.43603   11.16808     2.90   0.004     10.53665    54.33542
+                      1000  |   38.98896   10.83968     3.60   0.000     17.73353     60.2444
+---------------------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+--------------------------------------------------------+
+    Absorbed FE | Categories  - Redundant  = Num. Coefs |
+----------------+---------------------------------------|
+        zipcode |      2562        2562           0    *|
+ calendar_month |        12           0          12     |
+     year_month |       112          12         100     |
+--------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(file /Users/dgentil1/Desktop/Diego/min_wage_rent/analysis/code/../output/rent2br_median_last_min_event_rel_months24.png wr
+> itten in PNG format)
+(dropped 2 singleton observations)
+(MWFE estimator converged in 7 iterations)
+
+HDFE Linear regression                            Number of obs   =     92,448
+Absorbing 3 HDFE groups                           F(  50,   2380) =       3.99
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9859
+                                                  Adj R-squared   =     0.9855
+                                                  Within R-sq.    =     0.0364
+Number of clusters (zipcode) =      2,381         Root MSE        =     0.0968
+
+                                           (Std. Err. adjusted for 2,381 clusters in zipcode)
+---------------------------------------------------------------------------------------------
+                            |               Robust
+       rent2br_psqft_median |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+----------------------------+----------------------------------------------------------------
+last_min_event_rel_months24 |
+                         0  |    -.10595   .0212898    -4.98   0.000    -.1476985   -.0642015
+                         1  |  -.0278144   .0162183    -1.72   0.086    -.0596178     .003989
+                         2  |  -.0252023   .0167341    -1.51   0.132    -.0580172    .0076127
+                         3  |  -.0200115   .0172819    -1.16   0.247    -.0539006    .0138776
+                         4  |  -.0219342   .0161286    -1.36   0.174    -.0535617    .0096933
+                         5  |   -.017666   .0147205    -1.20   0.230    -.0465322    .0112002
+                         6  |  -.0025353   .0148431    -0.17   0.864     -.031642    .0265714
+                         7  |   .0030745   .0140805     0.22   0.827    -.0245369    .0306859
+                         8  |  -.0006475   .0126489    -0.05   0.959    -.0254516    .0241566
+                         9  |  -.0239428   .0132344    -1.81   0.071     -.049895    .0020094
+                        10  |  -.0128256   .0129162    -0.99   0.321    -.0381536    .0125025
+                        11  |   -.001233   .0132256    -0.09   0.926    -.0271679    .0247019
+                        12  |   .0021811    .011862     0.18   0.854    -.0210798     .025442
+                        13  |   .0146255   .0107665     1.36   0.174    -.0064872    .0357382
+                        14  |   .0146834    .010244     1.43   0.152    -.0054048    .0347715
+                        15  |    .021415      .0108     1.98   0.047     .0002366    .0425935
+                        16  |   .0082937   .0112213     0.74   0.460    -.0137108    .0302982
+                        17  |   .0080568   .0102668     0.78   0.433     -.012076    .0281895
+                        18  |  -.0018119   .0093101    -0.19   0.846    -.0200687    .0164449
+                        19  |   .0089249   .0087664     1.02   0.309    -.0082658    .0261155
+                        20  |   .0140847   .0081942     1.72   0.086    -.0019838    .0301533
+                        21  |     .00816   .0073275     1.11   0.266     -.006209     .022529
+                        22  |   .0023666   .0072052     0.33   0.743    -.0117625    .0164956
+                        23  |   .0007933    .005778     0.14   0.891    -.0105371    .0121237
+                        25  |   .0056989   .0069206     0.82   0.410    -.0078721    .0192698
+                        26  |   .0151263   .0079565     1.90   0.057     -.000476    .0307286
+                        27  |   .0120513   .0081499     1.48   0.139    -.0039303    .0280329
+                        28  |   .0155827    .009477     1.64   0.100    -.0030013    .0341666
+                        29  |   .0080531   .0102186     0.79   0.431    -.0119852    .0280914
+                        30  |   .0038135   .0103683     0.37   0.713    -.0165184    .0241454
+                        31  |   .0003789   .0110496     0.03   0.973    -.0212889    .0220468
+                        32  |   .0259481   .0107008     2.42   0.015     .0049642     .046932
+                        33  |   .0185465   .0107733     1.72   0.085    -.0025796    .0396726
+                        34  |   .0262706   .0105579     2.49   0.013      .005567    .0469742
+                        35  |   .0263275   .0103954     2.53   0.011     .0059424    .0467126
+                        36  |   .0283664   .0109314     2.59   0.010     .0069304    .0498024
+                        37  |   .0270182   .0108594     2.49   0.013     .0057234    .0483131
+                        38  |   .0311222   .0105739     2.94   0.003     .0103872    .0518572
+                        39  |    .037425   .0106535     3.51   0.000     .0165338    .0583161
+                        40  |   .0404437    .011109     3.64   0.000     .0186595     .062228
+                        41  |   .0484331   .0113035     4.28   0.000     .0262674    .0705987
+                        42  |   .0531863    .011338     4.69   0.000     .0309529    .0754197
+                        43  |   .0517423   .0112487     4.60   0.000      .029684    .0738006
+                        44  |   .0525737   .0111885     4.70   0.000     .0306335    .0745138
+                        45  |   .0556167   .0113263     4.91   0.000     .0334063     .077827
+                        46  |   .0556991   .0114568     4.86   0.000     .0332327    .0781655
+                        47  |   .0582602   .0114564     5.09   0.000     .0357947    .0807256
+                        48  |   .0626125   .0116176     5.39   0.000     .0398309    .0853941
+                        49  |   .0695509   .0117625     5.91   0.000     .0464851    .0926168
+                      1000  |   .0858131   .0118182     7.26   0.000     .0626381    .1089881
+---------------------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+--------------------------------------------------------+
+    Absorbed FE | Categories  - Redundant  = Num. Coefs |
+----------------+---------------------------------------|
+        zipcode |      2381        2381           0    *|
+ calendar_month |        12           0          12     |
+     year_month |       117          12         105     |
+--------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(file /Users/dgentil1/Desktop/Diego/min_wage_rent/analysis/code/../output/rent2br_psqft_median_last_min_event_rel_months24.
+> png written in PNG format)
+(MWFE estimator converged in 6 iterations)
+
+HDFE Linear regression                            Number of obs   =  4,629,892
+Absorbing 4 HDFE groups                           F(  50,  20990) =      68.30
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.8929
+                                                  Adj R-squared   =     0.8924
+                                                  Within R-sq.    =     0.0047
+Number of clusters (zipcode) =     20,991         Root MSE        = 45993.5537
+
+                                          (Std. Err. adjusted for 20,991 clusters in zipcode)
+---------------------------------------------------------------------------------------------
+                            |               Robust
+                    zhvi2br |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+----------------------------+----------------------------------------------------------------
+last_min_event_rel_months24 |
+                         0  |   1009.676   406.3545     2.48   0.013     213.1898    1806.162
+                         1  |  -7579.756   243.1739   -31.17   0.000    -8056.396   -7103.117
+                         2  |  -8324.434   246.1848   -33.81   0.000    -8806.975   -7841.893
+                         3  |   -8033.84   238.2886   -33.71   0.000    -8500.904   -7566.776
+                         4  |  -7670.689   229.6219   -33.41   0.000    -8120.766   -7220.612
+                         5  |  -7282.269   219.8462   -33.12   0.000    -7713.185   -6851.354
+                         6  |  -7105.889   207.8236   -34.19   0.000     -7513.24   -6698.539
+                         7  |  -6987.741   199.0598   -35.10   0.000    -7377.913   -6597.568
+                         8  |  -6722.632   188.8078   -35.61   0.000     -7092.71   -6352.554
+                         9  |  -6300.431   179.0725   -35.18   0.000    -6651.427   -5949.435
+                        10  |  -5862.824   168.3372   -34.83   0.000    -6192.778    -5532.87
+                        11  |  -5309.998   157.0034   -33.82   0.000    -5617.737    -5002.26
+                        12  |  -4930.668   144.2765   -34.18   0.000    -5213.461   -4647.874
+                        13  |   -4445.94   132.6676   -33.51   0.000    -4705.979   -4185.901
+                        14  |  -4152.198   123.4615   -33.63   0.000    -4394.192   -3910.204
+                        15  |  -3637.729   113.8878   -31.94   0.000    -3860.958     -3414.5
+                        16  |  -3051.164   103.2115   -29.56   0.000    -3253.466   -2848.861
+                        17  |  -2471.484   93.24447   -26.51   0.000    -2654.251   -2288.718
+                        18  |  -1842.136   83.18579   -22.14   0.000    -2005.186   -1679.085
+                        19  |      -1437    75.4006   -19.06   0.000    -1584.791   -1289.209
+                        20  |  -1034.679   67.21081   -15.39   0.000    -1166.418   -902.9408
+                        21  |  -1560.368   53.61983   -29.10   0.000    -1665.467   -1455.269
+                        22  |   -952.436   37.08792   -25.68   0.000    -1025.131   -879.7409
+                        23  |  -449.0887   18.05472   -24.87   0.000    -484.4774   -413.7001
+                        25  |  -211.8194   27.16226    -7.80   0.000    -265.0595   -158.5793
+                        26  |  -330.6806   49.69725    -6.65   0.000     -428.091   -233.2701
+                        27  |  -17.06588   57.86079    -0.29   0.768    -130.4775    96.34573
+                        28  |   366.5231   61.97103     5.91   0.000     245.0551    487.9911
+                        29  |   721.2092   66.37731    10.87   0.000     591.1045    851.3138
+                        30  |   516.1732   78.21627     6.60   0.000     362.8633    669.4831
+                        31  |   551.1523   86.02737     6.41   0.000      382.532    719.7725
+                        32  |   567.4802   93.69167     6.06   0.000     383.8374    751.1231
+                        33  |    799.499   99.64543     8.02   0.000     604.1863    994.8117
+                        34  |   1103.683   105.9765    10.41   0.000     895.9608    1311.405
+                        35  |   1485.846   112.0737    13.26   0.000     1266.173    1705.519
+                        36  |    1891.53    118.686    15.94   0.000     1658.896    2124.164
+                        37  |   2115.966   127.4424    16.60   0.000     1866.169    2365.763
+                        38  |    2364.52   135.6241    17.43   0.000     2098.686    2630.354
+                        39  |   2343.925   146.1961    16.03   0.000     2057.369    2630.481
+                        40  |   2852.199   152.9759    18.64   0.000     2552.354    3152.043
+                        41  |   3463.095   160.0016    21.64   0.000     3149.479     3776.71
+                        42  |   4027.567   167.5147    24.04   0.000     3699.226    4355.909
+                        43  |   4260.576   174.8597    24.37   0.000     3917.837    4603.314
+                        44  |   4376.091   182.5455    23.97   0.000     4018.288    4733.894
+                        45  |    4700.75   189.8623    24.76   0.000     4328.605    5072.895
+                        46  |   5242.343   196.2279    26.72   0.000     4857.721    5626.965
+                        47  |    5723.35   203.0914    28.18   0.000     5325.275    6121.424
+                        48  |   6117.034   210.7046    29.03   0.000     5704.036    6530.031
+                        49  |   5856.571   222.9052    26.27   0.000      5419.66    6293.483
+                      1000  |  -10859.78   724.6866   -14.99   0.000    -12280.22   -9439.339
+---------------------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+--------------------------------------------------------+
+    Absorbed FE | Categories  - Redundant  = Num. Coefs |
+----------------+---------------------------------------|
+        zipcode |     20991       20991           0    *|
+            msa |       859           0         859     |
+ calendar_month |        12           1          11     |
+     year_month |       285          12         273    ?|
+--------------------------------------------------------+
+? = number of redundant parameters may be higher
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(file /Users/dgentil1/Desktop/Diego/min_wage_rent/analysis/code/../output/zhvi2br_last_min_event_rel_months24.png written i
+> n PNG format)
+
+. 
+end of do-file
+
+
+Execute:  stataSE -e do "./event_study.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   16.1   Copyright 1985-2019 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     Special Edition                  College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+120-user Stata network perpetual license:
+       Serial number:  401606201670
+         Licensed to:  Brown University
+                       Brown University
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  Maximum number of variables is set to 5000; see help set_maxvar.
 
 . do ./event_study.do 
 
@@ -34,21 +618,21 @@ Notes:
 . set more off
 
 . adopath + ../../lib/stata/mental_coupons/ado
-  [1]  (BASE)      "C:\Program Files (x86)\Stata15\ado\base/"
-  [2]  (SITE)      "C:\Program Files (x86)\Stata15\ado\site/"
+  [1]  (BASE)      "/Applications/Stata/ado/base/"
+  [2]  (SITE)      "/Applications/Stata/ado/site/"
   [3]              "."
-  [4]  (PERSONAL)  "c:\ado\personal/"
-  [5]  (PLUS)      "c:\ado\plus/"
-  [6]  (OLDPLACE)  "c:\ado/"
+  [4]  (PERSONAL)  "/Users/dgentil1/Documents/Stata/ado/personal/"
+  [5]  (PLUS)      "/Users/dgentil1/Library/Application Support/Stata/ado/plus/"
+  [6]  (OLDPLACE)  "~/ado/"
   [7]              "../../lib/stata/mental_coupons/ado"
 
 . adopath + ../../lib/stata/gslab_misc/ado
-  [1]  (BASE)      "C:\Program Files (x86)\Stata15\ado\base/"
-  [2]  (SITE)      "C:\Program Files (x86)\Stata15\ado\site/"
+  [1]  (BASE)      "/Applications/Stata/ado/base/"
+  [2]  (SITE)      "/Applications/Stata/ado/site/"
   [3]              "."
-  [4]  (PERSONAL)  "c:\ado\personal/"
-  [5]  (PLUS)      "c:\ado\plus/"
-  [6]  (OLDPLACE)  "c:\ado/"
+  [4]  (PERSONAL)  "/Users/dgentil1/Documents/Stata/ado/personal/"
+  [5]  (PLUS)      "/Users/dgentil1/Library/Application Support/Stata/ado/plus/"
+  [6]  (OLDPLACE)  "~/ado/"
   [7]              "../../lib/stata/mental_coupons/ado"
   [8]              "../../lib/stata/gslab_misc/ado"
 
@@ -66,27 +650,24 @@ Notes:
   5. 
 .         foreach var in min_event mean_event{
   6.                 foreach window in 6 12{
-  7.                         create_event_vars, event_dummy(`var') window(`wind
-> ow')                         ///
+  7.                         create_event_vars, event_dummy(`var') window(`window')                         ///
 >                             time_var(year_month) geo_unit(zipcode)
   8.                                 
-.                         create_event_plot, depvar(rent2br_median) event_var(r
-> el_months_`var'`window')      ///
->                             controls(" ") absorb(zipcode calendar_month##stat
-> e year_month year_month##state) window(`window')
+.                         create_event_plot, depvar(rent2br_median) event_var(rel_months_`var'`window')      ///
+>                             controls(" ") absorb(zipcode calendar_month##state year_month year_month##state) window(`wind
+> ow')
   9. 
-.                         create_event_plot, depvar(rent2br_psqft_median) event
-> _var(rel_months_`var'`window')      ///
->                             controls(" ") absorb(zipcode calendar_month##stat
-> e year_month year_month##state) window(`window')
+.                         create_event_plot, depvar(rent2br_psqft_median) event_var(rel_months_`var'`window')      ///
+>                             controls(" ") absorb(zipcode calendar_month##state year_month year_month##state) window(`wind
+> ow')
  10. 
-.                         create_event_plot, depvar(zhvi2br) event_var(rel_mont
-> hs_`var'`window')             ///
->                             controls(" ") absorb(zipcode calendar_month##stat
-> e year_month year_month##state) window(`window')
+.                         create_event_plot, depvar(zhvi2br) event_var(rel_months_`var'`window')             ///
+>                             controls(" ") absorb(zipcode calendar_month##state year_month year_month##state) window(`wind
+> ow')
  11.                 }
  12.         }
- 13. end
+ 13.         
+. end
 
 . 
 . program prepare_data
@@ -101,41 +682,33 @@ Notes:
 . program create_event_vars
   1.         syntax, event_dummy(str) window(int) time_var(str) geo_unit(str)
   2.                 
-.         * Diego's approach fixed. Use difference in dates (doesn't exclude ov
-> erlapping)
+.         * Diego's approach fixed. Use difference in dates (doesn't exclude overlapping)
 . 
 .         /* gen `event_dummy'_`time_var' = `time_var' if `event_dummy' == 1
 >         format `event_dummy'_`time_var' %tm
->         bysort `geo_unit' (`time_var'): carryforward `event_dummy'_`time_var'
-> , replace
+>         bysort `geo_unit' (`time_var'): carryforward `event_dummy'_`time_var', replace
 > 
->         gen rel_months_`event_dummy' = `time_var' - F`window'.`event_dummy'_`
-> time_var'
->         replace rel_months_`event_dummy' = 1000 if !inrange(rel_months_`event
-> _dummy', -`window', `window')
->         replace rel_months_`event_dummy' = rel_months_`event_dummy' + `window
-> ' + 1 if rel_months_`event_dummy' < 1000
+>         gen rel_months_`event_dummy' = `time_var' - F`window'.`event_dummy'_`time_var'
+>         replace rel_months_`event_dummy' = 1000 if !inrange(rel_months_`event_dummy', -`window', `window')
+>         replace rel_months_`event_dummy' = rel_months_`event_dummy' + `window' + 1 if rel_months_`event_dummy' < 1000
 >         */
 . 
 .         * Santi's approach. Idenfity "beginning of event" and add 12
-.         bysort `geo_unit' (`time_var'): gen event_start = 1 if `event_dummy'[
-> _n + `window'] == 1
+.         bysort `geo_unit' (`time_var'): gen event_start = 1 if `event_dummy'[_n + `window'] == 1
   3.         gen event_start_non_overlap = event_start
-  4.         forvalues i = 0(1)`window' {                                      
->       // Set to missing if i days ago there was a mw increase
-  5.                 bysort `geo_unit' (`time_var'): replace event_start_non_ov
-> erlap = . if `event_dummy'[_n - `i'] == 1
+  4.         forvalues i = 0(1)`window' {                                            // Set to missing if i days ago there 
+> was a mw increase
+  5.                 bysort `geo_unit' (`time_var'): replace event_start_non_overlap = . if `event_dummy'[_n - `i'] == 1
   6.         }
   7.         
 .         local window_span = 2*`window' + 1
   8.         gen rel_months_`event_dummy' = event_start_non_overlap
-  9.         forvalues i = 2(1)`window_span' {                                 
->       // Set to i if i days ago an event started 
- 10.                 bysort `geo_unit' (`time_var'): replace rel_months_`event_
-> dummy' = `i' if event_start_non_overlap[_n - `i' + 1] == 1
+  9.         forvalues i = 2(1)`window_span' {                                       // Set to i if i days ago an event sta
+> rted 
+ 10.                 bysort `geo_unit' (`time_var'): replace rel_months_`event_dummy' = `i' if event_start_non_overlap[_n -
+>  `i' + 1] == 1
  11.         }
- 12.         replace rel_months_`event_dummy' = 1000 if rel_months_`event_dummy
-> ' == .
+ 12.         replace rel_months_`event_dummy' = 1000 if rel_months_`event_dummy' == .
  13. 
 . 
 .         drop event_start event_start_non_overlap
@@ -146,815 +719,26 @@ Notes:
 
 . 
 . program create_event_plot
-  1.         syntax, depvar(str) event_var(str) controls(str) absorb(str) windo
-> w(int)
+  1.         syntax, depvar(str) event_var(str) controls(str) absorb(str) window(int)
   2. 
 .         local window_plus1 = `window' + 1
   3.         local window_span = 2*`window' + 1
   4.         
-.         reghdfe `depvar' ib`window'.`event_var' `controls', absorb(`absorb') 
-> vce(cluster zipcode)
+.         reghdfe `depvar' ib`window'.`event_var' `controls', absorb(`absorb') vce(cluster zipcode)
   5.         
-.         coefplot, drop(1000.`event_var' _cons `controls')                    
->                                    ///
->                 base vertical graphregion(color(white)) bgcolor(white)       
->                            ///
->                 xlabel(1 "-`window'" `window_plus1' "0" `window_span' "`windo
-> w'")               ///
+.         coefplot, drop(1000.`event_var' _cons `controls')                                                       ///
+>                 base vertical graphregion(color(white)) bgcolor(white)                                  ///
+>                 xlabel(1 "-`window'" `window_plus1' "0" `window_span' "`window'")               ///
 >                 xline(`window_plus1', lcol(grey) lpat(dot))
   6.         graph export ../output/`depvar'_`event_var'.png, replace        
   7. end
 
 . 
 . main
-(7,395,511 missing values generated)
-(7,395,511 missing values generated)
-(5211 real changes made, 5211 to missing)
-(4367 real changes made, 4367 to missing)
-(335 real changes made, 335 to missing)
-(1809 real changes made, 1809 to missing)
-(106 real changes made, 106 to missing)
-(23547 real changes made, 23547 to missing)
-(82382 real changes made, 82382 to missing)
-(7,513,268 missing values generated)
-(84215 real changes made)
-(84215 real changes made)
-(84215 real changes made)
-(84215 real changes made)
-(84215 real changes made)
-(84215 real changes made)
-(84215 real changes made)
-(84215 real changes made)
-(84215 real changes made)
-(84215 real changes made)
-(84215 real changes made)
-(84215 real changes made)
-(6,529,112 real changes made)
-(dropped 632 singleton observations)
-(MWFE estimator converged in 12 iterations)
+file ../../derived/output/zipcode_yearmonth_panel.dta not found
+r(601);
 
-HDFE Linear regression                            Number of obs   =    105,683
-Absorbing 4 HDFE groups                           F(  13,   2559) =       0.79
-Statistics robust to heteroskedasticity           Prob > F        =     0.6762
-                                                  R-squared       =     0.9860
-                                                  Adj R-squared   =     0.9851
-                                                  Within R-sq.    =     0.0003
-Number of clusters (zipcode) =      2,560         Root MSE        =   107.0406
-
-                            (Std. Err. adjusted for 2,560 clusters in zipcode)
-------------------------------------------------------------------------------
-             |               Robust
-rent2br_me~n |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-rel_months~6 |
-          1  |   60.59686   30.79457     1.97   0.049     .2120441    120.9817
-          2  |   40.68912   25.17783     1.62   0.106    -8.681863    90.06011
-          3  |   24.09329   20.60282     1.17   0.242    -16.30661    64.49319
-          4  |   14.42887   20.41047     0.71   0.480    -25.59384    54.45159
-          5  |   12.97154   13.67588     0.95   0.343    -13.84538    39.78847
-          7  |  -28.61967   29.06474    -0.98   0.325    -85.61246    28.37312
-          8  |  -7.271076   18.57168    -0.39   0.695    -43.68813    29.14598
-          9  |  -23.81195   29.11476    -0.82   0.414    -80.90284    33.27893
-         10  |   -8.22288   24.79215    -0.33   0.740    -56.83759    40.39183
-         11  |  -4.983429   31.37128    -0.16   0.874     -66.4991    56.53224
-         12  |  -7.479943   20.96045    -0.36   0.721     -48.5811    33.62122
-         13  |  -17.75613   27.61651    -0.64   0.520    -71.90911    36.39684
-       1000  |  -8.970766   27.31739    -0.33   0.743     -62.5372    44.59567
-             |
-       _cons |   1777.039   26.56765    66.89   0.000     1724.943    1829.135
-------------------------------------------------------------------------------
-
-Absorbed degrees of freedom:
-----------------------------------------------------------------+
-            Absorbed FE | Categories  - Redundant  = Num. Coefs |
-------------------------+---------------------------------------|
-                zipcode |      2560        2560           0    *|
-   calendar_month#state |       588           0         588     |
-             year_month |       112          12         100     |
-       year_month#state |      3241         588        2653    ?|
-----------------------------------------------------------------+
-? = number of redundant parameters may be higher
-* = FE nested within cluster; treated as redundant for DoF computation
-(note:  named style grey not found in class color, default attributes used)
-(note: file ../output/rent2br_median_rel_months_min_event6.png not found)
-(file ../output/rent2br_median_rel_months_min_event6.png written in PNG format)
-(dropped 529 singleton observations)
-(MWFE estimator converged in 12 iterations)
-
-HDFE Linear regression                            Number of obs   =     91,921
-Absorbing 4 HDFE groups                           F(  13,   2378) =       1.88
-Statistics robust to heteroskedasticity           Prob > F        =     0.0274
-                                                  R-squared       =     0.9881
-                                                  Adj R-squared   =     0.9874
-                                                  Within R-sq.    =     0.0002
-Number of clusters (zipcode) =      2,379         Root MSE        =     0.0901
-
-                            (Std. Err. adjusted for 2,379 clusters in zipcode)
-------------------------------------------------------------------------------
-             |               Robust
-rent2br_ps~n |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-rel_months~6 |
-          1  |   .0084407   .0226055     0.37   0.709    -.0358878    .0527691
-          2  |  -.0129624   .0190892    -0.68   0.497    -.0503957    .0244708
-          3  |  -.0093486   .0137488    -0.68   0.497    -.0363095    .0176123
-          4  |  -.0037958   .0139268    -0.27   0.785    -.0311058    .0235142
-          5  |  -.0100132   .0152162    -0.66   0.511    -.0398515    .0198252
-          7  |   -.021907   .0198929    -1.10   0.271    -.0609161    .0171021
-          8  |   .0085253    .014692     0.58   0.562    -.0202853    .0373358
-          9  |  -.0197491   .0246604    -0.80   0.423    -.0681072     .028609
-         10  |  -.0243198   .0235997    -1.03   0.303     -.070598    .0219584
-         11  |  -.0175589   .0233319    -0.75   0.452    -.0633119     .028194
-         12  |  -.0169549   .0212732    -0.80   0.426    -.0586709    .0247612
-         13  |  -.0529646   .0249136    -2.13   0.034    -.1018192   -.0041101
-       1000  |  -.0116435   .0225608    -0.52   0.606    -.0558845    .0325974
-             |
-       _cons |   1.695305   .0221458    76.55   0.000     1.651878    1.738733
-------------------------------------------------------------------------------
-
-Absorbed degrees of freedom:
-----------------------------------------------------------------+
-            Absorbed FE | Categories  - Redundant  = Num. Coefs |
-------------------------+---------------------------------------|
-                zipcode |      2379        2379           0    *|
-   calendar_month#state |       576           0         576     |
-             year_month |       112          12         100     |
-       year_month#state |      3085         576        2509    ?|
-----------------------------------------------------------------+
-? = number of redundant parameters may be higher
-* = FE nested within cluster; treated as redundant for DoF computation
-(note:  named style grey not found in class color, default attributes used)
-(note: file ../output/rent2br_psqft_median_rel_months_min_event6.png not found)
-(file ../output/rent2br_psqft_median_rel_months_min_event6.png written in PNG f
-> ormat)
-(dropped 143 singleton observations)
-(MWFE estimator converged in 10 iterations)
-
-HDFE Linear regression                            Number of obs   =  5,511,277
-Absorbing 4 HDFE groups                           F(  13,  26649) =      16.75
-Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9359
-                                                  Adj R-squared   =     0.9354
-                                                  Within R-sq.    =     0.0001
-Number of clusters (zipcode) =     26,650         Root MSE        = 33752.8830
-
-                           (Std. Err. adjusted for 26,650 clusters in zipcode)
-------------------------------------------------------------------------------
-             |               Robust
-     zhvi2br |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-rel_months~6 |
-          1  |   2683.482   529.3081     5.07   0.000     1646.011    3720.954
-          2  |   2462.706   442.4804     5.57   0.000     1595.421    3329.991
-          3  |   1751.617   327.6342     5.35   0.000     1109.436    2393.797
-          4  |    169.797   205.4225     0.83   0.408    -232.8419    572.4359
-          5  |   99.72236   120.8963     0.82   0.409    -137.2408    336.6855
-          7  |  -2192.219   270.3928    -8.11   0.000    -2722.203   -1662.235
-          8  |  -2429.005   347.0342    -7.00   0.000    -3109.211     -1748.8
-          9  |  -2448.563    421.828    -5.80   0.000    -3275.369   -1621.758
-         10  |  -1862.488   476.7165    -3.91   0.000    -2796.878   -928.0988
-         11  |   654.5467   766.7883     0.85   0.393    -848.3989    2157.492
-         12  |   1106.902   816.3631     1.36   0.175    -493.2129    2707.017
-         13  |   2905.074   849.5288     3.42   0.001     1239.952    4570.196
-       1000  |   11144.35   2503.523     4.45   0.000      6237.31    16051.39
-             |
-       _cons |     136343   2193.092    62.17   0.000     132044.4    140641.6
-------------------------------------------------------------------------------
-
-Absorbed degrees of freedom:
-----------------------------------------------------------------+
-            Absorbed FE | Categories  - Redundant  = Num. Coefs |
-------------------------+---------------------------------------|
-                zipcode |     26650       26650           0    *|
-   calendar_month#state |       612           0         612     |
-             year_month |       285          12         273     |
-       year_month#state |     14145         612       13533    ?|
-----------------------------------------------------------------+
-? = number of redundant parameters may be higher
-* = FE nested within cluster; treated as redundant for DoF computation
-(note:  named style grey not found in class color, default attributes used)
-(note: file ../output/zhvi2br_rel_months_min_event6.png not found)
-(file ../output/zhvi2br_rel_months_min_event6.png written in PNG format)
-(7,422,657 missing values generated)
-(7,422,657 missing values generated)
-(85247 real changes made, 85247 to missing)
-(16 real changes made, 16 to missing)
-(99 real changes made, 99 to missing)
-(241 real changes made, 241 to missing)
-(1759 real changes made, 1759 to missing)
-(299 real changes made, 299 to missing)
-(1497 real changes made, 1497 to missing)
-(3162 real changes made, 3162 to missing)
-(59 real changes made, 59 to missing)
-(342 real changes made, 342 to missing)
-(1260 real changes made, 1260 to missing)
-(814 real changes made, 814 to missing)
-(4026 real changes made, 4026 to missing)
-(7,521,478 missing values generated)
-(76005 real changes made)
-(76005 real changes made)
-(76005 real changes made)
-(76005 real changes made)
-(76005 real changes made)
-(76005 real changes made)
-(76005 real changes made)
-(76005 real changes made)
-(76005 real changes made)
-(76005 real changes made)
-(76005 real changes made)
-(76005 real changes made)
-(76005 real changes made)
-(76005 real changes made)
-(76005 real changes made)
-(76005 real changes made)
-(76005 real changes made)
-(76005 real changes made)
-(76005 real changes made)
-(76005 real changes made)
-(76005 real changes made)
-(76005 real changes made)
-(76005 real changes made)
-(76005 real changes made)
-(5,809,186 real changes made)
-(dropped 632 singleton observations)
-(MWFE estimator converged in 12 iterations)
-
-HDFE Linear regression                            Number of obs   =    105,683
-Absorbing 4 HDFE groups                           F(  25,   2559) =       1.62
-Statistics robust to heteroskedasticity           Prob > F        =     0.0268
-                                                  R-squared       =     0.9860
-                                                  Adj R-squared   =     0.9852
-                                                  Within R-sq.    =     0.0017
-Number of clusters (zipcode) =      2,560         Root MSE        =   106.9728
-
-                            (Std. Err. adjusted for 2,560 clusters in zipcode)
-------------------------------------------------------------------------------
-             |               Robust
-rent2br_me~n |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-rel_month~12 |
-          1  |  -2.693092   49.83598    -0.05   0.957     -100.416    95.02985
-          2  |   49.13405   42.45457     1.16   0.247    -34.11476    132.3829
-          3  |   62.37558   49.50125     1.26   0.208    -34.69099    159.4422
-          4  |   34.74848   44.30732     0.78   0.433    -52.13337    121.6303
-          5  |   60.68242   60.27337     1.01   0.314    -57.50712     178.872
-          6  |   69.64066   62.01269     1.12   0.262    -51.95949    191.2408
-          7  |   70.49901   60.41347     1.17   0.243    -47.96524    188.9633
-          8  |   76.50291   52.49577     1.46   0.145    -26.43559    179.4414
-          9  |   61.65369   43.03532     1.43   0.152     -22.7339    146.0413
-         10  |   34.75199   38.05691     0.91   0.361    -39.87347    109.3775
-         11  |    46.8862   26.86974     1.74   0.081    -5.802449    99.57484
-         13  |  -30.47173   24.90699    -1.22   0.221    -79.31165    18.36818
-         14  |  -30.65144   43.05079    -0.71   0.477    -115.0694    53.76648
-         15  |  -76.46138   71.47202    -1.07   0.285    -216.6102    63.68749
-         16  |  -88.15681   56.34543    -1.56   0.118    -198.6441    22.33046
-         17  |  -42.13109   64.18777    -0.66   0.512    -167.9963    83.73416
-         18  |  -48.01904   59.85573    -0.80   0.422    -165.3896    69.35156
-         19  |  -55.09113   63.60271    -0.87   0.386    -179.8091    69.62688
-         20  |   -24.0379   51.90528    -0.46   0.643    -125.8185    77.74273
-         21  |   3.924651   49.44697     0.08   0.937    -93.03548    100.8848
-         22  |   9.794041   49.12714     0.20   0.842    -86.53895     106.127
-         23  |   16.55734    50.5494     0.33   0.743    -82.56456    115.6792
-         24  |     11.699   49.32785     0.24   0.813    -85.02756    108.4256
-         25  |    9.95372     51.214     0.19   0.846    -90.47137    110.3788
-       1000  |   76.13031   54.60064     1.39   0.163    -30.93562    183.1962
-             |
-       _cons |    1697.49   52.50593    32.33   0.000     1594.531    1800.448
-------------------------------------------------------------------------------
-
-Absorbed degrees of freedom:
-----------------------------------------------------------------+
-            Absorbed FE | Categories  - Redundant  = Num. Coefs |
-------------------------+---------------------------------------|
-                zipcode |      2560        2560           0    *|
-   calendar_month#state |       588           0         588     |
-             year_month |       112          12         100     |
-       year_month#state |      3241         588        2653    ?|
-----------------------------------------------------------------+
-? = number of redundant parameters may be higher
-* = FE nested within cluster; treated as redundant for DoF computation
-(note:  named style grey not found in class color, default attributes used)
-(note: file ../output/rent2br_median_rel_months_min_event12.png not found)
-(file ../output/rent2br_median_rel_months_min_event12.png written in PNG format
-> )
-(dropped 529 singleton observations)
-(MWFE estimator converged in 12 iterations)
-
-HDFE Linear regression                            Number of obs   =     91,921
-Absorbing 4 HDFE groups                           F(  25,   2378) =       2.89
-Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9881
-                                                  Adj R-squared   =     0.9874
-                                                  Within R-sq.    =     0.0009
-Number of clusters (zipcode) =      2,379         Root MSE        =     0.0901
-
-                            (Std. Err. adjusted for 2,379 clusters in zipcode)
-------------------------------------------------------------------------------
-             |               Robust
-rent2br_ps~n |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-rel_month~12 |
-          1  |   .0315999   .0234501     1.35   0.178    -.0143849    .0775847
-          2  |  -.0806316   .0642454    -1.26   0.210    -.2066145    .0453512
-          3  |   .0200663   .0307899     0.65   0.515    -.0403116    .0804442
-          4  |  -.0173845   .0506431    -0.34   0.731    -.1166937    .0819246
-          5  |  -.0301479   .0425185    -0.71   0.478    -.1135251    .0532293
-          6  |  -.0089889    .044649    -0.20   0.840    -.0965439    .0785662
-          7  |  -.0348527   .0413004    -0.84   0.399    -.1158411    .0461358
-          8  |   -.020413   .0246825    -0.83   0.408    -.0688145    .0279885
-          9  |  -.0301847   .0276772    -1.09   0.276    -.0844585    .0240892
-         10  |   -.060485   .0398288    -1.52   0.129    -.1385878    .0176177
-         11  |  -.0279983    .024123    -1.16   0.246    -.0753026     .019306
-         13  |  -.0917593   .0459194    -2.00   0.046    -.1818054   -.0017132
-         14  |  -.0791351   .0411938    -1.92   0.055    -.1599146    .0016444
-         15  |  -.1334793   .0854529    -1.56   0.118    -.3010492    .0340906
-         16  |   -.127047   .0750309    -1.69   0.091    -.2741797    .0200858
-         17  |  -.0875388   .0446699    -1.96   0.050    -.1751348    .0000573
-         18  |  -.0815709   .0530029    -1.54   0.124    -.1855075    .0223658
-         19  |  -.1296469   .0601887    -2.15   0.031    -.2476748   -.0116191
-         20  |  -.0842132   .0522895    -1.61   0.107    -.1867509    .0183245
-         21  |  -.0422936   .0424778    -1.00   0.320    -.1255909    .0410037
-         22  |  -.0530164   .0481495    -1.10   0.271    -.1474358    .0414029
-         23  |  -.0688442   .0541175    -1.27   0.203    -.1749666    .0372781
-         24  |  -.0688439   .0562884    -1.22   0.221    -.1792234    .0415355
-         25  |  -.0805774   .0592488    -1.36   0.174    -.1967621    .0356072
-       1000  |  -.0351473    .051704    -0.68   0.497    -.1365369    .0662424
-             |
-       _cons |    1.72011   .0505401    34.03   0.000     1.621003    1.819217
-------------------------------------------------------------------------------
-
-Absorbed degrees of freedom:
-----------------------------------------------------------------+
-            Absorbed FE | Categories  - Redundant  = Num. Coefs |
-------------------------+---------------------------------------|
-                zipcode |      2379        2379           0    *|
-   calendar_month#state |       576           0         576     |
-             year_month |       112          12         100     |
-       year_month#state |      3085         576        2509    ?|
-----------------------------------------------------------------+
-? = number of redundant parameters may be higher
-* = FE nested within cluster; treated as redundant for DoF computation
-(note:  named style grey not found in class color, default attributes used)
-(note: file ../output/rent2br_psqft_median_rel_months_min_event12.png not found
-> )
-(file ../output/rent2br_psqft_median_rel_months_min_event12.png written in PNG 
-> format)
-(dropped 143 singleton observations)
-(MWFE estimator converged in 10 iterations)
-
-HDFE Linear regression                            Number of obs   =  5,511,277
-Absorbing 4 HDFE groups                           F(  25,  26649) =      13.76
-Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9359
-                                                  Adj R-squared   =     0.9355
-                                                  Within R-sq.    =     0.0004
-Number of clusters (zipcode) =     26,650         Root MSE        = 33747.5572
-
-                           (Std. Err. adjusted for 26,650 clusters in zipcode)
-------------------------------------------------------------------------------
-             |               Robust
-     zhvi2br |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-rel_month~12 |
-          1  |   1735.203    1833.48     0.95   0.344    -1858.515     5328.92
-          2  |     3766.9    2145.47     1.76   0.079    -438.3346    7972.134
-          3  |   4190.555   2121.978     1.97   0.048     31.36621    8349.743
-          4  |    1006.49   1680.763     0.60   0.549    -2287.894    4300.874
-          5  |   1443.087   1625.898     0.89   0.375    -1743.759    4629.932
-          6  |   724.9629   1495.792     0.48   0.628    -2206.869    3656.794
-          7  |   859.5905   866.5023     0.99   0.321    -838.7999    2557.981
-          8  |  -338.0915   604.3957    -0.56   0.576    -1522.739    846.5561
-          9  |  -692.5381    445.412    -1.55   0.120    -1565.569     180.493
-         10  |  -559.9159   247.2656    -2.26   0.024     -1044.57    -75.2622
-         11  |  -851.0014   129.2234    -6.59   0.000    -1104.286   -597.7166
-         13  |   -451.249   227.4646    -1.98   0.047    -897.0916   -5.406399
-         14  |   1060.299   342.4464     3.10   0.002     389.0863    1731.513
-         15  |   613.7396   456.5273     1.34   0.179     -281.078    1508.557
-         16  |  -3437.527   1231.222    -2.79   0.005    -5850.788   -1024.266
-         17  |   892.6841   1784.941     0.50   0.617    -2605.895    4391.263
-         18  |    554.794   1940.644     0.29   0.775    -3248.972     4358.56
-         19  |   870.5285   2088.009     0.42   0.677    -3222.081    4963.138
-         20  |   5221.761   2254.432     2.32   0.021     802.9556    9640.567
-         21  |   5875.979    2358.57     2.49   0.013     1253.057     10498.9
-         22  |   5842.431   2469.618     2.37   0.018     1001.848    10683.01
-         23  |   10064.26   2973.602     3.38   0.001     4235.842    15892.68
-         24  |   10589.34   3068.961     3.45   0.001     4574.015    16604.67
-         25  |   9451.685   3103.597     3.05   0.002      3368.47     15534.9
-       1000  |   23800.96   4994.168     4.77   0.000     14012.13     33589.8
-             |
-       _cons |   126735.6   4099.484    30.92   0.000     118700.4    134770.8
-------------------------------------------------------------------------------
-
-Absorbed degrees of freedom:
-----------------------------------------------------------------+
-            Absorbed FE | Categories  - Redundant  = Num. Coefs |
-------------------------+---------------------------------------|
-                zipcode |     26650       26650           0    *|
-   calendar_month#state |       612           0         612     |
-             year_month |       285          12         273     |
-       year_month#state |     14145         612       13533    ?|
-----------------------------------------------------------------+
-? = number of redundant parameters may be higher
-* = FE nested within cluster; treated as redundant for DoF computation
-(note:  named style grey not found in class color, default attributes used)
-(note: file ../output/zhvi2br_rel_months_min_event12.png not found)
-(file ../output/zhvi2br_rel_months_min_event12.png written in PNG format)
-(7,350,542 missing values generated)
-(7,350,542 missing values generated)
-(8739 real changes made, 8739 to missing)
-(4899 real changes made, 4899 to missing)
-(421 real changes made, 421 to missing)
-(1809 real changes made, 1809 to missing)
-(796 real changes made, 796 to missing)
-(45196 real changes made, 45196 to missing)
-(81820 real changes made, 81820 to missing)
-(7,494,222 missing values generated)
-(103261 real changes made)
-(103261 real changes made)
-(103261 real changes made)
-(103261 real changes made)
-(103261 real changes made)
-(103261 real changes made)
-(103261 real changes made)
-(103261 real changes made)
-(103261 real changes made)
-(103261 real changes made)
-(103261 real changes made)
-(103261 real changes made)
-(6,510,410 real changes made)
-(dropped 632 singleton observations)
-(MWFE estimator converged in 12 iterations)
-
-HDFE Linear regression                            Number of obs   =    105,683
-Absorbing 4 HDFE groups                           F(  13,   2559) =       0.82
-Statistics robust to heteroskedasticity           Prob > F        =     0.6362
-                                                  R-squared       =     0.9860
-                                                  Adj R-squared   =     0.9851
-                                                  Within R-sq.    =     0.0003
-Number of clusters (zipcode) =      2,560         Root MSE        =   107.0404
-
-                            (Std. Err. adjusted for 2,560 clusters in zipcode)
-------------------------------------------------------------------------------
-             |               Robust
-rent2br_me~n |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-re~an_event6 |
-          1  |   60.57504   30.77356     1.97   0.049     .2314304    120.9187
-          2  |   40.61918   25.20093     1.61   0.107    -8.797103    90.03547
-          3  |   23.78341   20.65424     1.15   0.250    -16.71731    64.28412
-          4  |   14.44673   20.39232     0.71   0.479    -25.54041    54.43386
-          5  |    12.6827   13.65881     0.93   0.353    -14.10074    39.46614
-          7  |  -28.72219   29.02926    -0.99   0.323    -85.64543    28.20104
-          8  |  -7.062564    18.5146    -0.38   0.703    -43.36769    29.24256
-          9  |  -23.70527   29.10533    -0.81   0.415    -80.77766    33.36712
-         10  |  -8.086284   24.77656    -0.33   0.744    -56.67044    40.49787
-         11  |  -7.380374   30.77433    -0.24   0.810    -67.72549    52.96474
-         12  |  -10.59894   21.26561    -0.50   0.618    -52.29849    31.10061
-         13  |  -21.16009    27.2777    -0.78   0.438     -74.6487    32.32853
-       1000  |  -8.378352   27.32392    -0.31   0.759     -61.9576    45.20089
-             |
-       _cons |   1776.518   26.56604    66.87   0.000     1724.425    1828.611
-------------------------------------------------------------------------------
-
-Absorbed degrees of freedom:
-----------------------------------------------------------------+
-            Absorbed FE | Categories  - Redundant  = Num. Coefs |
-------------------------+---------------------------------------|
-                zipcode |      2560        2560           0    *|
-   calendar_month#state |       588           0         588     |
-             year_month |       112          12         100     |
-       year_month#state |      3241         588        2653    ?|
-----------------------------------------------------------------+
-? = number of redundant parameters may be higher
-* = FE nested within cluster; treated as redundant for DoF computation
-(note:  named style grey not found in class color, default attributes used)
-(note: file ../output/rent2br_median_rel_months_mean_event6.png not found)
-(file ../output/rent2br_median_rel_months_mean_event6.png written in PNG format
-> )
-(dropped 529 singleton observations)
-(MWFE estimator converged in 12 iterations)
-
-HDFE Linear regression                            Number of obs   =     91,921
-Absorbing 4 HDFE groups                           F(  13,   2378) =       2.43
-Statistics robust to heteroskedasticity           Prob > F        =     0.0029
-                                                  R-squared       =     0.9881
-                                                  Adj R-squared   =     0.9874
-                                                  Within R-sq.    =     0.0004
-Number of clusters (zipcode) =      2,379         Root MSE        =     0.0901
-
-                            (Std. Err. adjusted for 2,379 clusters in zipcode)
-------------------------------------------------------------------------------
-             |               Robust
-rent2br_ps~n |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-re~an_event6 |
-          1  |   .0181937   .0245939     0.74   0.460    -.0300341    .0664214
-          2  |  -.0034788   .0200611    -0.17   0.862    -.0428177    .0358602
-          3  |   -.000221   .0142176    -0.02   0.988    -.0281011     .027659
-          4  |   .0067786   .0160153     0.42   0.672    -.0246267    .0381839
-          5  |   .0000495   .0173865     0.00   0.998    -.0340449    .0341438
-          7  |  -.0221518   .0194893    -1.14   0.256    -.0603695     .016066
-          8  |   .0101761   .0144632     0.70   0.482    -.0181858    .0385379
-          9  |  -.0173315    .024354    -0.71   0.477    -.0650887    .0304257
-         10  |  -.0196786     .02336    -0.84   0.400    -.0654866    .0261294
-         11  |   -.020738   .0230858    -0.90   0.369    -.0660083    .0245323
-         12  |  -.0271082     .02085    -1.30   0.194    -.0679942    .0137779
-         13  |  -.0590956   .0241047    -2.45   0.014     -.106364   -.0118273
-       1000  |   .0038853   .0262491     0.15   0.882    -.0475883    .0553588
-             |
-       _cons |   1.680276   .0256952    65.39   0.000     1.629888    1.730663
-------------------------------------------------------------------------------
-
-Absorbed degrees of freedom:
-----------------------------------------------------------------+
-            Absorbed FE | Categories  - Redundant  = Num. Coefs |
-------------------------+---------------------------------------|
-                zipcode |      2379        2379           0    *|
-   calendar_month#state |       576           0         576     |
-             year_month |       112          12         100     |
-       year_month#state |      3085         576        2509    ?|
-----------------------------------------------------------------+
-? = number of redundant parameters may be higher
-* = FE nested within cluster; treated as redundant for DoF computation
-(note:  named style grey not found in class color, default attributes used)
-(note: file ../output/rent2br_psqft_median_rel_months_mean_event6.png not found
-> )
-(file ../output/rent2br_psqft_median_rel_months_mean_event6.png written in PNG 
-> format)
-(dropped 143 singleton observations)
-(MWFE estimator converged in 10 iterations)
-
-HDFE Linear regression                            Number of obs   =  5,511,277
-Absorbing 4 HDFE groups                           F(  13,  26649) =      18.44
-Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9359
-                                                  Adj R-squared   =     0.9355
-                                                  Within R-sq.    =     0.0002
-Number of clusters (zipcode) =     26,650         Root MSE        = 33751.5181
-
-                           (Std. Err. adjusted for 26,650 clusters in zipcode)
-------------------------------------------------------------------------------
-             |               Robust
-     zhvi2br |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-re~an_event6 |
-          1  |   4033.564   601.2568     6.71   0.000     2855.069    5212.059
-          2  |   3165.011   456.6927     6.93   0.000      2269.87    4060.153
-          3  |   2034.923   330.3504     6.16   0.000     1387.418    2682.427
-          4  |   207.1837   192.5061     1.08   0.282    -170.1384    584.5058
-          5  |   169.0212   110.8388     1.52   0.127    -48.22881    386.2711
-          7  |  -2052.767   243.6861    -8.42   0.000    -2530.404   -1575.129
-          8  |  -1779.076   307.1567    -5.79   0.000    -2381.119   -1177.032
-          9  |  -1589.258   411.3897    -3.86   0.000    -2395.604   -782.9127
-         10  |  -567.0167   487.5694    -1.16   0.245    -1522.679    388.6452
-         11  |   2734.932   843.2682     3.24   0.001     1082.082    4387.782
-         12  |    2036.11   939.3765     2.17   0.030      194.882    3877.338
-         13  |   3563.165   1264.249     2.82   0.005     1085.171     6041.16
-       1000  |    15142.7    2304.18     6.57   0.000     10626.39    19659.02
-             |
-       _cons |   132798.5   2018.169    65.80   0.000     128842.8    136754.2
-------------------------------------------------------------------------------
-
-Absorbed degrees of freedom:
-----------------------------------------------------------------+
-            Absorbed FE | Categories  - Redundant  = Num. Coefs |
-------------------------+---------------------------------------|
-                zipcode |     26650       26650           0    *|
-   calendar_month#state |       612           0         612     |
-             year_month |       285          12         273     |
-       year_month#state |     14145         612       13533    ?|
-----------------------------------------------------------------+
-? = number of redundant parameters may be higher
-* = FE nested within cluster; treated as redundant for DoF computation
-(note:  named style grey not found in class color, default attributes used)
-(note: file ../output/zhvi2br_rel_months_mean_event6.png not found)
-(file ../output/zhvi2br_rel_months_mean_event6.png written in PNG format)
-(7,377,905 missing values generated)
-(7,377,905 missing values generated)
-(107773 real changes made, 107773 to missing)
-(86 real changes made, 86 to missing)
-(174 real changes made, 174 to missing)
-(252 real changes made, 252 to missing)
-(1841 real changes made, 1841 to missing)
-(307 real changes made, 307 to missing)
-(4744 real changes made, 4744 to missing)
-(3162 real changes made, 3162 to missing)
-(67 real changes made, 67 to missing)
-(755 real changes made, 755 to missing)
-(2079 real changes made, 2079 to missing)
-(892 real changes made, 892 to missing)
-(5372 real changes made, 5372 to missing)
-(7,505,409 missing values generated)
-(92074 real changes made)
-(92074 real changes made)
-(92074 real changes made)
-(92074 real changes made)
-(92074 real changes made)
-(92074 real changes made)
-(92074 real changes made)
-(92074 real changes made)
-(92074 real changes made)
-(92074 real changes made)
-(92074 real changes made)
-(92074 real changes made)
-(92074 real changes made)
-(92074 real changes made)
-(92074 real changes made)
-(92074 real changes made)
-(92074 real changes made)
-(92074 real changes made)
-(92074 real changes made)
-(92074 real changes made)
-(92074 real changes made)
-(92074 real changes made)
-(92074 real changes made)
-(92074 real changes made)
-(5,792,673 real changes made)
-(dropped 632 singleton observations)
-(MWFE estimator converged in 12 iterations)
-
-HDFE Linear regression                            Number of obs   =    105,683
-Absorbing 4 HDFE groups                           F(  25,   2559) =       1.62
-Statistics robust to heteroskedasticity           Prob > F        =     0.0270
-                                                  R-squared       =     0.9860
-                                                  Adj R-squared   =     0.9852
-                                                  Within R-sq.    =     0.0018
-Number of clusters (zipcode) =      2,560         Root MSE        =   106.9690
-
-                            (Std. Err. adjusted for 2,560 clusters in zipcode)
-------------------------------------------------------------------------------
-             |               Robust
-rent2br_me~n |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-r~an_event12 |
-          1  |  -3.557774   50.31332    -0.07   0.944    -102.2167    95.10118
-          2  |    48.5218   43.18171     1.12   0.261    -36.15285    133.1964
-          3  |   61.49862   49.90168     1.23   0.218    -36.35316    159.3504
-          4  |   33.74915    44.6797     0.76   0.450    -53.86289    121.3612
-          5  |   61.85707   61.72785     1.00   0.316    -59.18454    182.8987
-          6  |   68.89107   62.39555     1.10   0.270    -53.45984     191.242
-          7  |    69.0129   60.45166     1.14   0.254    -49.52624     187.552
-          8  |   75.02224   52.80962     1.42   0.156    -28.53168    178.5762
-          9  |    60.1998   42.65962     1.41   0.158    -23.45108    143.8507
-         10  |   34.14927   38.22377     0.89   0.372     -40.8034    109.1019
-         11  |    46.5606   26.91778     1.73   0.084    -6.222246    99.34344
-         13  |  -30.98311   25.10136    -1.23   0.217    -80.20416    18.23793
-         14  |  -31.30664   43.44265    -0.72   0.471     -116.493    53.87968
-         15  |  -78.05481   71.35236    -1.09   0.274     -217.969    61.85942
-         16  |  -89.40906   56.51174    -1.58   0.114    -200.2225    21.40433
-         17  |  -44.05349   64.50492    -0.68   0.495    -170.5406    82.43365
-         18  |  -50.14002   60.03011    -0.84   0.404    -167.8525    67.57251
-         19  |  -56.54411   63.90828    -0.88   0.376    -181.8613    68.77309
-         20  |  -26.21026   54.73601    -0.48   0.632    -133.5416    81.12112
-         21  |  -4.029072   48.74902    -0.08   0.934     -99.6206    91.56246
-         22  |   5.436504   49.58229     0.11   0.913    -91.78899     102.662
-         23  |   3.502096   50.95797     0.07   0.945    -96.42095    103.4251
-         24  |   8.085625   50.99107     0.16   0.874    -91.90234    108.0736
-         25  |   4.941035     51.793     0.10   0.924    -96.61942    106.5015
-       1000  |    75.7096   54.75917     1.38   0.167     -31.6672    183.0864
-             |
-       _cons |   1698.148   52.67055    32.24   0.000     1594.866    1801.429
-------------------------------------------------------------------------------
-
-Absorbed degrees of freedom:
-----------------------------------------------------------------+
-            Absorbed FE | Categories  - Redundant  = Num. Coefs |
-------------------------+---------------------------------------|
-                zipcode |      2560        2560           0    *|
-   calendar_month#state |       588           0         588     |
-             year_month |       112          12         100     |
-       year_month#state |      3241         588        2653    ?|
-----------------------------------------------------------------+
-? = number of redundant parameters may be higher
-* = FE nested within cluster; treated as redundant for DoF computation
-(note:  named style grey not found in class color, default attributes used)
-(note: file ../output/rent2br_median_rel_months_mean_event12.png not found)
-(file ../output/rent2br_median_rel_months_mean_event12.png written in PNG forma
-> t)
-(dropped 529 singleton observations)
-(MWFE estimator converged in 12 iterations)
-
-HDFE Linear regression                            Number of obs   =     91,921
-Absorbing 4 HDFE groups                           F(  25,   2378) =       2.78
-Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9881
-                                                  Adj R-squared   =     0.9874
-                                                  Within R-sq.    =     0.0009
-Number of clusters (zipcode) =      2,379         Root MSE        =     0.0901
-
-                            (Std. Err. adjusted for 2,379 clusters in zipcode)
-------------------------------------------------------------------------------
-             |               Robust
-rent2br_ps~n |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-r~an_event12 |
-          1  |   .0311417   .0237538     1.31   0.190    -.0154385    .0777219
-          2  |  -.0805255   .0647347    -1.24   0.214    -.2074678    .0464168
-          3  |   .0194294   .0308823     0.63   0.529    -.0411296    .0799885
-          4  |  -.0182067   .0508528    -0.36   0.720    -.1179272    .0815138
-          5  |   -.026202   .0445711    -0.59   0.557    -.1136043    .0612002
-          6  |  -.0110922   .0441162    -0.25   0.802    -.0976024    .0754181
-          7  |  -.0381561   .0405678    -0.94   0.347    -.1177081    .0413958
-          8  |  -.0211628    .024948    -0.85   0.396    -.0700849    .0277593
-          9  |  -.0322968   .0280764    -1.15   0.250    -.0873535      .02276
-         10  |  -.0608302   .0398476    -1.53   0.127    -.1389699    .0173095
-         11  |  -.0280569   .0243987    -1.15   0.250    -.0759018    .0197881
-         13  |  -.0919362   .0461013    -1.99   0.046    -.1823392   -.0015332
-         14  |  -.0794587   .0416941    -1.91   0.057    -.1612192    .0023019
-         15  |  -.1344513   .0856162    -1.57   0.116    -.3023415    .0334389
-         16  |  -.1276955   .0752079    -1.70   0.090    -.2751753    .0197844
-         17  |  -.0888482   .0453732    -1.96   0.050    -.1778234     .000127
-         18  |  -.0832683   .0533074    -1.56   0.118    -.1878021    .0212656
-         19  |  -.1304765   .0604203    -2.16   0.031    -.2489584   -.0119946
-         20  |  -.0856783   .0550027    -1.56   0.119    -.1935364    .0221798
-         21  |  -.0466647   .0434105    -1.07   0.283    -.1317909    .0384616
-         22  |  -.0552611   .0483439    -1.14   0.253    -.1500618    .0395395
-         23  |  -.0777888   .0556745    -1.40   0.162    -.1869643    .0313868
-         24  |   -.076086   .0568854    -1.34   0.181    -.1876361    .0354641
-         25  |  -.0824786   .0582843    -1.42   0.157     -.196772    .0318147
-       1000  |  -.0352248   .0519172    -0.68   0.498    -.1370324    .0665829
-             |
-       _cons |   1.720324   .0507683    33.89   0.000     1.620769    1.819878
-------------------------------------------------------------------------------
-
-Absorbed degrees of freedom:
-----------------------------------------------------------------+
-            Absorbed FE | Categories  - Redundant  = Num. Coefs |
-------------------------+---------------------------------------|
-                zipcode |      2379        2379           0    *|
-   calendar_month#state |       576           0         576     |
-             year_month |       112          12         100     |
-       year_month#state |      3085         576        2509    ?|
-----------------------------------------------------------------+
-? = number of redundant parameters may be higher
-* = FE nested within cluster; treated as redundant for DoF computation
-(note:  named style grey not found in class color, default attributes used)
-(note: file ../output/rent2br_psqft_median_rel_months_mean_event12.png not foun
-> d)
-(file ../output/rent2br_psqft_median_rel_months_mean_event12.png written in PNG
->  format)
-(dropped 143 singleton observations)
-(MWFE estimator converged in 10 iterations)
-
-HDFE Linear regression                            Number of obs   =  5,511,277
-Absorbing 4 HDFE groups                           F(  25,  26649) =      12.02
-Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9359
-                                                  Adj R-squared   =     0.9355
-                                                  Within R-sq.    =     0.0004
-Number of clusters (zipcode) =     26,650         Root MSE        = 33747.4671
-
-                           (Std. Err. adjusted for 26,650 clusters in zipcode)
-------------------------------------------------------------------------------
-             |               Robust
-     zhvi2br |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-r~an_event12 |
-          1  |   2608.168   1905.568     1.37   0.171    -1126.846    6343.182
-          2  |   4166.386   2222.439     1.87   0.061    -189.7115    8522.484
-          3  |   5006.666   2248.736     2.23   0.026     599.0252    9414.307
-          4  |    1896.78   1799.717     1.05   0.292     -1630.76     5424.32
-          5  |    1941.05   1704.348     1.14   0.255    -1399.562    5281.663
-          6  |   1269.424   1547.001     0.82   0.412     -1762.78    4301.628
-          7  |   1211.685   850.9938     1.42   0.155    -456.3075    2879.678
-          8  |   352.7477    652.624     0.54   0.589    -926.4298    1631.925
-          9  |  -81.21762   452.0168    -0.18   0.857    -967.1944    804.7592
-         10  |  -293.9772   231.4634    -1.27   0.204    -747.6576    159.7033
-         11  |  -1254.638    208.656    -6.01   0.000    -1663.615   -845.6615
-         13  |  -153.3743    248.202    -0.62   0.537    -639.8633    333.1148
-         14  |   347.8226   326.0067     1.07   0.286    -291.1679    986.8131
-         15  |   492.9415   461.0054     1.07   0.285    -410.6535    1396.537
-         16  |  -1980.731   1291.959    -1.53   0.125    -4513.039    551.5769
-         17  |  -2204.693   1505.594    -1.46   0.143    -5155.738    746.3513
-         18  |   1057.199   1962.176     0.54   0.590    -2788.771    4903.168
-         19  |   1196.072   2230.248     0.54   0.592    -3175.333    5567.477
-         20  |   4451.225   2332.164     1.91   0.056    -119.9397    9022.391
-         21  |   5458.548   2451.606     2.23   0.026       653.27    10263.83
-         22  |   5710.064   2695.378     2.12   0.034     426.9805    10993.15
-         23  |   12515.07   3073.763     4.07   0.000     6490.334    18539.81
-         24  |    15107.7   3267.976     4.62   0.000     8702.298    21513.11
-         25  |   15502.94   3514.524     4.41   0.000     8614.289     22391.6
-       1000  |   24628.83   5115.797     4.81   0.000     14601.59    34656.06
-             |
-       _cons |   125956.7   4161.406    30.27   0.000     117800.2    134113.3
-------------------------------------------------------------------------------
-
-Absorbed degrees of freedom:
-----------------------------------------------------------------+
-            Absorbed FE | Categories  - Redundant  = Num. Coefs |
-------------------------+---------------------------------------|
-                zipcode |     26650       26650           0    *|
-   calendar_month#state |       612           0         612     |
-             year_month |       285          12         273     |
-       year_month#state |     14145         612       13533    ?|
-----------------------------------------------------------------+
-? = number of redundant parameters may be higher
-* = FE nested within cluster; treated as redundant for DoF computation
-(note:  named style grey not found in class color, default attributes used)
-(note: file ../output/zhvi2br_rel_months_mean_event12.png not found)
-(file ../output/zhvi2br_rel_months_mean_event12.png written in PNG format)
-
-. 
 end of do-file
+r(601);
 
- make.py ended: 2020-03-10 11:14:47
+ make.py ended: 2020-03-11 15:14:35
