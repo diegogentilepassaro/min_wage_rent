@@ -8,7 +8,7 @@ program main
 	local instub  "../../derived/output/"
 	local outstub "../output/"
 
-	use `instub'data_ready.dta, clear
+	use `instub'zipcode_yearmonth_panel.dta, clear
 
 	prepare_data, time_var(year_month) geo_unit(zipcode)
 
