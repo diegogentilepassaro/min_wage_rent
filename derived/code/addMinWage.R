@@ -1,9 +1,9 @@
 # Preliminaries
-source("../../lib/R/library.R")
+source("../../lib/R/functions/save_data.R")
+source("../../lib/R/functions/load_packages.R")
 load_packages(c('tidyverse', 'data.table', 'matrixStats'))
 
 # Set dependencies
-
 
 main <- function(){
    datadir    <- '../../base/output/'
