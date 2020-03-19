@@ -11,15 +11,15 @@ program main
 	foreach window in 12 24 {
 		create_event_plot, depvar(rent2br_median) event_var(rel_months_min_event`window')      ///
 			controls(" ") window(`window') ///
-			absorb(zipcode msa calendar_month##state year_month)
+			absorb(zipcode msa calendar_month##state year_month) cluster(zipcode)
 
 		create_event_plot, depvar(rent2br_psqft_median) event_var(rel_months_min_event`window')      ///
 			controls(" ") window(`window') ///
-			absorb(zipcode msa calendar_month##state year_month)
+			absorb(zipcode msa calendar_month##state year_month) cluster(zipcode)
 
 		create_event_plot, depvar(zhvi2br) event_var(rel_months_min_event`window')      ///
 			controls(" ") window(`window') ///
-			absorb(zipcode msa calendar_month##state year_month)
+			absorb(zipcode msa calendar_month##state year_month) cluster(zipcode)
 	}
 end
 

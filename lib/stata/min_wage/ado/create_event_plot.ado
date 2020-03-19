@@ -1,5 +1,6 @@
 program create_event_plot
-	syntax, depvar(str) event_var(str) controls(str) absorb(str) window(int)
+	syntax, depvar(str) event_var(str) controls(str) absorb(str) ///
+	    window(int) cluster(str)
 
 	local window_plus1 = `window' + 1
 	local window_span = 2*`window' + 1
@@ -9,7 +10,7 @@ program create_event_plot
 	}
 
 	reghdfe `depvar' ib`window'.`event_var' `controls', nocons ///
-	    absorb(`absorb') vce(cluster zipcode)
+	    absorb(`absorb') vce(cluster `cluster')
 	
 	coefplot, keep(`keep_coeffs') ///
 		base vertical graphregion(color(white)) bgcolor(white) ///
