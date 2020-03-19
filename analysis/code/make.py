@@ -34,6 +34,7 @@ elif "StataMP-64" in envir_vars:
 elif "Stata15" in envir_vars:
     stata = "StataMP-64"
 
+
 run_stata(program = 'event_study.do', executable = stata)
 
 end_make_logging()
