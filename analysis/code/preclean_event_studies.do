@@ -13,10 +13,10 @@ program main
 	prepare_data, time_var(year_month) geo_unit(zipcode)
 
 	foreach window in 12 24 {
-		create_latest_event_vars, event_dummy(min_event) window(`window')                         ///
+		create_latest_event_vars, event_dummy(max_event) window(`window')                         ///
 			time_var(year_month) geo_unit(zipcode)
 			
-        create_event_vars, event_dummy(min_event) window(`window')                         ///
+        create_event_vars, event_dummy(max_event) window(`window')                         ///
 			time_var(year_month) geo_unit(zipcode)
 						
 	}
@@ -33,6 +33,9 @@ program prepare_data
 	drop date
 	
 	replace min_event = 0 if dmin_actual_mw < 0.5
+	replace mean_event = 0 if dmean_actual_mw < 0.5
+	replace max_event = 0 if dmax_actual_mw < 0.5
+
 
 	drop if missing(msa)
 	
