@@ -36,7 +36,7 @@ elif "Stata15" in envir_vars:
 
 run_rbatch(program = 'ReshapeMergeZillow_zip.R')
 run_rbatch(program = 'addMinWage.R')
-run_stata(program = 'label_final_dta.do', executable = stata)
+# run_stata(program = 'label_final_dta.do', executable = stata)
 
 end_make_logging()
 

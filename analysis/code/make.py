@@ -35,7 +35,8 @@ elif "Stata15" in envir_vars:
     stata = "StataMP-64"
 
 
-run_stata(program = 'event_study.do', executable = stata)
+# run_stata(program = 'event_study.do', executable = stata)
+run_rbatch(program = 'zillow_descriptive.R')
 
 end_make_logging()
 
