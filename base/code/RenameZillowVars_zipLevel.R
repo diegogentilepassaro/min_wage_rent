@@ -1,4 +1,5 @@
-source("../../lib/R/library.R")
+source("../../lib/R/functions/load_packages.R")
+source("../../lib/R/functions/save_data.R")
 load_packages(c('tidyverse', 'data.table'))
 
 main <- function() {
