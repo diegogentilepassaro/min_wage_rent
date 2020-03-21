@@ -3,7 +3,7 @@ load_packages(c('tidyverse', 'data.table'))
 
 main <- function() {
    
-   datadir <- '../../raw_data/zillow/'
+   datadir <- '../../drive/raw_data/zillow/'
    outputdir <- "../output/"
    geounit <- "Zip"
    last_period <- "092017"

@@ -1,7 +1,7 @@
 source("../../lib/R/library.R")
 load_packages(c('tidyverse', 'data.table', 'tidycensus'))
 
-datadir <- '../../raw_data/census/'
+datadir <- '../../drive/raw_data/census/'
 tempdir <- "../temp/"
 outputdir <- "../output/"
 
@@ -25,7 +25,7 @@ main <- function(){
 
 
 clean_2010census_gazzetter <- function(instub, outstub, key) {
-   places10 <- fread(instub)  
+   places10 <- fread(instub)
    
    places10 <- places10[USPS!='PR',]                                 
    places10[ , GEOID:=str_pad(as.character(GEOID), 7, pad = "0")]
