@@ -21,8 +21,6 @@ set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
 delete_files('../output/*')
 
-start_make_logging()
-
 envir_vars = os.getenv('PATH')
 if envir_vars is None:
     envir_vars = os.getenv('Path')
@@ -34,6 +32,7 @@ elif "StataMP-64" in envir_vars:
 elif "Stata15" in envir_vars:
     stata = "StataMP-64"
 
+start_make_logging()
 
 # run_stata(program = 'event_study.do', executable = stata)
 run_rbatch(program = 'zillow_descriptive.R')

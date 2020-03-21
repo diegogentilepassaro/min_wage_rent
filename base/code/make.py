@@ -21,8 +21,6 @@ set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
 delete_files('../output/*')
 
-start_make_logging()
-
 envir_vars = os.getenv('PATH')
 if envir_vars is None:
     envir_vars = os.getenv('Path')
@@ -33,6 +31,8 @@ elif "StataMP-64" in envir_vars:
     stata = "StataMP-64"
 elif "Stata15" in envir_vars:
 	stata = "StataMP-64"
+
+start_make_logging()
 
 run_rbatch(program = 'RenameZillowVars_zipLevel.R')
 run_rbatch(program = 'cleanGeoRelationshipFiles.R')
