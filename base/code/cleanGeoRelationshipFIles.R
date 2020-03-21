@@ -1,3 +1,4 @@
+remove(list = ls())
 source("../../lib/R/library.R")
 load_packages(c('tidyverse', 'data.table', 'tidycensus'))
 
