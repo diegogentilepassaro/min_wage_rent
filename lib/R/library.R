@@ -43,6 +43,7 @@ save_data <- function(df, key, filename, logfile = NULL, nolog = FALSE) {
   }
 }
 
+colMean  <- function(data) sapply(data, mean, na.rm = TRUE)
 colSD  <- function(data) sapply(data, sd, na.rm = TRUE)
 colMin <- function(data) sapply(data, min, na.rm = TRUE)
 colMax <- function(data) sapply(data, max, na.rm = TRUE)
@@ -83,7 +84,7 @@ check_key <- function(df, key) {
 
 generate_log_file <- function(df, key, filename, logname) {
   
-  numeric_sum <- as.data.frame(cbind(colMeans(dplyr::select_if(df,is.numeric)),
+  numeric_sum <- as.data.frame(cbind(colMean(dplyr::select_if(df,is.numeric)),
                                      colSD(dplyr::select_if(df,is.numeric)),
                                      colMin(dplyr::select_if(df,is.numeric)),
                                      colMax(dplyr::select_if(df,is.numeric))))
