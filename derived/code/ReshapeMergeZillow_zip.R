@@ -1,4 +1,4 @@
-# Preliminaries
+remove(list = ls())
 source("../../lib/R/library.R")
 load_packages(c('tidyverse', 'data.table', 'tidycensus'))
 
@@ -10,7 +10,6 @@ main <- function(){
    merge_zillow(l = filelist, outstub = paste0(tempdir,"zillow_clean.csv"),
                 key = c('zipcode', 'date'))
 }
-
 
 reshape_zillow_zip_level <- function(infiles){
    

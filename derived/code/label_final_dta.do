@@ -3,20 +3,19 @@ clear all
 adopath + ../../lib/stata/gslab_misc/ado
 adopath + ../../lib/stata/mental_coupons/ado
 
-*cap mkdir "../output/"
-
 program main 
-	local instub "../output/"
-	local oustub   "../output/"
+	local instub  "../../drive/derived_large/output"
+	local oustub  "../../drive/derived_large/output"
+	local logfile "../output/data_file_manifest.log"
 
-	import delim `instub'data_clean.csv, delim(",")
+	import delim `instub'\data_clean.csv, delim(",")
 
 	clean_vars
 	create_vars
 	label_vars
 
 	compress
-	save_data `oustub'zipcode_yearmonth_panel.dta, key(zipcode year_month) replace
+	save_data `oustub'\zipcode_yearmonth_panel.dta, key(zipcode year_month) log(`logfile') replace
 end 
 
 program clean_vars
@@ -34,13 +33,13 @@ program clean_vars
 	* Remove obs with no data on minimum wage 
 	bys zipcode (year_month): egen no_mw_min_data = min(min_actual_mw)
 	bys zipcode (year_month): egen no_mw_mean_data = min(mean_actual_mw)
-	bys zipcode (year_month): egen no_mw_max_data = min(max_actual_mw)	
+	bys zipcode (year_month): egen no_mw_max_data = min(max_actual_mw)
 	drop if missing(no_mw_min_data) & missing(no_mw_mean_data) & missing(no_mw_max_data)	
 	drop no_mw_min_data no_mw_mean_data no_mw_max_data
 
 	*clean place/city name: since city has no missing keep that (BUT ZIP CODE CAN BELONG TO DIFFERENT CITIES!!!!!)
 	* als, there are some 70000s zipcode-date where placename and city doesn't match (why)
-	drop placename 
+	drop placename
 	local dropwords = `" " Town$" "^Town of " " Township$" "'
 		foreach w in `dropwords' {
 			replace city = regexr(city, "`w'", "")
@@ -48,9 +47,11 @@ program clean_vars
 end
 
 program create_vars
-	bys zipcode (year_month): gen trend = _n
-	
+	bysort zipcode (year_month): gen trend = _n
+
 	foreach var_type in min mean max {
+		bysort zipcode (year_month): gen dpercent_`var_type'_actual_mw = d`var_type'_actual_mw/`var_type'_actual_mw[_n-1]
+
 		gen `var_type'_event_month = `var_type'_event == 1
 		sort zipcode year_month
 		replace `var_type'_event_month = 1 if year_month != year_month[_n-1] + 1  // zipcode changes
@@ -95,12 +96,11 @@ program label_vars
 		label var months_until_`var_type' "Months until next MW change (`var_type'_event)"
 	}
 
-	order zipcode county countyfips msa city state* year_month 						///
+	order zipcode county countyfips msa city state* year_month 						    ///
 		min_actual_mw dmin_actual_mw min_event months_since_min months_until_min		///
 		mean_actual_mw dmean_actual_mw mean_event months_since_mean months_until_mean	///
 		max_actual_mw dmax_actual_mw max_event months_since_max months_until_max		///
-		localabovestate countyabovestate *_local_mw *_county_mw *_state_mw *_fed_mw     ///
-		rent2br_median rent2br_psqft_median rent_psqft_median_sfr zhvi2br
+		localabovestate countyabovestate *_local_mw *_county_mw *_state_mw *_fed_mw
 	xtset zipcode year_month
 end 
 

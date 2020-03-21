@@ -1,14 +1,12 @@
-# Preliminaries
+remove(list = ls())
 source("../../lib/R/library.R")
 load_packages(c('tidyverse', 'data.table', 'matrixStats'))
 
-# Set dependencies
-
-
 main <- function(){
-   datadir    <- '../../base/output/'
-   outputdir  <- "../output/"
-   tempdir    <- "../temp/"
+   datadir   <- '../../base/output/'
+   outputdir <- "../../drive/derived_large/output/"
+   tempdir   <- "../temp/"
+   log_file  <- "../output/data_file_manifest.log"
    
    data <- load_data(infile_zillow = paste0(tempdir, 'zillow_clean.csv'), 
                      infile_statemw = paste0(datadir, 'VZ_state_monthly.csv'), 
@@ -21,8 +19,8 @@ main <- function(){
    
    data <- create_minwage_eventvars(data)
    
-   save_data(df = data, filename = paste0(outputdir, 'data_clean.csv'), 
-             key = c('zipcode', 'date'))
+   save_data(df = data, key = c('zipcode', 'date'), 
+             filename = paste0(outputdir, 'data_clean.csv'), logfile = log_file)
 }
 
 load_data <- function(infile_zillow, infile_statemw, infile_localmw, infile_place, infile_county, infile_zipplace){

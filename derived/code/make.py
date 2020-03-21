@@ -19,7 +19,7 @@ from gslab_make.dir_mod import *
 set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
-clear_dirs('../drive/derived_large/')
+delete_files('../drive/derived_large/output/*')
 delete_files('../output/*')
 
 envir_vars = os.getenv('PATH')
@@ -37,7 +37,7 @@ start_make_logging()
 
 run_rbatch(program = 'ReshapeMergeZillow_zip.R')
 run_rbatch(program = 'addMinWage.R')
-# run_stata(program = 'label_final_dta.do', executable = stata)
+run_stata(program = 'label_final_dta.do', executable = stata)
 
 end_make_logging()
 
