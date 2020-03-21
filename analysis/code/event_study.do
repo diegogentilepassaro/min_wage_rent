@@ -5,8 +5,8 @@ adopath + ../../lib/stata/gslab_misc/ado
 set maxvar 32000 
 
 program main
-	local instub  "../../derived/output/"
-	local outstub "../output/"
+	local instub  "../../drive/derived_large/output"
+	local outstub "../output/event_study"
 
 	use `instub'zipcode_yearmonth_panel.dta, clear
 
@@ -41,18 +41,6 @@ end
 program create_event_vars
 	syntax, event_dummy(str) window(int) time_var(str) geo_unit(str)
 		
-	* Diego's approach fixed. Use difference in dates (doesn't exclude overlapping)
-
-	/* gen `event_dummy'_`time_var' = `time_var' if `event_dummy' == 1
-	format `event_dummy'_`time_var' %tm
-	bysort `geo_unit' (`time_var'): carryforward `event_dummy'_`time_var', replace
-
-	gen rel_months_`event_dummy' = `time_var' - F`window'.`event_dummy'_`time_var'
-	replace rel_months_`event_dummy' = 1000 if !inrange(rel_months_`event_dummy', -`window', `window')
-	replace rel_months_`event_dummy' = rel_months_`event_dummy' + `window' + 1 if rel_months_`event_dummy' < 1000
-	*/
-
-	* Santi's approach. Idenfity "beginning of event" and add 12
 	bysort `geo_unit' (`time_var'): gen event_start = 1 if `event_dummy'[_n + `window'] == 1
 	gen event_start_non_overlap = event_start
 	forvalues i = 0(1)`window' {  						// Set to missing if i days ago there was a mw increase
