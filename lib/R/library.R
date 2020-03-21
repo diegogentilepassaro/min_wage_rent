@@ -10,9 +10,9 @@ load_packages = function(packages_names) {
   }
 }
 
-load_packages(c("foreign", "eeptools", "dplyr", "knitr", "skimr"))
-
 ## =========== save_data =========== ##
+load_packages(c('stargazer', 'digest', 'dplyr', 'foreign', 'data.table'))
+
 save_data <- function(df, key, filename, logfile = NULL, nolog = FALSE) {
   
   filetype <- substr(filename, nchar(filename) - 2, nchar(filename))
@@ -43,23 +43,38 @@ save_data <- function(df, key, filename, logfile = NULL, nolog = FALSE) {
   }
 }
 
+colSD  <- function(data) sapply(data, sd, na.rm = TRUE)
+colMin <- function(data) sapply(data, min, na.rm = TRUE)
+colMax <- function(data) sapply(data, max, na.rm = TRUE)
+
 check_key <- function(df, key) {
   
   df <- as.data.frame(df)
+  
+  nunique <- nrow(unique(df[key]))
   
   if (!any(key %in% colnames(df))) {
     
     stop("KeyError: Key variables are not in df.")
     
-  } else if (!isid(df, key)) {
+  } else if (nrow(df) != nunique) {
     
     stop("KeyError: Key variables do not uniquely identify observations.")
     
   } else {
     
-    reordered_colnames <- c(key, colnames(df[!colnames(df) %in% grep(paste0(key, collapse = "|"), key, value = T)]))
+    reordered_colnames <- c(key, colnames(df[!colnames(df) %in% grep(paste0(key, collapse = "|"), 
+                                                                     key, value = T)]))
     
-    df[with(df, order(key)), ]
+    args <- list(df)
+    i <- 2
+    while(i<length(key)+2) {
+      args[[i]] <- df[[(key[[i-1]])]]
+      i <- i + 1
+    }
+    
+    df <- do.call(arrange, args)
+    
     df <- df[reordered_colnames]
     
     return(df)
@@ -68,54 +83,52 @@ check_key <- function(df, key) {
 
 generate_log_file <- function(df, key, filename, logname) {
   
-  dim_df <- dim(df)
+  numeric_sum <- as.data.frame(cbind(colMeans(dplyr::select_if(df,is.numeric)),
+                                     colSD(dplyr::select_if(df,is.numeric)),
+                                     colMin(dplyr::select_if(df,is.numeric)),
+                                     colMax(dplyr::select_if(df,is.numeric))))
   
-  df <- as.data.frame(df)
+  all_sum <- as.data.frame(cbind(colSums(!is.na(df)), sapply(df, class)))
   
-  skim_vars <- c("skim_variable", "skim_type", "n_missing", 
-                 "character.min", "character.max", "character.n_unique",
-                 "numeric.mean", "numeric.sd", "numeric.p0", "numeric.p50", "numeric.p100")
-  df_summary <- as.data.frame(suppressWarnings(skim(df)[skim_vars]))
+  summary_table <- merge(numeric_sum, all_sum, by="row.names", all = T)
   
-  colnames(df_summary) <- c("var", "type", "n_NA", "ch.min", "ch.max", "ch.n_unique", 
-                            "num.mean", "num.sd", "num.p0", "num.p50", "num.p100")
+  colnames <- c("variable", "mean", "sd", "min", "max", "N", "type")
+  names(summary_table) <- colnames
+  
+  hash <- digest(df, algo="md5")
   
   if (!file.exists(logname)) {
-    logfile <- file(logname, open = "w")
     
-    writeLines("=========================================================================================", logfile)
+    cat("\n", file = logname, append = F)
+    cat("============================================================================", "\n", file = logname, append = T)
     
-    writeLines(sprintf("Filename: %s", filename), logfile)
-    writeLines(sprintf("Key: %s.\nDimension: %s.\n", paste(key, collapse = ", "), 
-                       paste(dim_df, collapse = ' x ')), logfile)
-    writeLines(kable(df_summary), logfile)
-    writeLines("\n")
+    cat("File:", filename, '\n', file = logname, append = T)
+    cat("MD5: ", hash, '\n', file = logname, append = T)
+    cat("Key: ", key, '\n', file = logname, append = T)
     
-    writeLines("=========================================================================================\n", logfile)
+    s = capture.output(stargazer(summary_table, summary = F, type = 'text'))
+    cat(paste(s,"\n"), file = logname, append = T)
+    
+    cat("============================================================================", "\n",
+        file = logname, append = T)
     
   } else {
+
+    cat("\n", file = logname, append = T)
+    cat("============================================================================", "\n", file = logname, append = T)
     
-    old_logfile <- file(logname, open = "r")
-    old_logfile_content <- readLines(old_logfile)
-    close(old_logfile)
+    cat("File:", filename, '\n', file = logname, append = T)
+    cat("MD5: ", hash, '\n', file = logname, append = T)
+    cat("Key: ", key, '\n', file = logname, append = T)
     
-    logfile <- file(logname, open = "w")
+    s = capture.output(stargazer(summary_table, summary = F, type = 'text'))
+    cat(paste(s,"\n"), file = logname, append = T)
     
-    writeLines(old_logfile_content, logfile)
-    
-    writeLines("=========================================================================================", logfile)
-    
-    writeLines(sprintf("Filename: %s", filename), logfile)
-    writeLines(sprintf("Key: %s.\nDimension: %s.\n", paste(key, collapse = ", "), 
-                       paste(dim_df, collapse = ' x ')), logfile)
-    writeLines(kable(df_summary), logfile)
-    writeLines("\n")
-    
-    writeLines("=========================================================================================\n", logfile)
+    cat("============================================================================", "\n",
+        file = logname, append = T)
   }  
   
-  print("Log file generated successfully.")
-  close(logfile)
+  return("Log file generated successfully.")
 }
 ## ================================= ##
 
