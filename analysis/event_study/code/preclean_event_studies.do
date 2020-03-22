@@ -1,11 +1,11 @@
 clear all
 set more off
-adopath + ../../lib/stata/mental_coupons/ado
-adopath + ../../lib/stata/gslab_misc/ado
+adopath + ../../../lib/stata/mental_coupons/ado
+adopath + ../../../lib/stata/gslab_misc/ado
 set maxvar 32000 
 
 program main
-	local instub  "../../drive/derived_large/output"
+	local instub  "../../../drive/derived_large/output"
 	local outstub "../temp"
 
 	use `instub'/zipcode_yearmonth_panel.dta, clear
