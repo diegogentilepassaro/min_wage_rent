@@ -2,7 +2,7 @@ remove(list = ls())
 source("../../lib/R/load_packages.R")
 source("../../lib/R/save_data.R")
 
-load_packages(c('tidyverse', 'data.table', 'tidycensus'))
+load_packages(c('tidyverse', 'data.table', 'tidycensus', 'bit64'))
 
 main <- function(){
    
@@ -26,6 +26,8 @@ main <- function(){
 clean_2010census_gazzetter <- function(instub, outstub, key) {
    places10 <- fread(instub)
    
+   places10$ALAND <- as.numeric(places10$ALAND*1e-6)
+   
    places10 <- places10[USPS!='PR',]                                 
    places10[ , GEOID:=str_pad(as.character(GEOID), 7, pad = "0")]
    places10[ , c('state', 'place') := .((substr(GEOID, 1, 2)), (substr(GEOID, 3, 7)))]
@@ -33,8 +35,8 @@ clean_2010census_gazzetter <- function(instub, outstub, key) {
    places10[ , NAME := gsub("\\s*\\w*$", "", NAME)]
    
    setnames(places10, old = c('USPS','NAME', 'POP10', 'ALAND'), 
-                      new = c('stateabb', 'placename', 'placepop10', 'landarea'))
-   varplace10 <- c('state', 'stateabb', 'place', 'placename', 'placetype', 'placepop10', 'landarea')
+                      new = c('stateabb', 'placename', 'placepop10', 'landarea_sqkm'))
+   varplace10 <- c('state', 'stateabb', 'place', 'placename', 'placetype', 'placepop10', 'landarea_sqkm')
    places10 <- places10[ ,..varplace10]
    
    save_data(df = places10, key = key, filename = outstub)
