@@ -20,9 +20,6 @@ rename_zillow_vars <- function(infiles, outdir){
    filenames <- list.files(infiles)
    filenames <- filenames[str_detect(filenames, "^Zip_*")]
    filenames <- filenames[!str_detect(filenames, "_Summary.csv")]
-   
-   # oldnames = c('RegionName', 'City', 'State', 'Metro', 'CountyName')
-   # newnames = c('zipcode', 'city', 'stateabb', 'msa', 'county')
 
    format <- lapply(filenames, function(x) {
       df <- data.table::fread(paste0(infiles, x), stringsAsFactors = F)

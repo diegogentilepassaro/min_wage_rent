@@ -26,7 +26,7 @@ end
 program import_crosswalk, rclass
 	syntax, instub(str) outstub(str)
 
-	import excel using `instub'\FIPS_crosswalk.xlsx, clear firstrow
+	import excel using `instub'/FIPS_crosswalk.xlsx, clear firstrow
 	rename (Name       FIPSStateNumericCode  OfficialUSPSCode)           ///
 		   (statename  statefips             stateabb)
 	drop sname
@@ -43,7 +43,7 @@ end
 program fed_min_wage_change
 	syntax, instub(str) outstub(str)
 
-	import excel using `instub'\VZ_FederalMinimumWage_Changes.xlsx, clear firstrow
+	import excel using `instub'/VZ_FederalMinimumWage_Changes.xlsx, clear firstrow
 	rename Fed_mw fed_mw
 	keep year month day fed_mw source
 
@@ -109,7 +109,7 @@ program state_min_wage_change
 	sort stateabb date
 	
 	isid statefips date, sort
-	export delim using `outstub'\VZ_state_changes.csv, replace 
+	export delim using `outstub'/VZ_state_changes.csv, replace 
 
 	tsset statefips date
 	tsfill
