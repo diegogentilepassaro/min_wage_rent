@@ -8,14 +8,14 @@ program main
 	local oustub  "../../drive/derived_large/output"
 	local logfile "../output/data_file_manifest.log"
 
-	import delim `instub'\data_clean.csv, delim(",")
+	import delim `instub'/data_clean.csv, delim(",")
 
 	clean_vars
 	create_vars
 	label_vars
 
 	compress
-	save_data `oustub'\zipcode_yearmonth_panel.dta, key(zipcode year_month) log(`logfile') replace
+	save_data `oustub'/zipcode_yearmonth_panel.dta, key(zipcode year_month) log(`logfile') replace
 end 
 
 program clean_vars
@@ -50,7 +50,7 @@ program create_vars
 	bysort zipcode (year_month): gen trend = _n
 
 	foreach var_type in min mean max {
-		bysort zipcode (year_month): gen dpercent_`var_type'_actual_mw = d`var_type'_actual_mw/`var_type'_actual_mw[_n-1]
+		bysort zipcode (year_month): gen dpct_`var_type'_actual_mw = d`var_type'_actual_mw/`var_type'_actual_mw[_n-1]
 
 		gen `var_type'_event_month = `var_type'_event == 1
 		sort zipcode year_month

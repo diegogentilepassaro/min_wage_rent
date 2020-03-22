@@ -1,5 +1,6 @@
 remove(list = ls())
-source("../../lib/R/library.R")
+source("../../lib/R/load_packages.R")
+source("../../lib/R/save_data.R")
 
 load_packages(c('tidyverse', 'data.table', 'tidycensus'))
 
