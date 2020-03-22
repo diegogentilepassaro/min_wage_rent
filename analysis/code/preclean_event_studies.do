@@ -5,23 +5,22 @@ adopath + ../../lib/stata/gslab_misc/ado
 set maxvar 32000 
 
 program main
-	local instub  "../../derived/output/"
-	local outstub "../output/"
+	local instub  "../../drive/derived_large/output"
+	local outstub "../temp"
 
-	use `instub'zipcode_yearmonth_panel.dta, clear
+	use `instub'/zipcode_yearmonth_panel.dta, clear
 
 	prepare_data, time_var(year_month) geo_unit(zipcode)
 
 	foreach window in 12 24 {
-		create_latest_event_vars, event_dummy(min_event) window(`window')                         ///
+		create_latest_event_vars, event_dummy(min_event) window(`window')                ///
 			time_var(year_month) geo_unit(zipcode)
 			
-        create_event_vars, event_dummy(min_event) window(`window')                         ///
+        create_event_vars, event_dummy(min_event) window(`window')                       ///
 			time_var(year_month) geo_unit(zipcode)
-						
 	}
 	
-	save_data ../temp/zipcode_year_month_panel.dta, key(zipcode year_month) ///
+	save_data `outstub'/zipcode_year_month_panel.dta, key(zipcode year_month)            ///
 	    replace log(none)
 end
 
@@ -37,7 +36,7 @@ program prepare_data
 	drop if missing(msa)
 	
 	keep zipcode year_month state msa calendar_month ///
-	    zhvi2br rent2br_median rent2br_psqft_median ///
+	    zhvi_2br medrentprice_2br medrentpricepsqft_2br ///
 		min_event mean_event max_event
 end
 

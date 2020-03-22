@@ -19,7 +19,8 @@ from gslab_make.dir_mod import *
 set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
-delete_files('../output/*')
+clear_dirs('../output/')
+clear_dirs('../output/event_study/', '../output/descriptive/')
 
 envir_vars = os.getenv('PATH')
 if envir_vars is None:

@@ -7,19 +7,19 @@ set maxvar 32000
 
 program main
 	use ../temp/zipcode_year_month_panel.dta, clear
-
+	local out_folder "../output/event_study"
 
 	foreach window in 12 24 {
-		create_event_plot, depvar(rent2br_median) event_var(rel_months_min_event`window')      ///
-			controls(" ") window(`window') ///
+		create_event_plot, outstub(`out_folder') depvar(medrentprice_2br)                 ///
+			event_var(rel_months_min_event`window') controls(" ") window(`window')      ///
 			absorb(zipcode msa calendar_month##state year_month) cluster(zipcode)
 
-		create_event_plot, depvar(rent2br_psqft_median) event_var(rel_months_min_event`window')      ///
-			controls(" ") window(`window') ///
+		create_event_plot, outstub(`out_folder') depvar(medrentpricepsqft_2br)           ///
+			event_var(rel_months_min_event`window') controls(" ") window(`window')      ///
 			absorb(zipcode msa calendar_month##state year_month) cluster(zipcode)
 
-		create_event_plot, depvar(zhvi2br) event_var(rel_months_min_event`window')      ///
-			controls(" ") window(`window') ///
+		create_event_plot, outstub(`out_folder') depvar(zhvi_2br)   					    ///
+			event_var(rel_months_min_event`window') controls(" ") window(`window')      ///
 			absorb(zipcode msa calendar_month##state year_month) cluster(zipcode)
 	}
 end
