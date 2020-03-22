@@ -4,7 +4,7 @@
 #****************************************************
 import subprocess, shutil, os
 from distutils.dir_util import copy_tree
-copy_tree("../../lib/python/gslab_make", "./gslab_make") # Copy from gslab tools stored locally
+copy_tree("../../../lib/python/gslab_make", "./gslab_make") # Copy from gslab tools stored locally
 from gslab_make.get_externals import *
 from gslab_make.make_log import *
 from gslab_make.make_links import *
@@ -19,7 +19,7 @@ from gslab_make.dir_mod import *
 set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
-delete_files('../output/*')
+clear_dirs('../output/')
 
 envir_vars = os.getenv('PATH')
 if envir_vars is None:
@@ -30,17 +30,15 @@ if "StataSE" in envir_vars:
 elif "StataMP-64" in envir_vars:
     stata = "StataMP-64"
 elif "Stata15" in envir_vars:
-	stata = "StataMP-64"
+    stata = "StataMP-64"
 
 start_make_logging()
 
-run_rbatch(program = 'RenameZillowVars_zipLevel.R')
-run_rbatch(program = 'cleanGeoRelationshipFiles.R')
-run_stata(program = 'state_mw.do', executable = stata)
-run_stata(program = 'substate_mw.do', executable = stata)
+run_stata(program = 'preclean_event_studies.do', executable = stata)
+run_stata(program = 'first_last_event_study.do', executable = stata)
+run_stata(program = 'event_study.do', executable = stata)
 
 end_make_logging()
 
 shutil.rmtree('gslab_make')
 input('\n Press <Enter> to exit.')
-
