@@ -1,16 +1,16 @@
 remove(list = ls())
-source("../../lib/R/library.R")
+source("../../lib/R/load_packages.R")
+source("../../lib/R/save_data.R")
 
 load_packages(c('tidyverse', 'data.table'))
 
 main <- function() {
    
-   datadir <- '../../drive/raw_data/zillow/'
+   datadir   <- '../../drive/raw_data/zillow/'
    outputdir <- "../output/"
-   geounit <- "Zip"
+   geounit   <- "Zip"
 
    last_period <- "122019"
-
    
    rename_zillow_vars(infiles = paste0(datadir, geounit, "_", last_period, "/"), 
                       outdir = outputdir)

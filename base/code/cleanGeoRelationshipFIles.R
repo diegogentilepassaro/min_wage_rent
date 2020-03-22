@@ -1,15 +1,12 @@
 remove(list = ls())
-source("../../lib/R/library.R")
+source("../../lib/R/load_packages.R")
+source("../../lib/R/save_data.R")
 
 load_packages(c('tidyverse', 'data.table', 'tidycensus'))
 
-datadir <- '../../drive/raw_data/census/'
-tempdir <- "../temp/"
-outputdir <- "../output/"
-
 main <- function(){
    
-   datadir   <- '../../raw_data/census/'
+   datadir   <- '../../drive/raw_data/census/'
    outputdir <- "../output/"
    
    clean_2010census_gazzetter(instub  = paste0(datadir, 'Gaz_places_national.txt'),
