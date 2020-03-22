@@ -19,9 +19,8 @@ from gslab_make.dir_mod import *
 set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
+delete_files('../drive/derived_large/output/*')
 delete_files('../output/*')
-
-start_make_logging()
 
 envir_vars = os.getenv('PATH')
 if envir_vars is None:
@@ -33,6 +32,8 @@ elif "StataMP-64" in envir_vars:
     stata = "StataMP-64"
 elif "Stata15" in envir_vars:
     stata = "StataMP-64"
+
+start_make_logging()
 
 run_rbatch(program = 'ReshapeMergeZillow_zip.R')
 run_rbatch(program = 'addMinWage.R')

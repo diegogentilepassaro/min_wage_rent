@@ -1,12 +1,15 @@
-source("../../lib/R/functions/load_packages.R")
-source("../../lib/R/functions/save_data.R")
+remove(list = ls())
+source("../../lib/R/load_packages.R")
+source("../../lib/R/save_data.R")
+
 load_packages(c('tidyverse', 'data.table'))
 
 main <- function() {
    
-   datadir <- '../../raw_data/zillow/'
+   datadir   <- '../../drive/raw_data/zillow/'
    outputdir <- "../output/"
-   geounit <- "Zip"
+   geounit   <- "Zip"
+
    last_period <- "122019"
    
    rename_zillow_vars(infiles = paste0(datadir, geounit, "_", last_period, "/"), 
@@ -17,7 +20,7 @@ rename_zillow_vars <- function(infiles, outdir){
    filenames <- list.files(infiles)
    filenames <- filenames[str_detect(filenames, "^Zip_*")]
    filenames <- filenames[!str_detect(filenames, "_Summary.csv")]
-   
+
    format <- lapply(filenames, function(x) {
       df <- data.table::fread(paste0(infiles, x), stringsAsFactors = F)
       df[,c("DataTypeDescription", "SizeRank", "RegionType"):=NULL]
@@ -36,7 +39,7 @@ rename_zillow_vars <- function(infiles, outdir){
          data.table::setnames(df, old = colgeonames, 
                               new = newgeonames)
          df[, county := str_replace_all(county, " County", "")]
-         
+
          save_data(df = df, key = newgeonames,
                    filename = paste0(outdir, x))
       } else if (identical(colgeonames,colgeo_type2)) {

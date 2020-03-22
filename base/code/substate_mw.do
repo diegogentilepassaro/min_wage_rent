@@ -3,9 +3,9 @@ clear all
 adopath + ../../lib/stata/gslab_misc/ado
 
 program main 
-	local raw "../../raw_data/min_wage/"
-	local exports "../output/"
-	local temp "../temp/"
+	local raw "../../drive/raw_data/min_wage"
+	local exports "../output"
+	local temp "../temp"
 
 	import_crosswalk, instub(`raw') outstub(`exports')
 	substate_min_wage_change, instub(`raw') outstub(`exports') temp(`temp')
@@ -21,7 +21,7 @@ end
 
 program import_crosswalk, rclass
 	syntax, instub(str) outstub(str)
-	import excel using `instub'FIPS_crosswalk.xlsx, clear firstrow 
+	import excel using `instub'/FIPS_crosswalk.xlsx, clear firstrow 
 	
 	rename Name statename
 	rename FIPSStateNumericCode statefips
@@ -31,13 +31,13 @@ program import_crosswalk, rclass
 	
 	keep statename statefips stateabb
 
-	save `outstub'crosswalk.dta, replace
+	save `outstub'/crosswalk.dta, replace
 end
 
 program substate_min_wage_change
 	syntax, instub(str) outstub(str) temp(str)
 
-	import excel using `instub'VZ_SubstateMinimumWage_Changes.xlsx, clear firstrow
+	import excel using `instub'/VZ_SubstateMinimumWage_Changes.xlsx, clear firstrow
 
 	gen date = mdy(month,day,year)
 	format date %td
@@ -66,7 +66,7 @@ program substate_min_wage_change
 	order statefips statename stateabb locality year month day date mw mw_* source source_2 source_notes
 
 	sort locality date
-	export delim using `outstub'VZ_substate_changes.csv, replace 
+	export delim using `outstub'/VZ_substate_changes.csv, replace 
 end
 
 program prepare_local
@@ -76,7 +76,7 @@ program prepare_local
 	keep if tag == 1
 	keep statefips locality
 
-	save `temp'localities.dta, replace
+	save `temp'\localities.dta, replace
 	restore
 end
 
@@ -85,18 +85,18 @@ program prepare_state
 	sum year
 	local minyear = r(min)
 	preserve
-	// use ${exports}VZ_state_daily.dta, clear
-	import delim `outstub'VZ_state_daily.csv, clear 
+	
+	import delim `outstub'/VZ_state_daily.csv, clear 
 	g date2 = date(date, "DMY")
 	format date2 %td
 	order date2, after(date)
 	drop date 
 	rename date2 date
 	keep if year(date) >= `minyear' & date <= td(`finaldate')
-	joinby statefips using `temp'localities.dta
+	joinby statefips using `temp'/localities.dta
 	keep statefips statename stateabb locality date mw
 	rename mw state_mw
-	save `temp'statemw.dta, replace
+	save `temp'/statemw.dta, replace
 	restore
 end
 
@@ -117,7 +117,7 @@ program prepare_finaldata
 
 	keep if date <= td(`finaldate')
 
-	merge 1:m statefips locality date using `temp'statemw.dta, assert(2 3) nogenerate
+	merge 1:m statefips locality date using `temp'/statemw.dta, assert(2 3) nogenerate
 	replace mw = state_mw if mw == .
 	replace mw = round(mw, 0.01)
 	gen abovestate = mw > state_mw
@@ -127,20 +127,20 @@ program prepare_finaldata
 	order statefips statename stateabb date locality mw* *_mw abovestate source_notes
 	notes mw: The mw variable represents the most applicable minimum wage across the locality.
 
-	save_data `temp'data.dta, key(statefips locality date) replace log(none)
+	save_data `temp/'data.dta, key(statefips locality date) replace log(none)
 end
 
 program export_substate_daily
 	syntax, outstub(str) temp(str)	
 		
-	use `temp'data.dta, clear
+	use `temp'/data.dta, clear
 	sort locality date
-	export delim using `outstub'VZ_substate_daily.csv, replace
+	export delim using `outstub'\VZ_substate_daily.csv, replace
 end
 
 program export_substate_monthly
 	syntax, outstub(str) temp(str)
-	use `temp'data.dta, clear
+	use `temp'/data.dta, clear
 
 	gen monthly_date = mofd(date)
 	format monthly_date %tm
@@ -153,12 +153,12 @@ program export_substate_monthly
 
 	sort locality monthly_date
 
-	export delim using `outstub'VZ_substate_monthly.csv, replace 
+	export delim using `outstub'/VZ_substate_monthly.csv, replace 
 end 
 
 program export_substate_quarterly
 	syntax, outstub(str) temp(str)
-	use `temp'data.dta, clear
+	use `temp'/data.dta, clear
 
 	gen quarterly_date = qofd(date)
 	format quarterly_date %tq
@@ -171,12 +171,12 @@ program export_substate_quarterly
 
 	sort locality quarterly_date
 
-	export delim using `outstub'VZ_substate_quarterly.csv, replace
+	export delim using `outstub'/VZ_substate_quarterly.csv, replace
 end 
 
 program export_substate_annually
 	syntax, outstub(str) temp(str)
-	use `temp'data.dta, clear
+	use `temp'/data.dta, clear
 
 	gen year = yofd(date)
 	format year %ty
@@ -189,7 +189,7 @@ program export_substate_annually
 
 	sort locality year
 
-	export delim using `outstub'VZ_substate_annual.csv, replace 
+	export delim using `outstub'/VZ_substate_annual.csv, replace 
 end
 
 program label_mw_vars

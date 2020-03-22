@@ -1,5 +1,5 @@
 program create_event_plot
-	syntax, depvar(str) event_var(str) controls(str) absorb(str) ///
+	syntax, outstub(str) depvar(str) event_var(str) controls(str) absorb(str) ///
 	    window(int) cluster(str)
 
 	local window_plus1 = `window' + 1
@@ -16,5 +16,5 @@ program create_event_plot
 		base vertical graphregion(color(white)) bgcolor(white) ///
 		xlabel(1 "-`window'" `window_plus1' "0" `window_span' "`window'") ///
 		xline(`window_plus1', lcol(grey) lpat(dot))
-	graph export ../output/`depvar'_`event_var'.png, replace	
+	graph export `outstub'/`depvar'_`event_var'.png, replace	
 end
