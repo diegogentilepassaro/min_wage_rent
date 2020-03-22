@@ -1,17 +1,8 @@
-## =========== load_packages =========== ##
-load_packages = function(packages_names) {
-  
-  for(name in packages_names) {
-    if (!(name %in% installed.packages())) {
-      install.packages(name)
-    }
-    
-    library(name, character.only = TRUE)
-  }
-}
-
-## =========== save_data =========== ##
-load_packages(c('stargazer', 'digest', 'dplyr', 'foreign', 'data.table'))
+library('stargazer')
+library('digest')
+library('dplyr')
+library('foreign')
+library('data.table')
 
 save_data <- function(df, key, filename, logfile = NULL, nolog = FALSE) {
   
@@ -110,11 +101,8 @@ generate_log_file <- function(df, key, filename, logname) {
     s = capture.output(stargazer(summary_table, summary = F, type = 'text'))
     cat(paste(s,"\n"), file = logname, append = T)
     
-    cat("============================================================================", "\n",
-        file = logname, append = T)
-    
   } else {
-
+    
     cat("\n", file = logname, append = T)
     cat("============================================================================", "\n", file = logname, append = T)
     
@@ -124,13 +112,8 @@ generate_log_file <- function(df, key, filename, logname) {
     
     s = capture.output(stargazer(summary_table, summary = F, type = 'text'))
     cat(paste(s,"\n"), file = logname, append = T)
-    
-    cat("============================================================================", "\n",
-        file = logname, append = T)
+
   }  
   
   return("Log file generated successfully.")
 }
-## ================================= ##
-
-
