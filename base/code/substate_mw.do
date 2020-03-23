@@ -7,7 +7,7 @@ program main
 	local exports "../output"
 	local temp "../temp"
 
-	import_crosswalk, instub(`raw') outstub(`exports')
+	import_crosswalk, instub(`raw') outstub(`temp')
 	substate_min_wage_change, instub(`raw') outstub(`exports') temp(`temp')
 	prepare_local, temp(`temp')
 	prepare_state, outstub(`exports') temp(`temp') finaldate(31dec2019)
@@ -57,7 +57,7 @@ program substate_min_wage_change
 	egen mean_mw = rowmean(mw-mw_tipped)
 	egen max_mw  = rowmax(mw-mw_tipped)
 
-	merge m:1 statefips using `temp'crosswalk.dta, nogen keep(3)
+	merge m:1 statefips using `temp'/crosswalk.dta, nogen keep(3)
 	label var statefips "State FIPS Code"
 	label var statename "State"
 	label var stateabb  "State Abbreviation"
@@ -127,7 +127,7 @@ program prepare_finaldata
 	order statefips statename stateabb date locality mw* *_mw abovestate source_notes
 	notes mw: The mw variable represents the most applicable minimum wage across the locality.
 
-	save_data `temp/'data.dta, key(statefips locality date) replace log(none)
+	save_data `temp'/data.dta, key(statefips locality date) replace log(none)
 end
 
 program export_substate_daily
