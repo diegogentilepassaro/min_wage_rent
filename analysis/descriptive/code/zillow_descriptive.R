@@ -12,17 +12,17 @@ main <- function() {
    tempdir <- "../temp/"
    
    df <- fread(paste0(datadir, "data_clean.csv"))
+   
+   df <- prepare_data(df)
 
    descriptive_table(df, outdir)
 
    zillow_plots(df, outdir)
-   
-   
 }
 
 
 prepare_data <- function(x) {
-   x[,date := as.Date(date, "%Y_%m_%d")]
+   x[,date := as.Date(date, "%Y-%m-%d")]
 }
 
 
@@ -30,9 +30,9 @@ descriptive_table <- function(d, outstub) {
    
    d <- setDT(d)
    
-   geovars <- c('zipcode', 'date', 'city', 'msa', 'county', 'statename', 'stateabb', 'i.statename', 'place', 'placename', 'countyname', 'state', 'year')
+   geovars <- c('zipcode', 'date', 'city', 'msa', 'county', 'statename', 'stateabb', 'i.statename', 'place', 'placename', 'countyname', 'state', 'year', 'placetype', 'placepop10', 'zippctpop10', 'zippcthouse10', 'zippctland')
    
-   minwage_vars <- c('min_local_mw', 'mean_local_mw', 'max_local_mw', 'localabovestate', 'min_county_mw', 'mean_county_mw', 'max_county_mw', 'countyabovestate', 'min_fed_mw', 'mean_fed_mw', 'max_fed_mw', 'min_state_mw', 'mean_state_mw', 'max_state_mw', 'min_actual_mw', 'mean_actual_mw', 'max_actual_mw', 'Dmin_actual_mw', 'Dmean_actual_mw', 'Dmax_actual_mw', 'min_event', 'mean_event', 'max_event', 'placetype', 'placepop10', 'zippctpop10', 'zippcthouse10', 'zippctland')
+   minwage_vars <- c('min_local_mw', 'mean_local_mw', 'max_local_mw', 'localabovestate', 'min_county_mw', 'mean_county_mw', 'max_county_mw', 'countyabovestate', 'min_fed_mw', 'mean_fed_mw', 'max_fed_mw', 'min_state_mw', 'mean_state_mw', 'max_state_mw', 'min_actual_mw', 'mean_actual_mw', 'max_actual_mw', 'Dmin_actual_mw', 'Dmean_actual_mw', 'Dmax_actual_mw', 'min_event', 'mean_event', 'max_event')
    zillow_varlist <- setdiff(colnames(d), 
                              c(geovars, minwage_vars))
    
@@ -81,7 +81,7 @@ descriptive_table <- function(d, outstub) {
       
       data_len <- data[,.N, by = zipcode]
       
-      summstats <- function(x) list(mean = mean(x), sd = sd(x), median = median(x), min = min(x), max = max(x))
+      summstats <- function(x) list(mean = mean(x, na.rm = T), sd = sd(x, na.rm = T), median = median(x, na.rm = T), min = min(x, na.rm = T), max = max(x, na.rm = T))
       
       len_subtable <- data_len[,unlist(lapply(.SD, summstats)), .SDcols = c('N')]
       
@@ -89,22 +89,15 @@ descriptive_table <- function(d, outstub) {
       
       event_per_zip <- event_per_zip$N.event
       
-      min <- min(data[,get(x)], na.rm = T)
+      summary_var <- data[,unlist(lapply(.SD, summstats)), .SDcols = x]
       
-      mean <- mean(data[,get(x)], na.rm = T)
-      
-      SD <- sd(data[,get(x)], na.rm = T)
-      
-      max <- max(data[,get(x)], na.rm = T)
+      names(summary_var) <- c('mean', 'SD', 'median', 'min', 'max')
       
       
       results <- c( len_subtable,
                     'EventPerZip' = event_per_zip,
                     'N' = N,
-                    'mean' = mean,
-                    'SD' = SD,
-                    'min' = min,
-                    'max' = max)
+                    summary_var)
       
       
       return(results)
@@ -117,10 +110,9 @@ descriptive_table <- function(d, outstub) {
                                    zillow_missingZip,
                                    zillow_sumstats))
    
-   # save_data(final_table, 
-   #           key = 'ZillowSeries', 
-   #           filename = paste0(outstub, 'zillow_descriptive.csv'))
-   fwrite(final_table, file = paste0(outstub, 'zillow_descriptive.csv'))
+   save_data(final_table,
+             key = 'ZillowSeries',
+             filename = paste0(outstub, 'zillow_descriptive.csv'))
 }
 
 
@@ -164,7 +156,6 @@ zillow_plots <- function(data, outstub) {
    pdf(paste0(outstub,'zillow_plots.pdf'))
    lapply(plots,function(x){
       img <- x
-      grid.newpage()
       grid.draw(img)
    })
    dev.off()
