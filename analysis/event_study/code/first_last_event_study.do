@@ -10,20 +10,16 @@ program main
 	local outstub "../output/"
 
 	use `instub'/zipcode_year_month_panel.dta, clear
-	
+
+	local event_dummy "mw_event"	
+	local target_output "medrentprice_sfcc medrentpricepsqft_sfcc zri_sfccmf"
 
 	foreach window in 12 24 {
-		create_event_plot, outstub(`outstub') depvar(medrentprice_2br)     			  	///
-			event_var(last_min_event_rel_months`window') controls(" ") window(`window')	///
-			absorb(zipcode msa calendar_month##state year_month) cluster(zipcode)
-
-		create_event_plot, outstub(`outstub') depvar(medrentpricepsqft_2br)     		///
-			event_var(last_min_event_rel_months`window') controls(" ") window(`window')	///
-			absorb(zipcode msa calendar_month##state year_month) cluster(zipcode)
-
-		create_event_plot, outstub(`outstub') depvar(zhvi_2br)   						///
-			event_var(last_min_event_rel_months`window') controls(" ") window(`window')	///
-			absorb(zipcode msa calendar_month##state year_month) cluster(zipcode)
+		foreach depvar in `target_output' {
+			create_event_plot, outstub(`outstub') depvar(`depvar')     			  	///
+				event_var(last_`event_dummy'_rel_months`window') controls(" ") window(`window')	///
+				absorb(zipcode msa calendar_month##state year_month) cluster(zipcode)			
+		}
 	}
 end
 

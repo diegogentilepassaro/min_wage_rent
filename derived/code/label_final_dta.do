@@ -30,12 +30,12 @@ program clean_vars
 	drop if missing(year_month)
 	drop if missing(zipcode)
 
-	* Remove obs with no data on minimum wage 
-	bys zipcode (year_month): egen no_mw_min_data = min(min_actual_mw)
-	bys zipcode (year_month): egen no_mw_mean_data = min(mean_actual_mw)
-	bys zipcode (year_month): egen no_mw_max_data = min(max_actual_mw)
-	drop if missing(no_mw_min_data) & missing(no_mw_mean_data) & missing(no_mw_max_data)	
-	drop no_mw_min_data no_mw_mean_data no_mw_max_data
+	* Remove obs with no data on minimum wage
+	bys zipcode (year_month): egen no_mw_data = min(actual_mw)
+	bys zipcode (year_month): egen no_mw_data_smallb = min(actual_mw_smallbusiness)
+	drop if missing(no_mw_data)  
+	drop if missing(no_mw_data) & missing(no_mw_data_smallb)	
+	drop no_mw_data no_mw_data_smallb 
 
 	*clean place/city name: since city has no missing keep that (BUT ZIP CODE CAN BELONG TO DIFFERENT CITIES!!!!!)
 	* als, there are some 70000s zipcode-date where placename and city doesn't match (why)
@@ -49,22 +49,24 @@ end
 program create_vars
 	bysort zipcode (year_month): gen trend = _n
 
-	foreach var_type in min mean max {
-		bysort zipcode (year_month): gen dpct_`var_type'_actual_mw = d`var_type'_actual_mw/`var_type'_actual_mw[_n-1]
+	local mw_type `" "" "_smallbusiness" "'
+	foreach var_type in `mw_type' {
+		bysort zipcode (year_month): gen dpct_actual_mw`var_type' = dactual_mw`var_type'/actual_mw`var_type'[_n-1]
 
-		gen `var_type'_event_month = `var_type'_event == 1
+		gen event_month`var_type' = mw_event`var_type' == 1
 		sort zipcode year_month
-		replace `var_type'_event_month = 1 if year_month != year_month[_n-1] + 1  // zipcode changes
+		replace event_month`var_type' = 1 if year_month != year_month[_n-1] + 1  // zipcode changes
 
-		gen `var_type'_event_month_id = sum(`var_type'_event_month)
+		gen event_month`var_type'_id = sum(event_month`var_type')
 
-		bysort `var_type'_event_month_id: gen months_since_`var_type' = _n - 1
-		bysort `var_type'_event_month_id: gen months_until_`var_type' = _N - months_since_`var_type'
+		bysort event_month`var_type'_id: gen months_since`var_type' = _n - 1
+		bysort event_month`var_type'_id: gen months_until`var_type' = _N - months_since`var_type'
 
-		bysort `var_type'_event_month_id: replace months_until_`var_type' = 0 if _N == months_until_`var_type'
+		bysort event_month`var_type'_id: replace months_until`var_type' = 0 if _N == months_until`var_type'
 
-		drop `var_type'_event_month_id `var_type'_event_month
+		drop event_month`var_type'_id event_month`var_type'		
 	}
+
 end
 
 program label_vars 
@@ -91,16 +93,15 @@ program label_vars
 	drop placetype
 	rename ptype2 placetype
 
-	foreach var_type in min mean max {
-		label var months_since_`var_type' "Months since last MW change (`var_type'_event)"
-		label var months_until_`var_type' "Months until next MW change (`var_type'_event)"
+	local mw_type `" "" "_smallbusiness" "'
+	foreach var_type in `mw_type' {
+		label var months_since`var_type' "Months since last MW`var_type' change"
+		label var months_until`var_type' "Months until next MW`var_type' change"
 	}
 
 	order zipcode county countyfips msa city state* year_month 						    ///
-		min_actual_mw dmin_actual_mw min_event months_since_min months_until_min		///
-		mean_actual_mw dmean_actual_mw mean_event months_since_mean months_until_mean	///
-		max_actual_mw dmax_actual_mw max_event months_since_max months_until_max		///
-		localabovestate countyabovestate *_local_mw *_county_mw *_state_mw *_fed_mw
+		actual_mw* dactual_mw* mw_event* months_since* months_until*		///
+		local_abovestate* county_abovestate* local_mw* county_mw* state_mw fed_mw
 	xtset zipcode year_month
 end 
 
