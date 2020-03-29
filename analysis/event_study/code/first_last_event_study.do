@@ -12,7 +12,7 @@ program main
 	use `instub'/zipcode_year_month_panel.dta, clear
 
 	local event_dummy "mw_event"	
-	local target_output "medrentprice_sfcc medrentpricepsqft_sfcc zri_sfccmf"
+	local target_output "medlistingpricepsqft_sfcc medlistingpricepsqft_low_tier medlistingpricepsqft_top_tier medrentpricepsqft_sfcc medrentpricepsqft_mfr5plus zri_sfccmf"
 
 	foreach window in 12 24 {
 		foreach depvar in `target_output' {

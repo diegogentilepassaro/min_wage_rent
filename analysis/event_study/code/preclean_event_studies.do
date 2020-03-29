@@ -31,12 +31,12 @@ program prepare_data
 	gen calendar_month = month(date)
 	drop date
 	
-	// replace min_event = 0 if dmin_actual_mw < 0.5
+	replace mw_event = 0 if dactual_mw < 0.5
 
-	// drop if missing(msa)
+	drop if missing(msa)
 	
 	keep zipcode year_month state msa calendar_month ///
-	    medrentprice* zri* zhvi* ///
+	    medrentprice* zri* zhvi* medlistingprice* ///
 		mw_event mw_event_smallbusiness
 end
 
