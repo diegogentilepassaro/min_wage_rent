@@ -14,7 +14,7 @@ program main
 	local event_dummy "mw_event"	
 	local target_output "medlistingpricepsqft_sfcc medlistingpricepsqft_low_tier medlistingpricepsqft_top_tier medrentpricepsqft_sfcc medrentpricepsqft_mfr5plus zri_sfccmf"
 
-	foreach window in 12 24 {
+	foreach window in 11 {
 		foreach depvar in `target_output' {
 			create_event_plot, outstub(`outstub') depvar(`depvar')				///
 				event_var(rel_months_`event_dummy'`window') controls(" ") window(`window')	///
