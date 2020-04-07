@@ -19,26 +19,18 @@ program main
 end 
 
 program clean_vars
-	*clean date
 	gen     year_month = date(date, "YMD")
+	gen calendar_month = month(year_month)
 	replace year_month = mofd(year_month)
 	format  year_month %tm
-
 	order year_month, after(date)
 	drop date
 
 	drop if missing(year_month)
 	drop if missing(zipcode)
 
-	* Remove obs with no data on minimum wage 
-	bys zipcode (year_month): egen no_mw_min_data = min(min_actual_mw)
-	bys zipcode (year_month): egen no_mw_mean_data = min(mean_actual_mw)
-	bys zipcode (year_month): egen no_mw_max_data = min(max_actual_mw)
-	drop if missing(no_mw_min_data) & missing(no_mw_mean_data) & missing(no_mw_max_data)	
-	drop no_mw_min_data no_mw_mean_data no_mw_max_data
-
 	*clean place/city name: since city has no missing keep that (BUT ZIP CODE CAN BELONG TO DIFFERENT CITIES!!!!!)
-	* als, there are some 70000s zipcode-date where placename and city doesn't match (why)
+	* also, there are some 70000s zipcode-date where placename and city doesn't match (why)
 	drop placename
 	local dropwords = `" " Town$" "^Town of " " Township$" "'
 		foreach w in `dropwords' {
@@ -47,13 +39,10 @@ program clean_vars
 end
 
 program create_vars
-	bysort zipcode (year_month): gen trend = _n
-
 	foreach var_type in min mean max {
 		bysort zipcode (year_month): gen dpct_`var_type'_actual_mw = d`var_type'_actual_mw/`var_type'_actual_mw[_n-1]
 
 		gen `var_type'_event_month = `var_type'_event == 1
-		sort zipcode year_month
 		replace `var_type'_event_month = 1 if year_month != year_month[_n-1] + 1  // zipcode changes
 
 		gen `var_type'_event_month_id = sum(`var_type'_event_month)
