@@ -10,8 +10,9 @@ program main
 	import_crosswalk, instub(`raw') outstub(`temp')
 	substate_min_wage_change, instub(`raw') outstub(`exports') temp(`temp')
 	prepare_local, temp(`temp')
-	prepare_state, outstub(`exports') temp(`temp') finaldate(31dec2019)
-	prepare_finaldata, temp(`temp') finaldate(31dec2019)
+  
+	prepare_state, outstub(`exports') temp(`temp') finaldate(31Dec2019)
+	prepare_finaldata, temp(`temp') finaldate(31Dec2019)
 
 	export_substate_daily,     outstub(`exports') temp(`temp')
 	export_substate_monthly,   outstub(`exports') temp(`temp')
