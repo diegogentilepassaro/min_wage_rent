@@ -32,7 +32,11 @@ descriptive_table <- function(d, outstub) {
    
    geovars <- c('zipcode', 'date', 'city', 'msa', 'county', 'statename', 'stateabb', 'i.statename', 'place', 'placename', 'countyname', 'state', 'year', 'placetype', 'placepop10', 'zippctpop10', 'zippcthouse10', 'zippctland')
    
-   minwage_vars <- c('min_local_mw', 'mean_local_mw', 'max_local_mw', 'localabovestate', 'min_county_mw', 'mean_county_mw', 'max_county_mw', 'countyabovestate', 'min_fed_mw', 'mean_fed_mw', 'max_fed_mw', 'min_state_mw', 'mean_state_mw', 'max_state_mw', 'min_actual_mw', 'mean_actual_mw', 'max_actual_mw', 'Dmin_actual_mw', 'Dmean_actual_mw', 'Dmax_actual_mw', 'min_event', 'mean_event', 'max_event')
+
+   minwage_vars <- names(d) %>%
+      str_subset(pattern = "mw")
+   
+   
    zillow_varlist <- setdiff(colnames(d), 
                              c(geovars, minwage_vars))
    
@@ -70,7 +74,7 @@ descriptive_table <- function(d, outstub) {
       
       if (x %in% post2010_varlist) d <- d[year>=2010,]
       
-      sel_vars <- c('zipcode', 'max_event', x)
+      sel_vars <- c('zipcode', 'mw_event', x)
       
       data <- d[,..sel_vars]
       
@@ -85,7 +89,7 @@ descriptive_table <- function(d, outstub) {
       
       len_subtable <- data_len[,unlist(lapply(.SD, summstats)), .SDcols = c('N')]
       
-      event_per_zip <- data[,.(N.event = sum(max_event, na.rm = T)), by = zipcode][,.(N.event = mean(N.event, na.rm = T))]
+      event_per_zip <- data[,.(N.event = sum(mw_event, na.rm = T)), by = zipcode][,.(N.event = mean(N.event, na.rm = T))]
       
       event_per_zip <- event_per_zip$N.event
       
@@ -117,9 +121,13 @@ descriptive_table <- function(d, outstub) {
 
 
 zillow_plots <- function(data, outstub) {
-   geovars <- c('zipcode', 'date', 'city', 'msa', 'county', 'statename', 'stateabb')
+   geovars <- c('zipcode', 'date', 'city', 'msa', 'county', 'statename', 'stateabb', 'i.statename', 'place', 'placename', 'countyname', 'state', 'year', 'placetype', 'placepop10', 'zippctpop10', 'zippcthouse10', 'zippctland')
    
-   minwage_vars <- c('min_local_mw', 'mean_local_mw', 'max_local_mw', 'localabovestate', 'min_county_mw', 'mean_county_mw', 'max_county_mw', 'countyabovestate', 'min_fed_mw', 'mean_fed_mw', 'max_fed_mw', 'min_state_mw', 'mean_state_mw', 'max_state_mw', 'min_actual_mw', 'mean_actual_mw', 'max_actual_mw', 'Dmin_actual_mw', 'Dmean_actual_mw', 'Dmax_actual_mw', 'min_event', 'mean_event', 'max_event', 'placetype', 'placepop10', 'zippctpop10', 'zippcthouse10', 'zippctland', 'i.statename', 'place', 'placename', 'countyname', 'state', 'year')
+   
+   minwage_vars <- names(data) %>%
+      str_subset(pattern = "mw")
+   
+   
    zillow_varlist <- setdiff(colnames(data), 
                              c(geovars, minwage_vars))
    
@@ -139,7 +147,8 @@ zillow_plots <- function(data, outstub) {
       
       
       d[,date := as.Date(date, format = "%Y-%m-%d")]
-      brks <- d$date[seq(1,length(d$date), 12)]
+      brks <- c('2010-06-01', '2011-06-01', '2012-06-01', '2013-06-01', '2014-06-01', '2015-06-01', '2016-06-01', '2017-06-01', '2018-06-01', '2019-06-01')
+      brks <- as.Date(brks, format = "%Y-%m-%d")
       lbls <- lubridate::year(brks)
       
       plot <- ggplot(d, aes(x = date, group = 1)) +
