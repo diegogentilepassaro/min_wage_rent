@@ -60,7 +60,7 @@ program substate_min_wage_change
 	label var mw "Minimum Wage"
 	order statefips statename stateabb locality year month day date mw mw_*  year_bill_passed source source_2 source_notes
 
-	sort locality date
+	isid locality date, sort
 	export delim using `outstub'/VZ_substate_changes.csv, replace 
 end
 
