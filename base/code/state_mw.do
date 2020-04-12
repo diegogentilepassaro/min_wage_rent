@@ -18,10 +18,12 @@ program main
 	prepare_finaldata, begindate(01may1974) finaldate(31Dec2019)           ///
 					   outstub(`temp') temp(`temp')
 	
-	export_state_daily,     instub(`temp') outstub(`exports')
-	export_state_monthly,   instub(`temp') outstub(`exports')
-	export_state_quarterly, instub(`temp') outstub(`exports')
-	export_state_annually,  instub(`temp') outstub(`exports')
+
+	local mw_list "fed_mw mw"
+	export_state_daily,     instub(`temp') outstub(`exports') target_mw(`mw_list')
+	export_state_monthly,   instub(`temp') outstub(`exports') target_mw(`mw_list')
+	export_state_quarterly, instub(`temp') outstub(`exports') target_mw(`mw_list')
+	export_state_annually,  instub(`temp') outstub(`exports') target_mw(`mw_list')
 end
 
 program import_crosswalk, rclass
@@ -147,25 +149,27 @@ program prepare_finaldata
 end
 
 program export_state_daily
-	syntax, instub(str) outstub(str)
+	syntax, instub(str) outstub(str) target_mw(str)
 
 	use `instub'/data.dta, clear
+
+	keep statefips statename stateabb date `target_mw'
 
 	isid statefips date, sort
 	export delim using `outstub'/VZ_state_daily.csv, replace 
 end
 
 program export_state_monthly
-	syntax, instub(str) outstub(str)
+	syntax, instub(str) outstub(str) target_mw(str)
 
 	use `instub'/data.dta, clear
+
+	keep statefips statename stateabb date `target_mw'
 
 	gen monthly_date = mofd(date)
 	format monthly_date %tm
 
-	collapse (min) min_fed_mw = fed_mw min_mw = mw           ///
-	         (mean) mean_fed_mw = fed_mw mean_mw = mw        ///
-	         (max) max_fed_mw = fed_mw max_mw = mw,          ///
+	collapse (max) `target_mw',          ///
 	         by(statefips statename stateabb monthly_date)
 
 	label var monthly_date "Monthly Date"
@@ -176,16 +180,16 @@ program export_state_monthly
 end
 
 program export_state_quarterly
-	syntax, instub(str) outstub(str)
+	syntax, instub(str) outstub(str) target_mw(str)
 
 	use `instub'/data.dta, clear
+
+	keep statefips statename stateabb date `target_mw'
 
 	gen quarterly_date = qofd(date)
 	format quarterly_date %tq
 
-	collapse (min) min_fed_mw = fed_mw min_mw = mw           ///
-	         (mean) mean_fed_mw = fed_mw mean_mw = mw        ///
-	         (max) max_fed_mw = fed_mw max_mw = mw,          ///
+	collapse (max) `target_mw',           ///
 	         by(statefips statename stateabb quarterly_date)
 
 	label var quarterly_date "Quarterly Date"
@@ -196,16 +200,16 @@ program export_state_quarterly
 end
 
 program export_state_annually
-	syntax, instub(str) outstub(str)
+	syntax, instub(str) outstub(str) target_mw(str)
 
 	use `instub'/data.dta, clear
+
+	keep statefips statename stateabb date `target_mw'
 
 	gen year = yofd(date)
 	format year %ty
 
-	collapse (min) min_fed_mw = fed_mw min_mw = mw           ///
-	         (mean) mean_fed_mw = fed_mw mean_mw = mw        ///
-	         (max) max_fed_mw = fed_mw max_mw = mw,          ///
+	collapse (max) `target_mw',          ///
 	         by(statefips statename stateabb year)
 
 	label var year "Year"
@@ -218,14 +222,11 @@ end
 program label_mw_vars
 	syntax, time_level(str)
 
-	label var min_fed_mw  "`time_level' Federal Minimum"
-	label var min_mw      "`time_level' State Minimum"
+	cap label var fed_mw  "`time_level' Federal MW"
+	cap label var mw      "`time_level' State MW"	
+	cap label var mw_healthinsurance "`time_level' State MW Health and Insurance"
+	cap label var mw_smallbusiness "`time_level' State MW Small Business"
 
-	label var mean_fed_mw "`time_level' Federal Average"
-	label var mean_mw     "`time_level' State Average"
-
-	label var max_fed_mw  "`time_level' Federal Maximum"
-	label var max_mw      "`time_level' State Maximum"	
 end
 
 *EXECUTE

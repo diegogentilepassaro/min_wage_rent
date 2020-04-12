@@ -13,10 +13,10 @@ program main
 	prepare_data, time_var(year_month) geo_unit(zipcode)
 
 	foreach window in 12 24 {
-		create_latest_event_vars, event_dummy(min_event) window(`window')                ///
+		create_latest_event_vars, event_dummy(mw_event) window(`window')                ///
 			time_var(year_month) geo_unit(zipcode)
 			
-        create_event_vars, event_dummy(min_event) window(`window')                       ///
+        create_event_vars, event_dummy(mw_event) window(`window')                       ///
 			time_var(year_month) geo_unit(zipcode)
 	}
 	
@@ -24,16 +24,16 @@ program main
 	    replace log(none)
 end
 
-program prepare_data
+program prepare_data 
     syntax, time_var(str) geo_unit(str)
 	
-	replace min_event = 0 if dmin_actual_mw < 0.5
+	replace mw_event = 0 if dactual_mw < 0.5
 
 	drop if missing(msa)
 	
 	keep zipcode year_month state msa calendar_month ///
-	    zhvi_2br medrentprice_2br medrentpricepsqft_2br ///
-		min_event mean_event max_event
+	    medrentprice* zri* zhvi* medlistingprice* ///
+		mw_event mw_event_smallbusiness
 end
 
 program create_latest_event_vars

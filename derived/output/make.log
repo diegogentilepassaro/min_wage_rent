@@ -1,11 +1,319 @@
-
-
- make.py started: 2020-03-24 15:12:02 C:\Users\gabriel\Dropbox (Brown)\research\min_wage_rent\derived\code 
-
+ make.py started: 2020-03-26 18:45:27 C:\Users\gabriel\Dropbox (Brown)\research\min_wage_rent\derived\code 
 
 
 
 
+Execute:  StataMP-64 /e do "./label_final_dta.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./label_final_dta.do 
+
+. set more off
+
+. clear all
+
+. adopath + ../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files (x86)\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files (x86)\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../lib/stata/gslab_misc/ado"
+
+. adopath + ../../lib/stata/mental_coupons/ado
+  [1]  (BASE)      "C:\Program Files (x86)\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files (x86)\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../lib/stata/gslab_misc/ado"
+  [8]              "../../lib/stata/mental_coupons/ado"
+
+. 
+. program main 
+  1.         local instub  "../../drive/derived_large/output"
+  2.         local oustub  "../../drive/derived_large/output"
+  3.         local logfile "../output/data_file_manifest.log"
+  4. 
+.         import delim `instub'/data_clean.csv, delim(",")
+  5. 
+.         clean_vars
+  6.         create_vars
+  7.         label_vars
+  8. 
+.         compress
+  9.         save_data `oustub'/zipcode_yearmonth_panel.dta, key(zipcode year_m
+> onth) log(`logfile') replace
+ 10. end 
+
+. 
+. program clean_vars
+  1.         *clean date
+.         gen     year_month = date(date, "YMD")
+  2.         replace year_month = mofd(year_month)
+  3.         format  year_month %tm
+  4. 
+.         order year_month, after(date)
+  5.         drop date
+  6. 
+.         drop if missing(year_month)
+  7.         drop if missing(zipcode)
+  8. 
+.         * Remove obs with no data on minimum wage
+.         bys zipcode (year_month): egen no_mw_data = min(actual_mw)
+  9.         bys zipcode (year_month): egen no_mw_data_smallb = min(actual_mw_s
+> mallbusiness)
+ 10.         drop if missing(no_mw_data)  
+ 11.         drop if missing(no_mw_data) & missing(no_mw_data_smallb)        
+ 12.         drop no_mw_data no_mw_data_smallb 
+ 13. 
+.         *clean place/city name: since city has no missing keep that (BUT ZIP 
+> CODE CAN BELONG TO DIFFERENT CITIES!!!!!)
+.         * als, there are some 70000s zipcode-date where placename and city do
+> esn't match (why)
+.         drop placename
+ 14.         local dropwords = `" " Town$" "^Town of " " Township$" "'
+ 15.                 foreach w in `dropwords' {
+ 16.                         replace city = regexr(city, "`w'", "")
+ 17.         }
+ 18. end
+
+. 
+. program create_vars
+  1.         bysort zipcode (year_month): gen trend = _n
+  2. 
+.         local mw_type `" "" "_smallbusiness" "'
+  3.         foreach var_type in `mw_type' {
+  4.                 bysort zipcode (year_month): gen dpct_actual_mw`var_type' 
+> = dactual_mw`var_type'/actual_mw`var_type'[_n-1]
+  5. 
+.                 gen event_month`var_type' = mw_event`var_type' == 1
+  6.                 sort zipcode year_month
+  7.                 replace event_month`var_type' = 1 if year_month != year_mo
+> nth[_n-1] + 1  // zipcode changes
+  8. 
+.                 gen event_month`var_type'_id = sum(event_month`var_type')
+  9. 
+.                 bysort event_month`var_type'_id: gen months_since`var_type' =
+>  _n - 1
+ 10.                 bysort event_month`var_type'_id: gen months_until`var_type
+> ' = _N - months_since`var_type'
+ 11. 
+.                 bysort event_month`var_type'_id: replace months_until`var_typ
+> e' = 0 if _N == months_until`var_type'
+ 12. 
+.                 drop event_month`var_type'_id event_month`var_type'          
+>    
+ 13.         }
+ 14. 
+. end
+
+. 
+. program label_vars 
+  1.         foreach var in city msa {
+  2.                 encode `var', g(`var'2)
+  3.                 order `var'2, after(`var')
+  4.                 drop `var'
+  5.                 rename `var'2 `var'
+  6.         }
+  7.         
+.         bysort state (statename): replace statename = statename[_N]
+  8.         labmask state, values(statename)
+  9.         drop statename 
+ 10. 
+.         gen countyfips = string(state, "%02.0f") + string(county, "%03.0f") 
+ 11.         destring countyfips, replace force 
+ 12.         order countyfips, after(county)
+ 13.         labmask countyfips, values(countyname)
+ 14.         drop countyname
+ 15. 
+.         order placetype, after(stateabb)
+ 16.         encode placetype, g(ptype2)
+ 17.         order ptype2, after(placetype)
+ 18.         drop placetype
+ 19.         rename ptype2 placetype
+ 20. 
+.         local mw_type `" "" "_smallbusiness" "'
+ 21.         foreach var_type in `mw_type' {
+ 22.                 label var months_since`var_type' "Months since last MW`var
+> _type' change"
+ 23.                 label var months_until`var_type' "Months until next MW`var
+> _type' change"
+ 24.         }
+ 25. 
+.         order zipcode county countyfips msa city state* year_month           
+>                                        ///
+>                 actual_mw* dactual_mw* mw_event* months_since* months_until* 
+>            ///
+>                 local_abovestate* county_abovestate* local_mw* county_mw* sta
+> te_mw fed_mw
+ 26.         xtset zipcode year_month
+ 27. end 
+
+. 
+. main
+(66 vars, 8,799,516 obs)
+(7,005 missing values generated)
+(8,792,511 real changes made)
+(7,005 observations deleted)
+(0 observations deleted)
+(252036 missing values generated)
+(252036 missing values generated)
+(252,036 observations deleted)
+(0 observations deleted)
+(1,148 real changes made)
+(0 real changes made)
+(0 real changes made)
+(89,163 missing values generated)
+(29,803 real changes made)
+(294068 real changes made)
+(89,163 missing values generated)
+(29,803 real changes made)
+(294056 real changes made)
+(59,360 real changes made)
+countyfips: all characters numeric; replaced as long
+       panel variable:  zipcode (unbalanced)
+        time variable:  year_month, 1996m4 to 2020m2
+                delta:  1 month
+  variable msa was long now int
+  variable city was long now int
+  variable year_month was float now int
+  variable months_since was float now int
+  variable months_since_smallbusiness was float now int
+  variable months_until was float now int
+  variable months_until_smallbusiness was float now int
+  variable placetype was long now byte
+  variable trend was float now int
+  (162,269,025 bytes saved)
+(data already sorted by zipcode year_month)
+  (0 bytes saved)
+===============================================================================
+> ===================
+File: ../../drive/derived_large/output/zipcode_yearmonth_panel.dta
+Key: zipcode year_month
+===============================================================================
+> ===================
+  8540475:71(71895):3247809926:581853747
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |  8,540,475    49016.06    27417.96       1001      99929
+  year_month |  8,540,475    578.0832    82.85613        435        721
+      county |  8,540,475    84.32119    84.37874          1        840
+  countyfips |  8,540,475    29838.63    15232.06       1001      56045
+         msa |  6,527,490     437.913    246.3811          1        862
+-------------+---------------------------------------------------------
+        city |  8,540,475    7040.013    4102.549          1      14252
+       state |  8,540,475     29.7543    15.22032          1         56
+    stateabb |          0
+    state_mw |  8,481,115    6.569749    1.467754       4.25         14
+   actual_mw |  8,481,115    6.578068    1.490825       4.25      16.09
+-------------+---------------------------------------------------------
+actual_mw_~s |  8,481,115    6.576316    1.483881       4.25      16.09
+  dactual_mw |  8,451,312    .0159131     .106174      -3.59       5.81
+dactual_mw~s |  8,451,312    .0158631    .1057483      -3.59          6
+    mw_event |  8,451,312    .0312691    .1740441          0          1
+mw_event_s~s |  8,451,312    .0312677    .1740403          0          1
+-------------+---------------------------------------------------------
+months_since |  8,540,475    37.72093    35.73236          0        145
+months_sin~s |  8,540,475    37.72253    35.73132          0        145
+months_until |  8,540,475    37.72093    35.73236          0        145
+months_unt~s |  8,540,475    37.72253    35.73132          0        145
+local_abov~w |     94,080    .2937075     .455462          0          1
+-------------+---------------------------------------------------------
+local_abov~s |     94,080    .2625213    .4400067          0          1
+county_abo~w |    107,056    .2016982    .4012699          0          1
+county_abo~e |    107,056    .1554607     .362345          0          1
+    local_mw |     94,080    8.783129    2.126978       5.15      16.09
+local_mw_s~s |     94,080     8.68133     1.94101       5.15      16.09
+-------------+---------------------------------------------------------
+   county_mw |    107,056    8.354514    1.934653       5.15      14.25
+county_mw_~s |    107,056    8.251867    1.717275       5.15      13.25
+      fed_mw |  8,481,115    6.133594    1.054035       4.25       7.25
+       place |  4,028,457    41820.87    23818.46        100      89300
+   placetype |  2,498,664           1           0          1          1
+-------------+---------------------------------------------------------
+  placepop10 |  2,498,664    378112.2     1248064         16    8175133
+ zippctpop10 |  8,540,475    96.10342    9.715224          0        100
+zippcthou~10 |  8,540,475    96.05141    9.580753         50        100
+  zippctland |  8,540,475    93.39605    14.83133         .4        100
+medli~e_sfcc |    915,505    296474.1    257214.5      12000    6995000
+-------------+---------------------------------------------------------
+m~e_low_tier |    237,084    151709.5    94325.22      11750     939935
+m~e_top_tier |    479,674    463889.3    351125.5     112450    7295000
+medli~t_sfcc |  1,079,027    165.6041    135.5232   11.57113   2802.347
+m~t_low_tier |    295,497    121.5232    83.39673   11.50727   1672.388
+m~t_top_tier |    513,788    206.5295    177.6641   31.52173   2799.423
+-------------+---------------------------------------------------------
+medren~e_1br |     69,034    1605.952      669.01        350       5195
+medren~e_2br |    106,315    1764.751    877.7131        475      19500
+medren~e_3br |     76,281    1928.989    1461.303        455      40000
+medren~e_4br |     10,219    3120.356    5219.439        435      50000
+medren~e_5br |        841    5732.578     7691.47       1250      50000
+-------------+---------------------------------------------------------
+medre~e_sfcc |    192,267     1767.88    1529.266        500      50000
+medrent~e_cc |     34,496    2100.429    937.1415        700       8975
+med~e_mfdxtx |     26,694    1972.821    831.0241        375       6646
+m~e_mfr5plus |    174,400    1553.148    697.3258        375      20000
+medrent~e_sf |    141,941    1778.448    1933.833        500      50000
+-------------+---------------------------------------------------------
+med~e_studio |     28,965      1669.2    1365.691        300      50000
+medren~t_1br |     55,213    2.192329    .9203983   .6388889   7.164352
+medren~t_2br |     92,450    1.682024    .8027275   .5015197   12.55461
+medren~t_3br |     66,909    1.233356    .8127647   .5060225       17.5
+medren~t_4br |      8,299    1.504478    2.570084   .5492424   21.85141
+-------------+---------------------------------------------------------
+medren~t_5br |        537    7.753782    7.031498   .3727683         22
+medre~t_sfcc |    197,282    1.304845    1.034427   .1091193   23.96932
+medrent~t_cc |     30,572    2.169881    1.169246   .5835432   12.92755
+med~t_mfdxtx |     11,914     2.44562    1.283759   .3627695   6.936797
+m~t_mfr5plus |    146,338    1.736259    .8487646   .3150482   12.55435
+-------------+---------------------------------------------------------
+medrent~t_sf |    144,062    1.145787    1.003317   .1039069   24.48466
+med~t_studio |     23,491    1.954625    1.574804   .4288971   7.347833
+    zhvi_2br |  5,511,420    146088.1    132845.4       7100    3893638
+   zhvi_sfcc |  6,557,777    183640.4    176079.9       8565    6648479
+      zhvi_c |  2,316,286    199412.7    159995.2      13592    3848327
+-------------+---------------------------------------------------------
+     zhvi_sf |  6,548,215    191755.9    213938.2       8565    8737684
+  zri_sfccmf |  1,342,093    1356.357    877.3577        368      83894
+      zri_mf |    139,778    1517.189    638.9052        420      18349
+       trend |  8,540,475    143.9104    82.85736          1        287
+dpct_actua~w |  8,451,312    .0025981    .0175777  -.2821782   .6504854
+-------------+---------------------------------------------------------
+dpct_actua~s |  8,451,312    .0025942    .0175597  -.2821782   .6666667
+
+
+
+
+file ../../drive/derived_large/output/zipcode_yearmonth_panel.dta saved
+
+. 
+end of do-file
+
+ make.py ended: 2020-03-26 19:55:46
 Execute:  R CMD BATCH --no-save "./ReshapeMergeZillow_zip.R" ReshapeMergeZillow_zip.Rout
 
 R version 3.6.1 (2019-07-05) -- "Action of the Toes"
@@ -418,3 +726,4 @@ Warning messages:
  275.65   44.14  319.67 
 
  make.py ended: 2020-03-24 15:19:49
+

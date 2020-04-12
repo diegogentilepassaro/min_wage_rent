@@ -10,14 +10,16 @@ program main
 	import_crosswalk, instub(`raw') outstub(`temp')
 	substate_min_wage_change, instub(`raw') outstub(`exports') temp(`temp')
 	prepare_local, temp(`temp')
-  
 	prepare_state, outstub(`exports') temp(`temp') finaldate(31Dec2019)
-	prepare_finaldata, temp(`temp') finaldate(31Dec2019)
+	
+	local mw_list = "mw mw_smallbusiness"
+	prepare_finaldata, temp(`temp') finaldate(31Dec2019) target_mw(`mw_list')
 
-	export_substate_daily,     outstub(`exports') temp(`temp')
-	export_substate_monthly,   outstub(`exports') temp(`temp')
-	export_substate_quarterly, outstub(`exports') temp(`temp')
-	export_substate_annually,  outstub(`exports') temp(`temp')
+
+	export_substate_daily,     outstub(`exports') temp(`temp') 
+	export_substate_monthly,   outstub(`exports') temp(`temp') target_mw(`mw_list')
+	export_substate_quarterly, outstub(`exports') temp(`temp') target_mw(`mw_list')
+	export_substate_annually,  outstub(`exports') temp(`temp') target_mw(`mw_list')
 end 
 
 program import_crosswalk, rclass
@@ -61,12 +63,13 @@ program substate_min_wage_change
 	merge m:1 statefips using `temp'/crosswalk.dta, nogen keep(3)
 	label var statefips "State FIPS Code"
 	label var statename "State"
-	label var stateabb  "State Abbreviation"
-	label var locality  "City/County"
-	label var mw        "Minimum Wage"
-	order statefips statename stateabb locality year month day date mw mw_* source source_2 source_notes
+	label var stateabb "State Abbreviation"
+	label var locality "City/County"
+	label var mw "Minimum Wage"
+	order statefips statename stateabb locality year month day date mw mw_*  year_bill_passed source source_2 source_notes
 
-	sort locality date
+
+	isid locality date, sort
 	export delim using `outstub'/VZ_substate_changes.csv, replace 
 end
 
@@ -85,8 +88,7 @@ program prepare_state
 	syntax, outstub(str) temp(str) finaldate(str)
 	sum year
 	local minyear = r(min)
-	preserve
-	
+	preserve	
 	import delim `outstub'/VZ_state_daily.csv, clear 
 	g date2 = date(date, "DMY")
 	format date2 %td
@@ -102,7 +104,7 @@ program prepare_state
 end
 
 program prepare_finaldata
-	syntax, temp(str) finaldate(str)
+	syntax, temp(str) finaldate(str) target_mw(str)
 	
 	encode locality, gen(locality_temp)
 
@@ -112,27 +114,41 @@ program prepare_finaldata
 	foreach x of varlist statename stateabb locality source_notes {
 	  bysort locality_temp (date): replace `x' = `x'[_n-1] if `x' == ""
 	}
-	foreach x of varlist statefips mw* {
+	foreach x of varlist statefips year_bill_passed mw* {
 	  bysort locality_temp (date): replace `x' = `x'[_n-1] if `x' == .
 	}
 
 	keep if date <= td(`finaldate')
 
 	merge 1:m statefips locality date using `temp'/statemw.dta, assert(2 3) nogenerate
-	replace mw = state_mw if mw == .
-	replace mw = round(mw, 0.01)
-	gen abovestate = mw > state_mw
-	label var abovestate "Local > State min wage"
 
-	keep statefips statename stateabb date locality mw* *_mw abovestate source_notes
-	order statefips statename stateabb date locality mw* *_mw abovestate source_notes
+	replace mw = state_mw if mw == .
+	replace mw = round(mw,0.01)
+	gen abovestate_mw = mw > state_mw
+	label var abovestate_mw "Local `var' > State min wage"
+
+	local mw "mw"
+	local new_target_mw: list target_mw - mw 
+	
+	foreach var in `new_target_mw' {
+		replace `var' = mw if `var' == .
+		replace `var' = round(`var',0.01)
+		gen abovestate_`var' = `var' > state_mw
+		label var abovestate_`var' "Local `var' > State min wage"		
+	}
+
+
+
+	keep statefips statename stateabb date locality mw mw_* abovestate_* year_bill_passed source_notes
+	order statefips statename stateabb date locality mw mw_* abovestate_*  year_bill_passed source_notes
+
 	notes mw: The mw variable represents the most applicable minimum wage across the locality.
 
 	save_data `temp'/data.dta, key(statefips locality date) replace log(none)
 end
 
 program export_substate_daily
-	syntax, outstub(str) temp(str)	
+	syntax, outstub(str) temp(str) 
 		
 	use `temp'/data.dta, clear
 	sort locality date
@@ -140,14 +156,13 @@ program export_substate_daily
 end
 
 program export_substate_monthly
-	syntax, outstub(str) temp(str)
+	syntax, outstub(str) temp(str) target_mw(str)
 	use `temp'/data.dta, clear
 
 	gen monthly_date = mofd(date)
 	format monthly_date %tm
 
-	collapse (min) min_mw = min_mw (mean) mean_mw = mean_mw (max) max_mw = max_mw abovestate, ///
-		by(statefips statename stateabb locality monthly_date)
+	collapse (max) `target_mw' abovestate_*, by(statefips statename stateabb locality monthly_date)
 
 	label var monthly_date "Monthly Date"
 	label_mw_vars, time_level("Monthly")
@@ -158,14 +173,13 @@ program export_substate_monthly
 end 
 
 program export_substate_quarterly
-	syntax, outstub(str) temp(str)
+	syntax, outstub(str) temp(str) target_mw(str)
 	use `temp'/data.dta, clear
 
 	gen quarterly_date = qofd(date)
 	format quarterly_date %tq
 
-	collapse (min) min_mw = mw (mean) mean_mw = mw (max) max_mw = mw abovestate, /// 
-		by(statefips statename stateabb locality quarterly_date)
+	collapse (max) `target_mw' abovestate_*, by(statefips statename stateabb locality quarterly_date)
 
 	label var quarterly_date "Quarterly Date"
 	label_mw_vars, time_level("Quarterly")
@@ -176,14 +190,13 @@ program export_substate_quarterly
 end 
 
 program export_substate_annually
-	syntax, outstub(str) temp(str)
+	syntax, outstub(str) temp(str) target_mw(str)
 	use `temp'/data.dta, clear
 
 	gen year = yofd(date)
 	format year %ty
 
-	collapse (min) min_mw = min_mw (mean) mean_mw = mean_mw (max) max_mw = max_mw abovestate, ///
-		by(statefips statename stateabb locality year)
+	collapse (max) `target_mw' abovestate_*, by(statefips statename stateabb locality year)
 
 	label var year "Year"
 	label_mw_vars, time_level("Annual")
@@ -196,10 +209,10 @@ end
 program label_mw_vars
 	syntax, time_level(str)
 
-	label var min_mw     "`time_level' Minimum"
-	label var mean_mw    "`time_level' Average"
-	label var max_mw     "`time_level' Maximum"
-	label var abovestate "Local MW > State MW"	
+	cap label var mw     "`time_level' MW"	
+	cap label var abovestate_mw "Local > State min wage"	
+	cap label var mw_healthinsurance "`time_level' State MW Health and Insurance"
+	cap label var mw_smallbusiness "`time_level' State MW Small Business"
 end
 
 * EXECUTE
