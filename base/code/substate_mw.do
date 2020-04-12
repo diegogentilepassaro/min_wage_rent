@@ -209,8 +209,10 @@ end
 program label_mw_vars
 	syntax, time_level(str)
 
-	label var mw     "`time_level' MW"	
-	label var abovestate_mw "Local > State min wage"	
+	cap label var mw     "`time_level' MW"	
+	cap label var abovestate_mw "Local > State min wage"	
+	cap label var mw_healthinsurance "`time_level' State MW Health and Insurance"
+	cap label var mw_smallbusiness "`time_level' State MW Small Business"
 end
 
 * EXECUTE
