@@ -26,10 +26,6 @@ end
 
 program prepare_data 
     syntax, time_var(str) geo_unit(str)
-
-    gen date = dofm(year_month)
-	gen calendar_month = month(date)
-	drop date
 	
 	replace mw_event = 0 if dactual_mw < 0.5
 

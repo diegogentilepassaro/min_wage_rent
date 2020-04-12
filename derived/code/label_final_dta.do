@@ -19,11 +19,10 @@ program main
 end 
 
 program clean_vars
-	*clean date
 	gen     year_month = date(date, "YMD")
+	gen calendar_month = month(year_month)
 	replace year_month = mofd(year_month)
 	format  year_month %tm
-
 	order year_month, after(date)
 	drop date
 
@@ -37,8 +36,9 @@ program clean_vars
 	drop if missing(no_mw_data) & missing(no_mw_data_smallb)	
 	drop no_mw_data no_mw_data_smallb 
 
+
 	*clean place/city name: since city has no missing keep that (BUT ZIP CODE CAN BELONG TO DIFFERENT CITIES!!!!!)
-	* als, there are some 70000s zipcode-date where placename and city doesn't match (why)
+	* also, there are some 70000s zipcode-date where placename and city doesn't match (why)
 	drop placename
 	local dropwords = `" " Town$" "^Town of " " Township$" "'
 		foreach w in `dropwords' {
@@ -47,6 +47,7 @@ program clean_vars
 end
 
 program create_vars
+
 	bysort zipcode (year_month): gen trend = _n
 
 	local mw_type `" "" "_smallbusiness" "'
@@ -56,6 +57,7 @@ program create_vars
 		gen event_month`var_type' = mw_event`var_type' == 1
 		sort zipcode year_month
 		replace event_month`var_type' = 1 if year_month != year_month[_n-1] + 1  // zipcode changes
+
 
 		gen event_month`var_type'_id = sum(event_month`var_type')
 

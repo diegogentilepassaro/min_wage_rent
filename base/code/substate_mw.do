@@ -7,13 +7,14 @@ program main
 	local exports "../output"
 	local temp "../temp"
 
-	import_crosswalk, instub(`raw') outstub(`exports')
+	import_crosswalk, instub(`raw') outstub(`temp')
 	substate_min_wage_change, instub(`raw') outstub(`exports') temp(`temp')
 	prepare_local, temp(`temp')
 	prepare_state, outstub(`exports') temp(`temp') finaldate(31Dec2019)
 	
 	local mw_list = "mw mw_smallbusiness"
 	prepare_finaldata, temp(`temp') finaldate(31Dec2019) target_mw(`mw_list')
+
 
 	export_substate_daily,     outstub(`exports') temp(`temp') 
 	export_substate_monthly,   outstub(`exports') temp(`temp') target_mw(`mw_list')
@@ -44,13 +45,20 @@ program substate_min_wage_change
 	gen date = mdy(month,day,year)
 	format date %td
 
-	gen double mw = round(VZ_mw, .01)
-	gen double mw_tipped = round(VZ_mw_tipped, .01)
+	gen double mw                 = round(VZ_mw, .01)
 	gen double mw_healthinsurance = round(VZ_mw_healthinsurance, .01)
-	gen double mw_smallbusiness = round(VZ_mw_smallbusiness, .01)
+	gen double mw_macrobusiness   = round(VZ_mw_macrobusiness, .01)
+	gen double mw_mediumbusiness  = round(VZ_mw_mediumbusiness, .01)
+	gen double mw_smallbusiness   = round(VZ_mw_smallbusiness, .01)
 	gen double mw_smallbusiness_mincomp = round(VZ_mw_smallbusiness_mincompensat, .01)
-	gen double mw_hotel = round(VZ_mw_hotel, .01)
+	gen double mw_hotel           = round(VZ_mw_hotel, .01)
+	gen double mw_nonprofit       = round(VZ_mw_nonprofit, .01)
+	gen double mw_tipped          = round(VZ_mw_tipped, .01)
 	drop VZ_mw*
+
+	egen min_mw  = rowmin(mw-mw_tipped)
+	egen mean_mw = rowmean(mw-mw_tipped)
+	egen max_mw  = rowmax(mw-mw_tipped)
 
 	merge m:1 statefips using `temp'/crosswalk.dta, nogen keep(3)
 	label var statefips "State FIPS Code"
@@ -59,6 +67,7 @@ program substate_min_wage_change
 	label var locality "City/County"
 	label var mw "Minimum Wage"
 	order statefips statename stateabb locality year month day date mw mw_*  year_bill_passed source source_2 source_notes
+
 
 	isid locality date, sort
 	export delim using `outstub'/VZ_substate_changes.csv, replace 
@@ -132,9 +141,10 @@ program prepare_finaldata
 
 	keep statefips statename stateabb date locality mw mw_* abovestate_* year_bill_passed source_notes
 	order statefips statename stateabb date locality mw mw_* abovestate_*  year_bill_passed source_notes
+
 	notes mw: The mw variable represents the most applicable minimum wage across the locality.
 
-	save `temp'/data.dta, replace
+	save_data `temp'/data.dta, key(statefips locality date) replace log(none)
 end
 
 program export_substate_daily

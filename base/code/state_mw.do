@@ -14,7 +14,8 @@ program main
 	add_state_to_fedmw,  fips("`fips'") outstub(`temp')
 	state_min_wage_change, instub(`raw') outstub(`exports') temp(`temp')
 	
-	prepare_finaldata, begindate(01may1974) finaldate(31dec2019)           ///
+
+	prepare_finaldata, begindate(01may1974) finaldate(31Dec2019)           ///
 					   outstub(`temp') temp(`temp')
 	
 
