@@ -42,12 +42,12 @@ if __name__ == '__main__':
 
     QCEW_PATH = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     ROOT_PATH = os.path.dirname(os.path.dirname(QCEW_PATH))
-    ORIG_PATH = os.path.join(ROOT_PATH, "drive\\raw_data\\qcew\\origin")
+    DATA_PATH = os.path.join(ROOT_PATH, "drive\\raw_data\\qcew")
 
-    empty_folder = len(os.listdir(ORIG_PATH)) == 0
+    empty_folder = len(os.listdir(DATA_PATH)) == 0
 
     if not empty_folder:
-        sys.exit("Error: Please clear 'origin' folder before downloading the data.")
+        sys.exit("Error: Please clear the 'drive/raw_data/qcew' folder before downloading the data.")
     
     log_and_print('Start raw data build.', logger)
 
@@ -56,7 +56,7 @@ if __name__ == '__main__':
     end_year       = 2019
 
     # County-High Level
-    folder = os.path.join(ORIG_PATH, 'county')
+    folder = os.path.join(DATA_PATH, 'county')
     os.mkdir(folder)
 
     for year in range(start_year, end_year + 1):
@@ -65,7 +65,7 @@ if __name__ == '__main__':
     log_and_print("County-High Level data downloaded and unzipped.", logger)
     
     # Area Quarterly
-    folder = os.path.join(ORIG_PATH, 'area')
+    folder = os.path.join(DATA_PATH, 'area')
     os.mkdir(folder)
 
     for year in range(start_year, end_year + 1):
@@ -74,7 +74,7 @@ if __name__ == '__main__':
     log_and_print("By Area Quarterly data downloaded and unzipped.", logger)
 
     # Industry Quarterly
-    folder = os.path.join(ORIG_PATH, 'industry')
+    folder = os.path.join(DATA_PATH, 'industry')
     os.mkdir(folder)
 
     for year in range(start_year_ind, end_year + 1):
