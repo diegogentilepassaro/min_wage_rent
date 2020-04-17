@@ -58,7 +58,7 @@ program substate_min_wage_change
 	label var stateabb "State Abbreviation"
 	label var locality "City/County"
 	label var mw "Minimum Wage"
-	order statefips statename stateabb locality year month day date mw mw_*  year_bill_passed source source_2 source_notes
+	order statefips statename stateabb locality year month day date mw mw_* source source_2 source_notes
 
 	sort locality date
 	export delim using `outstub'/VZ_substate_changes.csv, replace 
@@ -105,7 +105,7 @@ program prepare_finaldata
 	foreach x of varlist statename stateabb locality source_notes {
 	  bysort locality_temp (date): replace `x' = `x'[_n-1] if `x' == ""
 	}
-	foreach x of varlist statefips year_bill_passed mw* {
+	foreach x of varlist statefips  mw* {
 	  bysort locality_temp (date): replace `x' = `x'[_n-1] if `x' == .
 	}
 
@@ -130,8 +130,8 @@ program prepare_finaldata
 
 
 
-	keep statefips statename stateabb date locality mw mw_* abovestate_* year_bill_passed source_notes
-	order statefips statename stateabb date locality mw mw_* abovestate_*  year_bill_passed source_notes
+	keep statefips statename stateabb date locality mw mw_* abovestate_*  source_notes
+	order statefips statename stateabb date locality mw mw_* abovestate_*   source_notes
 	notes mw: The mw variable represents the most applicable minimum wage across the locality.
 
 	save `temp'/data.dta, replace
