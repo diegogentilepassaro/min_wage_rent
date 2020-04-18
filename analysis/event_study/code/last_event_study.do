@@ -14,8 +14,8 @@ program main
 			
 			create_event_plot, depvar(`depvar') 			  	///
 				event_var(last_sal_mw_event_rel_months`window') ///
-				controls(i.cumul_nbr_unused_mw_events) window(`window')	///
-				absorb(zipcode calendar_month##county year_month) cluster(zipcode)
+				controls(" ") window(`window')	///
+				absorb(zipcode calendar_month year_month) cluster(zipcode)
 			graph export "../output/`depvar'_last_sal_mw_event_rel_months`window'.png", replace	
 		}
 	}
@@ -28,8 +28,8 @@ program main
 		
 			create_event_plot, depvar(`depvar') 			  	///
 				event_var(last_sal_mw_event_rel_months`window') ///
-				controls(i.cumul_nbr_unused_mw_events) window(`window')	///
-				absorb(zipcode calendar_month##county year_month) cluster(zipcode)
+				controls(" ") window(`window')	///
+				absorb(zipcode calendar_month year_month) cluster(zipcode)
 			graph export "../output/`depvar'_last_sal_mw_event_rel_months`window'.png", replace	
 
 		}

@@ -1,0 +1,1811 @@
+
+ make.py started: 2020-04-17 16:21:53 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\test_event_study\code 
+
+
+
+
+Execute:  StataMP-64 /e do "./preclean_event_studies.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./preclean_event_studies.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/mental_coupons/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+  [8]              "../../../lib/stata/gslab_misc/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.     foreach data in rent listing {
+  2.             foreach window in 24 {
+  3.                 use "../../../drive/derived_large/output/baseline_`data'_p
+> anel.dta", clear
+  4.                     create_latest_event_vars, event_dummy(sal_mw_event) wi
+> ndow(`window')                ///
+>                             time_var(year_month) geo_unit(zipcode) panel_end(
+> 2019m12)
+  5.             
+.                 save_data "../temp/baseline_`data'_panel_`window'.dta", key(z
+> ipcode year_month)            ///
+>                     replace log(none)
+  6.                         }
+  7.         }
+  8. end
+
+. 
+. program create_latest_event_vars
+  1.         syntax, event_dummy(str) window(int) time_var(str) ///
+>             geo_unit(str) panel_end(str)
+  2.         
+.         local window_span = `window'*2 + 1 
+  3. 
+.         gen `event_dummy'_`time_var' = `time_var' if `event_dummy' == 1
+  4.         format `event_dummy'_`time_var' %tm
+  5. 
+.         gen months_until_panel_ends = `=tm(`panel_end')' - year_month
+  6.         
+.         preserve
+  7.         keep if months_until_panel_ends >= (`window' + 1)
+  8.         collapse (max) last_`event_dummy'_`time_var' = `event_dummy'_`time
+> _var', by(`geo_unit')
+  9.         format last_`event_dummy'_`time_var' %tm
+ 10.         keep zipcode last_`event_dummy'_`time_var'
+ 11.         save_data "../temp/last_event`window'_by_zipcode.dta", key(zipcode
+> ) replace
+ 12.         restore
+ 13.         
+.         merge m:1 zipcode using "../temp/last_event`window'_by_zipcode.dta", 
+> ///
+>             nogen assert(3) keep(3)
+ 14.         
+.         gen last_`event_dummy'_rel_months`window' = `time_var' - last_`event_
+> dummy'_`time_var'
+ 15.         replace last_`event_dummy'_rel_months`window' = last_`event_dummy'
+> _rel_months`window' + `window' + 1
+ 16.         replace last_`event_dummy'_rel_months`window' = 0 ///
+>             if last_`event_dummy'_rel_months`window' <= 0
+ 17.         replace last_`event_dummy'_rel_months`window' = 1000 ///
+>             if last_`event_dummy'_rel_months`window' > `window_span'
+ 18.         
+.         gen unused_mw_event`window' = (mw_event == 1 & last_`event_dummy'_rel
+> _months`window' != (`window' + 1))
+ 19.         bysort zipcode (year_month): gen cumul_nbr_unused_mw_events = sum(
+> unused_mw_event`window')
+ 20.                 
+.         drop `event_dummy'_`time_var' last_`event_dummy'_`time_var'    
+ 21. end
+
+. 
+. main
+(83,975 missing values generated)
+(25,475 observations deleted)
+(data already sorted by zipcode)
+  variable last_sal_mw_event_year_month was float now int
+  (2,038 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/last_event24_by_zipcode.dta
+Key: zipcode
+===============================================================================
+> ===================
+  1019:2(80974):4079640286:2559203553
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |      1,019    49401.78    29178.52       2113      98513
+last_sal_m~h |        395    681.7848    10.50003        636        693
+
+
+
+
+(note: file ../temp/last_event24_by_zipcode.dta not found)
+file ../temp/last_event24_by_zipcode.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            85,596  
+    -----------------------------------------
+(52,416 missing values generated)
+(33,180 real changes made)
+(8,559 real changes made)
+(57,636 real changes made)
+(data already sorted by zipcode year_month)
+  variable months_until_panel_ends was float now byte
+  variable last_sal_mw_event_rel_months24 was float now int
+  variable unused_mw_event24 was float now byte
+  variable cumul_nbr_unused_mw_events was float now byte
+  (941,556 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/baseline_rent_panel_24.dta
+Key: zipcode year_month
+===============================================================================
+> ===================
+  85596:26(40702):4136092742:2511626976
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |     85,596    49401.78    29164.37       2113      98513
+  year_month |     85,596       677.5    24.24713        636        719
+         msa |          0
+      county |     85,596      91.105    126.7588          1        810
+       state |     85,596    22.46124    15.75961          1         53
+-------------+---------------------------------------------------------
+    local_mw |      4,116    9.883166    1.765644       7.79         16
+local_abov~w |      4,116    .4560253     .498123          0          1
+   county_mw |      4,200    9.506893    1.670937       7.25      14.25
+county_abo~w |      4,200    .4445238     .496972          0          1
+      fed_mw |     85,596        7.25           0       7.25       7.25
+-------------+---------------------------------------------------------
+    state_mw |     85,596    8.283529    1.188736       7.25         14
+medre~e_sfcc |     85,596     1657.35    694.8042      597.5       6500
+   actual_mw |     85,596    8.352578     1.29698       7.25         16
+  dactual_mw |     85,596    .0196759    .1348275      -3.59       2.21
+    mw_event |     85,596    .0426772    .2021296          0          1
+-------------+---------------------------------------------------------
+calendar_m~h |     85,596         6.5    3.452073          1         12
+sal_mw_event |     85,596    .0189378    .1363062          0          1
+m~e_mfr5plus |     27,720    1779.821    761.6083        450     5297.5
+medren~e_2br |     18,900    2050.254    1044.385        495       6800
+medre~t_sfcc |     72,996    1.126265    .6120248   .4310905   5.586398
+-------------+---------------------------------------------------------
+m~t_mfr5plus |     19,824    1.770107    .8902973   .5106889   6.213753
+medren~t_2br |     13,608    1.822579    .8646395    .548112          6
+months_unt~s |     85,596        41.5    24.24713          0         83
+last_sal_~24 |     85,596    678.9803     461.003          0       1000
+unused_mw~24 |     85,596    .0380625    .1913484          0          1
+-------------+---------------------------------------------------------
+cumul_nbr_~s |     85,596    1.674144    1.842464          0          7
+
+
+
+
+(note: file ../temp/baseline_rent_panel_24.dta not found)
+file ../temp/baseline_rent_panel_24.dta saved
+(859,670 missing values generated)
+(181,475 observations deleted)
+(data already sorted by zipcode)
+  variable last_sal_mw_event_year_month was float now int
+  (14,518 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/last_event24_by_zipcode.dta
+Key: zipcode
+===============================================================================
+> ===================
+  7259:2(80974):1220866931:416228879
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |      7,259    48470.45    29916.85       1001      99801
+last_sal_m~h |      3,072    676.6973    17.40573        600        693
+
+
+
+
+file ../temp/last_event24_by_zipcode.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           871,080  
+    -----------------------------------------
+(502,440 missing values generated)
+(368,640 real changes made)
+(160,181 real changes made)
+(558,666 real changes made)
+(data already sorted by zipcode year_month)
+  variable months_until_panel_ends was float now int
+  variable last_sal_mw_event_rel_months24 was float now int
+  variable unused_mw_event24 was float now byte
+  variable cumul_nbr_unused_mw_events was float now byte
+  (8,710,800 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/baseline_listing_panel_24.dta
+Key: zipcode year_month
+===============================================================================
+> ===================
+  871080:26(54040):2587447045:646699205
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |    871,080    48470.45    29914.81       1001      99801
+  year_month |    871,080       659.5    34.63983        600        719
+         msa |          0
+      county |    871,080    84.58603    102.1675          1        840
+       state |    871,080    27.67365    15.83685          1         56
+-------------+---------------------------------------------------------
+    local_mw |     31,200    9.622262    2.025334       7.25      16.09
+local_abov~w |     31,200    .3665064    .4818578          0          1
+   county_mw |     53,400    9.185792    1.808819       7.25      14.25
+county_abo~w |     53,400    .3205805    .4667041          0          1
+      fed_mw |    871,080        7.25           0       7.25       7.25
+-------------+---------------------------------------------------------
+    state_mw |    871,080    8.023765    1.104877       7.25         14
+medli~t_sfcc |    871,080    163.5116     122.401   15.75758   2695.917
+   actual_mw |    871,080    8.065502     1.20585       7.25      16.09
+  dactual_mw |    871,077     .014546    .1101718      -3.59       5.81
+    mw_event |    871,077    .0309938     .173301          0          1
+-------------+---------------------------------------------------------
+calendar_m~h |    871,080         6.5    3.452055          1         12
+sal_mw_event |    871,080    .0130987    .1136975          0          1
+medli~e_sfcc |    570,720    284287.2    209464.4      34900    4395000
+m~e_low_tier |    125,520    143669.2    80680.14      23000     799000
+m~e_top_tier |    342,240      427240    267839.4     119900    6895000
+-------------+---------------------------------------------------------
+m~t_low_tier |    175,560    109.5704    57.88907   21.66513   678.1115
+m~t_top_tier |    378,240    184.1778    126.8163   54.71562   2729.885
+months_unt~s |    871,080        59.5    34.63983          0        119
+last_sal_~24 |    871,080    645.6544    473.9427          0       1000
+unused_mw~24 |    871,080    .0274705      .16345          0          1
+-------------+---------------------------------------------------------
+cumul_nbr_~s |    871,080    1.421276    2.123854          0          9
+
+
+
+
+(note: file ../temp/baseline_listing_panel_24.dta not found)
+file ../temp/baseline_listing_panel_24.dta saved
+
+. 
+end of do-file
+
+
+Execute:  StataMP-64 /e do "./last_event_study.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./last_event_study.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/mental_coupons/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+  [8]              "../../../lib/stata/gslab_misc/ado"
+
+. adopath + ../../../lib/stata/min_wage/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+  [8]              "../../../lib/stata/gslab_misc/ado"
+  [9]              "../../../lib/stata/min_wage/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main    
+  1.     es_tests, data(rent) window(24) depvar(medrentpricepsqft_sfcc)
+  2.     es_tests, data(listing) window(24) depvar(medlistingpricepsqft_sfcc)
+  3. end
+
+. 
+. program es_tests
+  1. syntax, data(str) window(int) depvar(str) 
+  2.     use "../temp/baseline_`data'_panel_`window'.dta", clear
+  3.     create_event_plot, depvar(`depvar')                   ///
+>         event_var(last_sal_mw_event_rel_months`window') ///
+>         controls(" ") window(`window')    ///
+>         absorb(zipcode year_month) cluster(zipcode) ///
+>         name(`data') ///
+>         title("Two-way FE", size(tiny))
+  4. 
+.     create_event_plot, depvar(`depvar')                   ///
+>         event_var(last_sal_mw_event_rel_months`window') ///
+>         controls(" ") window(`window')    ///
+>         absorb(zipcode year_month calendar_month) cluster(zipcode) ///
+>         name(`data'_cal) ///
+>         title("Two-way FE and calendar-month", size(tiny))
+  5.         
+.     create_event_plot, depvar(`depvar')                   ///
+>         event_var(last_sal_mw_event_rel_months`window') ///
+>         controls(" ") window(`window')    ///
+>         absorb(zipcode year_month calendar_month##state) cluster(zipcode) ///
+>         name(`data'_calstate) ///
+>         title("Two-way FE and state-specific calendar-month", size(tiny))
+  6.         
+.     create_event_plot, depvar(`depvar')                   ///
+>         event_var(last_sal_mw_event_rel_months`window') ///
+>         controls(" ") window(`window')    ///
+>         absorb(zipcode year_month calendar_month##county) cluster(zipcode) //
+> /
+>         name(`data'_calcounty) ///
+>         title("Two-way FE and county-specific calendar-month", size(tiny))
+  7. 
+.     create_event_plot, depvar(`depvar')                   ///
+>         event_var(last_sal_mw_event_rel_months`window') ///
+>         controls(i.cumul_nbr_unused_mw_events) window(`window')    ///
+>         absorb(zipcode year_month calendar_month##county) cluster(zipcode) //
+> /
+>         name(`data'_unus_calcounty) ///
+>         title("Two-way FE county-specific calendar-month and number unused ev
+> ents FE", size(tiny))
+  8. 
+.     create_event_plot, depvar(`depvar')                   ///
+>         event_var(last_sal_mw_event_rel_months`window') ///
+>         controls(i.cumul_nbr_unused_mw_events) window(`window')    ///
+>         absorb(zipcode msa year_month calendar_month##county) cluster(zipcode
+> ) ///
+>         name(`data'_unus_msa_calcounty) ///
+>         title("Two-way FE msa FE county-specific calendar-month and number un
+> used events FE", size(tiny))
+  9.         
+.     create_event_plot, depvar(`depvar')                   ///
+>         event_var(last_sal_mw_event_rel_months`window') ///
+>         controls(i.cumul_nbr_unused_mw_events) window(`window')    ///
+>         absorb(zipcode msa year_month##state calendar_month##county) cluster(
+> zipcode) ///
+>         name(`data'_unus_msa_calcounty_stime) ///
+>         title("Zipcode FE msa FE county-specific calendar-month state-specifi
+> c time FE and number unused events FE", size(tiny))
+ 10.         
+.     create_event_plot, depvar(`depvar')                   ///
+>         event_var(last_sal_mw_event_rel_months`window') ///
+>         controls(i.cumul_nbr_unused_mw_events) window(`window')    ///
+>         absorb(zipcode msa year_month##county calendar_month##county) cluster
+> (zipcode) ///
+>         name(`data'_unus_msa_calcounty_ctime) ///
+>         title("Zipcode FE msa FE county-specific calendar-month county-specif
+> ic time FE and number unused events FE", size(tiny))
+ 11. 
+.     graph combine `data' `data'_cal `data'_calstate `data'_calcounty ///
+>         `data'_unus_calcounty `data'_unus_msa_calcounty ///
+>         `data'_unus_msa_calcounty_stime `data'_unus_msa_calcounty_ctime, ///
+>          xsize(20) ysize(10) row(2) col(4) ycommon graphregion(color(white))
+ 12.     graph export "../output/`data'_`window'_the_FEs_limit.png", replace
+ 13. end
+
+. 
+. main
+(MWFE estimator converged in 2 iterations)
+
+HDFE Linear regression                            Number of obs   =     72,996
+Absorbing 2 HDFE groups                           F(  50,    868) =       2.83
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9920
+                                                  Adj R-squared   =     0.9919
+                                                  Within R-sq.    =     0.0405
+Number of clusters (zipcode) =        869         Root MSE        =     0.0552
+
+                              (Std. Err. adjusted for 869 clusters in zipcode)
+------------------------------------------------------------------------------
+             |               Robust
+medre~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_~24 |
+          0  |  -.0187071   .0060198    -3.11   0.002    -.0305221   -.0068921
+          1  |  -.0075227   .0058723    -1.28   0.201    -.0190482    .0040028
+          2  |  -.0074614   .0049251    -1.51   0.130    -.0171279    .0022051
+          3  |  -.0045205   .0050352    -0.90   0.370    -.0144031     .005362
+          4  |  -.0092147   .0049954    -1.84   0.065    -.0190192    .0005897
+          5  |  -.0012575   .0044521    -0.28   0.778    -.0099956    .0074806
+          6  |  -.0007951   .0047126    -0.17   0.866    -.0100444    .0084542
+          7  |   .0004603   .0046073     0.10   0.920    -.0085824    .0095029
+          8  |  -.0017022   .0047163    -0.36   0.718     -.010959    .0075545
+          9  |  -.0064174    .004347    -1.48   0.140    -.0149493    .0021144
+         10  |  -.0029691   .0045159    -0.66   0.511    -.0118325    .0058943
+         11  |  -.0000805   .0043052    -0.02   0.985    -.0085302    .0083692
+         12  |  -.0007243   .0041664    -0.17   0.862    -.0089018    .0074532
+         13  |   .0048498   .0041277     1.17   0.240    -.0032517    .0129513
+         14  |   .0044653   .0039628     1.13   0.260    -.0033124     .012243
+         15  |   .0024288   .0044761     0.54   0.588    -.0063565    .0112141
+         16  |   .0099484    .004969     2.00   0.046     .0001958    .0197011
+         17  |    .000809   .0052389     0.15   0.877    -.0094734    .0110914
+         18  |    .006781   .0046321     1.46   0.144    -.0023104    .0158724
+         19  |   .0040644   .0043553     0.93   0.351    -.0044837    .0126126
+         20  |   .0059368   .0037181     1.60   0.111    -.0013606    .0132343
+         21  |  -.0025299   .0041881    -0.60   0.546      -.01075    .0056902
+         22  |    .000785    .003634     0.22   0.829    -.0063475    .0079176
+         23  |  -.0006889   .0036247    -0.19   0.849    -.0078031    .0064253
+         25  |   .0119734   .0035233     3.40   0.001     .0050582    .0188887
+         26  |   .0149033   .0040219     3.71   0.000     .0070096     .022797
+         27  |   .0161431   .0040509     3.99   0.000     .0081925    .0240938
+         28  |   .0179628   .0049019     3.66   0.000     .0083419    .0275837
+         29  |   .0237019   .0053265     4.45   0.000     .0132475    .0341563
+         30  |   .0238891    .005384     4.44   0.000      .013322    .0344563
+         31  |    .024715   .0050783     4.87   0.000     .0147478    .0346821
+         32  |   .0281098   .0051403     5.47   0.000     .0180209    .0381987
+         33  |   .0254814   .0049591     5.14   0.000     .0157482    .0352146
+         34  |   .0196719   .0046431     4.24   0.000     .0105589    .0287849
+         35  |   .0238862   .0046582     5.13   0.000     .0147436    .0330287
+         36  |    .021057   .0049783     4.23   0.000     .0112861     .030828
+         37  |   .0256707   .0049223     5.22   0.000     .0160097    .0353316
+         38  |   .0279583   .0050855     5.50   0.000     .0179769    .0379397
+         39  |   .0339811    .005752     5.91   0.000     .0226916    .0452706
+         40  |   .0377229   .0057598     6.55   0.000     .0264182    .0490276
+         41  |   .0397638   .0060819     6.54   0.000     .0278269    .0517007
+         42  |   .0362226   .0062095     5.83   0.000     .0240352      .04841
+         43  |   .0398186   .0060417     6.59   0.000     .0279605    .0516767
+         44  |   .0350113   .0060411     5.80   0.000     .0231545    .0468682
+         45  |   .0300375   .0057371     5.24   0.000     .0187772    .0412977
+         46  |   .0286331   .0055011     5.20   0.000      .017836    .0394302
+         47  |   .0287056   .0057265     5.01   0.000     .0174663     .039945
+         48  |   .0299485   .0060452     4.95   0.000     .0180836    .0418135
+         49  |   .0373606    .006267     5.96   0.000     .0250604    .0496609
+       1000  |   .0509636   .0068866     7.40   0.000     .0374473      .06448
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     zipcode |       869         869           0    *|
+  year_month |        84           0          84     |
+-----------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(MWFE estimator converged in 2 iterations)
+
+HDFE Linear regression                            Number of obs   =     72,996
+Absorbing 3 HDFE groups                           F(  50,    868) =       2.83
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9920
+                                                  Adj R-squared   =     0.9919
+                                                  Within R-sq.    =     0.0405
+Number of clusters (zipcode) =        869         Root MSE        =     0.0552
+
+                              (Std. Err. adjusted for 869 clusters in zipcode)
+------------------------------------------------------------------------------
+             |               Robust
+medre~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_~24 |
+          0  |  -.0187071   .0060198    -3.11   0.002    -.0305221   -.0068921
+          1  |  -.0075227   .0058723    -1.28   0.201    -.0190482    .0040028
+          2  |  -.0074614   .0049251    -1.51   0.130    -.0171279    .0022051
+          3  |  -.0045205   .0050352    -0.90   0.370    -.0144031     .005362
+          4  |  -.0092147   .0049954    -1.84   0.065    -.0190192    .0005897
+          5  |  -.0012575   .0044521    -0.28   0.778    -.0099956    .0074806
+          6  |  -.0007951   .0047126    -0.17   0.866    -.0100444    .0084542
+          7  |   .0004603   .0046073     0.10   0.920    -.0085824    .0095029
+          8  |  -.0017022   .0047163    -0.36   0.718     -.010959    .0075545
+          9  |  -.0064174    .004347    -1.48   0.140    -.0149493    .0021144
+         10  |  -.0029691   .0045159    -0.66   0.511    -.0118325    .0058943
+         11  |  -.0000805   .0043052    -0.02   0.985    -.0085302    .0083692
+         12  |  -.0007243   .0041664    -0.17   0.862    -.0089018    .0074532
+         13  |   .0048498   .0041277     1.17   0.240    -.0032517    .0129513
+         14  |   .0044653   .0039628     1.13   0.260    -.0033124     .012243
+         15  |   .0024288   .0044761     0.54   0.588    -.0063565    .0112141
+         16  |   .0099484    .004969     2.00   0.046     .0001958    .0197011
+         17  |    .000809   .0052389     0.15   0.877    -.0094734    .0110914
+         18  |    .006781   .0046321     1.46   0.144    -.0023104    .0158724
+         19  |   .0040644   .0043553     0.93   0.351    -.0044837    .0126126
+         20  |   .0059368   .0037181     1.60   0.111    -.0013606    .0132343
+         21  |  -.0025299   .0041881    -0.60   0.546      -.01075    .0056902
+         22  |    .000785    .003634     0.22   0.829    -.0063475    .0079176
+         23  |  -.0006889   .0036247    -0.19   0.849    -.0078031    .0064253
+         25  |   .0119734   .0035233     3.40   0.001     .0050582    .0188887
+         26  |   .0149033   .0040219     3.71   0.000     .0070096     .022797
+         27  |   .0161431   .0040509     3.99   0.000     .0081925    .0240938
+         28  |   .0179628   .0049019     3.66   0.000     .0083419    .0275837
+         29  |   .0237019   .0053265     4.45   0.000     .0132475    .0341563
+         30  |   .0238891    .005384     4.44   0.000      .013322    .0344563
+         31  |    .024715   .0050783     4.87   0.000     .0147478    .0346821
+         32  |   .0281098   .0051403     5.47   0.000     .0180209    .0381987
+         33  |   .0254814   .0049591     5.14   0.000     .0157482    .0352146
+         34  |   .0196719   .0046431     4.24   0.000     .0105589    .0287849
+         35  |   .0238862   .0046582     5.13   0.000     .0147436    .0330287
+         36  |    .021057   .0049783     4.23   0.000     .0112861     .030828
+         37  |   .0256707   .0049223     5.22   0.000     .0160097    .0353316
+         38  |   .0279583   .0050855     5.50   0.000     .0179769    .0379397
+         39  |   .0339811    .005752     5.91   0.000     .0226916    .0452706
+         40  |   .0377229   .0057598     6.55   0.000     .0264182    .0490276
+         41  |   .0397638   .0060819     6.54   0.000     .0278269    .0517007
+         42  |   .0362226   .0062095     5.83   0.000     .0240352      .04841
+         43  |   .0398186   .0060417     6.59   0.000     .0279605    .0516767
+         44  |   .0350113   .0060411     5.80   0.000     .0231545    .0468682
+         45  |   .0300375   .0057371     5.24   0.000     .0187772    .0412977
+         46  |   .0286331   .0055011     5.20   0.000      .017836    .0394302
+         47  |   .0287056   .0057265     5.01   0.000     .0174663     .039945
+         48  |   .0299485   .0060452     4.95   0.000     .0180836    .0418135
+         49  |   .0373606    .006267     5.96   0.000     .0250604    .0496609
+       1000  |   .0509636   .0068866     7.40   0.000     .0374473      .06448
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+--------------------------------------------------------+
+    Absorbed FE | Categories  - Redundant  = Num. Coefs |
+----------------+---------------------------------------|
+        zipcode |       869         869           0    *|
+     year_month |        84           0          84     |
+ calendar_month |        12          12           0     |
+--------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(MWFE estimator converged in 2 iterations)
+
+HDFE Linear regression                            Number of obs   =     72,996
+Absorbing 3 HDFE groups                           F(  50,    868) =       2.94
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9922
+                                                  Adj R-squared   =     0.9920
+                                                  Within R-sq.    =     0.0416
+Number of clusters (zipcode) =        869         Root MSE        =     0.0546
+
+                              (Std. Err. adjusted for 869 clusters in zipcode)
+------------------------------------------------------------------------------
+             |               Robust
+medre~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_~24 |
+          0  |  -.0177312   .0061607    -2.88   0.004    -.0298228   -.0056395
+          1  |   .0016924   .0068282     0.25   0.804    -.0117093    .0150942
+          2  |  -.0008427   .0055474    -0.15   0.879    -.0117306    .0100452
+          3  |  -.0010432   .0056293    -0.19   0.853    -.0120918    .0100055
+          4  |  -.0087274   .0056814    -1.54   0.125    -.0198783    .0024235
+          5  |  -.0034955   .0049539    -0.71   0.481    -.0132184    .0062274
+          6  |  -.0041402   .0051941    -0.80   0.426    -.0143346    .0060543
+          7  |  -.0007656   .0048918    -0.16   0.876    -.0103666    .0088355
+          8  |  -.0040364   .0053806    -0.75   0.453     -.014597    .0065242
+          9  |  -.0062973   .0047017    -1.34   0.181    -.0155253    .0029307
+         10  |  -.0010808   .0045494    -0.24   0.812      -.01001    .0078483
+         11  |   .0016636   .0045202     0.37   0.713    -.0072081    .0105354
+         12  |  -.0010984    .004187    -0.26   0.793    -.0093163    .0071195
+         13  |   .0130287   .0049929     2.61   0.009     .0032291    .0228283
+         14  |   .0100335   .0045895     2.19   0.029     .0010257    .0190413
+         15  |   .0057509    .005459     1.05   0.292    -.0049635    .0164653
+         16  |   .0113941   .0059434     1.92   0.056    -.0002711    .0230594
+         17  |  -.0014263   .0060894    -0.23   0.815     -.013378    .0105254
+         18  |    .003623   .0053596     0.68   0.499    -.0068964    .0141423
+         19  |   .0027501   .0048956     0.56   0.574    -.0068586    .0123588
+         20  |   .0038682   .0045909     0.84   0.400    -.0051423    .0128787
+         21  |  -.0023493   .0048047    -0.49   0.625    -.0117795     .007081
+         22  |   .0028729   .0042354     0.68   0.498      -.00544    .0111857
+         23  |   .0012271   .0039193     0.31   0.754    -.0064653    .0089195
+         25  |   .0200642   .0046016     4.36   0.000     .0110326    .0290958
+         26  |   .0205036   .0045909     4.47   0.000      .011493    .0295142
+         27  |   .0194214   .0045709     4.25   0.000     .0104501    .0283926
+         28  |   .0194715     .00546     3.57   0.000     .0087552    .0301878
+         29  |   .0217418    .005808     3.74   0.000     .0103424    .0331412
+         30  |   .0209125   .0056359     3.71   0.000     .0098509     .031974
+         31  |    .023489   .0054494     4.31   0.000     .0127935    .0341844
+         32  |   .0260816   .0057964     4.50   0.000      .014705    .0374583
+         33  |   .0254509   .0057426     4.43   0.000       .01418    .0367218
+         34  |   .0216774   .0051459     4.21   0.000     .0115775    .0317774
+         35  |   .0258116   .0050484     5.11   0.000     .0159031      .03572
+         36  |   .0210545   .0049939     4.22   0.000     .0112529     .030856
+         37  |   .0338257   .0059669     5.67   0.000     .0221145    .0455368
+         38  |   .0336277   .0056182     5.99   0.000     .0226007    .0446546
+         39  |   .0372745   .0061067     6.10   0.000     .0252888    .0492601
+         40  |   .0391713   .0060708     6.45   0.000     .0272561    .0510865
+         41  |   .0377159   .0062154     6.07   0.000      .025517    .0499148
+         42  |   .0331467   .0060891     5.44   0.000     .0211956    .0450978
+         43  |   .0385762   .0064303     6.00   0.000     .0259553    .0511971
+         44  |   .0328236   .0066516     4.93   0.000     .0197685    .0458787
+         45  |   .0299464   .0063975     4.68   0.000     .0173901    .0425027
+         46  |   .0306507   .0058191     5.27   0.000     .0192296    .0420718
+         47  |   .0307786   .0061013     5.04   0.000     .0188036    .0427536
+         48  |    .030115   .0060867     4.95   0.000     .0181687    .0420613
+         49  |   .0456019   .0071189     6.41   0.000     .0316296    .0595742
+       1000  |   .0520844   .0070844     7.35   0.000     .0381798     .065989
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+----------------------------------------------------------------+
+            Absorbed FE | Categories  - Redundant  = Num. Coefs |
+------------------------+---------------------------------------|
+                zipcode |       869         869           0    *|
+             year_month |        84           0          84     |
+   calendar_month#state |       408          12         396     |
+----------------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(MWFE estimator converged in 2 iterations)
+
+HDFE Linear regression                            Number of obs   =     72,996
+Absorbing 3 HDFE groups                           F(  50,    868) =       2.63
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9922
+                                                  Adj R-squared   =     0.9919
+                                                  Within R-sq.    =     0.0414
+Number of clusters (zipcode) =        869         Root MSE        =     0.0549
+
+                              (Std. Err. adjusted for 869 clusters in zipcode)
+------------------------------------------------------------------------------
+             |               Robust
+medre~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_~24 |
+          0  |  -.0180433    .006124    -2.95   0.003    -.0300629   -.0060237
+          1  |  -.0051442   .0063708    -0.81   0.420    -.0176482    .0073599
+          2  |  -.0046914   .0055263    -0.85   0.396    -.0155378     .006155
+          3  |  -.0039976   .0054519    -0.73   0.464     -.014698    .0067028
+          4  |   -.010235   .0056359    -1.82   0.070    -.0212966    .0008267
+          5  |  -.0025931   .0049436    -0.52   0.600    -.0122958    .0071096
+          6  |  -.0013149   .0050681    -0.26   0.795    -.0112621    .0086322
+          7  |   .0006312   .0051563     0.12   0.903    -.0094892    .0107515
+          8  |  -.0005802   .0051898    -0.11   0.911    -.0107662    .0096058
+          9  |  -.0046561   .0047333    -0.98   0.326    -.0139462     .004634
+         10  |  -.0002874   .0046753    -0.06   0.951    -.0094636    .0088888
+         11  |   .0014612   .0045153     0.32   0.746    -.0074011    .0103235
+         12  |   -.001184   .0042008    -0.28   0.778    -.0094289    .0070609
+         13  |   .0071196   .0048774     1.46   0.145    -.0024533    .0166925
+         14  |   .0068609   .0047293     1.45   0.147    -.0024214    .0161431
+         15  |   .0028917   .0051115     0.57   0.572    -.0071407    .0129241
+         16  |   .0093587   .0054581     1.71   0.087    -.0013539    .0200714
+         17  |  -.0010612   .0054138    -0.20   0.845    -.0116868    .0095644
+         18  |   .0058155   .0049692     1.17   0.242    -.0039377    .0155686
+         19  |   .0037714   .0045549     0.83   0.408    -.0051685    .0127114
+         20  |   .0069846   .0040721     1.72   0.087    -.0010076    .0149768
+         21  |  -.0005327   .0045957    -0.12   0.908    -.0095526    .0084873
+         22  |   .0040193   .0039534     1.02   0.310    -.0037401    .0117787
+         23  |   .0013081   .0038824     0.34   0.736    -.0063119    .0089282
+         25  |   .0143867   .0043281     3.32   0.001      .005892    .0228815
+         26  |   .0173995   .0046653     3.73   0.000     .0082429    .0265561
+         27  |    .016656   .0045279     3.68   0.000     .0077691     .025543
+         28  |    .017397   .0052702     3.30   0.001     .0070531    .0277409
+         29  |    .021808   .0054053     4.03   0.000     .0111991     .032417
+         30  |   .0228153   .0053997     4.23   0.000     .0122174    .0334133
+         31  |   .0243509   .0054092     4.50   0.000     .0137343    .0349675
+         32  |   .0290241   .0053237     5.45   0.000     .0185752     .039473
+         33  |   .0273661   .0053076     5.16   0.000     .0169489    .0377834
+         34  |     .02289   .0048962     4.68   0.000     .0132803    .0324997
+         35  |   .0259922    .005039     5.16   0.000     .0161021    .0358822
+         36  |   .0211651   .0050218     4.21   0.000     .0113088    .0310215
+         37  |   .0281217   .0054839     5.13   0.000     .0173585    .0388849
+         38  |   .0305047   .0054211     5.63   0.000     .0198647    .0411447
+         39  |   .0344987   .0060816     5.67   0.000     .0225623    .0464351
+         40  |   .0371117   .0060498     6.13   0.000     .0252378    .0489857
+         41  |   .0378463   .0062899     6.02   0.000     .0255011    .0501914
+         42  |   .0351387   .0064151     5.48   0.000     .0225478    .0477295
+         43  |   .0394713   .0064878     6.08   0.000     .0267376     .052205
+         44  |   .0359098   .0063226     5.68   0.000     .0235004    .0483192
+         45  |   .0319593   .0060954     5.24   0.000     .0199959    .0439228
+         46  |   .0319257   .0057422     5.56   0.000     .0206556    .0431959
+         47  |   .0309265   .0060549     5.11   0.000     .0190425    .0428105
+         48  |   .0301233    .006098     4.94   0.000     .0181548    .0420919
+         49  |   .0398529   .0068934     5.78   0.000     .0263233    .0533826
+       1000  |   .0519013   .0071753     7.23   0.000     .0378184    .0659842
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------------------+
+             Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------------------+---------------------------------------|
+                 zipcode |       869         869           0    *|
+              year_month |        84           0          84     |
+   calendar_month#county |      1188          12        1176     |
+-----------------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(MWFE estimator converged in 2 iterations)
+
+HDFE Linear regression                            Number of obs   =     72,996
+Absorbing 3 HDFE groups                           F(  57,    868) =       7.61
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9925
+                                                  Adj R-squared   =     0.9923
+                                                  Within R-sq.    =     0.0841
+Number of clusters (zipcode) =        869         Root MSE        =     0.0537
+
+                              (Std. Err. adjusted for 869 clusters in zipcode)
+------------------------------------------------------------------------------
+             |               Robust
+medre~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_~24 |
+          0  |  -.0081573   .0061037    -1.34   0.182     -.020137    .0038224
+          1  |    .005115   .0065197     0.78   0.433    -.0076812    .0179111
+          2  |   .0058359   .0056919     1.03   0.306    -.0053356    .0170074
+          3  |   .0064478   .0056158     1.15   0.251    -.0045744      .01747
+          4  |   .0002882   .0056415     0.05   0.959    -.0107843    .0113608
+          5  |    .006007   .0049391     1.22   0.224     -.003687    .0157009
+          6  |   .0072617   .0050857     1.43   0.154    -.0027201    .0172435
+          7  |   .0079577   .0051873     1.53   0.125    -.0022233    .0181387
+          8  |   .0067952   .0051897     1.31   0.191    -.0033906     .016981
+          9  |   .0026203    .004697     0.56   0.577    -.0065984     .011839
+         10  |    .007037   .0046318     1.52   0.129    -.0020539    .0161279
+         11  |   .0088689   .0044837     1.98   0.048     .0000688     .017669
+         12  |   .0062447    .004135     1.51   0.131     -.001871    .0143605
+         13  |   .0059991   .0049308     1.22   0.224    -.0036786    .0156768
+         14  |   .0059154   .0048617     1.22   0.224    -.0036267    .0154575
+         15  |   .0018093   .0051495     0.35   0.725    -.0082977    .0119163
+         16  |   .0085015    .005495     1.55   0.122    -.0022835    .0192865
+         17  |   -.001195   .0054078    -0.22   0.825    -.0118089    .0094189
+         18  |    .005654   .0050489     1.12   0.263    -.0042555    .0155635
+         19  |   .0039585   .0045597     0.87   0.386    -.0049909    .0129078
+         20  |    .007227   .0040784     1.77   0.077    -.0007776    .0152316
+         21  |  -.0005432   .0045959    -0.12   0.906    -.0095635    .0084771
+         22  |   .0040503   .0039499     1.03   0.305    -.0037021    .0118027
+         23  |   .0012962   .0038837     0.33   0.739    -.0063263    .0089188
+         25  |   .0187844   .0042909     4.38   0.000     .0103627    .0272061
+         26  |   .0220406   .0047636     4.63   0.000     .0126911    .0313902
+         27  |   .0212202   .0045214     4.69   0.000      .012346    .0300944
+         28  |   .0222335   .0052019     4.27   0.000     .0120238    .0324433
+         29  |   .0274611   .0052996     5.18   0.000     .0170597    .0378625
+         30  |    .028459   .0053762     5.29   0.000     .0179071    .0390108
+         31  |   .0307359   .0053883     5.70   0.000     .0201602    .0413116
+         32  |   .0354476   .0052523     6.75   0.000     .0251388    .0457563
+         33  |   .0337871   .0052471     6.44   0.000     .0234887    .0440856
+         34  |   .0288922   .0049105     5.88   0.000     .0192543      .03853
+         35  |   .0320915   .0050823     6.31   0.000     .0221164    .0420666
+         36  |    .027301   .0050724     5.38   0.000     .0173455    .0372565
+         37  |   .0288882   .0054315     5.32   0.000     .0182278    .0395486
+         38  |   .0315726     .00533     5.92   0.000     .0211115    .0420338
+         39  |   .0355131   .0061049     5.82   0.000     .0235311    .0474951
+         40  |   .0382501   .0061308     6.24   0.000     .0262171     .050283
+         41  |    .040137   .0063353     6.34   0.000     .0277027    .0525713
+         42  |   .0374419   .0064656     5.79   0.000      .024752    .0501319
+         43  |   .0420647   .0063607     6.61   0.000     .0295805    .0545489
+         44  |   .0386127    .006236     6.19   0.000     .0263733    .0508521
+         45  |   .0347877   .0060361     5.76   0.000     .0229406    .0466347
+         46  |   .0341908   .0055884     6.12   0.000     .0232224    .0451592
+         47  |   .0332803   .0059087     5.63   0.000     .0216833    .0448774
+         48  |   .0325116   .0059111     5.50   0.000     .0209098    .0441134
+         49  |   .0307008   .0071831     4.27   0.000     .0166025     .044799
+       1000  |   .0441449   .0073196     6.03   0.000     .0297787    .0585111
+             |
+cumul_nbr_~s |
+          1  |  -.0096123   .0056857    -1.69   0.091    -.0207717    .0015471
+          2  |   .0054039   .0066975     0.81   0.420    -.0077414    .0185491
+          3  |   .0232555   .0078595     2.96   0.003     .0078298    .0386813
+          4  |   .0370238   .0086278     4.29   0.000       .02009    .0539576
+          5  |   .0563249   .0088358     6.37   0.000      .038983    .0736669
+          6  |   .0672676   .0093288     7.21   0.000      .048958    .0855771
+          7  |   .3410116   .0630502     5.41   0.000     .2172628    .4647603
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------------------+
+             Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------------------+---------------------------------------|
+                 zipcode |       869         869           0    *|
+              year_month |        84           0          84     |
+   calendar_month#county |      1188          12        1176     |
+-----------------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(MWFE estimator converged in 2 iterations)
+
+HDFE Linear regression                            Number of obs   =     72,996
+Absorbing 4 HDFE groups                           F(  57,    868) =       7.60
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9925
+                                                  Adj R-squared   =     0.9923
+                                                  Within R-sq.    =     0.0841
+Number of clusters (zipcode) =        869         Root MSE        =     0.0537
+
+                              (Std. Err. adjusted for 869 clusters in zipcode)
+------------------------------------------------------------------------------
+             |               Robust
+medre~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_~24 |
+          0  |  -.0081573   .0061075    -1.34   0.182    -.0201445    .0038299
+          1  |    .005115   .0065237     0.78   0.433    -.0076892    .0179191
+          2  |   .0058359   .0056955     1.02   0.306    -.0053426    .0170144
+          3  |   .0064478   .0056193     1.15   0.252    -.0045812    .0174769
+          4  |   .0002882    .005645     0.05   0.959    -.0107912    .0113677
+          5  |    .006007   .0049422     1.22   0.225     -.003693     .015707
+          6  |   .0072617   .0050889     1.43   0.154    -.0027263    .0172497
+          7  |   .0079577   .0051905     1.53   0.126    -.0022296     .018145
+          8  |   .0067952   .0051929     1.31   0.191    -.0033969    .0169873
+          9  |   .0026203   .0046999     0.56   0.577    -.0066041    .0118448
+         10  |    .007037   .0046347     1.52   0.129    -.0020596    .0161336
+         11  |   .0088689   .0044864     1.98   0.048     .0000634    .0176744
+         12  |   .0062447   .0041375     1.51   0.132     -.001876    .0143655
+         13  |   .0059991   .0049339     1.22   0.224    -.0036846    .0156828
+         14  |   .0059154   .0048647     1.22   0.224    -.0036326    .0154635
+         15  |   .0018093   .0051527     0.35   0.726     -.008304    .0119225
+         16  |   .0085015   .0054984     1.55   0.122    -.0022902    .0192932
+         17  |   -.001195   .0054112    -0.22   0.825    -.0118155    .0094255
+         18  |    .005654    .005052     1.12   0.263    -.0042616    .0155696
+         19  |   .0039585   .0045625     0.87   0.386    -.0049964    .0129134
+         20  |    .007227   .0040809     1.77   0.077    -.0007825    .0152366
+         21  |  -.0005432   .0045987    -0.12   0.906    -.0095691    .0084827
+         22  |   .0040503   .0039523     1.02   0.306     -.003707    .0118075
+         23  |   .0012962   .0038861     0.33   0.739    -.0063311    .0089235
+         25  |   .0187844   .0042935     4.38   0.000     .0103574    .0272113
+         26  |   .0220406   .0047666     4.62   0.000     .0126853     .031396
+         27  |   .0212202   .0045242     4.69   0.000     .0123405    .0300999
+         28  |   .0222335   .0052051     4.27   0.000     .0120175    .0324496
+         29  |   .0274611   .0053028     5.18   0.000     .0170532     .037869
+         30  |    .028459   .0053795     5.29   0.000     .0179006    .0390173
+         31  |   .0307359   .0053917     5.70   0.000     .0201536    .0413182
+         32  |   .0354476   .0052556     6.74   0.000     .0251324    .0457627
+         33  |   .0337871   .0052503     6.44   0.000     .0234823     .044092
+         34  |   .0288922   .0049136     5.88   0.000     .0192483     .038536
+         35  |   .0320915   .0050855     6.31   0.000     .0221102    .0420728
+         36  |    .027301   .0050755     5.38   0.000     .0173393    .0372627
+         37  |   .0288882   .0054349     5.32   0.000     .0182211    .0395552
+         38  |   .0315726   .0053333     5.92   0.000      .021105    .0420403
+         39  |   .0355131   .0061087     5.81   0.000     .0235236    .0475026
+         40  |   .0382501   .0061346     6.24   0.000     .0262096    .0502905
+         41  |    .040137   .0063392     6.33   0.000      .027695     .052579
+         42  |   .0374419   .0064696     5.79   0.000     .0247441    .0501398
+         43  |   .0420647   .0063647     6.61   0.000     .0295728    .0545566
+         44  |   .0386127   .0062399     6.19   0.000     .0263657    .0508598
+         45  |   .0347877   .0060398     5.76   0.000     .0229333    .0466421
+         46  |   .0341908   .0055919     6.11   0.000     .0232156     .045166
+         47  |   .0332803   .0059124     5.63   0.000     .0216761    .0448846
+         48  |   .0325116   .0059148     5.50   0.000     .0209026    .0441206
+         49  |   .0307008   .0071876     4.27   0.000     .0165937    .0448078
+       1000  |   .0441449   .0073242     6.03   0.000     .0297698    .0585201
+             |
+cumul_nbr_~s |
+          1  |  -.0096123   .0056893    -1.69   0.091    -.0207787     .001554
+          2  |   .0054039   .0067017     0.81   0.420    -.0077495    .0185573
+          3  |   .0232555   .0078643     2.96   0.003     .0078202    .0386909
+          4  |   .0370238   .0086332     4.29   0.000     .0200795    .0539681
+          5  |   .0563249   .0088412     6.37   0.000     .0389722    .0736777
+          6  |   .0672676   .0093346     7.21   0.000     .0489466    .0855885
+          7  |   .3410116   .0630894     5.41   0.000     .2171859    .4648372
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------------------+
+             Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------------------+---------------------------------------|
+                 zipcode |       869         869           0    *|
+                     msa |        97           0          97     |
+              year_month |        84           1          83     |
+   calendar_month#county |      1188          19        1169    ?|
+-----------------------------------------------------------------+
+? = number of redundant parameters may be higher
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(dropped 336 singleton observations)
+(MWFE estimator converged in 22 iterations)
+
+HDFE Linear regression                            Number of obs   =     72,660
+Absorbing 4 HDFE groups                           F(  57,    864) =      28.85
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9942
+                                                  Adj R-squared   =     0.9938
+                                                  Within R-sq.    =     0.0216
+Number of clusters (zipcode) =        865         Root MSE        =     0.0484
+
+                              (Std. Err. adjusted for 865 clusters in zipcode)
+------------------------------------------------------------------------------
+             |               Robust
+medre~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_~24 |
+          0  |   .0007073   .0169527     0.04   0.967     -.032566    .0339807
+          1  |  -.0001984   .0256084    -0.01   0.994    -.0504605    .0500636
+          2  |  -.0101231    .016973    -0.60   0.551    -.0434362    .0231901
+          3  |  -.0107262   .0151483    -0.71   0.479     -.040458    .0190055
+          4  |  -.0277912   .0183748    -1.51   0.131    -.0638557    .0082732
+          5  |  -.0155122    .013845    -1.12   0.263    -.0426859    .0116615
+          6  |  -.0123831   .0149606    -0.83   0.408    -.0417466    .0169803
+          7  |  -.0148845   .0131859    -1.13   0.259    -.0407647    .0109957
+          8  |  -.0254899   .0203766    -1.25   0.211    -.0654833    .0145036
+          9  |  -.0309797   .0152469    -2.03   0.042     -.060905   -.0010543
+         10  |  -.0056112   .0138524    -0.41   0.686    -.0327995     .021577
+         11  |  -.0030482   .0148737    -0.20   0.838    -.0322411    .0261446
+         12  |  -.0130215   .0156275    -0.83   0.405    -.0436938    .0176507
+         13  |  -.0262977    .023635    -1.11   0.266    -.0726865     .020091
+         14  |  -.0291012   .0202377    -1.44   0.151     -.068822    .0106195
+         15  |  -.0527797   .0266019    -1.98   0.048    -.1049916   -.0005678
+         16  |  -.0353955   .0227132    -1.56   0.120    -.0799751    .0091841
+         17  |  -.0386324   .0242372    -1.59   0.111    -.0862031    .0089382
+         18  |  -.0152293   .0184591    -0.83   0.410    -.0514592    .0210006
+         19  |   .0001969     .01385     0.01   0.989    -.0269868    .0273805
+         20  |  -.0005091    .015448    -0.03   0.974     -.030829    .0298108
+         21  |  -.0083149   .0109888    -0.76   0.449    -.0298829     .013253
+         22  |   .0052888   .0147338     0.36   0.720    -.0236295    .0342072
+         23  |  -.0043894   .0138806    -0.32   0.752     -.031633    .0228542
+         25  |   .0038526   .0136232     0.28   0.777    -.0228858    .0305909
+         26  |   .0003102   .0149854     0.02   0.983    -.0291019    .0297224
+         27  |  -.0036978   .0151691    -0.24   0.807    -.0334705    .0260749
+         28  |    .001063   .0188938     0.06   0.955    -.0360201     .038146
+         29  |  -.0027057   .0202123    -0.13   0.894    -.0423767    .0369652
+         30  |   .0011177   .0201378     0.06   0.956    -.0384071    .0406425
+         31  |   .0168416   .0264266     0.64   0.524    -.0350263    .0687094
+         32  |   .0027116    .020461     0.13   0.895    -.0374475    .0428708
+         33  |    .020761    .020738     1.00   0.317    -.0199417    .0614637
+         34  |   .0345669   .0262246     1.32   0.188    -.0169045    .0860384
+         35  |   .0364377    .030728     1.19   0.236    -.0238725    .0967478
+         36  |   .0247564   .0271096     0.91   0.361    -.0284519    .0779647
+         37  |  -.0041002   .0255741    -0.16   0.873    -.0542949    .0460944
+         38  |   -.002141   .0289046    -0.07   0.941    -.0588724    .0545904
+         39  |  -.0115056   .0239094    -0.48   0.630    -.0584328    .0354217
+         40  |    .000743   .0286594     0.03   0.979    -.0555071    .0569932
+         41  |  -.0183292   .0288487    -0.64   0.525    -.0749509    .0382926
+         42  |  -.0168868    .027317    -0.62   0.537    -.0705022    .0367286
+         43  |   .0600826   .0390996     1.54   0.125    -.0166587    .1368239
+         44  |   .0275084   .0352486     0.78   0.435    -.0416745    .0966912
+         45  |   .0295105   .0346006     0.85   0.394    -.0384006    .0974216
+         46  |   .0470819   .0405217     1.16   0.246    -.0324507    .1266145
+         47  |   .0260441   .0394725     0.66   0.510    -.0514292    .1035174
+         48  |   .0213072   .0385052     0.55   0.580    -.0542674    .0968818
+         49  |   .0092405   .0425214     0.22   0.828    -.0742168    .0926977
+       1000  |  -.0073405   .0444685    -0.17   0.869    -.0946194    .0799384
+             |
+cumul_nbr_~s |
+          1  |  -.0774989   .0269475    -2.88   0.004    -.1303892   -.0246087
+          2  |   -.075058   .0261681    -2.87   0.004    -.1264186   -.0236974
+          3  |  -.0376749   .0302653    -1.24   0.214     -.097077    .0217272
+          4  |   .0695996   .0481339     1.45   0.149    -.0248735    .1640727
+          5  |   .0448272   .0473917     0.95   0.344    -.0481891    .1378435
+          6  |   .2124097   .0785252     2.70   0.007     .0582873    .3665322
+          7  |   .3817421   .1137057     3.36   0.001     .1585704    .6049139
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------------------+
+             Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------------------+---------------------------------------|
+                 zipcode |       865         865           0    *|
+                     msa |        95           0          95     |
+        year_month#state |      2520          25        2495     |
+   calendar_month#county |      1164          18        1146    ?|
+-----------------------------------------------------------------+
+? = number of redundant parameters may be higher
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(dropped 1512 singleton observations)
+note: 7bn.cumul_nbr_unused_mw_events is probably collinear with the fixed effec
+> ts (all partialled-out values are close to zero; tol = 1.0e-09)
+(MWFE estimator converged in 2 iterations)
+note: 7.cumul_nbr_unused_mw_events omitted because of collinearity
+
+HDFE Linear regression                            Number of obs   =     71,484
+Absorbing 4 HDFE groups                           F(  56,    850) =       2.94
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9945
+                                                  Adj R-squared   =     0.9938
+                                                  Within R-sq.    =     0.0284
+Number of clusters (zipcode) =        851         Root MSE        =     0.0486
+
+                              (Std. Err. adjusted for 851 clusters in zipcode)
+------------------------------------------------------------------------------
+             |               Robust
+medre~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_~24 |
+          0  |  -.0285003   .0119483    -2.39   0.017     -.051952   -.0050486
+          1  |  -.0168238   .0087042    -1.93   0.054     -.033908    .0002604
+          2  |  -.0146868   .0088272    -1.66   0.097    -.0320123    .0026388
+          3  |  -.0149297   .0091672    -1.63   0.104    -.0329227    .0030633
+          4  |  -.0142855   .0086967    -1.64   0.101    -.0313551    .0027841
+          5  |  -.0037775   .0078772    -0.48   0.632    -.0192385    .0116835
+          6  |  -.0045104   .0085314    -0.53   0.597    -.0212554    .0122347
+          7  |   .0016978   .0081245     0.21   0.835    -.0142486    .0176442
+          8  |   .0037951   .0085596     0.44   0.658    -.0130052    .0205955
+          9  |  -.0033186     .00777    -0.43   0.669    -.0185693    .0119321
+         10  |  -.0020405   .0076384    -0.27   0.789    -.0170328    .0129519
+         11  |   .0048149   .0077535     0.62   0.535    -.0104033    .0200331
+         12  |   .0015533    .007288     0.21   0.831    -.0127513    .0158579
+         13  |   .0032772    .008176     0.40   0.689    -.0127704    .0193248
+         14  |   -.003725   .0079008    -0.47   0.637    -.0192325    .0117825
+         15  |  -.0049174   .0094827    -0.52   0.604    -.0235296    .0136948
+         16  |   .0025766   .0094546     0.27   0.785    -.0159805    .0211337
+         17  |  -.0043423   .0090384    -0.48   0.631    -.0220825    .0133979
+         18  |   .0078606   .0092529     0.85   0.396    -.0103007    .0260219
+         19  |  -.0027111    .008529    -0.32   0.751    -.0194514    .0140292
+         20  |   .0002881   .0073099     0.04   0.969    -.0140594    .0146357
+         21  |  -.0136837   .0092609    -1.48   0.140    -.0318606    .0044931
+         22  |  -.0122322   .0075784    -1.61   0.107    -.0271067    .0026424
+         23  |   -.005692   .0071989    -0.79   0.429    -.0198217    .0084376
+         25  |   .0050608   .0066519     0.76   0.447    -.0079953    .0181168
+         26  |    .005775    .007166     0.81   0.421    -.0082901    .0198401
+         27  |   .0082578   .0071888     1.15   0.251    -.0058521    .0223677
+         28  |   .0103602   .0086505     1.20   0.231    -.0066187     .027339
+         29  |   .0170993   .0086774     1.97   0.049     .0000678    .0341309
+         30  |   .0187971   .0084276     2.23   0.026     .0022559    .0353384
+         31  |   .0209316   .0081913     2.56   0.011     .0048542    .0370091
+         32  |   .0313163   .0078943     3.97   0.000     .0158218    .0468108
+         33  |    .020191   .0077384     2.61   0.009     .0050024    .0353795
+         34  |   .0154286   .0078898     1.96   0.051    -.0000571    .0309143
+         35  |   .0116748   .0079459     1.47   0.142    -.0039211    .0272707
+         36  |   .0049883   .0078953     0.63   0.528    -.0105083    .0204849
+         37  |   .0130496    .007654     1.70   0.089    -.0019734    .0280726
+         38  |   .0155536    .008225     1.89   0.059      -.00059    .0316973
+         39  |   .0208404   .0099986     2.08   0.037     .0012155    .0404652
+         40  |   .0254947    .010535     2.42   0.016     .0048171    .0461723
+         41  |   .0252993   .0108059     2.34   0.019     .0040899    .0465086
+         42  |   .0195205     .01086     1.80   0.073    -.0017951    .0408362
+         43  |   .0259872   .0107185     2.42   0.016     .0049493     .047025
+         44  |   .0252807   .0092659     2.73   0.006      .007094    .0434673
+         45  |   .0261804   .0094249     2.78   0.006     .0076816    .0446792
+         46  |   .0250912   .0089783     2.79   0.005      .007469    .0427135
+         47  |   .0177347   .0090433     1.96   0.050    -.0000152    .0354846
+         48  |   .0169137   .0091524     1.85   0.065    -.0010503    .0348777
+         49  |   .0200416   .0104035     1.93   0.054     -.000378    .0404612
+       1000  |   .0346748   .0132212     2.62   0.009     .0087248    .0606247
+             |
+cumul_nbr_~s |
+          1  |  -.0148963   .0089837    -1.66   0.098    -.0325293    .0027366
+          2  |  -.0061255   .0116777    -0.52   0.600     -.029046     .016795
+          3  |   .0001442   .0133714     0.01   0.991    -.0261006     .026389
+          4  |   .0068414   .0153204     0.45   0.655    -.0232288    .0369116
+          5  |   .0231308   .0155903     1.48   0.138    -.0074692    .0537309
+          6  |   .0507774   .0182702     2.78   0.006     .0149174    .0866374
+          7  |          0  (omitted)
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------------------+
+             Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------------------+---------------------------------------|
+                 zipcode |       851         851           0    *|
+                     msa |        94           0          94     |
+       year_month#county |      6804          16        6788     |
+   calendar_month#county |       972         972           0    ?|
+-----------------------------------------------------------------+
+? = number of redundant parameters may be higher
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/rent_24_the_FEs_limit.png not found)
+(file ../output/rent_24_the_FEs_limit.png written in PNG format)
+(MWFE estimator converged in 2 iterations)
+
+HDFE Linear regression                            Number of obs   =    871,080
+Absorbing 2 HDFE groups                           F(  50,   7258) =      20.17
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9566
+                                                  Adj R-squared   =     0.9562
+                                                  Within R-sq.    =     0.0909
+Number of clusters (zipcode) =      7,259         Root MSE        =    25.6219
+
+                            (Std. Err. adjusted for 7,259 clusters in zipcode)
+------------------------------------------------------------------------------
+             |               Robust
+medli~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_~24 |
+          0  |  -30.47995   1.141664   -26.70   0.000    -32.71794   -28.24195
+          1  |  -11.67515    .594279   -19.65   0.000    -12.84011   -10.51019
+          2  |  -10.84845   .5727347   -18.94   0.000    -11.97118   -9.725725
+          3  |  -10.25488   .5414519   -18.94   0.000    -11.31628   -9.193477
+          4  |  -9.820616   .5308649   -18.50   0.000    -10.86127   -8.779967
+          5  |  -9.417062    .520192   -18.10   0.000    -10.43679   -8.397334
+          6  |  -8.772885   .4929563   -17.80   0.000    -9.739223   -7.806547
+          7  |  -7.520212   .4595225   -16.37   0.000     -8.42101   -6.619414
+          8  |  -6.774823   .4303046   -15.74   0.000    -7.618345   -5.931301
+          9  |  -6.232478   .4199551   -14.84   0.000    -7.055713   -5.409244
+         10  |  -5.646595    .397482   -14.21   0.000    -6.425776   -4.867415
+         11  |  -5.234879   .3932283   -13.31   0.000    -6.005721   -4.464037
+         12  |  -4.531371    .367482   -12.33   0.000    -5.251743      -3.811
+         13  |  -3.823811   .3475835   -11.00   0.000    -4.505176   -3.142446
+         14  |   -3.51413   .3560405    -9.87   0.000    -4.212073   -2.816187
+         15  |   -3.35557   .3398121    -9.87   0.000      -4.0217   -2.689439
+         16  |  -3.615446   .3349753   -10.79   0.000    -4.272095   -2.958796
+         17  |  -3.017322    .312646    -9.65   0.000    -3.630199   -2.404445
+         18  |  -2.647343   .3013436    -8.79   0.000    -3.238064   -2.056621
+         19  |  -2.523962   .2695151    -9.36   0.000     -3.05229   -1.995634
+         20  |  -2.055356   .2497986    -8.23   0.000    -2.545034   -1.565678
+         21  |  -1.394157   .2160732    -6.45   0.000    -1.817724   -.9705909
+         22  |  -.8522838   .1845939    -4.62   0.000    -1.214142    -.490426
+         23  |  -.7109985   .1443772    -4.92   0.000    -.9940199   -.4279772
+         25  |   .3369104   .1455987     2.31   0.021     .0514947    .6223261
+         26  |   .5592701   .1880552     2.97   0.003     .1906271     .927913
+         27  |   .9573093   .2358884     4.06   0.000     .4948994    1.419719
+         28  |   1.751468   .2501178     7.00   0.000     1.261164    2.241771
+         29  |   2.396966   .2492201     9.62   0.000     1.908422    2.885509
+         30  |   2.925672   .2694507    10.86   0.000      2.39747    3.453874
+         31  |   3.685783   .2841128    12.97   0.000     3.128839    4.242726
+         32  |   4.561321   .2998405    15.21   0.000     3.973547    5.149096
+         33  |   4.824372   .3156005    15.29   0.000     4.205704    5.443041
+         34  |   5.278742   .3300448    15.99   0.000     4.631758    5.925726
+         35  |   5.771735   .3517512    16.41   0.000       5.0822     6.46127
+         36  |   6.286578   .3667915    17.14   0.000      5.56756    7.005596
+         37  |   7.186089   .4018314    17.88   0.000     6.398383    7.973796
+         38  |   7.518093    .420306    17.89   0.000     6.694171    8.342015
+         39  |    7.55444    .432421    17.47   0.000     6.706769    8.402111
+         40  |   7.586336   .4956974    15.30   0.000     6.614625    8.558047
+         41  |   8.620465   .4915511    17.54   0.000     7.656882    9.584049
+         42  |    9.17249   .4919765    18.64   0.000     8.208073    10.13691
+         43  |   9.290164    .509538    18.23   0.000     8.291322    10.28901
+         44  |   9.378867   .5063159    18.52   0.000     8.386341    10.37139
+         45  |   9.192885   .5001408    18.38   0.000     8.212464    10.17331
+         46  |   9.035023   .4971093    18.18   0.000     8.060544     10.0095
+         47  |   8.879461   .5100191    17.41   0.000     7.879675    9.879247
+         48  |   8.652491    .519364    16.66   0.000     7.634387    9.670596
+         49  |   8.638405   .5275486    16.37   0.000     7.604257    9.672554
+       1000  |   1.098055   .7742991     1.42   0.156    -.4197969    2.615906
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     zipcode |      7259        7259           0    *|
+  year_month |       120           0         120     |
+-----------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(MWFE estimator converged in 2 iterations)
+
+HDFE Linear regression                            Number of obs   =    871,080
+Absorbing 3 HDFE groups                           F(  50,   7258) =      20.17
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9566
+                                                  Adj R-squared   =     0.9562
+                                                  Within R-sq.    =     0.0909
+Number of clusters (zipcode) =      7,259         Root MSE        =    25.6219
+
+                            (Std. Err. adjusted for 7,259 clusters in zipcode)
+------------------------------------------------------------------------------
+             |               Robust
+medli~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_~24 |
+          0  |  -30.47995   1.141664   -26.70   0.000    -32.71794   -28.24195
+          1  |  -11.67515    .594279   -19.65   0.000    -12.84011   -10.51019
+          2  |  -10.84845   .5727347   -18.94   0.000    -11.97118   -9.725725
+          3  |  -10.25488   .5414519   -18.94   0.000    -11.31628   -9.193477
+          4  |  -9.820616   .5308649   -18.50   0.000    -10.86127   -8.779967
+          5  |  -9.417062    .520192   -18.10   0.000    -10.43679   -8.397334
+          6  |  -8.772885   .4929563   -17.80   0.000    -9.739223   -7.806547
+          7  |  -7.520212   .4595225   -16.37   0.000     -8.42101   -6.619414
+          8  |  -6.774823   .4303046   -15.74   0.000    -7.618345   -5.931301
+          9  |  -6.232478   .4199551   -14.84   0.000    -7.055713   -5.409244
+         10  |  -5.646595    .397482   -14.21   0.000    -6.425776   -4.867415
+         11  |  -5.234879   .3932283   -13.31   0.000    -6.005721   -4.464037
+         12  |  -4.531371    .367482   -12.33   0.000    -5.251743      -3.811
+         13  |  -3.823811   .3475835   -11.00   0.000    -4.505176   -3.142446
+         14  |   -3.51413   .3560405    -9.87   0.000    -4.212073   -2.816187
+         15  |   -3.35557   .3398121    -9.87   0.000      -4.0217   -2.689439
+         16  |  -3.615446   .3349753   -10.79   0.000    -4.272095   -2.958796
+         17  |  -3.017322    .312646    -9.65   0.000    -3.630199   -2.404445
+         18  |  -2.647343   .3013436    -8.79   0.000    -3.238064   -2.056621
+         19  |  -2.523962   .2695151    -9.36   0.000     -3.05229   -1.995634
+         20  |  -2.055356   .2497986    -8.23   0.000    -2.545034   -1.565678
+         21  |  -1.394157   .2160732    -6.45   0.000    -1.817724   -.9705909
+         22  |  -.8522838   .1845939    -4.62   0.000    -1.214142    -.490426
+         23  |  -.7109985   .1443772    -4.92   0.000    -.9940199   -.4279772
+         25  |   .3369104   .1455987     2.31   0.021     .0514947    .6223261
+         26  |   .5592701   .1880552     2.97   0.003     .1906271     .927913
+         27  |   .9573093   .2358884     4.06   0.000     .4948994    1.419719
+         28  |   1.751468   .2501178     7.00   0.000     1.261164    2.241771
+         29  |   2.396966   .2492201     9.62   0.000     1.908422    2.885509
+         30  |   2.925672   .2694507    10.86   0.000      2.39747    3.453874
+         31  |   3.685783   .2841128    12.97   0.000     3.128839    4.242726
+         32  |   4.561321   .2998405    15.21   0.000     3.973547    5.149096
+         33  |   4.824372   .3156005    15.29   0.000     4.205704    5.443041
+         34  |   5.278742   .3300448    15.99   0.000     4.631758    5.925726
+         35  |   5.771735   .3517512    16.41   0.000       5.0822     6.46127
+         36  |   6.286578   .3667915    17.14   0.000      5.56756    7.005596
+         37  |   7.186089   .4018314    17.88   0.000     6.398383    7.973796
+         38  |   7.518093    .420306    17.89   0.000     6.694171    8.342015
+         39  |    7.55444    .432421    17.47   0.000     6.706769    8.402111
+         40  |   7.586336   .4956974    15.30   0.000     6.614625    8.558047
+         41  |   8.620465   .4915511    17.54   0.000     7.656882    9.584049
+         42  |    9.17249   .4919765    18.64   0.000     8.208073    10.13691
+         43  |   9.290164    .509538    18.23   0.000     8.291322    10.28901
+         44  |   9.378867   .5063159    18.52   0.000     8.386341    10.37139
+         45  |   9.192885   .5001408    18.38   0.000     8.212464    10.17331
+         46  |   9.035023   .4971093    18.18   0.000     8.060544     10.0095
+         47  |   8.879461   .5100191    17.41   0.000     7.879675    9.879247
+         48  |   8.652491    .519364    16.66   0.000     7.634387    9.670596
+         49  |   8.638405   .5275486    16.37   0.000     7.604257    9.672554
+       1000  |   1.098055   .7742991     1.42   0.156    -.4197969    2.615906
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+--------------------------------------------------------+
+    Absorbed FE | Categories  - Redundant  = Num. Coefs |
+----------------+---------------------------------------|
+        zipcode |      7259        7259           0    *|
+     year_month |       120           0         120     |
+ calendar_month |        12          12           0     |
+--------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(MWFE estimator converged in 2 iterations)
+
+HDFE Linear regression                            Number of obs   =    871,080
+Absorbing 3 HDFE groups                           F(  50,   7258) =      23.03
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9567
+                                                  Adj R-squared   =     0.9563
+                                                  Within R-sq.    =     0.0910
+Number of clusters (zipcode) =      7,259         Root MSE        =    25.5985
+
+                            (Std. Err. adjusted for 7,259 clusters in zipcode)
+------------------------------------------------------------------------------
+             |               Robust
+medli~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_~24 |
+          0  |  -29.31426   1.104432   -26.54   0.000    -31.47927   -27.14925
+          1  |  -8.084185   .5646435   -14.32   0.000    -9.191051    -6.97732
+          2  |  -8.933037   .5446309   -16.40   0.000    -10.00067   -7.865402
+          3  |   -8.45728   .5113127   -16.54   0.000    -9.459602   -7.454959
+          4  |  -8.337424   .5025919   -16.59   0.000    -9.322651   -7.352198
+          5  |  -8.368668   .5058664   -16.54   0.000    -9.360313   -7.377022
+          6  |  -8.055052    .494513   -16.29   0.000    -9.024441   -7.085662
+          7  |  -5.984257   .4407655   -13.58   0.000    -6.848286   -5.120229
+          8  |  -5.766663   .4189461   -13.76   0.000     -6.58792   -4.945407
+          9  |  -5.517417    .409862   -13.46   0.000    -6.320866   -4.713969
+         10  |  -5.204841   .3926804   -13.25   0.000    -5.974608   -4.435073
+         11  |  -5.027954   .3869929   -12.99   0.000    -5.786573   -4.269336
+         12  |  -4.580613   .3671273   -12.48   0.000    -5.300289   -3.860936
+         13  |  -.2340162   .3440101    -0.68   0.496    -.9083762    .4403437
+         14  |  -1.614868   .3718076    -4.34   0.000    -2.343719   -.8860173
+         15  |  -1.589237   .3631444    -4.38   0.000    -2.301106   -.8773687
+         16  |  -2.178606   .3430249    -6.35   0.000    -2.851034   -1.506177
+         17  |  -2.016365   .3347532    -6.02   0.000    -2.672579   -1.360152
+         18  |  -1.969666   .3207481    -6.14   0.000    -2.598425   -1.340906
+         19  |  -1.010618   .2735559    -3.69   0.000    -1.546867    -.474369
+         20  |  -1.018424   .2580696    -3.95   0.000    -1.524315   -.5125323
+         21  |  -.6427812   .2214893    -2.90   0.004    -1.076965   -.2085978
+         22  |   -.367061    .189855    -1.93   0.053    -.7392321      .00511
+         23  |  -.4603795   .1449567    -3.18   0.001    -.7445368   -.1762223
+         25  |   3.851791   .2167443    17.77   0.000     3.426909    4.276672
+         26  |   2.417042    .241888     9.99   0.000     1.942871    2.891213
+         27  |   2.654804   .2688088     9.88   0.000     2.127861    3.181748
+         28  |    3.13913    .280545    11.19   0.000      2.58918     3.68908
+         29  |   3.387811   .2826899    11.98   0.000     2.833657    3.941965
+         30  |   3.569699   .2977327    11.99   0.000     2.986056    4.153341
+         31  |   5.211836   .3268952    15.94   0.000     4.571027    5.852646
+         32  |   5.613112   .3356212    16.72   0.000     4.955196    6.271027
+         33  |     5.5405   .3388964    16.35   0.000     4.876165    6.204836
+         34  |   5.748086   .3430267    16.76   0.000     5.075654    6.420518
+         35  |   6.037945   .3583988    16.85   0.000     5.335379    6.740511
+         36  |   6.295518   .3671757    17.15   0.000     5.575747    7.015289
+         37  |   10.74033   .4807204    22.34   0.000     9.797982    11.68269
+         38  |   9.376689   .4745851    19.76   0.000     8.446364    10.30701
+         39  |   9.240205   .4601597    20.08   0.000     8.338158    10.14225
+         40  |   8.957922   .4953372    18.08   0.000     7.986917    9.928927
+         41  |    9.60807   .4931932    19.48   0.000     8.641268    10.57487
+         42  |    9.80502    .500166    19.60   0.000     8.824549    10.78549
+         43  |   10.82056   .5354752    20.21   0.000     9.770869    11.87024
+         44  |   10.39166   .5222116    19.90   0.000     9.367975    11.41535
+         45  |    9.86685   .5100115    19.35   0.000     8.867079    10.86662
+         46  |   9.473201   .5069712    18.69   0.000      8.47939    10.46701
+         47  |   9.129337   .5131459    17.79   0.000     8.123422    10.13525
+         48  |   8.657331    .520159    16.64   0.000     7.637668    9.676994
+         49  |   12.15762   .5905619    20.59   0.000     10.99994    13.31529
+       1000  |   2.172616   .7898259     2.75   0.006     .6243269    3.720904
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+----------------------------------------------------------------+
+            Absorbed FE | Categories  - Redundant  = Num. Coefs |
+------------------------+---------------------------------------|
+                zipcode |      7259        7259           0    *|
+             year_month |       120           0         120     |
+   calendar_month#state |       612          12         600     |
+----------------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(MWFE estimator converged in 2 iterations)
+
+HDFE Linear regression                            Number of obs   =    871,080
+Absorbing 3 HDFE groups                           F(  50,   7258) =      20.71
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9566
+                                                  Adj R-squared   =     0.9561
+                                                  Within R-sq.    =     0.0908
+Number of clusters (zipcode) =      7,259         Root MSE        =    25.6410
+
+                            (Std. Err. adjusted for 7,259 clusters in zipcode)
+------------------------------------------------------------------------------
+             |               Robust
+medli~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_~24 |
+          0  |  -30.41286    1.13619   -26.77   0.000    -32.64012    -28.1856
+          1  |  -11.44385   .5912631   -19.35   0.000     -12.6029   -10.28481
+          2  |  -10.80393   .5680267   -19.02   0.000    -11.91742   -9.690428
+          3  |   -10.3155   .5375805   -19.19   0.000    -11.36932   -9.261689
+          4  |  -9.965048   .5309009   -18.77   0.000    -11.00577   -8.924328
+          5  |  -9.626234   .5245734   -18.35   0.000    -10.65455   -8.597918
+          6  |  -8.967011   .4987165   -17.98   0.000     -9.94464   -7.989382
+          7  |  -7.136623   .4500035   -15.86   0.000     -8.01876   -6.254485
+          8  |  -6.466504   .4237334   -15.26   0.000    -7.297145   -5.635863
+          9  |  -6.035369   .4148573   -14.55   0.000     -6.84861   -5.222128
+         10  |  -5.564201   .3937142   -14.13   0.000    -6.335996   -4.792407
+         11  |  -5.262326   .3921654   -13.42   0.000    -6.031084   -4.493568
+         12  |  -4.527796   .3680067   -12.30   0.000    -5.249196   -3.806396
+         13  |   -3.58853    .349269   -10.27   0.000    -4.273199   -2.903861
+         14  |  -3.464616   .3657695    -9.47   0.000    -4.181631   -2.747601
+         15  |   -3.41318   .3517578    -9.70   0.000    -4.102727   -2.723632
+         16  |  -3.758942   .3422361   -10.98   0.000    -4.429824   -3.088059
+         17  |  -3.227079   .3214828   -10.04   0.000    -3.857279    -2.59688
+         18  |  -2.839997   .3059534    -9.28   0.000    -3.439755   -2.240239
+         19  |  -2.164513   .2658138    -8.14   0.000    -2.685585    -1.64344
+         20  |  -1.767442   .2463791    -7.17   0.000    -2.250416   -1.284467
+         21  |  -1.224432   .2143693    -5.71   0.000    -1.644658   -.8042058
+         22  |   -.791256    .184187    -4.30   0.000    -1.152316    -.430196
+         23  |  -.7507058    .144332    -5.20   0.000    -1.033638   -.4677731
+         25  |   .5696961   .1544372     3.69   0.000     .2669543     .872438
+         26  |   .6130981    .197619     3.10   0.002     .2257074    1.000489
+         27  |   .9004071   .2349892     3.83   0.000       .43976    1.361054
+         28  |    1.61927   .2537478     6.38   0.000      1.12185    2.116689
+         29  |    2.20943    .250338     8.83   0.000     1.718694    2.700165
+         30  |   2.761619   .2671612    10.34   0.000     2.237905    3.285333
+         31  |   4.042938   .2908977    13.90   0.000     3.472694    4.613182
+         32  |   4.845377    .308856    15.69   0.000     4.239929    5.450825
+         33  |   4.986759   .3228738    15.44   0.000     4.353832    5.619686
+         34  |    5.33749   .3338043    15.99   0.000     4.683137    5.991844
+         35  |   5.738443   .3521547    16.30   0.000     5.048117    6.428768
+         36  |   6.291027   .3674116    17.12   0.000     5.570793     7.01126
+         37  |   7.420553   .4124301    17.99   0.000      6.61207    8.229036
+         38  |      7.568   .4287224    17.65   0.000      6.72758    8.408421
+         39  |   7.490255   .4316765    17.35   0.000     6.644044    8.336467
+         40  |   7.447429   .4919082    15.14   0.000     6.483146    8.411712
+         41  |   8.429909   .4865782    17.32   0.000     7.476075    9.383744
+         42  |   9.007819   .4845492    18.59   0.000     8.057962    9.957677
+         43  |   9.653773   .5146511    18.76   0.000     8.644907    10.66264
+         44  |   9.664275   .5121011    18.87   0.000     8.660408    10.66814
+         45  |   9.357415   .5041835    18.56   0.000     8.369069    10.34576
+         46  |     9.0963   .4997639    18.20   0.000     8.116617    10.07598
+         47  |   8.848289   .5112334    17.31   0.000     7.846123    9.850455
+         48  |   8.655708    .520274    16.64   0.000     7.635819    9.675596
+         49  |   8.858706   .5357006    16.54   0.000     7.808577    9.908835
+       1000  |   1.103063   .7824148     1.41   0.159    -.4306973    2.636824
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------------------+
+             Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------------------+---------------------------------------|
+                 zipcode |      7259        7259           0    *|
+              year_month |       120           0         120     |
+   calendar_month#county |      2364          12        2352     |
+-----------------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(MWFE estimator converged in 2 iterations)
+
+HDFE Linear regression                            Number of obs   =    871,080
+Absorbing 3 HDFE groups                           F(  59,   7258) =      29.04
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9577
+                                                  Adj R-squared   =     0.9572
+                                                  Within R-sq.    =     0.1138
+Number of clusters (zipcode) =      7,259         Root MSE        =    25.3159
+
+                            (Std. Err. adjusted for 7,259 clusters in zipcode)
+------------------------------------------------------------------------------
+             |               Robust
+medli~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_~24 |
+          0  |  -26.06922   .9828252   -26.52   0.000    -27.99584    -24.1426
+          1  |   -9.57858   .5555304   -17.24   0.000    -10.66758   -8.489579
+          2  |  -8.962633   .5396642   -16.61   0.000    -10.02053   -7.904734
+          3  |  -8.477978   .5111228   -16.59   0.000    -9.479927   -7.476029
+          4  |  -8.173637   .5019322   -16.28   0.000     -9.15757   -7.189704
+          5  |    -7.7019    .495957   -15.53   0.000     -8.67412    -6.72968
+          6  |  -7.022113   .4735584   -14.83   0.000    -7.950425   -6.093801
+          7  |  -5.264613   .4349356   -12.10   0.000    -6.117213   -4.412012
+          8  |  -4.603106   .4175433   -11.02   0.000    -5.421612   -3.784599
+          9  |  -4.208978   .4102072   -10.26   0.000    -5.013103   -3.404852
+         10  |  -3.742482   .3959228    -9.45   0.000    -4.518606   -2.966358
+         11  |  -3.379023    .394676    -8.56   0.000    -4.152703   -2.605344
+         12  |  -2.555653   .3821287    -6.69   0.000    -3.304737    -1.80657
+         13  |  -4.019482    .349838   -11.49   0.000    -4.705266   -3.333697
+         14  |  -3.900277   .3692605   -10.56   0.000    -4.624135   -3.176419
+         15  |  -3.851426   .3559037   -10.82   0.000    -4.549101   -3.153752
+         16  |  -4.140742   .3453488   -11.99   0.000    -4.817726   -3.463757
+         17  |  -3.538284   .3254276   -10.87   0.000    -4.176217   -2.900351
+         18  |  -3.157696    .310548   -10.17   0.000    -3.766461   -2.548932
+         19  |  -2.302497   .2669096    -8.63   0.000    -2.825717   -1.779276
+         20  |  -1.865511   .2467548    -7.56   0.000    -2.349223     -1.3818
+         21  |  -1.351789   .2146671    -6.30   0.000    -1.772599   -.9309791
+         22  |  -.8944083   .1846083    -4.84   0.000    -1.256294   -.5325223
+         23  |  -.8128954   .1446617    -5.62   0.000    -1.096474   -.5293164
+         25  |   1.160831   .1615986     7.18   0.000      .844051    1.477612
+         26  |   1.229939   .2046175     6.01   0.000     .8288296    1.631049
+         27  |   1.520765   .2401563     6.33   0.000     1.049989    1.991542
+         28  |    2.26876   .2576102     8.81   0.000     1.763769    2.773751
+         29  |   2.858353   .2556752    11.18   0.000     2.357155    3.359551
+         30  |   3.442357   .2716232    12.67   0.000     2.909897    3.974818
+         31  |   5.241434   .2977276    17.60   0.000     4.657801    5.825066
+         32  |   6.057049   .3153364    19.21   0.000     5.438898      6.6752
+         33  |   6.200023   .3266743    18.98   0.000     5.559647      6.8404
+         34  |   6.502898   .3368395    19.31   0.000     5.842594    7.163201
+         35  |   6.873108    .351523    19.55   0.000     6.184021    7.562196
+         36  |   7.402405   .3648629    20.29   0.000     6.687167    8.117642
+         37  |   5.718967   .3968212    14.41   0.000     4.941082    6.496852
+         38  |   5.852481   .4139859    14.14   0.000     5.040948    6.664014
+         39  |   5.794384   .4207481    13.77   0.000     4.969596    6.619173
+         40  |    5.77781   .4872646    11.86   0.000      4.82263     6.73299
+         41  |    6.40966   .4857694    13.19   0.000     5.457411    7.361909
+         42  |   6.802446   .4865977    13.98   0.000     5.848573    7.756319
+         43  |   7.723854   .5230696    14.77   0.000     6.698486    8.749223
+         44  |   7.782051   .5242587    14.84   0.000     6.754351     8.80975
+         45  |   7.492198    .523731    14.31   0.000     6.465533    8.518863
+         46  |   7.239605   .5206353    13.91   0.000     6.219009    8.260202
+         47  |   7.006387   .5347535    13.10   0.000     5.958115     8.05466
+         48  |   6.791817    .545223    12.46   0.000     5.723021    7.860613
+         49  |   4.673322   .5843211     8.00   0.000     3.527883    5.818762
+       1000  |  -2.250506   .9300471    -2.42   0.016    -4.073669    -.427343
+             |
+cumul_nbr_~s |
+          1  |   5.385194   .6812241     7.91   0.000     4.049797    6.720592
+          2  |   5.507188   .7347148     7.50   0.000     4.066933    6.947442
+          3  |   11.83354   1.064731    11.11   0.000     9.746356    13.92072
+          4  |   15.18928   1.092437    13.90   0.000     13.04779    17.33078
+          5  |   13.49425    1.05763    12.76   0.000     11.42099    15.56752
+          6  |   21.30671   1.083171    19.67   0.000     19.18338    23.43004
+          7  |   28.75663    1.30867    21.97   0.000     26.19125      31.322
+          8  |   30.81654     1.5289    20.16   0.000     27.81945    33.81363
+          9  |   116.7699   13.46884     8.67   0.000     90.36701    143.1727
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------------------+
+             Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------------------+---------------------------------------|
+                 zipcode |      7259        7259           0    *|
+              year_month |       120           0         120     |
+   calendar_month#county |      2364          12        2352     |
+-----------------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(MWFE estimator converged in 2 iterations)
+
+HDFE Linear regression                            Number of obs   =    871,080
+Absorbing 4 HDFE groups                           F(  59,   7258) =      29.02
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9577
+                                                  Adj R-squared   =     0.9572
+                                                  Within R-sq.    =     0.1138
+Number of clusters (zipcode) =      7,259         Root MSE        =    25.3253
+
+                            (Std. Err. adjusted for 7,259 clusters in zipcode)
+------------------------------------------------------------------------------
+             |               Robust
+medli~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_~24 |
+          0  |  -26.06922   .9831835   -26.52   0.000    -27.99655   -24.14189
+          1  |   -9.57858   .5557329   -17.24   0.000    -10.66798   -8.489182
+          2  |  -8.962633   .5398609   -16.60   0.000    -10.02092   -7.904348
+          3  |  -8.477978   .5113092   -16.58   0.000    -9.480293   -7.475663
+          4  |  -8.173637   .5021152   -16.28   0.000    -9.157929   -7.189345
+          5  |    -7.7019   .4961378   -15.52   0.000    -8.674475   -6.729326
+          6  |  -7.022113   .4737311   -14.82   0.000    -7.950763   -6.093462
+          7  |  -5.264613   .4350942   -12.10   0.000    -6.117524   -4.411701
+          8  |  -4.603106   .4176955   -11.02   0.000     -5.42191   -3.784301
+          9  |  -4.208978   .4103568   -10.26   0.000    -5.013396   -3.404559
+         10  |  -3.742482   .3960672    -9.45   0.000    -4.518889   -2.966075
+         11  |  -3.379023   .3948199    -8.56   0.000    -4.152985   -2.605062
+         12  |  -2.555653    .382268    -6.69   0.000     -3.30501   -1.806297
+         13  |  -4.019482   .3499656   -11.49   0.000    -4.705516   -3.333447
+         14  |  -3.900277   .3693951   -10.56   0.000    -4.624399   -3.176156
+         15  |  -3.851426   .3560334   -10.82   0.000    -4.549356   -3.153497
+         16  |  -4.140742   .3454747   -11.99   0.000    -4.817972   -3.463511
+         17  |  -3.538284   .3255462   -10.87   0.000    -4.176449   -2.900119
+         18  |  -3.157696   .3106612   -10.16   0.000    -3.766682    -2.54871
+         19  |  -2.302497   .2670069    -8.62   0.000    -2.825908   -1.779086
+         20  |  -1.865511   .2468448    -7.56   0.000    -2.349399   -1.381624
+         21  |  -1.351789   .2147454    -6.29   0.000    -1.772752   -.9308257
+         22  |  -.8944083   .1846756    -4.84   0.000    -1.256426   -.5323903
+         23  |  -.8128954   .1447144    -5.62   0.000    -1.096578    -.529213
+         25  |   1.160831   .1616575     7.18   0.000     .8439355    1.477727
+         26  |   1.229939   .2046921     6.01   0.000     .8286833    1.631196
+         27  |   1.520765   .2402439     6.33   0.000     1.049818    1.991713
+         28  |    2.26876   .2577042     8.80   0.000     1.763585    2.773935
+         29  |   2.858353   .2557684    11.18   0.000     2.356973    3.359733
+         30  |   3.442357   .2717223    12.67   0.000     2.909703    3.975012
+         31  |   5.241434   .2978362    17.60   0.000     4.657588    5.825279
+         32  |   6.057049   .3154514    19.20   0.000     5.438673    6.675426
+         33  |   6.200023   .3267935    18.97   0.000     5.559413    6.840634
+         34  |   6.502898   .3369623    19.30   0.000     5.842354    7.163442
+         35  |   6.873108   .3516512    19.55   0.000      6.18377    7.562447
+         36  |   7.402405    .364996    20.28   0.000     6.686907    8.117903
+         37  |   5.718967   .3969659    14.41   0.000     4.940798    6.497135
+         38  |   5.852481   .4141369    14.13   0.000     5.040653     6.66431
+         39  |   5.794384   .4209015    13.77   0.000     4.969295    6.619474
+         40  |    5.77781   .4874422    11.85   0.000     4.822281    6.733339
+         41  |    6.40966   .4859465    13.19   0.000     5.457063    7.362256
+         42  |   6.802446   .4867751    13.97   0.000     5.848225    7.756666
+         43  |   7.723854   .5232603    14.76   0.000     6.698112    8.749597
+         44  |   7.782051   .5244499    14.84   0.000     6.753976    8.810125
+         45  |   7.492198   .5239219    14.30   0.000     6.465158    8.519237
+         46  |   7.239605   .5208251    13.90   0.000     6.218637    8.260574
+         47  |   7.006387   .5349485    13.10   0.000     5.957733    8.055042
+         48  |   6.791817   .5454218    12.45   0.000     5.722632    7.861002
+         49  |   4.673322   .5845341     7.99   0.000     3.527466    5.819179
+       1000  |  -2.250506   .9303862    -2.42   0.016    -4.074334   -.4266782
+             |
+cumul_nbr_~s |
+          1  |   5.385194   .6814725     7.90   0.000      4.04931    6.721079
+          2  |   5.507188   .7349827     7.49   0.000     4.066408    6.947967
+          3  |   11.83354    1.06512    11.11   0.000     9.745595    13.92148
+          4  |   15.18928   1.092835    13.90   0.000     13.04701    17.33156
+          5  |   13.49425   1.058015    12.75   0.000     11.42024    15.56827
+          6  |   21.30671   1.083566    19.66   0.000      19.1826    23.43081
+          7  |   28.75663   1.309147    21.97   0.000     26.19032    31.32294
+          8  |   30.81654   1.529457    20.15   0.000     27.81836    33.81472
+          9  |   116.7699   13.47375     8.67   0.000     90.35738    143.1823
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------------------+
+             Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------------------+---------------------------------------|
+                 zipcode |      7259        7259           0    *|
+                     msa |       654           0         654     |
+              year_month |       120           1         119     |
+   calendar_month#county |      2364          32        2332    ?|
+-----------------------------------------------------------------+
+? = number of redundant parameters may be higher
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(MWFE estimator converged in 12 iterations)
+
+HDFE Linear regression                            Number of obs   =    871,080
+Absorbing 4 HDFE groups                           F(  59,   7258) =       6.87
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9721
+                                                  Adj R-squared   =     0.9716
+                                                  Within R-sq.    =     0.0416
+Number of clusters (zipcode) =      7,259         Root MSE        =    20.6320
+
+                            (Std. Err. adjusted for 7,259 clusters in zipcode)
+------------------------------------------------------------------------------
+             |               Robust
+medli~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_~24 |
+          0  |   -5.19279   1.922932    -2.70   0.007    -8.962296   -1.423284
+          1  |  -3.766965   1.641364    -2.30   0.022    -6.984517   -.5494143
+          2  |  -4.183276   1.587846    -2.63   0.008    -7.295917   -1.070636
+          3  |  -3.404284   1.507457    -2.26   0.024    -6.359339   -.4492298
+          4  |  -1.540192   1.535595    -1.00   0.316    -4.550406    1.470021
+          5  |  -1.412568   1.460117    -0.97   0.333    -4.274823    1.449686
+          6  |   -.490281   1.550211    -0.32   0.752    -3.529146    2.548584
+          7  |  -3.191794   1.469218    -2.17   0.030     -6.07189   -.3116985
+          8  |  -2.777735   1.384304    -2.01   0.045    -5.491374   -.0640963
+          9  |  -3.446891    1.40064    -2.46   0.014    -6.192553   -.7012285
+         10  |  -.2184201   1.503139    -0.15   0.884     -3.16501     2.72817
+         11  |   .3870615   1.463011     0.26   0.791    -2.480865    3.254988
+         12  |   .5926335   1.372614     0.43   0.666    -2.098088    3.283355
+         13  |  -11.61367    1.91832    -6.05   0.000    -15.37413   -7.853201
+         14  |  -12.54115   2.008352    -6.24   0.000    -16.47811   -8.604199
+         15  |  -12.73409   1.902111    -6.69   0.000    -16.46278   -9.005403
+         16  |  -9.874011   1.622318    -6.09   0.000    -13.05423   -6.693796
+         17  |  -9.374443   1.537604    -6.10   0.000    -12.38859   -6.360292
+         18  |  -9.314717   1.491134    -6.25   0.000    -12.23777   -6.391662
+         19  |  -3.505021   1.025901    -3.42   0.001    -5.516085   -1.493957
+         20  |  -3.118634   .9523223    -3.27   0.001    -4.985463   -1.251806
+         21  |  -2.637107   .7829655    -3.37   0.001    -4.171947   -1.102267
+         22  |  -.5668781   .6313927    -0.90   0.369    -1.804591    .6708354
+         23  |  -.8307453   .4575291    -1.82   0.069    -1.727635    .0661448
+         25  |   3.970932   .8529971     4.66   0.000      2.29881    5.643055
+         26  |   3.837044   .8657088     4.43   0.000     2.140003    5.534085
+         27  |   2.125558    .887717     2.39   0.017     .3853743    3.865741
+         28  |   4.036727   1.088268     3.71   0.000     1.903405    6.170049
+         29  |   3.155124   1.118423     2.82   0.005     .9626898    5.347558
+         30  |   2.979218   1.180741     2.52   0.012     .6646227    5.293813
+         31  |   7.016547   1.835366     3.82   0.000     3.418695     10.6144
+         32  |   7.274135   1.794418     4.05   0.000     3.756555    10.79172
+         33  |   5.669625   1.814525     3.12   0.002     2.112627    9.226622
+         34  |   3.758439   1.790981     2.10   0.036     .2475947    7.269283
+         35  |   3.304794   1.790964     1.85   0.065    -.2060151    6.815604
+         36  |   2.754908   1.798956     1.53   0.126    -.7715697    6.281386
+         37  |  -12.50388   2.370858    -5.27   0.000    -17.15145   -7.856309
+         38  |  -14.07561   2.552877    -5.51   0.000    -19.07999    -9.07123
+         39  |  -14.93789   2.646529    -5.64   0.000    -20.12585    -9.74992
+         40  |  -17.26982   2.904581    -5.95   0.000    -22.96365     -11.576
+         41  |  -17.00577   3.108585    -5.47   0.000     -23.0995   -10.91204
+         42  |  -17.45892   3.162591    -5.52   0.000    -23.65852   -11.25932
+         43  |  -13.48296   3.638153    -3.71   0.000     -20.6148   -6.351117
+         44  |  -14.03414   4.300878    -3.26   0.001    -22.46511   -5.603164
+         45  |  -14.11267    4.44034    -3.18   0.001    -22.81703   -5.408316
+         46  |  -19.17185   4.813992    -3.98   0.000    -28.60867   -9.735021
+         47  |  -19.48352   5.185332    -3.76   0.000    -29.64828   -9.318759
+         48  |  -19.66106    5.19623    -3.78   0.000    -29.84719   -9.474941
+         49  |  -43.28525   6.820297    -6.35   0.000    -56.65502   -29.91549
+       1000  |  -45.05043   8.711226    -5.17   0.000    -62.12697   -27.97389
+             |
+cumul_nbr_~s |
+          1  |  -13.05263   6.410506    -2.04   0.042    -25.61909   -.4861737
+          2  |   1.568343   7.270166     0.22   0.829     -12.6833    15.81998
+          3  |    30.3649   8.626891     3.52   0.000     13.45368    47.27612
+          4  |   59.74313   9.119404     6.55   0.000     41.86645    77.61982
+          5  |   103.3236   11.83686     8.73   0.000     80.11995    126.5273
+          6  |   100.2691   12.35615     8.11   0.000     76.04745    124.4907
+          7  |   158.7437   14.93109    10.63   0.000     129.4745     188.013
+          8  |   158.5231   15.70558    10.09   0.000     127.7356    189.3106
+          9  |   275.1264   20.06902    13.71   0.000     235.7852    314.4675
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------------------+
+             Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------------------+---------------------------------------|
+                 zipcode |      7259        7259           0    *|
+                     msa |       654           0         654     |
+        year_month#state |      6120          13        6107     |
+   calendar_month#county |      2364          32        2332    ?|
+-----------------------------------------------------------------+
+? = number of redundant parameters may be higher
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(dropped 3840 singleton observations)
+(MWFE estimator converged in 2 iterations)
+
+HDFE Linear regression                            Number of obs   =    867,240
+Absorbing 4 HDFE groups                           F(  59,   7226) =      22.31
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9651
+                                                  Adj R-squared   =     0.9639
+                                                  Within R-sq.    =     0.0848
+Number of clusters (zipcode) =      7,227         Root MSE        =    23.2753
+
+                            (Std. Err. adjusted for 7,227 clusters in zipcode)
+------------------------------------------------------------------------------
+             |               Robust
+medli~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_~24 |
+          0  |  -24.46557   1.046082   -23.39   0.000     -26.5162   -22.41495
+          1  |  -8.512187   .5919744   -14.38   0.000     -9.67263   -7.351744
+          2  |  -7.561448   .5774166   -13.10   0.000    -8.693353   -6.429542
+          3  |  -7.074151   .5433745   -13.02   0.000    -8.139323   -6.008978
+          4  |  -6.629275   .5272787   -12.57   0.000    -7.662895   -5.595654
+          5  |  -6.230538   .5171719   -12.05   0.000    -7.244346    -5.21673
+          6  |  -5.629951   .4902381   -11.48   0.000    -6.590961   -4.668941
+          7  |  -4.449769   .4645957    -9.58   0.000    -5.360513   -3.539026
+          8  |   -3.89404   .4472539    -8.71   0.000    -4.770789   -3.017292
+          9  |  -3.495444   .4402685    -7.94   0.000    -4.358499   -2.632389
+         10  |   -2.98935   .4215406    -7.09   0.000    -3.815692   -2.163007
+         11  |  -2.624877   .4191958    -6.26   0.000    -3.446623   -1.803131
+         12  |  -1.805202   .4010262    -4.50   0.000    -2.591331   -1.019073
+         13  |  -3.375371   .3804985    -8.87   0.000     -4.12126   -2.629483
+         14  |  -3.062893   .3840077    -7.98   0.000     -3.81566   -2.310126
+         15  |  -2.861126    .370935    -7.71   0.000    -3.588267   -2.133985
+         16  |  -3.229334   .3556188    -9.08   0.000    -3.926451   -2.532217
+         17  |  -2.630009   .3341317    -7.87   0.000    -3.285004   -1.975013
+         18  |  -2.307909    .319715    -7.22   0.000    -2.934644   -1.681175
+         19  |  -2.294425   .2784736    -8.24   0.000    -2.840314   -1.748535
+         20  |  -1.803674   .2512042    -7.18   0.000    -2.296107    -1.31124
+         21  |  -1.324357   .2190802    -6.05   0.000    -1.753818   -.8948959
+         22  |  -.7621553   .1849635    -4.12   0.000    -1.124738   -.3995727
+         23  |  -.7450767   .1527794    -4.88   0.000    -1.044569   -.4455845
+         25  |   1.001346   .1663866     6.02   0.000     .6751792    1.327512
+         26  |   1.175391   .2070309     5.68   0.000     .7695497    1.581232
+         27  |   1.506414   .2477551     6.08   0.000     1.020741    1.992086
+         28  |   2.218756   .2724418     8.14   0.000     1.684691    2.752822
+         29  |   2.756709   .2637778    10.45   0.000     2.239627     3.27379
+         30  |   3.315286   .2801518    11.83   0.000     2.766106    3.864465
+         31  |   4.275929   .3069468    13.93   0.000     3.674223    4.877634
+         32  |   5.054352   .3147926    16.06   0.000     4.437267    5.671438
+         33  |   5.333172   .3324684    16.04   0.000     4.681437    5.984908
+         34  |   5.609716   .3412426    16.44   0.000     4.940781    6.278651
+         35  |   5.996656   .3616742    16.58   0.000     5.287669    6.705643
+         36  |   6.483516   .3789421    17.11   0.000     5.740679    7.226354
+         37  |   5.994135    .409709    14.63   0.000     5.190985    6.797284
+         38  |   6.270853   .4420697    14.19   0.000     5.404268    7.137439
+         39  |   6.304241   .4383054    14.38   0.000     5.445034    7.163448
+         40  |   6.358875   .5125156    12.41   0.000     5.354194    7.363555
+         41  |   7.267027   .5054412    14.38   0.000     6.276214    8.257839
+         42  |   7.924899   .5023423    15.78   0.000     6.940161    8.909637
+         43  |   8.517488    .536943    15.86   0.000     7.464923    9.570054
+         44  |   8.876473   .5484923    16.18   0.000     7.801268    9.951679
+         45  |   8.622484   .5529126    15.59   0.000     7.538614    9.706354
+         46  |   8.593246   .5480877    15.68   0.000     7.518834    9.667658
+         47  |    8.45057   .5668248    14.91   0.000     7.339428    9.561712
+         48  |   8.353292    .587661    14.21   0.000     7.201304    9.505279
+         49  |   6.957995   .6033409    11.53   0.000      5.77527    8.140719
+       1000  |   3.335347   1.016335     3.28   0.001     1.343034     5.32766
+             |
+cumul_nbr_~s |
+          1  |   2.045535   .6209991     3.29   0.001     .8281955    3.262875
+          2  |   3.999486   .7474746     5.35   0.000     2.534217    5.464755
+          3  |   7.171456    .985123     7.28   0.000     5.240327    9.102585
+          4  |   8.177721   .9717892     8.42   0.000      6.27273    10.08271
+          5  |   6.783623   1.030163     6.58   0.000     4.764202    8.803045
+          6  |   15.64061   1.207964    12.95   0.000     13.27265    18.00857
+          7  |   22.37103   1.432395    15.62   0.000     19.56311    25.17894
+          8  |   24.45604   1.707349    14.32   0.000     21.10914    27.80294
+          9  |   98.86126   12.35972     8.00   0.000      74.6326    123.0899
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------------------+
+             Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------------------+---------------------------------------|
+                 zipcode |      7227        7227           0    *|
+                     msa |       641           0         641     |
+       year_month#county |     19800          19       19781     |
+   calendar_month#county |      1980        1980           0    ?|
+-----------------------------------------------------------------+
+? = number of redundant parameters may be higher
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/listing_24_the_FEs_limit.png not found)
+(file ../output/listing_24_the_FEs_limit.png written in PNG format)
+
+. 
+end of do-file
+
+ make.py ended: 2020-04-17 16:29:32
