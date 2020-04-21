@@ -6,8 +6,8 @@ adopath + ../../../lib/stata/min_wage/ado
 set maxvar 32000 
 
 program main    
-    es_tests, data(rent) window(24) depvar(medrentpricepsqft_sfcc)
-    es_tests, data(listing) window(24) depvar(medlistingpricepsqft_sfcc)
+    es_tests, data(rent) window(12) depvar(medrentpricepsqft_sfcc)
+    es_tests, data(listing) window(12) depvar(medlistingpricepsqft_sfcc)
 end
 
 program es_tests

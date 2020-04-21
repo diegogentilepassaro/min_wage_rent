@@ -5,8 +5,8 @@ adopath + ../../../lib/stata/gslab_misc/ado
 set maxvar 32000 
 
 program main
-    foreach data in rent listing {
-	    foreach window in 24 {
+    foreach data in rent listing{
+	    foreach window in 12 24{
 		use "../../../drive/derived_large/output/baseline_`data'_panel.dta", clear
 		    create_latest_event_vars, event_dummy(sal_mw_event) window(`window')                ///
 			    time_var(year_month) geo_unit(zipcode) panel_end(2019m12)
