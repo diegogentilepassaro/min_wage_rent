@@ -39,8 +39,8 @@ program build_small_area_fmr
 	}
 
 
-	// import excel `instub'SFMR/fy2019_safmrs_rev.xlsx, first clear 
-	// clean_safmrs, yr(2019)
+	// import excel `instub'SFMR/fy2016_safmrs.xlsx, first clear 
+	// clean_safmrs, yr(2016)
 	// STOP
 
 	import excel `instub'SFMR/fy2019_safmrs_rev.xlsx, first clear 
@@ -54,32 +54,27 @@ program build_small_area_fmr
 	sort cbsa zipcode year
 	label values cbsa `cbsalabel'
 
-
 	drop if zipcode<1000 
+
 
 	bys cbsa zipcode (state_fips): replace state_fips = state_fips[1]  
 	bys cbsa zipcode (county_fips): replace county_fips = county_fips[1]  
 
 	duplicates drop
 
-	tostring cbsa, g(tempcbsa)
-	replace tempcbsa = "M" + tempcbsa if year <2018
-	replace hudcode = tempcbsa if year<2018 
+	g temphud = hudcode
+	bys cbsa zipcode (year hudcode) : replace temphud = hudcode[_N] if missing(temphud) 
+	
+	tostring cbsa, g(misshud)
+	replace misshud = "M" + misshud
+	replace temphud = misshud if missing(temphud)
+	drop misshud 
+	
 
-	// egen id_temp = group(zipcode hud_safmr_name cbsaname year)
-	local outstub "../output/"
+	duplicates drop cbsa zipcode temphud year, force
 
-	duplicates tag hudcode zipcode year, g(dup)
-	sort hudcode zipcode year
-	br if dup>0
-
-	save_data `outstub'safrm.dta, key(cbsa zipcode year)
-
-
-	// save `outstub'safmr_temp.dta, replace 
-
-
-
+	// local outstub "../output/"
+	save_data `outstub'safrm.dta, key(cbsa zipcode temphud year)
 
 end
 
