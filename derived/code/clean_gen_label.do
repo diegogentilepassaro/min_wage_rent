@@ -54,6 +54,9 @@ program gen_vars
     }
 	
     gen sal_mw_event = (dactual_mw >= 0.5)
+	gen mw_event025 = (dactual_mw >= 0.25)
+	gen mw_event075 = (dactual_mw >= 0.75)
+
 end
 
 main

@@ -38,9 +38,11 @@ program create_baseline_panel
     syntax, var(str) start_date(str) end_date(str)
 	
     use zipcode state county msa year_month calendar_month `var' ///
-	    actual_mw dactual_mw sal_mw_event mw_event ///
+	    actual_mw dactual_mw mw_event ///
 		local_abovestate_mw county_abovestate_mw local_mw ///
-		county_mw state_mw fed_mw using "../temp/zipcode_yearmonth_panel.dta", clear
+		county_mw state_mw fed_mw ///
+		sal_mw_event mw_event025 mw_event075 ///
+		using "../temp/zipcode_yearmonth_panel.dta", clear
 		
 	drop if missing(msa)
 	keep if (year_month >= `=mofd(td(`start_date'))' & year_month <= `=mofd(td(`end_date'))')
