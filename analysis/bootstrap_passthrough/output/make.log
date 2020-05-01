@@ -1,0 +1,346 @@
+
+ make.py started: 2020-04-30 17:25:01 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\bootstrap_passthrough\code 
+
+
+
+
+Execute:  StataMP-64 /e do "./preclean.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./preclean.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/mental_coupons/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+  [8]              "../../../lib/stata/gslab_misc/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.         use "../../../drive/derived_large/output/baseline_rent_panel.dta",
+>  clear
+  2.                 create_latest_event_vars, event_dummy(sal_mw_event) window
+> (24)                ///
+>                         time_var(year_month) geo_unit(zipcode) panel_end(2019
+> m12)
+  3.         
+.                 save_data "../temp/baseline_rent_panel_24.dta", key(zipcode y
+> ear_month)            ///
+>                         replace log(none)
+  4. end
+
+. 
+. program create_latest_event_vars
+  1.         syntax, event_dummy(str) window(int) time_var(str) ///
+>             geo_unit(str) panel_end(str)
+  2.         
+.         local window_span = `window'*2 + 1 
+  3. 
+.         gen `event_dummy'_`time_var' = `time_var' if `event_dummy' == 1
+  4.         format `event_dummy'_`time_var' %tm
+  5. 
+.         gen months_until_panel_ends = `=tm(`panel_end')' - year_month
+  6.         
+.         preserve
+  7.         keep if months_until_panel_ends >= (`window' + 1)
+  8.         collapse (max) last_`event_dummy'_`time_var' = `event_dummy'_`time
+> _var', by(`geo_unit')
+  9.         format last_`event_dummy'_`time_var' %tm
+ 10.         keep zipcode last_`event_dummy'_`time_var'
+ 11.         save_data "../temp/last_event`window'_by_zipcode.dta", key(zipcode
+> ) replace
+ 12.         restore
+ 13.         
+.         merge m:1 zipcode using "../temp/last_event`window'_by_zipcode.dta", 
+> ///
+>             nogen assert(3) keep(3)
+ 14.         
+.         gen last_`event_dummy'_rel_months`window' = `time_var' - last_`event_
+> dummy'_`time_var'
+ 15.         replace last_`event_dummy'_rel_months`window' = last_`event_dummy'
+> _rel_months`window' + `window' + 1
+ 16.         replace last_`event_dummy'_rel_months`window' = 0 ///
+>             if last_`event_dummy'_rel_months`window' <= 0
+ 17.         replace last_`event_dummy'_rel_months`window' = 1000 ///
+>             if last_`event_dummy'_rel_months`window' > `window_span'
+ 18.         
+.         gen unused_mw_event`window' = (mw_event == 1 & last_`event_dummy'_rel
+> _months`window' != (`window' + 1))
+ 19.         bysort zipcode (year_month): gen cumul_nbr_unused_mw_events = sum(
+> unused_mw_event`window')
+ 20.                 
+.         drop `event_dummy'_`time_var' last_`event_dummy'_`time_var'    
+ 21. end
+
+. 
+. main
+(83,975 missing values generated)
+(25,475 observations deleted)
+(data already sorted by zipcode)
+  variable last_sal_mw_event_year_month was float now int
+  (2,038 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/last_event24_by_zipcode.dta
+Key: zipcode
+===============================================================================
+> ===================
+  1019:2(80974):4079640286:2559203553
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |      1,019    49401.78    29178.52       2113      98513
+last_sal_m~h |        395    681.7848    10.50003        636        693
+
+
+
+
+(note: file ../temp/last_event24_by_zipcode.dta not found)
+file ../temp/last_event24_by_zipcode.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            85,596  
+    -----------------------------------------
+(52,416 missing values generated)
+(33,180 real changes made)
+(8,559 real changes made)
+(57,636 real changes made)
+(data already sorted by zipcode year_month)
+  variable months_until_panel_ends was float now byte
+  variable last_sal_mw_event_rel_months24 was float now int
+  variable unused_mw_event24 was float now byte
+  variable cumul_nbr_unused_mw_events was float now byte
+  (941,556 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/baseline_rent_panel_24.dta
+Key: zipcode year_month
+===============================================================================
+> ===================
+  85596:28(67974):1529862838:3717425018
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |     85,596    49401.78    29164.37       2113      98513
+  year_month |     85,596       677.5    24.24713        636        719
+         msa |          0
+      county |     85,596      91.105    126.7588          1        810
+       state |     85,596    22.46124    15.75961          1         53
+-------------+---------------------------------------------------------
+    local_mw |      4,116    9.883166    1.765644       7.79         16
+local_abov~w |      4,116    .4560253     .498123          0          1
+   county_mw |      4,200    9.506893    1.670937       7.25      14.25
+county_abo~w |      4,200    .4445238     .496972          0          1
+      fed_mw |     85,596        7.25           0       7.25       7.25
+-------------+---------------------------------------------------------
+    state_mw |     85,596    8.283529    1.188736       7.25         14
+medre~e_sfcc |     85,596     1657.35    694.8042      597.5       6500
+   actual_mw |     85,596    8.352578     1.29698       7.25         16
+  dactual_mw |     85,596    .0196759    .1348275      -3.59       2.21
+    mw_event |     85,596    .0426772    .2021296          0          1
+-------------+---------------------------------------------------------
+calendar_m~h |     85,596         6.5    3.452073          1         12
+sal_mw_event |     85,596    .0189378    .1363062          0          1
+ mw_event025 |     85,596    .0214262    .1448012          0          1
+ mw_event075 |     85,596    .0110986    .1047645          0          1
+m~e_mfr5plus |     27,720    1779.821    761.6083        450     5297.5
+-------------+---------------------------------------------------------
+medren~e_2br |     18,900    2050.254    1044.385        495       6800
+medre~t_sfcc |     72,996    1.126265    .6120248   .4310905   5.586398
+m~t_mfr5plus |     19,824    1.770107    .8902973   .5106889   6.213753
+medren~t_2br |     13,608    1.822579    .8646395    .548112          6
+months_unt~s |     85,596        41.5    24.24713          0         83
+-------------+---------------------------------------------------------
+last_sal_~24 |     85,596    678.9803     461.003          0       1000
+unused_mw~24 |     85,596    .0380625    .1913484          0          1
+cumul_nbr_~s |     85,596    1.674144    1.842464          0          7
+
+
+
+
+(note: file ../temp/baseline_rent_panel_24.dta not found)
+file ../temp/baseline_rent_panel_24.dta saved
+
+. 
+end of do-file
+
+
+Execute:  StataMP-64 /e do "./bootstrap.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./bootstrap.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/mental_coupons/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+  [8]              "../../../lib/stata/gslab_misc/ado"
+
+. adopath + ../../../lib/stata/min_wage/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+  [8]              "../../../lib/stata/gslab_misc/ado"
+  [9]              "../../../lib/stata/min_wage/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.     use "../temp/baseline_rent_panel_24.dta", clear
+  2. 
+.     xtset, clear
+  3.         eststo clear
+  4.     eststo: bootstrap passthrough = r(passthrough) ///
+>             avg_effect = r(avg_effect) ///
+>                 incr_sf_monthly_income = r(incr_sf_monthly_income), rep(100) 
+> seed(8) ///
+>             cluster(zipcode): thing_to_bootstrap
+  5.         esttab * using "../output/bootstrap.tex", mtitle("Bootstrap") ci r
+> eplace
+  6. end
+
+. 
+. program thing_to_bootstrap, rclass
+  1. 
+.     reghdfe medrentpricepsqft_sfcc ib24.last_sal_mw_event_rel_months24, nocon
+> s ///
+>                 absorb(zipcode calendar_month year_month)
+  2.         local sum_coeffs = 0
+  3.         forval i = 25(1)49 {
+  4.         local sum_coeffs = `sum_coeffs' + _b[`i'.last_sal_mw_event_rel_mon
+> ths24]
+  5.                 local avg_effect = `sum_coeffs'/25
+  6.         }
+  7.         
+.         reghdfe dactual_mw ib24.last_sal_mw_event_rel_months24, nocons ///
+>                 absorb(zipcode calendar_month year_month)
+  8.         local used_mw_change = _b[25.last_sal_mw_event_rel_months24]
+  9.         local incr_sf_monthly_income = (2*40*4.35)*`used_mw_change'
+ 10.         
+.         local avg_sf_home_size = 1500
+ 11.         
+.         return scalar avg_effect = `avg_effect'
+ 12.         return scalar incr_sf_monthly_income = `incr_sf_monthly_income'
+ 13.     return scalar passthrough = (`avg_sf_home_size'*`avg_effect')/`incr_sf
+> _monthly_income'
+ 14. end
+
+. 
+. main
+(running thing_to_bootstrap on estimation sample)
+
+Bootstrap replications (100)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..................................................    50
+..................................................   100
+
+Bootstrap results                               Number of obs     =     85,596
+                                                Replications      =        100
+
+      command:  thing_to_bootstrap
+  passthrough:  r(passthrough)
+   avg_effect:  r(avg_effect)
+incr_sf_mon~e:  r(incr_sf_monthly_income)
+
+                             (Replications based on 1,019 clusters in zipcode)
+------------------------------------------------------------------------------
+             |   Observed   Bootstrap                         Normal-based
+             |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+ passthrough |   .1195695   .0205554     5.82   0.000     .0792817    .1598573
+  avg_effect |   .0272932   .0045324     6.02   0.000     .0184098    .0361766
+incr_sf_mo~e |   342.3931   7.647012    44.77   0.000     327.4053     357.381
+------------------------------------------------------------------------------
+(est1 stored)
+(note: file ../output/bootstrap.tex not found)
+(output written to ../output/bootstrap.tex)
+
+. 
+end of do-file
+
+ make.py ended: 2020-04-30 17:33:31
