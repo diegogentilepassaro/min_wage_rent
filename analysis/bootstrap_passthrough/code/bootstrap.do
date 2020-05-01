@@ -10,11 +10,18 @@ program main
 
     xtset, clear
 	eststo clear
-    eststo: bootstrap passthrough = r(passthrough) ///
-	    avg_effect = r(avg_effect) ///
-		incr_sf_monthly_income = r(incr_sf_monthly_income), rep(100) seed(8) ///
+    eststo: bootstrap effect_per_sqft = r(effect_per_sqft) ///
+	    total_rent_increase = r(total_rent_increase) ///
+		incr_sf_monthly_income = r(incr_sf_monthly_income) ///
+		passthrough = r(passthrough), rep(200) seed(8) ///
 	    cluster(zipcode): thing_to_bootstrap
-	esttab * using "../output/bootstrap.tex", mtitle("Bootstrap") ci replace
+	esttab * using "../output/bootstrap.tex", mtitle("Bootstrap") ci replace ///
+	    coeflabels(effect_per_sqft "Rent increase per square feet" ///
+		total_rent_increase "Total rent increase (assuming 1500 square feet)" ///
+		incr_sf_monthly_income "Increase in income of a household with 2 full time minimum wages" ///
+		passthrough "Implied passthrough from MW to rents") ///
+		stats(N N_clust N_reps, fmt(%9.0g %9.0g %9.0g) ///
+	    labels("Number of zipcode-months" "Number of Zipcodes" "Number of bootstrap repetitions"))
 end
 
 program thing_to_bootstrap, rclass
@@ -24,7 +31,7 @@ program thing_to_bootstrap, rclass
 	local sum_coeffs = 0
 	forval i = 25(1)49 {
         local sum_coeffs = `sum_coeffs' + _b[`i'.last_sal_mw_event_rel_months24]
-		local avg_effect = `sum_coeffs'/25
+		local effect_per_sqft = `sum_coeffs'/25
 	}
 	
 	reghdfe dactual_mw ib24.last_sal_mw_event_rel_months24, nocons ///
@@ -34,9 +41,10 @@ program thing_to_bootstrap, rclass
 	
 	local avg_sf_home_size = 1500
 	
-	return scalar avg_effect = `avg_effect'
+	return scalar effect_per_sqft = `effect_per_sqft'
+	return scalar total_rent_increase = `avg_sf_home_size'*`effect_per_sqft'
 	return scalar incr_sf_monthly_income = `incr_sf_monthly_income'
-    return scalar passthrough = (`avg_sf_home_size'*`avg_effect')/`incr_sf_monthly_income'
+    return scalar passthrough = (`avg_sf_home_size'*`effect_per_sqft')/`incr_sf_monthly_income'
 end
 
 main
