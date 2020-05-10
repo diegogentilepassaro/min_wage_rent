@@ -1,7 +1,7 @@
 OVERVIEW
 ========================================================
-This directory contains data from the Quarterly Census of Employment
-and Wages. Files downloaded in April 2020.
+This directory contains documentation of data from the Quarterly Census of Employment
+and Wages, python code to download the data.
 
 
 SOURCE
@@ -12,8 +12,8 @@ https://www.bls.gov/cew/downloadable-data-files.htm
 
 DESCRIPTION
 ========================================================
-/code/          python script that automatically downloads and unzip files.
-
-/orig/		csvs containing the raw unzipped data
+/code/          python script that automatically downloads and unzip files
 
 /docs/		Documentation from the original website
+
+/output/	log file generated after the scrapping
