@@ -8,7 +8,7 @@ set maxvar 32000
 program main
     use "../temp/baseline_rent_panel_24.dta", clear
     
-	local reps = 30
+	local reps = 2
 	local seed = 8
 	
     xtset, clear
@@ -42,7 +42,7 @@ program main
 	    cluster(zipcode): thing_to_bootstrap, event_var(mw_event075)
 
 	esttab * using "../output/bootstrap.tex", ci replace ///
-	    mtitle("MW changes of at least \$0.5" "MW changes of at least \$0.25" "MW changes of at least \$0.75") ///
+	    mtitle("MW changes of at least \\$0.5" "MW changes of at least \\$0.25" "MW changes of at least \\$0.75") ///
 	    coeflabels(effect_per_sqft "Rent increase per square feet" ///
 		total_rent_increase1000 "Total rent increase (assuming 1000 square feet)" ///
 		total_rent_increase1500 "Total rent increase (assuming 1500 square feet)" ///
