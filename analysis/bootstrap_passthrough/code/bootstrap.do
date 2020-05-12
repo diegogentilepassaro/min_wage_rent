@@ -13,36 +13,27 @@ program main
 	
     xtset, clear
 	eststo clear
-    eststo: bootstrap effect_per_sqft = r(effect_per_sqft) ///
-	    total_rent_increase1000 = r(total_rent_increase1000) ///
-		total_rent_increase1500 = r(total_rent_increase1500) ///
-		total_rent_increase2000 = r(total_rent_increase2000) ///
-		incr_sf_monthly_income = r(incr_sf_monthly_income) ///
-		passthrough1000 = r(passthrough1000) ///
-		passthrough1500 = r(passthrough1500) ///
-		passthrough2000 = r(passthrough2000), rep(`reps') seed(`seed') ///
-	    cluster(zipcode): thing_to_bootstrap, event_var(sal_mw_event)
-    eststo: bootstrap effect_per_sqft = r(effect_per_sqft) ///
-	    total_rent_increase1000 = r(total_rent_increase1000) ///
-		total_rent_increase1500 = r(total_rent_increase1500) ///
-		total_rent_increase2000 = r(total_rent_increase2000) ///
-		incr_sf_monthly_income = r(incr_sf_monthly_income) ///
-		passthrough1000 = r(passthrough1000) ///
-		passthrough1500 = r(passthrough1500) ///
-		passthrough2000 = r(passthrough2000), rep(`reps') seed(`seed') ///
-	    cluster(zipcode): thing_to_bootstrap, event_var(mw_event025)
-    eststo: bootstrap effect_per_sqft = r(effect_per_sqft) ///
-	    total_rent_increase1000 = r(total_rent_increase1000) ///
-		total_rent_increase1500 = r(total_rent_increase1500) ///
-		total_rent_increase2000 = r(total_rent_increase2000) ///
-		incr_sf_monthly_income = r(incr_sf_monthly_income) ///
-		passthrough1000 = r(passthrough1000) ///
-		passthrough1500 = r(passthrough1500) ///
-		passthrough2000 = r(passthrough2000), rep(`reps') seed(`seed') ///
-	    cluster(zipcode): thing_to_bootstrap, event_var(mw_event075)
+	
+	foreach event_var in mw_event025 sal_mw_event mw_event075 {
+		eststo: bootstrap effect_per_sqft = r(effect_per_sqft) ///
+			total_rent_increase1000 = r(total_rent_increase1000) ///
+			total_rent_increase1500 = r(total_rent_increase1500) ///
+			total_rent_increase2000 = r(total_rent_increase2000) ///
+			incr_sf_monthly_income = r(incr_sf_monthly_income) ///
+			passthrough1000 = r(passthrough1000) ///
+			passthrough1500 = r(passthrough1500) ///
+			passthrough2000 = r(passthrough2000), rep(`reps') seed(`seed') ///
+			cluster(zipcode): thing_to_bootstrap, event_var(`event_var')
+			
+		sum dactual_mw if last_`event_var'_rel_months24 == 25
+		estadd local nbr_events = r(N)
+		estadd local min_mw_change = round(r(min),0.01)
+		estadd local avg_mw_change = round(r(mean),0.01)
+		estadd local max_mw_change = round(r(max),0.01)
+	}
 
 	esttab * using "../output/bootstrap.tex", ci replace ///
-	    mtitle("MW changes of at least \\$0.5" "MW changes of at least \\$0.25" "MW changes of at least \\$0.75") ///
+	    mtitle("MW changes of at least \\$0.25" "MW changes of at least \\$0.5" "MW changes of at least \\$0.75") ///
 	    coeflabels(effect_per_sqft "Rent increase per square feet" ///
 		total_rent_increase1000 "Total rent increase (assuming 1000 square feet)" ///
 		total_rent_increase1500 "Total rent increase (assuming 1500 square feet)" ///
@@ -51,8 +42,10 @@ program main
 		passthrough1000 "Implied passthrough from MW to rents (assuming 1000 square feet)" ///
 	    passthrough1500 "Implied passthrough from MW to rents (assuming 1500 square feet)" ///
 		passthrough2000 "Implied passthrough from MW to rents (assuming 2000 square feet)") ///
-		stats(N N_clust N_reps, fmt(%9.0g %9.0g %9.0g) ///
-	    labels("Number of zipcode-months" "Number of Zipcodes" "Number of bootstrap repetitions"))
+		stats(nbr_events min_mw_change avg_mw_change max_mw_change N N_clust N_reps, ///
+		fmt(%9.0g %9.0g %9.0g %9.0g %9.0g %9.0g %9.0g) ///
+	    labels("Number of MW events" "Minimum MW change" "Average MW change" "Maximum MW change" ///
+		"Number of zipcode-months" "Number of Zipcodes" "Number of bootstrap repetitions")) nonotes
 		
 end
 
