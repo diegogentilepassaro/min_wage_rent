@@ -42,17 +42,17 @@ if __name__ == '__main__':
 
     QCEW_PATH = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     ROOT_PATH = os.path.dirname(os.path.dirname(QCEW_PATH))
-    DATA_PATH = os.path.join(ROOT_PATH, "drive\\raw_data\\qcew")
+    DATA_PATH = os.path.join(ROOT_PATH, "drive\\raw_data\\qcew\\raw")
 
     empty_folder = len(os.listdir(DATA_PATH)) == 0
 
     if not empty_folder:
-        sys.exit("Error: Please clear the 'drive/raw_data/qcew' folder before downloading the data.")
+        sys.exit("Error: Please clear the 'drive/raw_data/qcew/raw' folder before downloading the data.")
     
     log_and_print('Start raw data build.', logger)
 
-    start_year     = 1990
-    start_year_ind = 1990
+    start_year     = 2010
+    start_year_ind = 2010
     end_year       = 2019
 
     # County-High Level

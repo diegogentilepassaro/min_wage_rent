@@ -4,7 +4,7 @@
 #****************************************************
 import subprocess, shutil, os
 from distutils.dir_util import copy_tree
-copy_tree("../../lib/python/gslab_make", "./gslab_make") # Copy from gslab tools stored locally
+copy_tree("../../../lib/python/gslab_make", "./gslab_make") # Copy from gslab tools stored locally
 from gslab_make.get_externals import *
 from gslab_make.make_log import *
 from gslab_make.make_links import *

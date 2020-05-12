@@ -1,9 +1,9 @@
 set more off
 clear all
-adopath + ../../lib/stata/gslab_misc/ado
+adopath + ../../../lib/stata/gslab_misc/ado
 
 program main 
-	local raw "../../drive/raw_data/min_wage"
+	local raw "../../../drive/raw_data/min_wage"
 	local exports "../output"
 	local temp "../temp"
 
@@ -14,7 +14,6 @@ program main
 	
 	local mw_list = "mw mw_smallbusiness"
 	prepare_finaldata, temp(`temp') finaldate(31Dec2019) target_mw(`mw_list')
-
 
 	export_substate_daily,     outstub(`exports') temp(`temp') 
 	export_substate_monthly,   outstub(`exports') temp(`temp') target_mw(`mw_list')
@@ -66,7 +65,8 @@ program substate_min_wage_change
 	label var stateabb "State Abbreviation"
 	label var locality "City/County"
 	label var mw "Minimum Wage"
-	order statefips statename stateabb locality year month day date mw mw_*  year_bill_passed source source_2 source_notes
+	order statefips statename stateabb locality year month ///
+	    day date mw mw_* source source_2 source_notes
 
 
 	isid locality date, sort
@@ -114,7 +114,7 @@ program prepare_finaldata
 	foreach x of varlist statename stateabb locality source_notes {
 	  bysort locality_temp (date): replace `x' = `x'[_n-1] if `x' == ""
 	}
-	foreach x of varlist statefips year_bill_passed mw* {
+	foreach x of varlist statefips mw* {
 	  bysort locality_temp (date): replace `x' = `x'[_n-1] if `x' == .
 	}
 
@@ -139,8 +139,8 @@ program prepare_finaldata
 
 
 
-	keep statefips statename stateabb date locality mw mw_* abovestate_* year_bill_passed source_notes
-	order statefips statename stateabb date locality mw mw_* abovestate_*  year_bill_passed source_notes
+	keep statefips statename stateabb date locality mw mw_* abovestate_* source_notes
+	order statefips statename stateabb date locality mw mw_* abovestate_* source_notes
 
 	notes mw: The mw variable represents the most applicable minimum wage across the locality.
 
