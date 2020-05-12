@@ -34,6 +34,7 @@ elif "Stata15" in envir_vars:
 
 start_make_logging()
 
+run_stata(program = 'alt_rents.do', executable = stata)
 run_rbatch(program = 'RenameZillowVars_zipLevel.R')
 run_rbatch(program = 'cleanGeoRelationshipFiles.R')
 run_stata(program = 'state_mw.do', executable = stata)

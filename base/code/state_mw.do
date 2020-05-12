@@ -220,8 +220,11 @@ end
 program label_mw_vars
     syntax, time_level(str)
 
-    label var fed_mw  "`time_level' Federal MW"
-    label var mw      "`time_level' State MW"    
+	cap label var fed_mw  "`time_level' Federal MW"
+	cap label var mw      "`time_level' State MW"	
+	cap label var mw_healthinsurance "`time_level' State MW Health and Insurance"
+	cap label var mw_smallbusiness "`time_level' State MW Small Business"
+
 end
 
 *EXECUTE
