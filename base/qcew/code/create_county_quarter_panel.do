@@ -3,9 +3,10 @@ clear all
 adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
-    forval year = 10(1)19 {
+    forval year = 10(1)18 {
         process_hl_county_year_file, year(`year')
 	}
+	process_hl_county_year_file, year(19) quarters(3)
 	
 	use "../temp/10.dta", clear
 	forval year = 11(1)19 {
@@ -16,9 +17,9 @@ program main
 end
 
 program process_hl_county_year_file
-    syntax, year(int) 
+    syntax, year(int) [quarters(int 4)]
 	
-	forval qtr = 1(1)4 {
+	forval qtr = 1(1)`quarters' {
 		import excel "../../../drive/raw_data/qcew/raw/county/20`year'_all_county_high_level/allhlcn`year'`qtr'.xlsx", ///
 			sheet("US_St_Cn_MSA") firstrow clear
 
@@ -57,9 +58,9 @@ program process_hl_county_year_file
 	}
 	
 	use "../temp/`year'1.dta", clear
-	append using "../temp/`year'2.dta"
-	append using "../temp/`year'3.dta"
-	append using "../temp/`year'4.dta"
+	forval qtr = 2(1)`quarters' {
+		append using "../temp/`year'`qtr'.dta"
+    }
     
 	encode area_code, gen(area_fips_code)
 	encode naics, gen(naics_code)

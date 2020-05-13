@@ -3,7 +3,7 @@ clear all
 adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
-    local raw "../../drive/raw_data/min_wage"
+    local raw "../../../drive/raw_data/min_wage"
     local exports "../output"
     local temp "../temp"
 

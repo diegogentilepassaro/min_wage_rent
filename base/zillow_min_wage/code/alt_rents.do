@@ -1,9 +1,9 @@
 set more off
 clear all
-adopath + ../../lib/stata/gslab_misc/ado
+adopath + ../../../lib/stata/gslab_misc/ado
 
 program main 
-	local raw "../../drive/raw_data/"
+	local raw "../../../drive/raw_data/"
 	local exports "../output/"
 	local temp "../temp"
 
