@@ -1,0 +1,625 @@
+
+ make.py started: 2020-05-12 17:05:58 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\bootstrap_passthrough\code 
+
+
+
+
+Execute:  StataMP-64 /e do "./preclean.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./preclean.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/mental_coupons/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+  [8]              "../../../lib/stata/gslab_misc/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.         use "../../../drive/derived_large/output/baseline_rent_panel.dta",
+>  clear
+  2.         
+.         create_latest_event_vars, event_dummy(mw_event025) window(24)        
+>         ///
+>                 time_var(year_month) geo_unit(zipcode) panel_end(2019m12)
+  3.                 
+.         create_latest_event_vars, event_dummy(sal_mw_event) window(24)       
+>          ///
+>                 time_var(year_month) geo_unit(zipcode) panel_end(2019m12)
+  4.                 
+.         create_latest_event_vars, event_dummy(mw_event075) window(24)        
+>         ///
+>                 time_var(year_month) geo_unit(zipcode) panel_end(2019m12)
+  5. 
+.         save_data "../temp/baseline_rent_panel_24.dta", key(zipcode year_mont
+> h)            ///
+>                 replace log(none)
+  6. end
+
+. 
+. program create_latest_event_vars
+  1.         syntax, event_dummy(str) window(int) time_var(str) ///
+>             geo_unit(str) panel_end(str)
+  2.         
+.         local window_span = `window'*2 + 1 
+  3. 
+.         gen `event_dummy'_`time_var' = `time_var' if `event_dummy' == 1
+  4.         format `event_dummy'_`time_var' %tm
+  5. 
+.         cap gen months_until_panel_ends = `=tm(`panel_end')' - year_month
+  6.         
+.         preserve
+  7.         keep if months_until_panel_ends >= (`window' + 1)
+  8.         collapse (max) last_`event_dummy'_`time_var' = `event_dummy'_`time
+> _var', by(`geo_unit')
+  9.         format last_`event_dummy'_`time_var' %tm
+ 10.         keep zipcode last_`event_dummy'_`time_var'
+ 11.         save_data "../temp/last_event`window'_by_zipcode.dta", key(zipcode
+> ) replace
+ 12.         restore
+ 13.         
+.         merge m:1 zipcode using "../temp/last_event`window'_by_zipcode.dta", 
+> ///
+>             nogen assert(3) keep(3)
+ 14.         
+.         gen last_`event_dummy'_rel_months`window' = `time_var' - last_`event_
+> dummy'_`time_var'
+ 15.         replace last_`event_dummy'_rel_months`window' = last_`event_dummy'
+> _rel_months`window' + `window' + 1
+ 16.         replace last_`event_dummy'_rel_months`window' = 0 ///
+>             if last_`event_dummy'_rel_months`window' <= 0
+ 17.         replace last_`event_dummy'_rel_months`window' = 1000 ///
+>             if last_`event_dummy'_rel_months`window' > `window_span'
+ 18.         
+.         gen unused_mw_event`event_dummy'_`window' = ///
+>             (mw_event == 1 & last_`event_dummy'_rel_months`window' != (`windo
+> w' + 1))
+ 19.         bysort zipcode (year_month): gen c_nbr_unused_`event_dummy'_`windo
+> w' = ///
+>             sum(unused_mw_event`event_dummy'_`window')
+ 20.                 
+.         drop `event_dummy'_`time_var' last_`event_dummy'_`time_var'
+ 21. end
+
+. 
+. main
+(83,762 missing values generated)
+(25,475 observations deleted)
+(data already sorted by zipcode)
+  variable last_mw_event025_year_month was float now int
+  (2,038 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/last_event24_by_zipcode.dta
+Key: zipcode
+===============================================================================
+> ===================
+  1019:2(71212):873371093:3934688719
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |      1,019    49401.78    29178.52       2113      98513
+last_mw_ev~h |        408    683.6397    7.828009        636        693
+
+
+
+
+(note: file ../temp/last_event24_by_zipcode.dta not found)
+file ../temp/last_event24_by_zipcode.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            85,596  
+    -----------------------------------------
+(51,324 missing values generated)
+(34,272 real changes made)
+(9,456 real changes made)
+(55,959 real changes made)
+(83,975 missing values generated)
+(25,475 observations deleted)
+(data already sorted by zipcode)
+  variable last_sal_mw_event_year_month was float now int
+  (2,038 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/last_event24_by_zipcode.dta
+Key: zipcode
+===============================================================================
+> ===================
+  1019:2(80974):4079640286:2559203553
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |      1,019    49401.78    29178.52       2113      98513
+last_sal_m~h |        395    681.7848    10.50003        636        693
+
+
+
+
+file ../temp/last_event24_by_zipcode.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            85,596  
+    -----------------------------------------
+(52,416 missing values generated)
+(33,180 real changes made)
+(8,559 real changes made)
+(57,636 real changes made)
+(84,646 missing values generated)
+(25,475 observations deleted)
+(data already sorted by zipcode)
+  variable last_mw_event075_year_month was float now int
+  (2,038 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/last_event24_by_zipcode.dta
+Key: zipcode
+===============================================================================
+> ===================
+  1019:2(71245):3907830980:1114709456
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |      1,019    49401.78    29178.52       2113      98513
+last_mw_ev~h |        365    675.5945    12.33551        636        693
+
+
+
+
+file ../temp/last_event24_by_zipcode.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            85,596  
+    -----------------------------------------
+(54,936 missing values generated)
+(30,660 real changes made)
+(5,673 real changes made)
+(62,019 real changes made)
+(data already sorted by zipcode year_month)
+  variable months_until_panel_ends was float now byte
+  variable last_mw_event025_rel_months24 was float now int
+  variable unused_mw_eventmw_event025_24 was float now byte
+  variable c_nbr_unused_mw_event025_24 was float now byte
+  variable last_sal_mw_event_rel_months24 was float now int
+  variable unused_mw_eventsal_mw_event_24 was float now byte
+  variable c_nbr_unused_sal_mw_event_24 was float now byte
+  variable last_mw_event075_rel_months24 was float now int
+  variable unused_mw_eventmw_event075_24 was float now byte
+  variable c_nbr_unused_mw_event075_24 was float now byte
+  (2,311,092 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/baseline_rent_panel_24.dta
+Key: zipcode year_month
+===============================================================================
+> ===================
+  85596:34(70479):2322388471:3812872039
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |     85,596    49401.78    29164.37       2113      98513
+  year_month |     85,596       677.5    24.24713        636        719
+         msa |          0
+      county |     85,596      91.105    126.7588          1        810
+       state |     85,596    22.46124    15.75961          1         53
+-------------+---------------------------------------------------------
+    local_mw |      4,116    9.883166    1.765644       7.79         16
+local_abov~w |      4,116    .4560253     .498123          0          1
+   county_mw |      4,200    9.506893    1.670937       7.25      14.25
+county_abo~w |      4,200    .4445238     .496972          0          1
+      fed_mw |     85,596        7.25           0       7.25       7.25
+-------------+---------------------------------------------------------
+    state_mw |     85,596    8.283529    1.188736       7.25         14
+medre~e_sfcc |     85,596     1657.35    694.8042      597.5       6500
+   actual_mw |     85,596    8.352578     1.29698       7.25         16
+  dactual_mw |     85,596    .0196759    .1348275      -3.59       2.21
+    mw_event |     85,596    .0426772    .2021296          0          1
+-------------+---------------------------------------------------------
+calendar_m~h |     85,596         6.5    3.452073          1         12
+sal_mw_event |     85,596    .0189378    .1363062          0          1
+ mw_event025 |     85,596    .0214262    .1448012          0          1
+ mw_event075 |     85,596    .0110986    .1047645          0          1
+m~e_mfr5plus |     27,720    1779.821    761.6083        450     5297.5
+-------------+---------------------------------------------------------
+medren~e_2br |     18,900    2050.254    1044.385        495       6800
+medre~t_sfcc |     72,996    1.126265    .6120248   .4310905   5.586398
+m~t_mfr5plus |     19,824    1.770107    .8902973   .5106889   6.213753
+medren~t_2br |     13,608    1.822579    .8646395    .548112          6
+months_unt~s |     85,596        41.5    24.24713          0         83
+-------------+---------------------------------------------------------
+l~25_rel_m~4 |     85,596    659.5774    467.8781          0       1000
+unused~25_24 |     85,596    .0379107    .1909813          0          1
+c_nbr_~25_24 |     85,596    1.677181     1.83358          0          7
+last_sal_~24 |     85,596    678.9803     461.003          0       1000
+unused_~t_24 |     85,596    .0380625    .1913484          0          1
+-------------+---------------------------------------------------------
+c_nbr_u~t_24 |     85,596    1.674144    1.842464          0          7
+l~75_rel_m~4 |     85,596    729.7591    438.3845          0       1000
+unused~75_24 |     85,596     .038413    .1921923          0          1
+c_nbr_~75_24 |     85,596    1.661141    1.849891          0          7
+
+
+
+
+(note: file ../temp/baseline_rent_panel_24.dta not found)
+file ../temp/baseline_rent_panel_24.dta saved
+
+. 
+end of do-file
+
+
+Execute:  StataMP-64 /e do "./bootstrap.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./bootstrap.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/mental_coupons/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+  [8]              "../../../lib/stata/gslab_misc/ado"
+
+. adopath + ../../../lib/stata/min_wage/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+  [8]              "../../../lib/stata/gslab_misc/ado"
+  [9]              "../../../lib/stata/min_wage/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.     use "../temp/baseline_rent_panel_24.dta", clear
+  2.     
+.         local reps = 100
+  3.         local seed = 8
+  4.         
+.     xtset, clear
+  5.         eststo clear
+  6.         
+.         foreach event_var in mw_event025 sal_mw_event mw_event075 {
+  7.                 eststo: bootstrap effect_per_sqft = r(effect_per_sqft) ///
+>                         total_rent_increase1000 = r(total_rent_increase1000) 
+> ///
+>                         total_rent_increase1500 = r(total_rent_increase1500) 
+> ///
+>                         total_rent_increase2000 = r(total_rent_increase2000) 
+> ///
+>                         incr_sf_monthly_income = r(incr_sf_monthly_income) //
+> /
+>                         passthrough1000 = r(passthrough1000) ///
+>                         passthrough1500 = r(passthrough1500) ///
+>                         passthrough2000 = r(passthrough2000), rep(`reps') see
+> d(`seed') ///
+>                         cluster(zipcode): thing_to_bootstrap, event_var(`even
+> t_var')
+  8.                         
+.                 sum dactual_mw if last_`event_var'_rel_months24 == 25
+  9.                 estadd local nbr_events = r(N)
+ 10.                 estadd local min_mw_change = round(r(min),0.01)
+ 11.                 estadd local avg_mw_change = round(r(mean),0.01)
+ 12.                 estadd local max_mw_change = round(r(max),0.01)
+ 13.         }
+ 14. 
+.         esttab * using "../output/bootstrap.tex", ci replace ///
+>             mtitle("MW changes of at least \\$0.25" "MW changes of at least \
+> \$0.5" "MW changes of at least \\$0.75") ///
+>             coeflabels(effect_per_sqft "Rent increase per square feet" ///
+>                 total_rent_increase1000 "Total rent increase (assuming 1000 s
+> quare feet)" ///
+>                 total_rent_increase1500 "Total rent increase (assuming 1500 s
+> quare feet)" ///
+>                 total_rent_increase2000 "Total rent increase (assuming 2000 s
+> quare feet)" ///
+>                 incr_sf_monthly_income "Increase in income of a household wit
+> h 2 full time minimum wages" ///
+>                 passthrough1000 "Implied passthrough from MW to rents (assumi
+> ng 1000 square feet)" ///
+>             passthrough1500 "Implied passthrough from MW to rents (assuming 1
+> 500 square feet)" ///
+>                 passthrough2000 "Implied passthrough from MW to rents (assumi
+> ng 2000 square feet)") ///
+>                 stats(nbr_events min_mw_change avg_mw_change max_mw_change N 
+> N_clust N_reps, ///
+>                 fmt(%9.0g %9.0g %9.0g %9.0g %9.0g %9.0g %9.0g) ///
+>             labels("Number of MW events" "Minimum MW change" "Average MW chan
+> ge" "Maximum MW change" ///
+>                 "Number of zipcode-months" "Number of Zipcodes" "Number of bo
+> otstrap repetitions")) nonotes
+ 15.                 
+. end
+
+. 
+. program thing_to_bootstrap, rclass
+  1.     syntax, event_var(str)
+  2.         
+.     reghdfe medrentpricepsqft_sfcc ib24.last_`event_var'_rel_months24, nocons
+>  ///
+>                 absorb(zipcode calendar_month year_month)
+  3.         local sum_coeffs = 0
+  4.         forval i = 25(1)49 {
+  5.         local sum_coeffs = `sum_coeffs' + _b[`i'.last_`event_var'_rel_mont
+> hs24]
+  6.                 local effect_per_sqft = `sum_coeffs'/25
+  7.         }
+  8.         
+.         reghdfe dactual_mw ib24.last_`event_var'_rel_months24, nocons ///
+>                 absorb(zipcode calendar_month year_month)
+  9.         local used_mw_change = _b[25.last_`event_var'_rel_months24]
+ 10.         local incr_sf_monthly_income = (2*40*4.35)*`used_mw_change'
+ 11.         
+.         local home_size1000 = 1000
+ 12.         local home_size1500 = 1500
+ 13.         local home_size2000 = 2000
+ 14.         
+.         return scalar effect_per_sqft = `effect_per_sqft'
+ 15.         
+.         return scalar total_rent_increase1000 = `home_size1000'*`effect_per_s
+> qft'
+ 16.         return scalar total_rent_increase1500 = `home_size1500'*`effect_pe
+> r_sqft'
+ 17.         return scalar total_rent_increase2000 = `home_size2000'*`effect_pe
+> r_sqft'
+ 18. 
+.         return scalar incr_sf_monthly_income = `incr_sf_monthly_income'
+ 19.         
+.     return scalar passthrough1000 = (`home_size1000'*`effect_per_sqft')/`incr
+> _sf_monthly_income'
+ 20.     return scalar passthrough1500 = (`home_size1500'*`effect_per_sqft')/`i
+> ncr_sf_monthly_income'
+ 21.     return scalar passthrough2000 = (`home_size2000'*`effect_per_sqft')/`i
+> ncr_sf_monthly_income'
+ 22. 
+. end
+
+. 
+. main
+(running thing_to_bootstrap on estimation sample)
+
+Bootstrap replications (100)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..................................................    50
+..................................................   100
+
+Bootstrap results                               Number of obs     =     85,596
+                                                Replications      =        100
+
+      command:  thing_to_bootstrap, event_var(mw_event025)
+effect_per_~t:  r(effect_per_sqft)
+total_re~1000:  r(total_rent_increase1000)
+total_re~1500:  r(total_rent_increase1500)
+total_re~2000:  r(total_rent_increase2000)
+incr_sf_mon~e:  r(incr_sf_monthly_income)
+passthro~1000:  r(passthrough1000)
+passthro~1500:  r(passthrough1500)
+passthro~2000:  r(passthrough2000)
+
+                             (Replications based on 1,019 clusters in zipcode)
+------------------------------------------------------------------------------
+             |   Observed   Bootstrap                         Normal-based
+             |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+effect_per~t |   .0276012   .0046824     5.89   0.000     .0184239    .0367786
+total_r~1000 |   27.60123   4.682412     5.89   0.000     18.42388    36.77859
+total_r~1500 |   41.40185   7.023617     5.89   0.000     27.63581    55.16789
+total_r~2000 |   55.20247   9.364823     5.89   0.000     36.84775    73.55719
+incr_sf_mo~e |    333.191   7.723946    43.14   0.000     318.0523    348.3296
+passthr~1000 |   .0828391   .0144146     5.75   0.000     .0545869    .1110913
+passthr~1500 |   .1242586    .021622     5.75   0.000     .0818804    .1666369
+passthr~2000 |   .1656782   .0288293     5.75   0.000     .1091738    .2221825
+------------------------------------------------------------------------------
+(est1 stored)
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  dactual_mw |        408    .9933332    .5628282   .3999996          2
+
+added macro:
+         e(nbr_events) : "408"
+
+added macro:
+      e(min_mw_change) : ".4"
+
+added macro:
+      e(avg_mw_change) : ".99"
+
+added macro:
+      e(max_mw_change) : "2"
+(running thing_to_bootstrap on estimation sample)
+
+Bootstrap replications (100)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..................................................    50
+..................................................   100
+
+Bootstrap results                               Number of obs     =     85,596
+                                                Replications      =        100
+
+      command:  thing_to_bootstrap, event_var(sal_mw_event)
+effect_per_~t:  r(effect_per_sqft)
+total_re~1000:  r(total_rent_increase1000)
+total_re~1500:  r(total_rent_increase1500)
+total_re~2000:  r(total_rent_increase2000)
+incr_sf_mon~e:  r(incr_sf_monthly_income)
+passthro~1000:  r(passthrough1000)
+passthro~1500:  r(passthrough1500)
+passthro~2000:  r(passthrough2000)
+
+                             (Replications based on 1,019 clusters in zipcode)
+------------------------------------------------------------------------------
+             |   Observed   Bootstrap                         Normal-based
+             |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+effect_per~t |   .0272932   .0045324     6.02   0.000     .0184098    .0361766
+total_r~1000 |   27.29318   4.532419     6.02   0.000     18.40981    36.17656
+total_r~1500 |   40.93978   6.798629     6.02   0.000     27.61471    54.26484
+total_r~2000 |   54.58637   9.064838     6.02   0.000     36.81961    72.35312
+incr_sf_mo~e |   342.3931   7.647012    44.77   0.000     327.4053     357.381
+passthr~1000 |    .079713   .0137036     5.82   0.000     .0528544    .1065716
+passthr~1500 |   .1195695   .0205554     5.82   0.000     .0792817    .1598573
+passthr~2000 |    .159426   .0274072     5.82   0.000     .1057089    .2131431
+------------------------------------------------------------------------------
+(est2 stored)
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  dactual_mw |        395    1.032607    .5461931         .5          2
+
+added macro:
+         e(nbr_events) : "395"
+
+added macro:
+      e(min_mw_change) : ".5"
+
+added macro:
+      e(avg_mw_change) : "1.03"
+
+added macro:
+      e(max_mw_change) : "2"
+(running thing_to_bootstrap on estimation sample)
+
+Bootstrap replications (100)
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5 
+..................................................    50
+..................................................   100
+
+Bootstrap results                               Number of obs     =     85,596
+                                                Replications      =        100
+
+      command:  thing_to_bootstrap, event_var(mw_event075)
+effect_per_~t:  r(effect_per_sqft)
+total_re~1000:  r(total_rent_increase1000)
+total_re~1500:  r(total_rent_increase1500)
+total_re~2000:  r(total_rent_increase2000)
+incr_sf_mon~e:  r(incr_sf_monthly_income)
+passthro~1000:  r(passthrough1000)
+passthro~1500:  r(passthrough1500)
+passthro~2000:  r(passthrough2000)
+
+                             (Replications based on 1,019 clusters in zipcode)
+------------------------------------------------------------------------------
+             |   Observed   Bootstrap                         Normal-based
+             |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+effect_per~t |   .0297581   .0046018     6.47   0.000     .0207387    .0387776
+total_r~1000 |   29.75815   4.601827     6.47   0.000     20.73873    38.77756
+total_r~1500 |   44.63722    6.90274     6.47   0.000      31.1081    58.16634
+total_r~2000 |    59.5163   9.203654     6.47   0.000     41.47747    77.55513
+incr_sf_mo~e |   408.8362   7.225289    56.58   0.000     394.6749    422.9975
+passthr~1000 |   .0727875   .0115288     6.31   0.000     .0501914    .0953835
+passthr~1500 |   .1091812   .0172932     6.31   0.000     .0752871    .1430753
+passthr~2000 |   .1455749   .0230576     6.31   0.000     .1003828     .190767
+------------------------------------------------------------------------------
+(est3 stored)
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  dactual_mw |        365    1.196657    .4526318        .75          2
+
+added macro:
+         e(nbr_events) : "365"
+
+added macro:
+      e(min_mw_change) : ".75"
+
+added macro:
+      e(avg_mw_change) : "1.2"
+
+added macro:
+      e(max_mw_change) : "2"
+(note: file ../output/bootstrap.tex not found)
+(output written to ../output/bootstrap.tex)
+
+. 
+end of do-file
+
+ make.py ended: 2020-05-12 17:36:38

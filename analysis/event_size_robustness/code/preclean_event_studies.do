@@ -8,9 +8,11 @@ program main
     foreach data in rent listing {
 	    foreach window in 12 24 {
 		use "../../../drive/derived_large/output/baseline_`data'_panel.dta", clear
-		    create_latest_event_vars, event_dummy(sal_mw_event) window(`window')                ///
+		    create_latest_event_vars, event_dummy(mw_event025) window(`window')                ///
 			    time_var(year_month) geo_unit(zipcode) panel_end(2019m12)
-	    
+	        create_latest_event_vars, event_dummy(mw_event075) window(`window')                ///
+			    time_var(year_month) geo_unit(zipcode) panel_end(2019m12)
+
 	        save_data "../temp/baseline_`data'_panel_`window'.dta", key(zipcode year_month)            ///
 	            replace log(none)
 			}
@@ -26,7 +28,7 @@ program create_latest_event_vars
 	gen `event_dummy'_`time_var' = `time_var' if `event_dummy' == 1
 	format `event_dummy'_`time_var' %tm
 
-	gen months_until_panel_ends = `=tm(`panel_end')' - year_month
+	cap gen months_until_panel_ends = `=tm(`panel_end')' - year_month
 	
 	preserve
 	keep if months_until_panel_ends >= (`window' + 1)
@@ -46,10 +48,12 @@ program create_latest_event_vars
 	replace last_`event_dummy'_rel_months`window' = 1000 ///
 	    if last_`event_dummy'_rel_months`window' > `window_span'
 	
-	gen unused_mw_event`window' = (mw_event == 1 & last_`event_dummy'_rel_months`window' != (`window' + 1))
-	bysort zipcode (year_month): gen cumul_nbr_unused_mw_events = sum(unused_mw_event`window')
+	gen unused_mw_event`event_dummy'_`window' = ///
+	    (mw_event == 1 & last_`event_dummy'_rel_months`window' != (`window' + 1))
+	bysort zipcode (year_month): gen c_nbr_unused_`event_dummy'_`window' = ///
+	    sum(unused_mw_event`event_dummy'_`window')
 		
-	drop `event_dummy'_`time_var' last_`event_dummy'_`time_var'    
+	drop `event_dummy'_`time_var' last_`event_dummy'_`time_var'
 end
 
 main

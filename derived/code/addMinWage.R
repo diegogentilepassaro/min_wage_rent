@@ -7,7 +7,6 @@ load_packages(c('tidyverse', 'data.table', 'matrixStats'))
 
 main <- function(){
    datadir   <- '../../base/output/'
-   outputdir <- "../../drive/derived_large/output/"
    tempdir   <- "../temp/"
    log_file  <- "../output/data_file_manifest.log"
    
@@ -23,7 +22,7 @@ main <- function(){
    data <- create_minwage_eventvars(data)
 
    save_data(df = data, key = c('zipcode', 'date'),
-             filename = paste0(outputdir, 'data_clean.csv'), logfile = log_file)
+             filename = paste0(tempdir, 'data_clean.csv'), nolog = TRUE)
 }
 
 load_data <- function(infile_zillow, infile_statemw, infile_localmw, infile_place, infile_county, infile_zipplace){
