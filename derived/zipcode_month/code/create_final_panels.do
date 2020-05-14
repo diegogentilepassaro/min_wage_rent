@@ -1,7 +1,7 @@
 set more off
 clear all
-adopath + ../../lib/stata/gslab_misc/ado
-adopath + ../../lib/stata/mental_coupons/ado
+adopath + ../../../lib/stata/gslab_misc/ado
+adopath + ../../../lib/stata/mental_coupons/ado
 
 program main
 	foreach var in medrentprice_sfcc medrentprice_mfr5plus medrentprice_2br ///
@@ -14,7 +14,7 @@ program main
 		merge 1:1 zipcode year_month using "../temp/baseline_`var'.dta", ///
 		    nogen keep(1 3)
 		}
-	save_data "../../drive/derived_large/output/baseline_rent_panel.dta", key(zipcode year_month) replace
+	save_data "../../../drive/derived_large/output/baseline_rent_panel.dta", key(zipcode year_month) replace
 
 	foreach var in medlistingprice_sfcc medlistingprice_low_tier ///
 	    medlistingprice_top_tier medlistingpricepsqft_sfcc ///
@@ -28,23 +28,23 @@ program main
 		merge 1:1 zipcode year_month using "../temp/baseline_`var'.dta", ///
 		    nogen keep(1 3)
 		}
-	save_data "../../drive/derived_large/output/baseline_listing_panel.dta", key(zipcode year_month) replace
+	save_data "../../../drive/derived_large/output/baseline_listing_panel.dta", key(zipcode year_month) replace
 
 	use "../temp/zipcode_yearmonth_panel.dta", clear
-	save_data "../../drive/derived_large/output/zipcode_yearmonth_panel_all.dta", key(zipcode year_month) replace
+	save_data "../../../drive/derived_large/output/zipcode_yearmonth_panel_all.dta", key(zipcode year_month) replace
 end
 
 program create_baseline_panel
     syntax, var(str) start_date(str) end_date(str)
 	
-    use zipcode state county msa year_month calendar_month `var' ///
+    use zipcode place_code placetype statefips msa countyfips county ///
+	    year_month calendar_month `var' ///
 	    actual_mw dactual_mw mw_event ///
 		local_abovestate_mw county_abovestate_mw local_mw ///
 		county_mw state_mw fed_mw ///
 		sal_mw_event mw_event025 mw_event075 ///
 		using "../temp/zipcode_yearmonth_panel.dta", clear
 		
-	drop if missing(msa)
 	keep if (year_month >= `=mofd(td(`start_date'))' & year_month <= `=mofd(td(`end_date'))')
 
 	preserve

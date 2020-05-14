@@ -1,11 +1,11 @@
 remove(list = ls())
-source("../../lib/R/load_packages.R")
-source("../../lib/R/save_data.R")
+source("../../../lib/R/load_packages.R")
+source("../../../lib/R/save_data.R")
 
 load_packages(c('tidyverse', 'data.table', 'tidycensus'))
 
 main <- function(){
-   datadir <- '../../base/output/'
+   datadir <- '../../../base/zillow_min_wage/output/'
    tempdir <- "../temp/"
    
    filelist <- reshape_zillow_zip_level(infiles = datadir)
@@ -23,7 +23,7 @@ reshape_zillow_zip_level <- function(infiles){
    value_names <- target_varname(value_names)
    value_names <- str_replace(value_names, ".csv", "")
    
-   id_fullvars <- c("zipcode", "city", "county", "msa", "stateabb", "statename")
+   id_fullvars <- c("zipcode", "city", "county", "msa", "stateabb")
    
    zillow_data <- mapply(function(filename, valname){
             data <- fread(paste0(infiles, filename), stringsAsFactors = F)
@@ -45,7 +45,7 @@ reshape_zillow_zip_level <- function(infiles){
 
 merge_zillow <- function(l, outstub, key){
 
-   geovars <- c('zipcode', 'city', 'msa', 'county', 'statename', 'stateabb')
+   geovars <- c('zipcode', 'city', 'msa', 'county', 'stateabb')
    geovar_df <- lapply(l, function(x){
       state_name <- x[,..geovars]
       state_name <- unique(state_name)
@@ -83,6 +83,7 @@ merge_zillow <- function(l, outstub, key){
    data.table::setorder(file_combined, zipcode, date)
 
    file_combined[,date:=str_replace_all(date, "-", "_")]
+   
    save_data(file_combined, file = outstub, key = key, nolog = TRUE)
 }
 

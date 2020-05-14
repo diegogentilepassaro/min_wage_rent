@@ -23,8 +23,8 @@ program process_hl_county_year_file
 		import excel "../../../drive/raw_data/qcew/raw/county/20`year'_all_county_high_level/allhlcn`year'`qtr'.xlsx", ///
 			sheet("US_St_Cn_MSA") firstrow clear
 
-		keep if (AreaType != "Nation" & AreaType != "State")
-		drop Cnty Own Area StatusCode TotalQuarterlyWages EmploymentLocation TotalWageLocation
+		keep if (AreaType == "County")
+		drop Cnty Own Area AreaType StatusCode TotalQuarterlyWages EmploymentLocation TotalWageLocation
 		
 		destring Year, replace
 		destring Qtr, replace
@@ -34,8 +34,8 @@ program process_hl_county_year_file
 		format year_qtr %tq
 		drop Year Qtr end_month
 		
-		rename (AreaCode AreaType St StName NAICS Ownership Industry Establishment AverageWeekly) ///
-			(area_code area_type state state_name naics ownership industry estab_count avg_week_wage)
+		rename (AreaCode St StName NAICS Ownership Industry Establishment AverageWeekly) ///
+			(area_code state state_name naics ownership industry estab_count avg_week_wage)
 		
 		if "`qtr'" == "1" {
 		    rename (January February March) ///
@@ -66,7 +66,7 @@ program process_hl_county_year_file
 	encode naics, gen(naics_code)
 	encode ownership, gen(ownership_code)
 	
-	order year_qtr area_code area_fips_code area_type state state_name ///
+	order year_qtr area_code area_fips_code state state_name ///
 	    naics naics_code ownership ownership_code industry estab_count
 	save_data "../temp/`year'.dta", key(year_qtr area_fips_code naics_code ownership_code) ///
 	    replace log(none)

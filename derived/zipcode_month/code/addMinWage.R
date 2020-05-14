@@ -1,20 +1,19 @@
 remove(list = ls())
-source("../../lib/R/load_packages.R")
-source("../../lib/R/save_data.R")
+source("../../../lib/R/load_packages.R")
+source("../../../lib/R/save_data.R")
 
 load_packages(c('tidyverse', 'data.table', 'matrixStats'))
 
-
 main <- function(){
-   datadir   <- '../../base/output/'
+   datadir   <- '../../../base/zillow_min_wage/output/'
    tempdir   <- "../temp/"
    log_file  <- "../output/data_file_manifest.log"
    
    data <- load_data(infile_zillow = paste0(tempdir, 'zillow_clean.csv'), 
                      infile_statemw = paste0(datadir, 'VZ_state_monthly.csv'), 
-                     infile_localmw = paste0(datadir, 'VZ_substate_monthly.csv'), 
-                     infile_place = paste0(datadir, 'places10.csv'), 
-                     infile_county = paste0(datadir,'zip_county10.csv'), 
+                     infile_localmw = paste0(datadir, 'VZ_substate_monthly.csv'),
+                     infile_place = paste0(datadir, 'places10.csv'),
+                     infile_county = paste0(datadir,'zip_county10.csv'),
                      infile_zipplace = paste0(datadir,'zip_places10.csv'))
    
    data <- assemble_data(data)
@@ -25,21 +24,21 @@ main <- function(){
              filename = paste0(tempdir, 'data_clean.csv'), nolog = TRUE)
 }
 
-load_data <- function(infile_zillow, infile_statemw, infile_localmw, infile_place, infile_county, infile_zipplace){
+load_data <- function(infile_zillow, infile_statemw, infile_localmw, infile_place,infile_county, infile_zipplace){
    dfZillow <- fread(infile_zillow)
    
    dfZillow[, zipcode := str_pad(as.character(zipcode), 5, pad = 0)]
    dfZillow[,date := as.Date(paste0(date, "_01"), "%Y_%m_%d")]
-   dfZillow[,c('county', 'statename'):=NULL]
-   
 
    dfStatemw <- fread(infile_statemw)
-   setnames(dfStatemw, old = c('statefips', 'monthly_date', 'mw'), new = c('state', 'date', 'state_mw'))
+   setnames(dfStatemw, old = c('monthly_date', 'mw'), new = c('date', 'state_mw'))
    dfStatemw[,date := str_replace_all(date, "m", "_")][,date:= as.Date(paste0(date, "_01"), "%Y_%m_%d")]
+   dfStatemw[, statefips := str_pad(as.character(statefips), 2, pad = 0)]
 
    dfLocalmw <- fread(infile_localmw)
-   setnames(dfLocalmw, old = c('statefips', 'monthly_date'), new = c('state', 'date'))
+   setnames(dfLocalmw, old = c('monthly_date'), new = c('date'))
    dfLocalmw[,date := str_replace_all(date, "m", "_")][,date:= as.Date(paste0(date, "_01"), "%Y_%m_%d")]
+   dfLocalmw[, statefips := str_pad(as.character(statefips), 2, pad = 0)]
    dfLocalmw[,iscounty:=str_extract_all(locality, " County")][,iscounty:= ifelse(iscounty==" County", 1, 0)]
 
    mw_vars <- names(dfLocalmw)
@@ -50,50 +49,65 @@ load_data <- function(infile_zillow, infile_statemw, infile_localmw, infile_plac
    
    dfCountymw <- dfLocalmw[iscounty==1,][,iscounty:=NULL]
    setnames(dfCountymw, old = c('locality', mw_vars), 
-                        new = c('countyname', county_mw_vars))
+                        new = c('county', county_mw_vars))
    
    dfLocalmw <- dfLocalmw[iscounty==0,][,iscounty:=NULL]
    setnames(dfLocalmw, old = c('locality', mw_vars), 
                        new = c('placename', local_mw_vars))
    
-   place10 <- fread(infile_place)
-   place10 <- place10[placetype=="city",]
-   zip_places10 <- fread(infile_zipplace)
-   setorder(zip_places10, zipcode)
-   zip_places10 <- zip_places10[zippcthouse10>=50,]
-   zip_places10 <- place10[zip_places10, on = c('state', 'place')]
-   zip_places10[, zipcode := str_pad(as.character(zipcode), 5, pad = 0)]
+   usps_zip_to_zcta <- readxl::read_excel('../../../drive/raw_data/usd_mapper_Xwalk/zip_to_zcta_2019.xlsx')
+   old_vars <- c('ZIP_CODE', 'ZCTA')
+   new_vars <- c('zipcode', 'zcta')
+   setnames(usps_zip_to_zcta, old = old_vars, new = new_vars)
+   usps_zip_to_zcta <- usps_zip_to_zcta[,c("zipcode", 'zcta')]
    
-   zip_county10 <- fread(infile_county)
-   setorder(zip_county10, zipcode)
-   zip_county10 <- zip_county10[zippcthouse10>=50,]
-   zip_county10[, ind := max(zippctpop10, na.rm = T), by = 'zipcode'][, ind:= ifelse(ind==zippctpop10, 1, 0)]
+   place10 <- fread(infile_place)
+   setnames(place10, old = c("state"), new = "statefips")
+   place10[, statefips := str_pad(as.character(statefips), 2, pad = 0)]
+   place10[, place_code := str_pad(as.character(place_code), 5, pad = 0)]
+   # place10 <- place10[placetype=="city",]
+
+   zip_places10 <- fread(infile_zipplace, colClasses = c("place_code"="character", "zcta"="character",
+                                                         "statefips"="character"))
+   setorder(zip_places10, zcta)
+   zip_places10 <- place10[zip_places10, on = c('statefips', 'place_code')]
+   zip_places10 <- zip_places10[pct_zip_houses_inplace>=50,]
+   zip_places10 <- left_join(zip_places10, usps_zip_to_zcta, by=c('zcta'))
+   
+   
+   zip_county10 <- fread(infile_county, colClasses = c("zcta"="character", "statefips"="character",
+                                                       "county_code"="character", "countyfips"="character"))
+   setorder(zip_county10, zcta)
+   zip_county10 <- zip_county10[pct_zip_houses_incounty>=50,]
+   zip_county10[, ind := max(pct_zip_pop_incounty, na.rm = T), by = 'zcta'][, ind:= ifelse(ind==pct_zip_pop_incounty, 1, 0)]
    zip_county10 <- zip_county10[ind==1,]
    zip_county10 <- zip_county10[, ind:=NULL]
-   zip_county10[, zipcode := str_pad(as.character(zipcode), 5, pad = 0)]
-   
-   zip_county10<- zip_county10[, c('state', 'county', 'countyname', 'zipcode', 'zippctpop10', 'zippcthouse10', 'zippctland')]
-   zip_places10 <- zip_places10[, c('zipcode','place', 'placename', 'placetype', 'placepop10')]
-
+   zip_county10 <- left_join(zip_county10, usps_zip_to_zcta, by=c('zcta'))
    
    return(list('df_zillow'    = dfZillow,     'df_state_mw' = dfStatemw,
                'df_county_mw' = dfCountymw,   'df_local_mw' = dfLocalmw,
                'zip_county'   = zip_county10, 'zip_place'   = zip_places10))
 }
 
-assemble_data <- function(l) {
-   DF <- l[['df_zillow']]
-   DF <- l[['zip_county']][l[['df_zillow']], on = 'zipcode']
-   DF <- l[['zip_place']][DF, on = 'zipcode']                                                 
-   DF <- l[['df_state_mw']][DF, on = c('state', 'stateabb', 'date')]                               
-   DF <- l[['df_county_mw']][DF, on = c('state', 'statename', 'stateabb', 'countyname', 'date')]   
-   DF <- l[['df_local_mw']][DF, on = c('state', 'statename', 'stateabb', 'placename', 'date')]     
+assemble_data <- function(data) {
+   DF <- data[['df_zillow']]
+   DF <- left_join(DF, data[['df_state_mw']], by=c('stateabb', 'date'))
+   DF <- left_join(DF, data[['zip_county']], by=c('statefips', 'stateabb', 'zipcode'))
+   DF <- subset(DF, select = -c(statename, county.x, county_code))
+   setnames(DF, old = c("county.y"), new = "county")
+   DF <- left_join(DF, data[['zip_place']], by=c('statefips', 'stateabb', 'zipcode'))
+   DF <- subset(DF, select = -c(zcta.x))
+   setnames(DF, old = c("zcta.y"), new = "zcta")
+   DF <- left_join(DF, data[['df_county_mw']], by=c('statefips', 'stateabb', 'county', 'date'))
+   DF <- subset(DF, select = -c(statename))
+   DF <- left_join(DF, data[['df_local_mw']], by=c('statefips', 'stateabb', 'placename', 'date'))
+   DF <- subset(DF, select = -c(statename))
    
-   colorder1 <- c('date', 'zipcode', 'place', 'placename', 'city', 'msa', 'county', 
-                  'countyname', 'state', 'stateabb', 'statename')
+   colorder1 <- c('date', 'zipcode', 'zcta', 'place_code', 'placename', 'placetype', 
+                  'city', 'msa', 'countyfips', 'county', 'statefips', 'stateabb')
    colorder2 <- setdiff(colorder1, names(DF))
    setcolorder(DF, c(colorder1,colorder2))
-   return(DF)
+   return(as.data.table(DF))
 }
 
 create_minwage_eventvars <- function(x){

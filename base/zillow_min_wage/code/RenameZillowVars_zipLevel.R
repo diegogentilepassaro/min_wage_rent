@@ -22,7 +22,11 @@ rename_zillow_vars <- function(infiles, outdir){
    filenames <- filenames[!str_detect(filenames, "_Summary.csv")]
 
    format <- lapply(filenames, function(x) {
-      df <- data.table::fread(paste0(infiles, x), stringsAsFactors = F)
+      df <- data.table::fread(paste0(infiles, x), 
+                              stringsAsFactors = F, 
+                              colClasses = c("RegionID"="character", "RegionName"="character", 
+                                             "RegionType"="character", "StateName"="character"))
+      
       df[,c("DataTypeDescription", "SizeRank", "RegionType"):=NULL]
       
       colgeonames <- colnames(df)

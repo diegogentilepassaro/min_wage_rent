@@ -1,7 +1,7 @@
 set more off
 clear all
-adopath + ../../lib/stata/gslab_misc/ado
-adopath + ../../lib/stata/mental_coupons/ado
+adopath + ../../../lib/stata/gslab_misc/ado
+adopath + ../../../lib/stata/mental_coupons/ado
 
 program main 
     import delim "../temp/data_clean.csv", delim(",")
@@ -24,13 +24,8 @@ program clean_vars
 
     drop if missing(year_month)
     drop if missing(zipcode)
-
-    * Remove obs with no data on minimum wage
-    bys zipcode (year_month): egen no_mw_data = min(actual_mw)
-    bys zipcode (year_month): egen no_mw_data_smallb = min(actual_mw_smallbusiness)
-    drop if missing(no_mw_data)  
-    drop if missing(no_mw_data) & missing(no_mw_data_smallb)
-    drop no_mw_data no_mw_data_smallb 
+	
+	replace dactual_mw = round(dactual_mw, 0.01)
 end
 
 program gen_vars
@@ -56,7 +51,6 @@ program gen_vars
     gen sal_mw_event = (dactual_mw >= 0.5)
 	gen mw_event025 = (dactual_mw >= 0.25)
 	gen mw_event075 = (dactual_mw >= 0.75)
-
 end
 
 main

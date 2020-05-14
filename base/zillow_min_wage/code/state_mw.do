@@ -9,7 +9,7 @@ program main
 
     import_crosswalk, instub(`raw') outstub(`temp')
     local fips = r(fips)
-
+	
     fed_min_wage_change, instub(`raw') outstub(`exports') 
     add_state_to_fedmw,  fips("`fips'") outstub(`temp')
     state_min_wage_change, instub(`raw') outstub(`exports') temp(`temp')
@@ -27,15 +27,16 @@ end
 program import_crosswalk, rclass
     syntax, instub(str) outstub(str)
 
-    import excel using `instub'/FIPS_crosswalk.xlsx, clear firstrow
-    rename (Name       FIPSStateNumericCode  OfficialUSPSCode)           ///
-           (statename  statefips             stateabb)
+    import excel using `instub'/FIPS_crosswalk.xlsx, clear ///
+	    firstrow
+    
+	rename (Name        FIPSStateNumericCode  OfficialUSPSCode)           ///
+           (statename  statefips            stateabb)
     drop sname
 
-    replace stateabb = upper(stateabb)
-    label var stateabb "State Abbreviation"
-    
-    save_data `outstub'/crosswalk.dta, replace key(statename) log(none)
+    label var stateabb "State"
+	
+    save_data `outstub'/crosswalk.dta, replace key(statefips) log(none)
 
     levelsof statefips, local(fips)
     return local fips "`fips'"
@@ -85,6 +86,7 @@ program add_state_to_fedmw
     }
 
     compress
+	
     save_data `outstub'/fedmw.dta, replace key(date statefips) log(none)
 end
 
