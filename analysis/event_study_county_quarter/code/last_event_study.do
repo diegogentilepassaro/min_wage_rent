@@ -6,7 +6,7 @@ adopath + ../../../lib/stata/min_wage/ado
 set maxvar 32000 
 
 program main
-	foreach window in 4 6 {
+	foreach window in 2 4 {
 		use "../temp/baseline_rent_county_quarter_`window'.dta", clear
 		foreach depvar in medrentprice_sfcc medrentpricepsqft_sfcc{
 			
@@ -30,7 +30,7 @@ program main
 		}
 	}
 	
-	foreach window in 4 6 {
+	foreach window in 2 4 {
 		use "../temp/baseline_listing_county_quarter_`window'.dta", clear
 		foreach depvar in medlistingprice_sfcc medlistingpricepsqft_sfcc {
 		

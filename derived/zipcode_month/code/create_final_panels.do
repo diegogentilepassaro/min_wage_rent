@@ -7,7 +7,7 @@ program main
 	foreach var in medrentprice_sfcc medrentprice_mfr5plus medrentprice_2br ///
 	    medrentpricepsqft_sfcc medrentpricepsqft_mfr5plus medrentpricepsqft_2br {
 		
-	    create_baseline_panel, var(`var') balance_date(01jan2013) ///
+	    create_baseline_panel, var(`var') balance_date(01jan2015) ///
 		    start_date(01jan2010) end_date(12dec2019)
 	}
 	use "../temp/baseline_medrentprice_sfcc.dta", clear
@@ -23,7 +23,7 @@ program main
 	    medlistingprice_top_tier medlistingpricepsqft_sfcc ///
 		medlistingpricepsqft_low_tier medlistingpricepsqft_top_tier {
 		
-	    create_baseline_panel, var(`var') balance_date(01jan2013) ///
+	    create_baseline_panel, var(`var') balance_date(01jan2015) ///
 		    start_date(01jan2010) end_date(12dec2019)
 	}
 	use "../temp/baseline_medlistingpricepsqft_sfcc.dta", clear

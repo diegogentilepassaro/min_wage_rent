@@ -6,7 +6,7 @@ set maxvar 32000
 
 program main
     foreach data in rent listing {
-	    foreach window in 4 6 {
+	    foreach window in 2 4 {
 		use "../../../drive/derived_large/output/baseline_`data'_county_quarter.dta", clear
 		    create_latest_event_vars, event_dummy(sal_mw_event) window(`window')                ///
 			    time_var(year_quarter) geo_unit(countyfips) panel_end(2019q4)
