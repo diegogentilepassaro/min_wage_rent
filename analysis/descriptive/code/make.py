@@ -35,6 +35,7 @@ elif "Stata15" in envir_vars:
 start_make_logging()
 
 run_rbatch(program = "zillow_descriptive.R")
+run_stata(program = 'desc_stats_general.do', executable = stata)
 
 end_make_logging()
 
