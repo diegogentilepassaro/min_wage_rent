@@ -1,5 +1,5 @@
 program create_event_plot
-	syntax, depvar(str) event_var(str) controls(str) absorb(str) ///
+	syntax [if], depvar(str) event_var(str) controls(str) absorb(str) ///
 	    window(int) cluster(str) [* name(str) title(str) ytitle(str)]
 
 	local window_plus1 = `window' + 1
@@ -16,7 +16,7 @@ program create_event_plot
 	coefplot, keep(`keep_coeffs') ///
 		base vertical graphregion(color(white)) bgcolor(white) ///
 		xlabel(1 "-`window'" `window_plus1' "0" `window_span' "`window'") ///
-		xline(`window_plus1', lcol(grey) lpat(dot)) ///
+		xline(`window_plus1', lcol(grey) lpat(dot)) yline(0, lcol(grey) lpat(dot)) ///
 		name(`name') title(`title') ytitle(`ytitle')
 end
 

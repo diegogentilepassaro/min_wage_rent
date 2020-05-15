@@ -1,0 +1,1667 @@
+
+ make.py started: 2020-05-14 15:22:39 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\event_study_county_quarter\code 
+
+
+
+
+Execute:  StataMP-64 /e do "./preclean_event_studies.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./preclean_event_studies.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/mental_coupons/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+  [8]              "../../../lib/stata/gslab_misc/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.     foreach data in rent listing {
+  2.             foreach window in 4 6 {
+  3.                 use "../../../drive/derived_large/output/baseline_`data'_c
+> ounty_quarter.dta", clear
+  4.                     create_latest_event_vars, event_dummy(sal_mw_event) wi
+> ndow(`window')                ///
+>                             time_var(year_quarter) geo_unit(countyfips) panel
+> _end(2019q4)
+  5.                                 
+.                 drop if missing(last_sal_mw_event_rel_quarters`window')
+  6.                         
+.                 save_data "../temp/baseline_`data'_county_quarter_`window'.dt
+> a", ///
+>                             key(countyfips year_quarter) replace log(none)
+  7.                         }
+  8.         }
+  9. end
+
+. 
+. program create_latest_event_vars
+  1.         syntax, event_dummy(str) window(int) time_var(str) ///
+>             geo_unit(str) panel_end(str)
+  2. 
+.         local window_span = `window'*2 + 1 
+  3. 
+.         gen `event_dummy'_`time_var' = `time_var' if `event_dummy' == 1
+  4.         format `event_dummy'_`time_var' %tq
+  5. 
+.         gen quarters_until_panel_ends = `=tq(`panel_end')' - year_quarter
+  6.         
+.         preserve
+  7.         keep if quarters_until_panel_ends >= (`window' + 1)
+  8.         collapse (max) last_`event_dummy'_`time_var' = `event_dummy'_`time
+> _var', by(`geo_unit')
+  9.         format last_`event_dummy'_`time_var' %tq
+ 10.         keep `geo_unit' last_`event_dummy'_`time_var'
+ 11.         save_data "../temp/last_event`window'_by_`geo_unit'.dta", key(`geo
+> _unit') replace
+ 12.         restore
+ 13.         
+.         merge m:1 `geo_unit' using "../temp/last_event`window'_by_`geo_unit'.
+> dta", ///
+>             nogen assert(3) keep(3)
+ 14.         
+.         gen last_`event_dummy'_rel_quarters`window' = `time_var' - last_`even
+> t_dummy'_`time_var'
+ 15.         replace last_`event_dummy'_rel_quarters`window' = last_`event_dumm
+> y'_rel_quarters`window' + `window' + 1
+ 16.         replace last_`event_dummy'_rel_quarters`window' = 0 ///
+>             if last_`event_dummy'_rel_quarters`window' <= 0
+ 17.         replace last_`event_dummy'_rel_quarters`window' = 1000 ///
+>             if (last_`event_dummy'_rel_quarters`window' > `window_span' & ///
+>                 !missing(last_`event_dummy'_rel_quarters`window'))
+ 18.         
+.         gen unused_mw_event`window' = (mw_event == 1 & last_`event_dummy'_rel
+> _quarters`window' != (`window' + 1))
+ 19.         bysort `geo_unit' (`time_var'): gen cumul_nbr_unused_mw_events = s
+> um(unused_mw_event`window')
+ 20.                 
+.         drop `event_dummy'_`time_var' last_`event_dummy'_`time_var'    
+ 21. end
+
+. 
+. main
+(7,928 missing values generated)
+(1,025 observations deleted)
+(data already sorted by countyfips)
+  variable last_sal_mw_event_year_quarter was float now int
+  (410 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/last_event4_by_countyfips.dta
+Key: countyfips
+===============================================================================
+> ===================
+  205:2(76192):2285782936:1329577967
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  countyfips |        205         103    59.32256          1        205
+last_sal_m~r |         72    227.3194    9.338435        200        234
+
+
+
+
+(note: file ../temp/last_event4_by_countyfips.dta not found)
+file ../temp/last_event4_by_countyfips.dta saved
+(label countyfips already defined)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                             8,200  
+    -----------------------------------------
+(5,320 missing values generated)
+(2,880 real changes made)
+(1,628 real changes made)
+(553 real changes made)
+(5,320 observations deleted)
+(data already sorted by countyfips year_quarter)
+  variable quarters_until_panel_ends was float now byte
+  variable last_sal_mw_event_rel_quarters4 was float now int
+  variable unused_mw_event4 was float now byte
+  variable cumul_nbr_unused_mw_events was float now byte
+  (31,680 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/baseline_rent_county_quarter_4.dta
+Key: countyfips year_quarter
+===============================================================================
+> ===================
+  2880:27(25001):2127579124:1757315244
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  countyfips |      2,880    77.88889    57.06874          4        205
+year_quarter |      2,880       219.5     11.5454        200        239
+countyfips~r |          0
+      county |          0
+   statefips |          0
+-------------+---------------------------------------------------------
+    stateabb |          0
+calendar_q~r |      2,880         7.5    3.354684          3         12
+medre~e_sfcc |      2,498    1780.704     620.365    794.095   4851.595
+medre~t_sfcc |      2,443    1.449562    .8312419   .4753414   5.481292
+medli~e_sfcc |      2,880    353768.6    199653.9   91892.71    1727956
+-------------+---------------------------------------------------------
+medli~t_sfcc |      2,880    232.3444     198.148   66.24615   1759.438
+    mw_event |      2,880    .1440972    .3512493          0          1
+  dactual_mw |      2,880    .0934549    .3023019          0       5.81
+sal_mw_event |      2,880    .0930556    .2905607          0          1
+ mw_event025 |      2,880    .1149306    .3189935          0          1
+-------------+---------------------------------------------------------
+ mw_event075 |      2,880    .0600694    .2376567          0          1
+ estab_count |      2,808     37814.9    58060.57       2022     511616
+employment~1 |      2,808    548831.5    654649.3      31688    4484785
+employment~2 |      2,808    551603.5    657879.7      33222    4528403
+employment~3 |      2,808    553941.6      660309      33608    4526194
+-------------+---------------------------------------------------------
+avg_week_w~e |      2,808    1094.308    298.9161        576       3154
+above_avg_~e |      2,808    .5694444    .4952422          0          1
+decile_avg~e |      2,808         9.5     .928126          5         10
+quarters_u~s |      2,880        19.5     11.5454          0         39
+last_sal_m~4 |      2,880    193.1264     393.417          0       1000
+-------------+---------------------------------------------------------
+unused_mw_~4 |      2,880    .1201389    .3251803          0          1
+cumul_nbr_~s |      2,880    2.035764    2.244155          0         13
+
+
+
+
+(note: file ../temp/baseline_rent_county_quarter_4.dta not found)
+file ../temp/baseline_rent_county_quarter_4.dta saved
+(7,928 missing values generated)
+(1,435 observations deleted)
+(data already sorted by countyfips)
+  variable last_sal_mw_event_year_quarter was float now int
+  (410 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/last_event6_by_countyfips.dta
+Key: countyfips
+===============================================================================
+> ===================
+  205:2(76192):239786924:222034409
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  countyfips |        205         103    59.32256          1        205
+last_sal_m~r |         72    226.4306     8.82191        200        232
+
+
+
+
+(note: file ../temp/last_event6_by_countyfips.dta not found)
+file ../temp/last_event6_by_countyfips.dta saved
+(label countyfips already defined)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                             8,200  
+    -----------------------------------------
+(5,320 missing values generated)
+(2,880 real changes made)
+(1,430 real changes made)
+(473 real changes made)
+(5,320 observations deleted)
+(data already sorted by countyfips year_quarter)
+  variable quarters_until_panel_ends was float now byte
+  variable last_sal_mw_event_rel_quarters6 was float now int
+  variable unused_mw_event6 was float now byte
+  variable cumul_nbr_unused_mw_events was float now byte
+  (31,680 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/baseline_rent_county_quarter_6.dta
+Key: countyfips year_quarter
+===============================================================================
+> ===================
+  2880:27(29097):2878011814:3546068476
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  countyfips |      2,880    77.88889    57.06874          4        205
+year_quarter |      2,880       219.5     11.5454        200        239
+countyfips~r |          0
+      county |          0
+   statefips |          0
+-------------+---------------------------------------------------------
+    stateabb |          0
+calendar_q~r |      2,880         7.5    3.354684          3         12
+medre~e_sfcc |      2,498    1780.704     620.365    794.095   4851.595
+medre~t_sfcc |      2,443    1.449562    .8312419   .4753414   5.481292
+medli~e_sfcc |      2,880    353768.6    199653.9   91892.71    1727956
+-------------+---------------------------------------------------------
+medli~t_sfcc |      2,880    232.3444     198.148   66.24615   1759.438
+    mw_event |      2,880    .1440972    .3512493          0          1
+  dactual_mw |      2,880    .0934549    .3023019          0       5.81
+sal_mw_event |      2,880    .0930556    .2905607          0          1
+ mw_event025 |      2,880    .1149306    .3189935          0          1
+-------------+---------------------------------------------------------
+ mw_event075 |      2,880    .0600694    .2376567          0          1
+ estab_count |      2,808     37814.9    58060.57       2022     511616
+employment~1 |      2,808    548831.5    654649.3      31688    4484785
+employment~2 |      2,808    551603.5    657879.7      33222    4528403
+employment~3 |      2,808    553941.6      660309      33608    4526194
+-------------+---------------------------------------------------------
+avg_week_w~e |      2,808    1094.308    298.9161        576       3154
+above_avg_~e |      2,808    .5694444    .4952422          0          1
+decile_avg~e |      2,808         9.5     .928126          5         10
+quarters_u~s |      2,880        19.5     11.5454          0         39
+last_sal_m~6 |      2,880    166.4823    369.5775          0       1000
+-------------+---------------------------------------------------------
+unused_mw_~6 |      2,880    .1201389    .3251803          0          1
+cumul_nbr_~s |      2,880    2.013542    2.222002          0         13
+
+
+
+
+(note: file ../temp/baseline_rent_county_quarter_6.dta not found)
+file ../temp/baseline_rent_county_quarter_6.dta saved
+(59,423 missing values generated)
+(7,635 observations deleted)
+(data already sorted by countyfips)
+  variable last_sal_mw_event_year_quarter was float now int
+  (3,054 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/last_event4_by_countyfips.dta
+Key: countyfips
+===============================================================================
+> ===================
+  1527:2(76192):3771904497:4149964478
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  countyfips |      1,527         764    440.9512          1       1527
+last_sal_m~r |        479    227.2067    7.796917        200        234
+
+
+
+
+file ../temp/last_event4_by_countyfips.dta saved
+(label countyfips already defined)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            61,080  
+    -----------------------------------------
+(41,920 missing values generated)
+(19,160 real changes made)
+(10,719 real changes made)
+(3,733 real changes made)
+(41,920 observations deleted)
+(data already sorted by countyfips year_quarter)
+  variable quarters_until_panel_ends was float now byte
+  variable last_sal_mw_event_rel_quarters4 was float now int
+  variable unused_mw_event4 was float now byte
+  variable cumul_nbr_unused_mw_events was float now byte
+  (210,760 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/baseline_listing_county_quarter_4.dta
+Key: countyfips year_quarter
+===============================================================================
+> ===================
+  19160:27(25001):1956322127:4022377867
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  countyfips |     19,160    643.2129    446.8344         35       1494
+year_quarter |     19,160       219.5     11.5437        200        239
+countyfips~r |          0
+      county |          0
+   statefips |          0
+-------------+---------------------------------------------------------
+    stateabb |          0
+calendar_q~r |     19,160         7.5    3.354189          3         12
+medre~e_sfcc |      3,854    1842.213     1459.14   629.3773      45000
+medre~t_sfcc |      3,962     1.48337    1.305372   .4753414   18.90778
+medli~e_sfcc |     17,147    269022.7    165802.6   61566.67    1727956
+-------------+---------------------------------------------------------
+medli~t_sfcc |     18,957    165.2166    129.5809    45.0573   1759.438
+    mw_event |     19,160    .1413883    .3484308          0          1
+  dactual_mw |     19,160    .0785078    .2436853          0       5.81
+sal_mw_event |     19,160    .0838727     .277204          0          1
+ mw_event025 |     19,160     .105428    .3071121          0          1
+-------------+---------------------------------------------------------
+ mw_event075 |     19,160    .0480167    .2138071          0          1
+ estab_count |     18,681    9536.368    26295.78        141     511616
+employment~1 |     18,681    137376.9    322567.6        753    4484785
+employment~2 |     18,681    138033.8    324154.3        743    4528403
+employment~3 |     18,681    138780.3    325467.4        743    4526194
+-------------+---------------------------------------------------------
+avg_week_w~e |     18,681    841.3629    227.3623        422       3240
+above_avg_~e |     18,681    .1544885    .3614261          0          1
+decile_avg~e |     18,681    7.446764    2.312952          1         10
+quarters_u~s |     19,160        19.5     11.5437          0         39
+last_sal_m~4 |     19,160    195.9524    395.5388          0       1000
+-------------+---------------------------------------------------------
+unused_mw_~4 |     19,160     .117119    .3215704          0          1
+cumul_nbr_~s |     19,160    1.963361    2.206381          0         13
+
+
+
+
+(note: file ../temp/baseline_listing_county_quarter_4.dta not found)
+file ../temp/baseline_listing_county_quarter_4.dta saved
+(59,423 missing values generated)
+(10,689 observations deleted)
+(data already sorted by countyfips)
+  variable last_sal_mw_event_year_quarter was float now int
+  (3,054 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/last_event6_by_countyfips.dta
+Key: countyfips
+===============================================================================
+> ===================
+  1527:2(76192):339366755:215833756
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  countyfips |      1,527         764    440.9512          1       1527
+last_sal_m~r |        479    226.7557    7.497897        200        232
+
+
+
+
+file ../temp/last_event6_by_countyfips.dta saved
+(label countyfips already defined)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            61,080  
+    -----------------------------------------
+(41,920 missing values generated)
+(19,160 real changes made)
+(9,593 real changes made)
+(2,991 real changes made)
+(41,920 observations deleted)
+(data already sorted by countyfips year_quarter)
+  variable quarters_until_panel_ends was float now byte
+  variable last_sal_mw_event_rel_quarters6 was float now int
+  variable unused_mw_event6 was float now byte
+  variable cumul_nbr_unused_mw_events was float now byte
+  (210,760 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/baseline_listing_county_quarter_6.dta
+Key: countyfips year_quarter
+===============================================================================
+> ===================
+  19160:27(29097):2154467365:1800676177
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  countyfips |     19,160    643.2129    446.8344         35       1494
+year_quarter |     19,160       219.5     11.5437        200        239
+countyfips~r |          0
+      county |          0
+   statefips |          0
+-------------+---------------------------------------------------------
+    stateabb |          0
+calendar_q~r |     19,160         7.5    3.354189          3         12
+medre~e_sfcc |      3,854    1842.213     1459.14   629.3773      45000
+medre~t_sfcc |      3,962     1.48337    1.305372   .4753414   18.90778
+medli~e_sfcc |     17,147    269022.7    165802.6   61566.67    1727956
+-------------+---------------------------------------------------------
+medli~t_sfcc |     18,957    165.2166    129.5809    45.0573   1759.438
+    mw_event |     19,160    .1413883    .3484308          0          1
+  dactual_mw |     19,160    .0785078    .2436853          0       5.81
+sal_mw_event |     19,160    .0838727     .277204          0          1
+ mw_event025 |     19,160     .105428    .3071121          0          1
+-------------+---------------------------------------------------------
+ mw_event075 |     19,160    .0480167    .2138071          0          1
+ estab_count |     18,681    9536.368    26295.78        141     511616
+employment~1 |     18,681    137376.9    322567.6        753    4484785
+employment~2 |     18,681    138033.8    324154.3        743    4528403
+employment~3 |     18,681    138780.3    325467.4        743    4526194
+-------------+---------------------------------------------------------
+avg_week_w~e |     18,681    841.3629    227.3623        422       3240
+above_avg_~e |     18,681    .1544885    .3614261          0          1
+decile_avg~e |     18,681    7.446764    2.312952          1         10
+quarters_u~s |     19,160        19.5     11.5437          0         39
+last_sal_m~6 |     19,160    158.3661    362.0137          0       1000
+-------------+---------------------------------------------------------
+unused_mw_~6 |     19,160     .117119    .3215704          0          1
+cumul_nbr_~s |     19,160    1.952088    2.190447          0         13
+
+
+
+
+(note: file ../temp/baseline_listing_county_quarter_6.dta not found)
+file ../temp/baseline_listing_county_quarter_6.dta saved
+
+. 
+end of do-file
+
+
+Execute:  StataMP-64 /e do "./last_event_study.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./last_event_study.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/mental_coupons/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+  [8]              "../../../lib/stata/gslab_misc/ado"
+
+. adopath + ../../../lib/stata/min_wage/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+  [8]              "../../../lib/stata/gslab_misc/ado"
+  [9]              "../../../lib/stata/min_wage/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.         foreach window in 4 6 {
+  2.                 use "../temp/baseline_rent_county_quarter_`window'.dta", c
+> lear
+  3.                 foreach depvar in medrentprice_sfcc medrentpricepsqft_sfcc
+> {
+  4.                         
+.                         create_event_plot, depvar(`depvar')                  
+>            ///
+>                                 event_var(last_sal_mw_event_rel_quarters`wind
+> ow') ///
+>                                 controls(" ") window(`window')  ///
+>                                 absorb(countyfips year_quarter) cluster(count
+> yfips)
+  5.                         graph export "../output/`depvar'_last_sal_mw_event
+> _rel_quarters`window'.png", replace
+  6.                         
+.                         create_event_plot if above == 0, depvar(`depvar')    
+>                            ///
+>                                 event_var(last_sal_mw_event_rel_quarters`wind
+> ow') ///
+>                                 controls(" ") window(`window')  ///
+>                                 absorb(countyfips year_quarter) cluster(count
+> yfips)
+  7.                         graph export "../output/`depvar'_last_sal_mw_event
+> _rel_quarters`window'_low.png", replace
+  8.                         
+.                         create_event_plot if above == 1, depvar(`depvar')    
+>                            ///
+>                                 event_var(last_sal_mw_event_rel_quarters`wind
+> ow') ///
+>                                 controls(" ") window(`window')  ///
+>                                 absorb(countyfips year_quarter) cluster(count
+> yfips)
+  9.                         graph export "../output/`depvar'_last_sal_mw_event
+> _rel_quarters`window'_high.png", replace
+ 10.                 }
+ 11.         }
+ 12.         
+.         foreach window in 4 6 {
+ 13.                 use "../temp/baseline_listing_county_quarter_`window'.dta"
+> , clear
+ 14.                 foreach depvar in medlistingprice_sfcc medlistingpricepsqf
+> t_sfcc {
+ 15.                 
+.                         create_event_plot, depvar(`depvar')                  
+>            ///
+>                                 event_var(last_sal_mw_event_rel_quarters`wind
+> ow') ///
+>                                 controls(" ") window(`window')  ///
+>                                 absorb(countyfips year_quarter) cluster(count
+> yfips)
+ 16.                         graph export "../output/`depvar'_last_sal_mw_event
+> _rel_quarters`window'.png", replace
+ 17.                         
+.                         create_event_plot if above == 0, depvar(`depvar')    
+>                            ///
+>                                 event_var(last_sal_mw_event_rel_quarters`wind
+> ow') ///
+>                                 controls(" ") window(`window')  ///
+>                                 absorb(countyfips year_quarter) cluster(count
+> yfips)
+ 18.                         graph export "../output/`depvar'_last_sal_mw_event
+> _rel_quarters`window'_low.png", replace
+ 19.                         
+.                         create_event_plot if above == 1, depvar(`depvar')    
+>                            ///
+>                                 event_var(last_sal_mw_event_rel_quarters`wind
+> ow') ///
+>                                 controls(" ") window(`window')  ///
+>                                 absorb(countyfips year_quarter) cluster(count
+> yfips)
+ 20.                         graph export "../output/`depvar'_last_sal_mw_event
+> _rel_quarters`window'_high.png", replace
+ 21. 
+.                 }
+ 22.         }
+ 23. end
+
+. 
+. main
+(MWFE estimator converged in 6 iterations)
+
+HDFE Linear regression                            Number of obs   =      2,498
+Absorbing 2 HDFE groups                           F(  10,     71) =       2.20
+Statistics robust to heteroskedasticity           Prob > F        =     0.0274
+                                                  R-squared       =     0.9441
+                                                  Adj R-squared   =     0.9412
+                                                  Within R-sq.    =     0.0087
+Number of clusters (countyfips) =         72      Root MSE        =   150.3902
+
+                            (Std. Err. adjusted for 72 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medre~e_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~4 |
+          0  |   -26.1771   26.74506    -0.98   0.331    -79.50524    27.15104
+          1  |   -7.51285   12.97203    -0.58   0.564    -33.37834    18.35264
+          2  |  -7.327091   10.85658    -0.67   0.502     -28.9745    14.32032
+          3  |  -12.69626   9.506025    -1.34   0.186    -31.65074    6.258212
+          5  |   5.950357    8.03286     0.74   0.461    -10.06671    21.96743
+          6  |   -11.0324    12.6133    -0.87   0.385     -36.1826     14.1178
+          7  |  -32.93748   14.02593    -2.35   0.022    -60.90439   -4.970581
+          8  |  -35.38933   16.32993    -2.17   0.034     -67.9503   -2.828371
+          9  |  -32.35033   20.25215    -1.60   0.115    -72.73197    8.031317
+       1000  |  -70.22538    45.8097    -1.53   0.130    -161.5673    21.11656
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |        72          72           0    *|
+ year_quarter |        40           0          40     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medrentprice_sfcc_last_sal_mw_event_rel_quarters4.png not
+>  found)
+(file ../output/medrentprice_sfcc_last_sal_mw_event_rel_quarters4.png written i
+> n PNG format)
+(MWFE estimator converged in 6 iterations)
+
+HDFE Linear regression                            Number of obs   =      1,034
+Absorbing 2 HDFE groups                           F(  10,     30) =       2.36
+Statistics robust to heteroskedasticity           Prob > F        =     0.0337
+                                                  R-squared       =     0.9343
+                                                  Adj R-squared   =     0.9288
+                                                  Within R-sq.    =     0.0049
+Number of clusters (countyfips) =         31      Root MSE        =   112.1073
+
+                            (Std. Err. adjusted for 31 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medre~e_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~4 |
+          0  |  -13.35491    27.3215    -0.49   0.629    -69.15285    42.44303
+          1  |   -14.2749   14.23441    -1.00   0.324    -43.34544    14.79564
+          2  |  -18.43086   11.37588    -1.62   0.116    -41.66351    4.801782
+          3  |  -19.87004   10.28184    -1.93   0.063    -40.86837    1.128289
+          5  |  -3.903984   10.29068    -0.38   0.707    -24.92036    17.11239
+          6  |  -27.80342   15.11158    -1.84   0.076    -58.66538    3.058553
+          7  |  -36.11751   18.78101    -1.92   0.064    -74.47346    2.238435
+          8  |  -37.74624   17.95396    -2.10   0.044    -74.41311   -1.079362
+          9  |  -40.38812   24.56412    -1.64   0.111    -90.55475    9.778504
+       1000  |  -59.39003   41.54276    -1.43   0.163    -144.2317     25.4516
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |        31          31           0    *|
+ year_quarter |        39           0          39     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medrentprice_sfcc_last_sal_mw_event_rel_quarters4_low.png
+>  not found)
+(file ../output/medrentprice_sfcc_last_sal_mw_event_rel_quarters4_low.png writt
+> en in PNG format)
+(dropped 1 singleton observations)
+(MWFE estimator converged in 6 iterations)
+
+HDFE Linear regression                            Number of obs   =      1,391
+Absorbing 2 HDFE groups                           F(  10,     40) =       1.75
+Statistics robust to heteroskedasticity           Prob > F        =     0.1021
+                                                  R-squared       =     0.9359
+                                                  Adj R-squared   =     0.9315
+                                                  Within R-sq.    =     0.0171
+Number of clusters (countyfips) =         41      Root MSE        =   170.6363
+
+                            (Std. Err. adjusted for 41 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medre~e_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~4 |
+          0  |  -11.29027   32.08675    -0.35   0.727       -76.14    53.55947
+          1  |   4.021443   18.25317     0.22   0.827     -32.8696    40.91248
+          2  |   8.928674   14.95825     0.60   0.554    -21.30307    39.16042
+          3  |    -1.6824   14.22611    -0.12   0.906    -30.43444    27.06964
+          5  |   10.05103   10.96661     0.92   0.365    -12.11331    32.21538
+          6  |  -1.692046   15.60698    -0.11   0.914    -33.23493    29.85084
+          7  |  -29.68358   16.97813    -1.75   0.088    -63.99766    4.630497
+          8  |  -35.95678   19.73636    -1.82   0.076    -75.84545    3.931897
+          9  |  -30.74444    24.7197    -1.24   0.221    -80.70482    19.21594
+       1000  |  -93.76209   67.13143    -1.40   0.170    -229.4398     41.9156
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |        41          41           0    *|
+ year_quarter |        38           0          38     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medrentprice_sfcc_last_sal_mw_event_rel_quarters4_high.pn
+> g not found)
+(file ../output/medrentprice_sfcc_last_sal_mw_event_rel_quarters4_high.png writ
+> ten in PNG format)
+(MWFE estimator converged in 6 iterations)
+
+HDFE Linear regression                            Number of obs   =      2,443
+Absorbing 2 HDFE groups                           F(  10,     71) =       1.77
+Statistics robust to heteroskedasticity           Prob > F        =     0.0825
+                                                  R-squared       =     0.9726
+                                                  Adj R-squared   =     0.9711
+                                                  Within R-sq.    =     0.0099
+Number of clusters (countyfips) =         72      Root MSE        =     0.1413
+
+                            (Std. Err. adjusted for 72 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medre~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~4 |
+          0  |  -.0057838   .0279511    -0.21   0.837    -.0615167    .0499491
+          1  |  -.0077044   .0099947    -0.77   0.443    -.0276332    .0122243
+          2  |  -.0050051   .0099257    -0.50   0.616    -.0247964    .0147862
+          3  |   .0009795   .0067406     0.15   0.885    -.0124608    .0144198
+          5  |  -.0191165   .0106027    -1.80   0.076    -.0402578    .0020247
+          6  |  -.0289675    .013695    -2.12   0.038    -.0562746   -.0016604
+          7  |  -.0405423   .0187971    -2.16   0.034    -.0780226    -.003062
+          8  |  -.0512056    .019548    -2.62   0.011    -.0901833    -.012228
+          9  |  -.0604003   .0204531    -2.95   0.004    -.1011826    -.019618
+       1000  |   -.075882   .0286318    -2.65   0.010    -.1329722   -.0187918
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |        72          72           0    *|
+ year_quarter |        40           0          40     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medrentpricepsqft_sfcc_last_sal_mw_event_rel_quarters4.pn
+> g not found)
+(file ../output/medrentpricepsqft_sfcc_last_sal_mw_event_rel_quarters4.png writ
+> ten in PNG format)
+(MWFE estimator converged in 6 iterations)
+
+HDFE Linear regression                            Number of obs   =        988
+Absorbing 2 HDFE groups                           F(  10,     30) =       3.06
+Statistics robust to heteroskedasticity           Prob > F        =     0.0086
+                                                  R-squared       =     0.9425
+                                                  Adj R-squared   =     0.9375
+                                                  Within R-sq.    =     0.0156
+Number of clusters (countyfips) =         31      Root MSE        =     0.1540
+
+                            (Std. Err. adjusted for 31 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medre~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~4 |
+          0  |   .0014632   .0610801     0.02   0.981    -.1232791    .1262055
+          1  |  -.0163533   .0273811    -0.60   0.555     -.072273    .0395664
+          2  |  -.0302774   .0231194    -1.31   0.200    -.0774936    .0169387
+          3  |  -.0290098   .0149363    -1.94   0.062    -.0595139    .0014942
+          5  |  -.0454594    .018636    -2.44   0.021    -.0835192   -.0073997
+          6  |  -.0599126    .030811    -1.94   0.061    -.1228371    .0030119
+          7  |  -.0766147   .0430556    -1.78   0.085     -.164546    .0113165
+          8  |   -.084021   .0490732    -1.71   0.097    -.1842418    .0161999
+          9  |  -.0995121   .0538535    -1.85   0.075    -.2094957    .0104714
+       1000  |  -.1298223    .070595    -1.84   0.076    -.2739965     .014352
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |        31          31           0    *|
+ year_quarter |        39           0          39     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medrentpricepsqft_sfcc_last_sal_mw_event_rel_quarters4_lo
+> w.png not found)
+(file ../output/medrentpricepsqft_sfcc_last_sal_mw_event_rel_quarters4_low.png 
+> written in PNG format)
+(dropped 2 singleton observations)
+(MWFE estimator converged in 5 iterations)
+
+HDFE Linear regression                            Number of obs   =      1,381
+Absorbing 2 HDFE groups                           F(  10,     40) =       2.43
+Statistics robust to heteroskedasticity           Prob > F        =     0.0229
+                                                  R-squared       =     0.9802
+                                                  Adj R-squared   =     0.9789
+                                                  Within R-sq.    =     0.0129
+Number of clusters (countyfips) =         41      Root MSE        =     0.1300
+
+                            (Std. Err. adjusted for 41 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medre~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~4 |
+          0  |  -.0015523   .0249275    -0.06   0.951    -.0519325     .048828
+          1  |  -.0007944   .0097467    -0.08   0.935    -.0204932    .0189044
+          2  |   .0089201   .0108828     0.82   0.417    -.0130749    .0309151
+          3  |   .0144896   .0071586     2.02   0.050     .0000215    .0289576
+          5  |  -.0044228   .0100661    -0.44   0.663    -.0247671    .0159216
+          6  |  -.0103105   .0121475    -0.85   0.401    -.0348616    .0142405
+          7  |  -.0200356   .0168811    -1.19   0.242    -.0541535    .0140823
+          8  |  -.0370967   .0192421    -1.93   0.061    -.0759864    .0017929
+          9  |  -.0463077   .0210801    -2.20   0.034    -.0889121   -.0037033
+       1000  |  -.0640114   .0371506    -1.72   0.093    -.1390956    .0110728
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |        41          41           0    *|
+ year_quarter |        37           0          37     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medrentpricepsqft_sfcc_last_sal_mw_event_rel_quarters4_hi
+> gh.png not found)
+(file ../output/medrentpricepsqft_sfcc_last_sal_mw_event_rel_quarters4_high.png
+>  written in PNG format)
+(MWFE estimator converged in 6 iterations)
+
+HDFE Linear regression                            Number of obs   =      2,498
+Absorbing 2 HDFE groups                           F(  14,     71) =       1.99
+Statistics robust to heteroskedasticity           Prob > F        =     0.0309
+                                                  R-squared       =     0.9446
+                                                  Adj R-squared   =     0.9417
+                                                  Within R-sq.    =     0.0180
+Number of clusters (countyfips) =         72      Root MSE        =   149.8093
+
+                            (Std. Err. adjusted for 72 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medre~e_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6 |
+          0  |  -17.91611   31.76186    -0.56   0.574    -81.24746    45.41524
+          1  |     1.2829   23.55182     0.05   0.957    -45.67809    48.24389
+          2  |   2.603229   17.88128     0.15   0.885    -33.05102    38.25748
+          3  |   4.394418   14.62298     0.30   0.765    -24.76297    33.55181
+          4  |   2.477026   12.26623     0.20   0.841    -21.98114     26.9352
+          5  |  -5.046007   8.915428    -0.57   0.573    -22.82287    12.73085
+          7  |  -4.266117    7.35573    -0.58   0.564    -18.93303    10.40079
+          8  |  -20.17198   11.73125    -1.72   0.090    -43.56343     3.21948
+          9  |  -39.24433     11.802    -3.33   0.001    -62.77685   -15.71181
+         10  |  -36.61689   14.01833    -2.61   0.011    -64.56864   -8.665127
+         11  |  -35.71773   17.80257    -2.01   0.049    -71.21504     -.22042
+         12  |  -39.52382   21.16765    -1.87   0.066    -81.73091    2.683273
+         13  |  -47.03616   23.65903    -1.99   0.051    -94.21092    .1386028
+       1000  |  -104.1997    49.9689    -2.09   0.041    -203.8348   -4.564549
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |        72          72           0    *|
+ year_quarter |        40           0          40     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medrentprice_sfcc_last_sal_mw_event_rel_quarters6.png not
+>  found)
+(file ../output/medrentprice_sfcc_last_sal_mw_event_rel_quarters6.png written i
+> n PNG format)
+(MWFE estimator converged in 6 iterations)
+
+HDFE Linear regression                            Number of obs   =      1,034
+Absorbing 2 HDFE groups                           F(  14,     30) =       2.94
+Statistics robust to heteroskedasticity           Prob > F        =     0.0064
+                                                  R-squared       =     0.9355
+                                                  Adj R-squared   =     0.9299
+                                                  Within R-sq.    =     0.0232
+Number of clusters (countyfips) =         31      Root MSE        =   111.3048
+
+                            (Std. Err. adjusted for 31 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medre~e_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6 |
+          0  |   2.011171   32.55173     0.06   0.951    -64.46833    68.49067
+          1  |   14.77984    25.3196     0.58   0.564    -36.92968    66.48936
+          2  |   20.12753   23.50502     0.86   0.399    -27.87612    68.13119
+          3  |   15.88339   19.36363     0.82   0.419    -23.66243     55.4292
+          4  |   5.868368   17.18546     0.34   0.735    -29.22901    40.96575
+          5  |  -5.846199   10.14535    -0.58   0.569    -26.56577    14.87337
+          7  |  -12.56289   9.485763    -1.32   0.195     -31.9354    6.809627
+          8  |   -40.9461   13.45106    -3.04   0.005    -68.41684   -13.47536
+          9  |  -54.14122   16.37655    -3.31   0.002    -87.58659   -20.69585
+         10  |  -46.70874   16.75535    -2.79   0.009    -80.92772   -12.48975
+         11  |  -52.38515   21.84109    -2.40   0.023    -96.99061   -7.779694
+         12  |  -57.09083    27.7559    -2.06   0.048    -113.7759   -.4057236
+         13  |  -69.66479   32.00027    -2.18   0.037    -135.0181    -4.31151
+       1000  |  -117.7825   47.86949    -2.46   0.020     -215.545   -20.01994
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |        31          31           0    *|
+ year_quarter |        39           0          39     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medrentprice_sfcc_last_sal_mw_event_rel_quarters6_low.png
+>  not found)
+(file ../output/medrentprice_sfcc_last_sal_mw_event_rel_quarters6_low.png writt
+> en in PNG format)
+(dropped 1 singleton observations)
+(MWFE estimator converged in 6 iterations)
+
+HDFE Linear regression                            Number of obs   =      1,391
+Absorbing 2 HDFE groups                           F(  14,     40) =       1.58
+Statistics robust to heteroskedasticity           Prob > F        =     0.1281
+                                                  R-squared       =     0.9367
+                                                  Adj R-squared   =     0.9322
+                                                  Within R-sq.    =     0.0302
+Number of clusters (countyfips) =         41      Root MSE        =   169.7612
+
+                            (Std. Err. adjusted for 41 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medre~e_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6 |
+          0  |     6.8222   38.17176     0.18   0.859     -70.3258     83.9702
+          1  |   17.11023   31.65046     0.54   0.592    -46.85773    81.07818
+          2  |   9.304117   23.78913     0.39   0.698    -38.77551    57.38374
+          3  |   8.059234   21.25517     0.38   0.707    -34.89907    51.01754
+          4  |    10.3565   17.63679     0.59   0.560    -25.28878    46.00177
+          5  |   .8107957   12.39724     0.07   0.948    -24.24497    25.86656
+          7  |  -2.211143   10.08028    -0.22   0.827    -22.58415    18.16187
+          8  |  -12.08231   14.30554    -0.84   0.403    -40.99489    16.83027
+          9  |  -34.10324   13.63199    -2.50   0.017    -61.65452    -6.55196
+         10  |  -39.62209   16.71731    -2.37   0.023    -73.40903   -5.835155
+         11  |  -39.93008   21.99237    -1.82   0.077    -84.37832     4.51816
+         12  |  -48.50512   26.40042    -1.84   0.074    -101.8624     4.85212
+         13  |  -57.45134   31.41236    -1.83   0.075    -120.9381      6.0354
+       1000  |  -144.1305   73.74694    -1.95   0.058    -293.1786    4.917655
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |        41          41           0    *|
+ year_quarter |        38           0          38     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medrentprice_sfcc_last_sal_mw_event_rel_quarters6_high.pn
+> g not found)
+(file ../output/medrentprice_sfcc_last_sal_mw_event_rel_quarters6_high.png writ
+> ten in PNG format)
+(MWFE estimator converged in 6 iterations)
+
+HDFE Linear regression                            Number of obs   =      2,443
+Absorbing 2 HDFE groups                           F(  14,     71) =       1.62
+Statistics robust to heteroskedasticity           Prob > F        =     0.0939
+                                                  R-squared       =     0.9727
+                                                  Adj R-squared   =     0.9712
+                                                  Within R-sq.    =     0.0145
+Number of clusters (countyfips) =         72      Root MSE        =     0.1411
+
+                            (Std. Err. adjusted for 72 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medre~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6 |
+          0  |   .0062563   .0292465     0.21   0.831    -.0520595     .064572
+          1  |   .0004117   .0242609     0.02   0.987    -.0479632    .0487865
+          2  |  -.0271736   .0236115    -1.15   0.254    -.0742535    .0199064
+          3  |   .0081521   .0101068     0.81   0.423    -.0120004    .0283045
+          4  |   .0010666   .0105878     0.10   0.920    -.0200449    .0221781
+          5  |   .0040019   .0062015     0.65   0.521    -.0083635    .0163673
+          7  |   -.021876   .0093054    -2.35   0.022    -.0404305   -.0033214
+          8  |   -.027722    .011056    -2.51   0.014    -.0497671    -.005677
+          9  |  -.0364602   .0148633    -2.45   0.017    -.0660969   -.0068235
+         10  |  -.0489141   .0149602    -3.27   0.002    -.0787438   -.0190843
+         11  |  -.0556436   .0168235    -3.31   0.001    -.0891886   -.0220985
+         12  |   -.057734   .0172426    -3.35   0.001    -.0921147   -.0233533
+         13  |  -.0675997   .0195542    -3.46   0.001    -.1065898   -.0286097
+       1000  |  -.0977302   .0273469    -3.57   0.001    -.1522585    -.043202
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |        72          72           0    *|
+ year_quarter |        40           0          40     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medrentpricepsqft_sfcc_last_sal_mw_event_rel_quarters6.pn
+> g not found)
+(file ../output/medrentpricepsqft_sfcc_last_sal_mw_event_rel_quarters6.png writ
+> ten in PNG format)
+(MWFE estimator converged in 6 iterations)
+
+HDFE Linear regression                            Number of obs   =        988
+Absorbing 2 HDFE groups                           F(  14,     30) =       2.68
+Statistics robust to heteroskedasticity           Prob > F        =     0.0114
+                                                  R-squared       =     0.9426
+                                                  Adj R-squared   =     0.9373
+                                                  Within R-sq.    =     0.0177
+Number of clusters (countyfips) =         31      Root MSE        =     0.1542
+
+                            (Std. Err. adjusted for 31 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medre~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6 |
+          0  |   .0170949   .0588942     0.29   0.774    -.1031831     .137373
+          1  |   .0274619   .0694065     0.40   0.695    -.1142851    .1692089
+          2  |  -.0806176   .0727641    -1.11   0.277    -.2292217    .0679864
+          3  |   .0016729   .0258544     0.06   0.949    -.0511287    .0544746
+          4  |  -.0344827   .0259188    -1.33   0.193     -.087416    .0184507
+          5  |  -.0193211   .0176128    -1.10   0.281    -.0552913     .016649
+          7  |  -.0372003   .0179556    -2.07   0.047    -.0738705   -.0005301
+          8  |  -.0502403   .0250958    -2.00   0.054    -.1014927    .0010121
+          9  |  -.0607463   .0347527    -1.75   0.091    -.1317208    .0102283
+         10  |  -.0670145   .0366477    -1.83   0.077    -.1418591    .0078302
+         11  |  -.0805897   .0401154    -2.01   0.054    -.1625164     .001337
+         12  |  -.0881083   .0423806    -2.08   0.046     -.174661   -.0015556
+         13  |   -.101476   .0447399    -2.27   0.031    -.1928471    -.010105
+       1000  |  -.1264856   .0567708    -2.23   0.034     -.242427   -.0105442
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |        31          31           0    *|
+ year_quarter |        39           0          39     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medrentpricepsqft_sfcc_last_sal_mw_event_rel_quarters6_lo
+> w.png not found)
+(file ../output/medrentpricepsqft_sfcc_last_sal_mw_event_rel_quarters6_low.png 
+> written in PNG format)
+(dropped 2 singleton observations)
+(MWFE estimator converged in 5 iterations)
+
+HDFE Linear regression                            Number of obs   =      1,381
+Absorbing 2 HDFE groups                           F(  14,     40) =       2.84
+Statistics robust to heteroskedasticity           Prob > F        =     0.0049
+                                                  R-squared       =     0.9805
+                                                  Adj R-squared   =     0.9791
+                                                  Within R-sq.    =     0.0264
+Number of clusters (countyfips) =         41      Root MSE        =     0.1293
+
+                            (Std. Err. adjusted for 41 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medre~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6 |
+          0  |   .0115968   .0287009     0.40   0.688    -.0464098    .0696034
+          1  |  -.0029025   .0200502    -0.14   0.886    -.0434254    .0376204
+          2  |  -.0047436   .0197599    -0.24   0.812    -.0446799    .0351927
+          3  |   .0029317   .0128385     0.23   0.821    -.0230159    .0288793
+          4  |   .0152301   .0116232     1.31   0.198    -.0082613    .0387216
+          5  |    .008915   .0065455     1.36   0.181     -.004314    .0221439
+          7  |  -.0148904   .0094848    -1.57   0.124    -.0340598    .0042791
+          8  |  -.0157613   .0105339    -1.50   0.142    -.0370511    .0055285
+          9  |  -.0237527   .0135218    -1.76   0.087    -.0510812    .0035759
+         10  |  -.0439834    .016255    -2.71   0.010     -.076836   -.0111308
+         11  |  -.0509051   .0193058    -2.64   0.012    -.0899236   -.0118866
+         12  |   -.052726   .0214992    -2.45   0.019    -.0961776   -.0092744
+         13  |  -.0650961   .0242143    -2.69   0.010    -.1140351   -.0161572
+       1000  |   -.111431   .0425153    -2.62   0.012    -.1973578   -.0255043
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |        41          41           0    *|
+ year_quarter |        37           0          37     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medrentpricepsqft_sfcc_last_sal_mw_event_rel_quarters6_hi
+> gh.png not found)
+(file ../output/medrentpricepsqft_sfcc_last_sal_mw_event_rel_quarters6_high.png
+>  written in PNG format)
+(MWFE estimator converged in 5 iterations)
+
+HDFE Linear regression                            Number of obs   =     17,147
+Absorbing 2 HDFE groups                           F(  10,    468) =       5.83
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9222
+                                                  Adj R-squared   =     0.9198
+                                                  Within R-sq.    =     0.0202
+Number of clusters (countyfips) =        469      Root MSE        = 46952.6411
+
+                           (Std. Err. adjusted for 469 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medli~e_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~4 |
+          0  |  -5.568449   2864.387    -0.00   0.998     -5634.22    5623.083
+          1  |   1446.191   1858.683     0.78   0.437    -2206.206    5098.587
+          2  |   778.7368   1313.764     0.59   0.554     -1802.87    3360.344
+          3  |  -304.9586   699.0318    -0.44   0.663    -1678.588    1068.671
+          5  |  -1893.531   937.1022    -2.02   0.044    -3734.979     -52.082
+          6  |  -4797.871   1444.563    -3.32   0.001    -7636.503   -1959.239
+          7  |  -6090.646   1593.869    -3.82   0.000    -9222.672    -2958.62
+          8  |  -8093.491   1947.003    -4.16   0.000    -11919.44   -4267.541
+          9  |  -11054.51   2366.519    -4.67   0.000    -15704.82   -6404.189
+       1000  |  -31884.17   5051.357    -6.31   0.000    -41810.32   -21958.02
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |       469         469           0    *|
+ year_quarter |        40           0          40     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medlistingprice_sfcc_last_sal_mw_event_rel_quarters4.png 
+> not found)
+(file ../output/medlistingprice_sfcc_last_sal_mw_event_rel_quarters4.png writte
+> n in PNG format)
+(MWFE estimator converged in 5 iterations)
+
+HDFE Linear regression                            Number of obs   =     13,840
+Absorbing 2 HDFE groups                           F(  10,    394) =       6.00
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9327
+                                                  Adj R-squared   =     0.9304
+                                                  Within R-sq.    =     0.0216
+Number of clusters (countyfips) =        395      Root MSE        = 35661.4723
+
+                           (Std. Err. adjusted for 395 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medli~e_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~4 |
+          0  |   1772.206   2794.885     0.63   0.526    -3722.546    7266.958
+          1  |   3332.883   1502.143     2.22   0.027     379.6645    6286.101
+          2  |   1384.788   1167.824     1.19   0.236    -911.1586    3680.734
+          3  |  -478.3113   720.7469    -0.66   0.507    -1895.302    938.6794
+          5  |  -1170.679   815.5001    -1.44   0.152    -2773.955    432.5963
+          6  |  -3594.371   1131.669    -3.18   0.002    -5819.236   -1369.507
+          7  |  -4637.699   1353.833    -3.43   0.001    -7299.338   -1976.059
+          8  |  -6151.529    1620.32    -3.80   0.000    -9337.083   -2965.976
+          9  |  -8867.371   1969.952    -4.50   0.000     -12740.3   -4994.438
+       1000  |  -25243.13   3794.362    -6.65   0.000    -32702.86    -17783.4
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |       395         395           0    *|
+ year_quarter |        39           0          39     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medlistingprice_sfcc_last_sal_mw_event_rel_quarters4_low.
+> png not found)
+(file ../output/medlistingprice_sfcc_last_sal_mw_event_rel_quarters4_low.png wr
+> itten in PNG format)
+(MWFE estimator converged in 4 iterations)
+
+HDFE Linear regression                            Number of obs   =      2,838
+Absorbing 2 HDFE groups                           F(  10,     73) =       2.38
+Statistics robust to heteroskedasticity           Prob > F        =     0.0166
+                                                  R-squared       =     0.8988
+                                                  Adj R-squared   =     0.8942
+                                                  Within R-sq.    =     0.0585
+Number of clusters (countyfips) =         74      Root MSE        = 72434.5939
+
+                            (Std. Err. adjusted for 74 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medli~e_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~4 |
+          0  |  -6279.392   10027.53    -0.63   0.533    -26264.23    13705.45
+          1  |  -7204.747   9826.307    -0.73   0.466    -26788.55    12379.05
+          2  |  -843.6503    5274.18    -0.16   0.873    -11355.08    9667.776
+          3  |   940.9816   2103.172     0.45   0.656    -3250.634    5132.597
+          5  |  -4975.255   3517.564    -1.41   0.161    -11985.75     2035.24
+          6  |  -10042.23   5794.396    -1.73   0.087    -21590.45    1505.982
+          7  |  -13328.73   6196.002    -2.15   0.035    -25677.35   -980.1196
+          8  |   -19939.8   7991.622    -2.50   0.015    -35867.08    -4012.52
+          9  |  -23948.66   9170.543    -2.61   0.011    -42225.52   -5671.791
+       1000  |  -79133.89   20762.79    -3.81   0.000    -120514.1   -37753.71
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |        74          74           0    *|
+ year_quarter |        39           0          39     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medlistingprice_sfcc_last_sal_mw_event_rel_quarters4_high
+> .png not found)
+(file ../output/medlistingprice_sfcc_last_sal_mw_event_rel_quarters4_high.png w
+> ritten in PNG format)
+(MWFE estimator converged in 4 iterations)
+
+HDFE Linear regression                            Number of obs   =     18,957
+Absorbing 2 HDFE groups                           F(  10,    478) =       8.79
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9549
+                                                  Adj R-squared   =     0.9536
+                                                  Within R-sq.    =     0.0209
+Number of clusters (countyfips) =        479      Root MSE        =    27.9176
+
+                           (Std. Err. adjusted for 479 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medli~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~4 |
+          0  |   .5208702   1.666219     0.31   0.755    -2.753149     3.79489
+          1  |    2.01874   .7969437     2.53   0.012     .4527944    3.584686
+          2  |   .7032177   .5490889     1.28   0.201    -.3757086    1.782144
+          3  |    .091814   .3082633     0.30   0.766    -.5139047    .6975327
+          5  |   .3397775   .4628109     0.73   0.463    -.5696178    1.249173
+          6  |  -1.759553   .7898989    -2.23   0.026    -3.311656   -.2074496
+          7  |  -2.638093   1.042356    -2.53   0.012    -4.686259   -.5899276
+          8  |  -3.035888   1.302345    -2.33   0.020    -5.594917   -.4768593
+          9  |  -3.770895   1.507608    -2.50   0.013    -6.733253   -.8085375
+       1000  |   -18.3281   2.924248    -6.27   0.000    -24.07407   -12.58213
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |       479         479           0    *|
+ year_quarter |        40           0          40     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medlistingpricepsqft_sfcc_last_sal_mw_event_rel_quarters4
+> .png not found)
+(file ../output/medlistingpricepsqft_sfcc_last_sal_mw_event_rel_quarters4.png w
+> ritten in PNG format)
+(MWFE estimator converged in 4 iterations)
+
+HDFE Linear regression                            Number of obs   =     15,592
+Absorbing 2 HDFE groups                           F(  10,    404) =       7.99
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9546
+                                                  Adj R-squared   =     0.9532
+                                                  Within R-sq.    =     0.0186
+Number of clusters (countyfips) =        405      Root MSE        =    22.6845
+
+                           (Std. Err. adjusted for 405 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medli~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~4 |
+          0  |   .5877529   1.743552     0.34   0.736    -2.839815    4.015321
+          1  |   1.820889   .8846841     2.06   0.040     .0817296    3.560048
+          2  |   .7187435   .5880109     1.22   0.222    -.4371996    1.874687
+          3  |  -.1235344   .3296483    -0.37   0.708    -.7715746    .5245059
+          5  |   .4272027   .4868817     0.88   0.381    -.5299352    1.384341
+          6  |  -1.081792   .7614401    -1.42   0.156    -2.578672    .4150872
+          7  |  -1.660453   .9582465    -1.73   0.084    -3.544225    .2233193
+          8  |  -1.458273   1.186922    -1.23   0.220    -3.791587    .8750408
+          9  |  -2.091162   1.428941    -1.46   0.144    -4.900252    .7179269
+       1000  |  -13.95858    2.50831    -5.56   0.000    -18.88955   -9.027609
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |       405         405           0    *|
+ year_quarter |        39           0          39     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medlistingpricepsqft_sfcc_last_sal_mw_event_rel_quarters4
+> _low.png not found)
+(file ../output/medlistingpricepsqft_sfcc_last_sal_mw_event_rel_quarters4_low.p
+> ng written in PNG format)
+(MWFE estimator converged in 2 iterations)
+
+HDFE Linear regression                            Number of obs   =      2,886
+Absorbing 2 HDFE groups                           F(  10,     73) =       3.31
+Statistics robust to heteroskedasticity           Prob > F        =     0.0014
+                                                  R-squared       =     0.9562
+                                                  Adj R-squared   =     0.9542
+                                                  Within R-sq.    =     0.0735
+Number of clusters (countyfips) =         74      Root MSE        =    42.0205
+
+                            (Std. Err. adjusted for 74 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medli~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~4 |
+          0  |   .2192483   4.396284     0.05   0.960    -8.542532    8.981029
+          1  |   2.735972   1.694535     1.61   0.111    -.6412321    6.113176
+          2  |   .6726209   1.405821     0.48   0.634    -2.129176    3.474417
+          3  |   1.064629   .7553976     1.41   0.163    -.4408758    2.570135
+          5  |  -.1971329   1.310023    -0.15   0.881    -2.808005    2.413739
+          6  |   -5.64927   3.229906    -1.75   0.084    -12.08646    .7879235
+          7  |  -8.309865   4.595875    -1.81   0.075    -17.46943    .8497007
+          8  |  -12.64334   5.572582    -2.27   0.026    -23.74948   -1.537202
+          9  |  -14.26457   5.893802    -2.42   0.018     -26.0109   -2.518236
+       1000  |  -50.39433   12.62048    -3.99   0.000    -75.54691   -25.24176
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |        74          74           0    *|
+ year_quarter |        39           0          39     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medlistingpricepsqft_sfcc_last_sal_mw_event_rel_quarters4
+> _high.png not found)
+(file ../output/medlistingpricepsqft_sfcc_last_sal_mw_event_rel_quarters4_high.
+> png written in PNG format)
+(MWFE estimator converged in 5 iterations)
+
+HDFE Linear regression                            Number of obs   =     17,147
+Absorbing 2 HDFE groups                           F(  14,    468) =       5.93
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9225
+                                                  Adj R-squared   =     0.9201
+                                                  Within R-sq.    =     0.0240
+Number of clusters (countyfips) =        469      Root MSE        = 46865.6455
+
+                           (Std. Err. adjusted for 469 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medli~e_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6 |
+          0  |   2075.537   3559.271     0.58   0.560    -4918.593    9069.668
+          1  |   2229.851   2397.273     0.93   0.353    -2480.901    6940.603
+          2  |   2606.156   2058.804     1.27   0.206    -1439.488      6651.8
+          3  |   3275.012   1762.373     1.86   0.064    -188.1313    6738.155
+          4  |   3149.615   1291.787     2.44   0.015     611.1948    5688.035
+          5  |   544.2297   773.5487     0.70   0.482     -975.829    2064.288
+          7  |  -1635.763   993.2166    -1.65   0.100    -3587.479    315.9532
+          8  |  -4184.271   1383.101    -3.03   0.003    -6902.128   -1466.413
+          9  |  -5697.979   1583.989    -3.60   0.000    -8810.589   -2585.369
+         10  |  -8484.215   2038.878    -4.16   0.000     -12490.7   -4477.727
+         11  |  -10629.21   2370.197    -4.48   0.000    -15286.76   -5971.668
+         12  |  -14120.92   2781.712    -5.08   0.000    -19587.11   -8654.726
+         13  |  -15596.26   3144.949    -4.96   0.000    -21776.23   -9416.292
+       1000  |   -38206.7   5715.761    -6.68   0.000    -49438.44   -26974.97
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |       469         469           0    *|
+ year_quarter |        40           0          40     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medlistingprice_sfcc_last_sal_mw_event_rel_quarters6.png 
+> not found)
+(file ../output/medlistingprice_sfcc_last_sal_mw_event_rel_quarters6.png writte
+> n in PNG format)
+(MWFE estimator converged in 5 iterations)
+
+HDFE Linear regression                            Number of obs   =     13,840
+Absorbing 2 HDFE groups                           F(  14,    394) =       4.58
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9332
+                                                  Adj R-squared   =     0.9309
+                                                  Within R-sq.    =     0.0287
+Number of clusters (countyfips) =        395      Root MSE        = 35536.1929
+
+                           (Std. Err. adjusted for 395 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medli~e_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6 |
+          0  |   3823.468   3671.321     1.04   0.298     -3394.36     11041.3
+          1  |     3198.3   2266.312     1.41   0.159    -1257.276    7653.875
+          2  |   4202.728   2037.443     2.06   0.040     197.1072    8208.348
+          3  |   4553.148   1679.975     2.71   0.007     1250.311    7855.984
+          4  |    2816.34   1320.407     2.13   0.034     220.4163    5412.264
+          5  |  -9.139588   769.9836    -0.01   0.991     -1522.93    1504.651
+          7  |  -1854.554   839.7313    -2.21   0.028    -3505.468   -203.6395
+          8  |  -4393.773   1245.715    -3.53   0.000    -6842.852   -1944.694
+          9  |  -5465.674   1539.537    -3.55   0.000    -8492.409    -2438.94
+         10  |  -7591.461   1948.916    -3.90   0.000    -11423.04   -3759.886
+         11  |  -9855.457   2314.774    -4.26   0.000    -14406.31   -5304.604
+         12  |  -12978.87   2779.947    -4.67   0.000    -18444.25   -7513.486
+         13  |  -14036.77   3126.923    -4.49   0.000    -20184.31   -7889.226
+       1000  |  -33178.12    5456.24    -6.08   0.000    -43905.11   -22451.14
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |       395         395           0    *|
+ year_quarter |        39           0          39     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medlistingprice_sfcc_last_sal_mw_event_rel_quarters6_low.
+> png not found)
+(file ../output/medlistingprice_sfcc_last_sal_mw_event_rel_quarters6_low.png wr
+> itten in PNG format)
+(MWFE estimator converged in 4 iterations)
+
+HDFE Linear regression                            Number of obs   =      2,838
+Absorbing 2 HDFE groups                           F(  14,     73) =       2.84
+Statistics robust to heteroskedasticity           Prob > F        =     0.0020
+                                                  R-squared       =     0.9004
+                                                  Adj R-squared   =     0.8958
+                                                  Within R-sq.    =     0.0737
+Number of clusters (countyfips) =         74      Root MSE        = 71899.2858
+
+                            (Std. Err. adjusted for 74 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medli~e_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6 |
+          0  |    7757.38   11398.31     0.68   0.498    -14959.41    30474.17
+          1  |   4044.752    9058.88     0.45   0.657    -14009.57    22099.07
+          2  |  -930.8002   7395.221    -0.13   0.900    -15669.45    13807.85
+          3  |   191.6943   7058.434     0.03   0.978    -13875.74    14259.13
+          4  |   6513.181   4203.816     1.55   0.126    -1865.013    14891.37
+          5  |   3217.883   2538.253     1.27   0.209    -1840.849    8276.615
+          7  |  -1198.872   4474.896    -0.27   0.790    -10117.33    7719.582
+          8  |  -4185.511   6162.872    -0.68   0.499     -16468.1    8097.076
+          9  |  -9288.021   6298.382    -1.47   0.145    -21840.68    3264.636
+         10  |  -17113.84   7901.606    -2.17   0.034    -32861.71   -1365.959
+         11  |  -20014.98    8753.52    -2.29   0.025    -37460.72   -2569.236
+         12  |  -27563.27   9698.389    -2.84   0.006    -46892.13   -8234.411
+         13  |  -32144.05   10614.71    -3.03   0.003    -53299.13   -10988.96
+       1000  |  -94076.76    20356.8    -4.62   0.000    -134647.8   -53505.71
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |        74          74           0    *|
+ year_quarter |        39           0          39     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medlistingprice_sfcc_last_sal_mw_event_rel_quarters6_high
+> .png not found)
+(file ../output/medlistingprice_sfcc_last_sal_mw_event_rel_quarters6_high.png w
+> ritten in PNG format)
+(MWFE estimator converged in 4 iterations)
+
+HDFE Linear regression                            Number of obs   =     18,957
+Absorbing 2 HDFE groups                           F(  14,    478) =       6.22
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9553
+                                                  Adj R-squared   =     0.9540
+                                                  Within R-sq.    =     0.0290
+Number of clusters (countyfips) =        479      Root MSE        =    27.8045
+
+                           (Std. Err. adjusted for 479 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medli~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6 |
+          0  |   1.712962   2.131044     0.80   0.422    -2.474409    5.900334
+          1  |   2.271944    1.17689     1.93   0.054    -.0405728    4.584461
+          2  |   2.307161   1.029193     2.24   0.025     .2848589    4.329463
+          3  |   2.293692   .8472583     2.71   0.007     .6288811    3.958503
+          4  |   1.344028   .6050072     2.22   0.027     .1552254     2.53283
+          5  |    .231676   .3367725     0.69   0.492    -.4300614    .8934135
+          7  |   .2624004   .4841347     0.54   0.588     -.688895    1.213696
+          8  |  -1.893935   .8317153    -2.28   0.023    -3.528205   -.2596647
+          9  |  -2.767491   1.135046    -2.44   0.015    -4.997788   -.5371935
+         10  |  -3.788466   1.441383    -2.63   0.009    -6.620696   -.9562349
+         11  |  -4.681089   1.650585    -2.84   0.005    -7.924388    -1.43779
+         12  |   -7.74511   1.831935    -4.23   0.000    -11.34475   -4.145468
+         13  |  -9.426769   2.112763    -4.46   0.000    -13.57822   -5.275319
+       1000  |   -24.2359   3.593742    -6.74   0.000    -31.29738   -17.17441
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |       479         479           0    *|
+ year_quarter |        40           0          40     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medlistingpricepsqft_sfcc_last_sal_mw_event_rel_quarters6
+> .png not found)
+(file ../output/medlistingpricepsqft_sfcc_last_sal_mw_event_rel_quarters6.png w
+> ritten in PNG format)
+(MWFE estimator converged in 4 iterations)
+
+HDFE Linear regression                            Number of obs   =     15,592
+Absorbing 2 HDFE groups                           F(  14,    404) =       5.46
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9551
+                                                  Adj R-squared   =     0.9538
+                                                  Within R-sq.    =     0.0303
+Number of clusters (countyfips) =        405      Root MSE        =    22.5516
+
+                           (Std. Err. adjusted for 405 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medli~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6 |
+          0  |   2.444542   2.345452     1.04   0.298    -2.166273    7.055357
+          1  |   2.082734   1.304963     1.60   0.111    -.4826317      4.6481
+          2  |   2.312608   1.160266     1.99   0.047     .0316948    4.593521
+          3  |   2.137777   .9621413     2.22   0.027     .2463479    4.029205
+          4  |   1.339825   .6769047     1.98   0.048       .00913    2.670521
+          5  |   .0687586   .3632623     0.19   0.850    -.6453619     .782879
+          7  |   .1214198   .5367824     0.23   0.821    -.9338156    1.176655
+          8  |   -1.66696   .8542567    -1.95   0.052    -3.346303    .0123835
+          9  |  -2.284357   1.168691    -1.95   0.051    -4.581832    .0131189
+         10  |  -2.783351   1.472809    -1.89   0.059    -5.678678    .1119759
+         11  |  -3.627225   1.738463    -2.09   0.038    -7.044788   -.2096622
+         12  |  -6.499841    1.91106    -3.40   0.001    -10.25671   -2.742978
+         13  |  -7.921529   2.228096    -3.56   0.000    -12.30164    -3.54142
+       1000  |  -20.67434   3.711065    -5.57   0.000    -27.96975   -13.37893
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |       405         405           0    *|
+ year_quarter |        39           0          39     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medlistingpricepsqft_sfcc_last_sal_mw_event_rel_quarters6
+> _low.png not found)
+(file ../output/medlistingpricepsqft_sfcc_last_sal_mw_event_rel_quarters6_low.p
+> ng written in PNG format)
+(MWFE estimator converged in 2 iterations)
+
+HDFE Linear regression                            Number of obs   =      2,886
+Absorbing 2 HDFE groups                           F(  14,     73) =       4.18
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9570
+                                                  Adj R-squared   =     0.9550
+                                                  Within R-sq.    =     0.0913
+Number of clusters (countyfips) =         74      Root MSE        =    41.6461
+
+                            (Std. Err. adjusted for 74 clusters in countyfips)
+------------------------------------------------------------------------------
+             |               Robust
+medli~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6 |
+          0  |   5.787961   5.532128     1.05   0.299    -5.237554    16.81348
+          1  |   5.858688   2.625383     2.23   0.029     .6263073    11.09107
+          2  |   3.902244   2.108679     1.85   0.068     -.300348    8.104835
+          3  |   4.241804    1.76114     2.41   0.019     .7318571    7.751751
+          4  |   1.927573   1.300541     1.48   0.143    -.6644003    4.519547
+          5  |    .547812    .627194     0.87   0.385    -.7021839    1.797808
+          7  |   .3020045   1.285019     0.24   0.815    -2.259034    2.863043
+          8  |  -4.168004   3.145991    -1.32   0.189    -10.43796    2.101947
+          9  |  -7.091161   3.951305    -1.79   0.077     -14.9661    .7837787
+         10  |   -11.4177   4.868859    -2.35   0.022    -21.12133    -1.71408
+         11  |  -13.71423   5.064288    -2.71   0.008    -23.80734   -3.621116
+         12  |  -19.55049   6.041824    -3.24   0.002    -31.59182   -7.509148
+         13  |  -23.63171   7.015544    -3.37   0.001    -37.61367   -9.649752
+       1000  |  -61.34191   12.70585    -4.83   0.000    -86.66464   -36.01918
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   countyfips |        74          74           0    *|
+ year_quarter |        39           0          39     |
+------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/medlistingpricepsqft_sfcc_last_sal_mw_event_rel_quarters6
+> _high.png not found)
+(file ../output/medlistingpricepsqft_sfcc_last_sal_mw_event_rel_quarters6_high.
+> png written in PNG format)
+
+. 
+end of do-file
+
+ make.py ended: 2020-05-14 15:22:58

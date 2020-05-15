@@ -6,6 +6,10 @@ adopath + ../../../lib/stata/min_wage/ado
 set maxvar 32000 
 
 program main    
+    es_tests, data(rent) window(6) depvar(medrentpricepsqft_sfcc)
+    es_tests, data(listing) window(6) depvar(medlistingpricepsqft_sfcc)
+	
+	graph drop _all
     es_tests, data(rent) window(12) depvar(medrentpricepsqft_sfcc)
     es_tests, data(listing) window(12) depvar(medlistingpricepsqft_sfcc)
 end
@@ -30,42 +34,42 @@ syntax, data(str) window(int) depvar(str)
     create_event_plot, depvar(`depvar')                   ///
         event_var(last_sal_mw_event_rel_months`window') ///
         controls(" ") window(`window')    ///
-        absorb(zipcode year_month calendar_month##state) cluster(zipcode) ///
+        absorb(zipcode year_month calendar_month##statefips) cluster(zipcode) ///
         name(`data'_calstate) ///
         title("Two-way FE and state-specific calendar-month", size(tiny))
         
     create_event_plot, depvar(`depvar')                   ///
         event_var(last_sal_mw_event_rel_months`window') ///
         controls(" ") window(`window')    ///
-        absorb(zipcode year_month calendar_month##county) cluster(zipcode) ///
+        absorb(zipcode year_month calendar_month##countyfips) cluster(zipcode) ///
         name(`data'_calcounty) ///
         title("Two-way FE and county-specific calendar-month", size(tiny))
 
     create_event_plot, depvar(`depvar')                   ///
         event_var(last_sal_mw_event_rel_months`window') ///
         controls(i.cumul_nbr_unused_mw_events) window(`window')    ///
-        absorb(zipcode year_month calendar_month##county) cluster(zipcode) ///
+        absorb(zipcode year_month calendar_month##countyfips) cluster(zipcode) ///
         name(`data'_unus_calcounty) ///
         title("Two-way FE county-specific calendar-month and number unused events FE", size(tiny))
 
     create_event_plot, depvar(`depvar')                   ///
         event_var(last_sal_mw_event_rel_months`window') ///
         controls(i.cumul_nbr_unused_mw_events) window(`window')    ///
-        absorb(zipcode msa year_month calendar_month##county) cluster(zipcode) ///
+        absorb(zipcode msa year_month calendar_month##countyfips) cluster(zipcode) ///
         name(`data'_unus_msa_calcounty) ///
         title("Two-way FE msa FE county-specific calendar-month and number unused events FE", size(tiny))
         
     create_event_plot, depvar(`depvar')                   ///
         event_var(last_sal_mw_event_rel_months`window') ///
         controls(i.cumul_nbr_unused_mw_events) window(`window')    ///
-        absorb(zipcode msa year_month##state calendar_month##county) cluster(zipcode) ///
+        absorb(zipcode msa year_month##statefips calendar_month##countyfips) cluster(zipcode) ///
         name(`data'_unus_msa_calcounty_stime) ///
         title("Zipcode FE msa FE county-specific calendar-month state-specific time FE and number unused events FE", size(tiny))
         
     create_event_plot, depvar(`depvar')                   ///
         event_var(last_sal_mw_event_rel_months`window') ///
         controls(i.cumul_nbr_unused_mw_events) window(`window')    ///
-        absorb(zipcode msa year_month##county calendar_month##county) cluster(zipcode) ///
+        absorb(zipcode msa year_month##countyfips calendar_month##countyfips) cluster(zipcode) ///
         name(`data'_unus_msa_calcounty_ctime) ///
         title("Zipcode FE msa FE county-specific calendar-month county-specific time FE and number unused events FE", size(tiny))
 

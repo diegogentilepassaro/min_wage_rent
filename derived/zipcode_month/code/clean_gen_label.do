@@ -25,7 +25,12 @@ program clean_vars
     drop if missing(year_month)
     drop if missing(zipcode)
 	
+	rename msa msa_str
+	encode msa_str, gen(msa)
+	drop msa_str
+	
 	replace dactual_mw = round(dactual_mw, 0.01)
+	replace dactual_mw = 0 if dactual_mw < 0
 end
 
 program gen_vars

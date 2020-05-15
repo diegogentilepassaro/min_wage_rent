@@ -5,15 +5,13 @@ adopath + ../../../lib/stata/gslab_misc/ado
 adopath + ../../../lib/stata/min_wage/ado
 set maxvar 32000 
 
-program main
-    use "../temp/baseline_rent_panel_24.dta", clear
-    
-	local reps = 100
+program main    
+	local reps = 200
 	local seed = 8
 	
+	use "../temp/baseline_rent_panel_6.dta", clear
     xtset, clear
 	eststo clear
-	
 	foreach event_var in mw_event025 sal_mw_event mw_event075 {
 		eststo: bootstrap effect_per_sqft = r(effect_per_sqft) ///
 			total_rent_increase1000 = r(total_rent_increase1000) ///
@@ -23,16 +21,15 @@ program main
 			passthrough1000 = r(passthrough1000) ///
 			passthrough1500 = r(passthrough1500) ///
 			passthrough2000 = r(passthrough2000), rep(`reps') seed(`seed') ///
-			cluster(zipcode): thing_to_bootstrap, event_var(`event_var')
+			cluster(zipcode): thing_to_bootstrap, depvar(medrentpricepsqft_sfcc) ///
+			event_var(`event_var') window(6) ///
+			fe(zipcode calendar_month#countyfips year_month#statefips)
 			
-		sum dactual_mw if last_`event_var'_rel_months24 == 25
-		estadd local nbr_events = r(N)
-		estadd local min_mw_change = round(r(min),0.01)
+		sum dactual_mw if (last_`event_var'_rel_months6 == 7 & !missing(medrentpricepsqft_sfcc))
 		estadd local avg_mw_change = round(r(mean),0.01)
-		estadd local max_mw_change = round(r(max),0.01)
-	}
+}
 
-	esttab * using "../output/bootstrap.tex", ci replace ///
+	esttab * using "../output/bootstrap_rent.tex", ci replace ///
 	    mtitle("MW changes of at least \\$0.25" "MW changes of at least \\$0.5" "MW changes of at least \\$0.75") ///
 	    coeflabels(effect_per_sqft "Rent increase per square feet" ///
 		total_rent_increase1000 "Total rent increase (assuming 1000 square feet)" ///
@@ -42,27 +39,29 @@ program main
 		passthrough1000 "Implied passthrough from MW to rents (assuming 1000 square feet)" ///
 	    passthrough1500 "Implied passthrough from MW to rents (assuming 1500 square feet)" ///
 		passthrough2000 "Implied passthrough from MW to rents (assuming 2000 square feet)") ///
-		stats(nbr_events min_mw_change avg_mw_change max_mw_change N N_clust N_reps, ///
-		fmt(%9.0g %9.0g %9.0g %9.0g %9.0g %9.0g %9.0g) ///
-	    labels("Number of MW events" "Minimum MW change" "Average MW change" "Maximum MW change" ///
+		stats(min_mw_change avg_mw_change max_mw_change N N_clust N_reps, ///
+		fmt(%9.0g %9.0g %9.0g %9.0g %9.0g %9.0g) ///
+	    labels("Minimum MW change" "Average MW change" "Maximum MW change" ///
 		"Number of zipcode-months" "Number of Zipcodes" "Number of bootstrap repetitions")) nonotes
-		
 end
 
 program thing_to_bootstrap, rclass
-    syntax, event_var(str)
+    syntax, depvar(str) event_var(str) window(int) fe(str)
+
+	local window_plus1 = `window' + 1
+	local window_span = 2*`window' + 1
 	
-    reghdfe medrentpricepsqft_sfcc ib24.last_`event_var'_rel_months24, nocons ///
-		absorb(zipcode calendar_month year_month)
+    reghdfe `depvar' ib`window'.last_`event_var'_rel_months`window' ///
+	    i.c_nbr_unused_`event_var'_`window', nocons ///
+        absorb(`fe')
 	local sum_coeffs = 0
-	forval i = 25(1)49 {
-        local sum_coeffs = `sum_coeffs' + _b[`i'.last_`event_var'_rel_months24]
-		local effect_per_sqft = `sum_coeffs'/25
+	forval i = `window_plus1'(1)`window_span' {
+        local sum_coeffs = `sum_coeffs' + _b[`i'.last_`event_var'_rel_months`window']
+		local effect_per_sqft = `sum_coeffs'/`window_plus1'
 	}
 	
-	reghdfe dactual_mw ib24.last_`event_var'_rel_months24, nocons ///
-		absorb(zipcode calendar_month year_month)
-	local used_mw_change = _b[25.last_`event_var'_rel_months24]
+	sum dactual_mw if (last_`event_var'_rel_months6 == `window_plus1' & !missing(`depvar'))
+	local used_mw_change = round(r(mean),0.01)
 	local incr_sf_monthly_income = (2*40*4.35)*`used_mw_change'
 	
 	local home_size1000 = 1000
