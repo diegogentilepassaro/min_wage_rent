@@ -39,10 +39,10 @@ program main
 		passthrough1000 "Implied passthrough from MW to rents (assuming 1000 square feet)" ///
 	    passthrough1500 "Implied passthrough from MW to rents (assuming 1500 square feet)" ///
 		passthrough2000 "Implied passthrough from MW to rents (assuming 2000 square feet)") ///
-		stats(min_mw_change avg_mw_change max_mw_change N N_clust N_reps, ///
+		stats(avg_mw_change N N_clust N_reps, ///
 		fmt(%9.0g %9.0g %9.0g %9.0g %9.0g %9.0g) ///
-	    labels("Minimum MW change" "Average MW change" "Maximum MW change" ///
-		"Number of zipcode-months" "Number of Zipcodes" "Number of bootstrap repetitions")) nonotes
+	    labels("Average MW change" "Number of zipcode-months" ///
+		"Number of Zipcodes" "Number of bootstrap repetitions")) nonotes
 end
 
 program thing_to_bootstrap, rclass

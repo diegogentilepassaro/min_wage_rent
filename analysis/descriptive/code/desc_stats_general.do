@@ -8,12 +8,12 @@ program main
 	local instub  = "../../../drive/" 
 	local outstub = "../output/"
 
-	// us_stats, instub(`instub')
+	us_stats, instub(`instub')
 	// baseline_rent_stats, instub(`instub')
 	// baseline_listing_stats, instub(`instub')
 	// baseline_yearmonth_stats, instub(`instub')
 
-	build_table
+	*build_table
 end 
 
 
@@ -140,9 +140,9 @@ end
 program baseline_yearmonth_stats
 	syntax, instub(str)
 
-	use `instub'/derived_large/output/zipcode_yearmonth_panel_all.dta, clear
-	keep zipcode 
-	duplicates drop
+	use "../../../drive/derived_large/output/zipcode_yearmonth_panel_all.dta", clear
+	
+	keep if year_month == `=tm(2019m1)'
 	g zip2 = string(zipcode, "%05.0f")
 	drop zipcode 
 	rename zip2 zipcode 
@@ -151,7 +151,7 @@ program baseline_yearmonth_stats
 
 	use ../temp/us_stats_zipcode.dta, clear 
 
-	merge 1:1 zipcode using `baseline_yearmonth_zip', nogen assert(1 2 3) keep(3)
+	merge 1:1 zipcode using `baseline_yearmonth_zip', nogen assert(1 2 3) keep(1 3)
 
 	destring zipcode, replace
 
