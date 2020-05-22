@@ -21,6 +21,13 @@ program main
 		}
 	}
 	
+	use "../temp/baseline_rent_panel_6.dta", clear
+	create_event_plot, depvar(medrentpricepsqft_sfcc) 			  	///
+		event_var(last_sal_mw_event_rel_months6) ///
+		controls("i.cumul_nbr_unused_mw_events") window(6)	///
+		absorb(zipcode year_month) cluster(zipcode)
+	graph export "../output/two_way_last_medrentpricepsqft_sfcc6.png", replace
+	
 	foreach window in 6 12 {
 		use "../temp/baseline_listing_panel_`window'.dta", clear
 		foreach depvar in medlistingprice_sfcc medlistingprice_low_tier ///
