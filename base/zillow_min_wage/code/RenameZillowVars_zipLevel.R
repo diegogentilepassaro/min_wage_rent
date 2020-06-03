@@ -37,7 +37,7 @@ rename_zillow_vars <- function(infiles, outdir){
       colgeo_type5 <- c("RegionID", "RegionName", "City", "County", "State", "Metro")
       colgeo_type6 <- c("RegionID", "RegionName", "StateName")
       
-      if (identical(colgeonames,colgeo_type1)) {
+      if (identical(colgeonames, colgeo_type1)) {
          newgeonames <- c("zipcode", "city", "county", "msa", "statename")
          data.table::setnames(df, old = colgeonames, 
                               new = newgeonames)
@@ -45,7 +45,9 @@ rename_zillow_vars <- function(infiles, outdir){
          df[, zipcode := str_pad(as.character(zipcode), 5, pad = "0")]
          
          save_data(df = df, key = newgeonames,
-                   filename = paste0(outdir, x))
+                   filename = paste0(outdir, x),
+                   logfile = paste0(outdir, "zillow_data_manifest.log"))
+         
       } else if (identical(colgeonames,colgeo_type2)) {
          newgeonames <- c("old_id", "zipcode", "city", "county", "stateabb", "msa")
          data.table::setnames(df, old = colgeonames, 
@@ -56,7 +58,9 @@ rename_zillow_vars <- function(infiles, outdir){
          df[, zipcode := str_pad(as.character(zipcode), 5, pad = "0")]
          
          save_data(df = df, key = newgeonames,
-                   filename = paste0(outdir, x))
+                   filename = paste0(outdir, x),
+                   logfile = paste0(outdir, "zillow_data_manifest.log"))
+
       } else if (identical(colgeonames,colgeo_type3)) {
          newgeonames <- c("zipcode", "city", "stateabb", "msa", "county")
          data.table::setnames(df, old = colgeonames, 
@@ -65,7 +69,9 @@ rename_zillow_vars <- function(infiles, outdir){
          df[, zipcode := str_pad(as.character(zipcode), 5, pad = "0")]
          
          save_data(df = df, key = newgeonames,
-                   filename = paste0(outdir, x))
+                   filename = paste0(outdir, x),
+                   logfile = paste0(outdir, "zillow_data_manifest.log"))
+
       } else if (identical(colgeonames,colgeo_type4)) {
          newgeonames <- c("old_id", "zipcode", "city", "stateabb", "msa", "county")
          data.table::setnames(df, old = colgeonames, 
@@ -76,7 +82,9 @@ rename_zillow_vars <- function(infiles, outdir){
          df[, zipcode := str_pad(as.character(zipcode), 5, pad = "0")]
          
          save_data(df = df, key = newgeonames,
-                   filename = paste0(outdir, x))
+                   filename = paste0(outdir, x),
+                   logfile = paste0(outdir, "zillow_data_manifest.log"))
+
       } else if (identical(colgeonames,colgeo_type5)) {
          newgeonames <- c("old_id", "zipcode", "city", "county", "stateabb", "msa")
          data.table::setnames(df, old = colgeonames, 
@@ -87,7 +95,9 @@ rename_zillow_vars <- function(infiles, outdir){
          df[, zipcode := str_pad(as.character(zipcode), 5, pad = "0")]
          
          save_data(df = df, key = newgeonames,
-                   filename = paste0(outdir, x))
+                   filename = paste0(outdir, x),
+                   logfile = paste0(outdir, "zillow_data_manifest.log"))
+
       } else if (identical(colgeonames, colgeo_type6)) {
          newgeonames <- c("old_id", "zipcode", "stateabb")
          data.table::setnames(df, old = colgeonames, 
@@ -97,7 +107,8 @@ rename_zillow_vars <- function(infiles, outdir){
          df[, zipcode := str_pad(as.character(zipcode), 5, pad = "0")]
          
          save_data(df = df, key = newgeonames, 
-                   filename = paste0(outdir, x))
+                   filename = paste0(outdir, x),
+                   logfile = paste0(outdir, "zillow_data_manifest.log"))
       }
    })
 }

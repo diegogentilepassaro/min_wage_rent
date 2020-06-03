@@ -3,17 +3,18 @@ clear all
 adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
-    local raw "../../../drive/raw_data/min_wage"
-    local exports "../output"
-    local temp "../temp"
+    local raw       "../../../drive/raw_data/min_wage"
+    local xwalk     "../../../raw/crosswalk"
+    local exports   "../output"
+    local temp      "../temp"
 
-    import_crosswalk, instub(`raw') outstub(`temp')
+    import_crosswalk, instub(`xwalk') outstub(`temp')
     local fips = r(fips)
-	
-    fed_min_wage_change, instub(`raw') outstub(`exports') 
-    add_state_to_fedmw,  fips("`fips'") outstub(`temp')
+
+    fed_min_wage_change,   instub(`raw') outstub(`exports') 
+    add_state_to_fedmw,    fips(`fips')  outstub(`temp')
     state_min_wage_change, instub(`raw') outstub(`exports') temp(`temp')
-    
+
     prepare_finaldata, begindate(01may1974) finaldate(31dec2019)           ///
                        outstub(`temp') temp(`temp')
 
@@ -27,15 +28,15 @@ end
 program import_crosswalk, rclass
     syntax, instub(str) outstub(str)
 
-    import excel using `instub'/FIPS_crosswalk.xlsx, clear ///
-	    firstrow
-    
-	rename (Name        FIPSStateNumericCode  OfficialUSPSCode)           ///
-           (statename  statefips            stateabb)
+    import excel using `instub'/state_name_fips_usps.xlsx, clear ///
+        firstrow
+
+    rename (Name       FIPSStateNumericCode  OfficialUSPSCode)           ///
+           (statename  statefips             stateabb)
     drop sname
 
     label var stateabb "State"
-	
+
     save_data `outstub'/crosswalk.dta, replace key(statefips) log(none)
 
     levelsof statefips, local(fips)
@@ -86,7 +87,7 @@ program add_state_to_fedmw
     }
 
     compress
-	
+
     save_data `outstub'/fedmw.dta, replace key(date statefips) log(none)
 end
 
@@ -226,7 +227,6 @@ program label_mw_vars
 	cap label var mw      "`time_level' State MW"	
 	cap label var mw_healthinsurance "`time_level' State MW Health and Insurance"
 	cap label var mw_smallbusiness "`time_level' State MW Small Business"
-
 end
 
 *EXECUTE

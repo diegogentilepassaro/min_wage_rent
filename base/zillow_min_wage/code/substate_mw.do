@@ -3,11 +3,13 @@ clear all
 adopath + ../../../lib/stata/gslab_misc/ado
 
 program main 
-	local raw "../../../drive/raw_data/min_wage"
+	local raw     "../../../drive/raw_data/min_wage"
+    local xwalk   "../../../raw/crosswalk"
 	local exports "../output"
-	local temp "../temp"
+	local temp    "../temp"
 
-	import_crosswalk, instub(`raw') outstub(`temp')
+	import_crosswalk, instub(`xwalk') outstub(`temp')
+
 	substate_min_wage_change, instub(`raw') outstub(`exports') temp(`temp')
 	prepare_local, temp(`temp')
 	prepare_state, outstub(`exports') temp(`temp') finaldate(31Dec2019)
@@ -19,11 +21,11 @@ program main
 	export_substate_monthly,   outstub(`exports') temp(`temp') target_mw(`mw_list')
 	export_substate_quarterly, outstub(`exports') temp(`temp') target_mw(`mw_list')
 	export_substate_annually,  outstub(`exports') temp(`temp') target_mw(`mw_list')
-end 
+end
 
 program import_crosswalk, rclass
 	syntax, instub(str) outstub(str)
-	import excel using `instub'/FIPS_crosswalk.xlsx, clear firstrow 
+	import excel using `instub'/state_name_fips_usps.xlsx, clear firstrow 
 	
 	rename Name statename
 	rename FIPSStateNumericCode statefips
@@ -75,30 +77,35 @@ end
 program prepare_local
 	syntax, temp(str)
 	preserve
-	egen tag = tag(statefips locality)
-	keep if tag == 1
-	keep statefips locality
+		egen tag = tag(statefips locality)
+		keep if tag == 1
+		keep statefips locality
 
-	save `temp'\localities.dta, replace
+		save `temp'\localities.dta, replace
 	restore
 end
 
 program prepare_state
 	syntax, outstub(str) temp(str) finaldate(str)
+
 	sum year
 	local minyear = r(min)
+
 	preserve	
-	import delim `outstub'/VZ_state_daily.csv, clear 
-	g date2 = date(date, "DMY")
-	format date2 %td
-	order date2, after(date)
-	drop date 
-	rename date2 date
-	keep if year(date) >= `minyear' & date <= td(`finaldate')
-	joinby statefips using `temp'/localities.dta
-	keep statefips statename stateabb locality date mw
-	rename mw state_mw
-	save `temp'/statemw.dta, replace
+		import delim `outstub'/VZ_state_daily.csv, clear 
+
+		gen date2 = date(date, "DMY")
+		format date2 %td
+		order date2, after(date)
+		drop date 
+		rename date2 date
+
+		keep if year(date) >= `minyear' & date <= td(`finaldate')
+		joinby statefips using `temp'/localities.dta
+		keep statefips statename stateabb locality date mw
+
+		rename mw state_mw
+		save `temp'/statemw.dta, replace
 	restore
 end
 
@@ -131,7 +138,7 @@ program prepare_finaldata
 	
 	foreach var in `new_target_mw' {
 		replace `var' = mw if `var' == .
-		replace `var' = round(`var',0.01)
+		replace `var' = round(`var', 0.01)
 		gen abovestate_`var' = `var' > state_mw
 		label var abovestate_`var' "Local `var' > State min wage"		
 	}
