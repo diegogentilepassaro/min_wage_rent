@@ -7,7 +7,7 @@ program main
 	local instub "../../../base/qcew/output"
 	local outstub "../temp"
 
-    use "`instub'/industry_county_qtr_emp_wage.dta", clear
+	use "`instub'/industry_county_qtr_emp_wage.dta", clear
 	
 	keep if ownership == "Total Covered"
 	drop ownership naics industry
@@ -15,11 +15,11 @@ program main
 	gen_wage_ranking, base_period(2010q1)
 	
 	merge m:1 countyfips using "../temp/wage_rankings_2010q1.dta", 	///
-	    nogen assert(1 3) keep(3) 									///
+		nogen assert(1 3) keep(3) 									///
 		keepusing(decile_avg_week_wage above_avg_us_weekly_wage)
-    
-	save_data "`outstub'/county_quarter_emp_wage.dta",  			///
-	    key(year_quarter countyfips) replace log(none)
+	
+	save_data "`outstub'/county_quarter_emp_wage.dta", 				///
+		key(year_quarter countyfips) replace log(none)
 end
 
 program gen_wage_ranking
@@ -38,7 +38,7 @@ program gen_wage_ranking
 		egen decile_avg_week_wage = xtile(avg_week_wage), n(10)
 		
 		save_data "../temp/wage_rankings_2010q1.dta", key(countyfips) replace log(none)
-    restore
+	restore
 end
 
 main
