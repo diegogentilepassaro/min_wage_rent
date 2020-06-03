@@ -42,20 +42,20 @@ if __name__ == '__main__':
 
     QCEW_PATH = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     ROOT_PATH = os.path.dirname(os.path.dirname(QCEW_PATH))
-    DATA_PATH = os.path.join(ROOT_PATH, "drive\\raw_data\\qcew\\raw")
+    DATA_PATH = os.path.join(ROOT_PATH, "drive\\raw_data\\qcew")
 
     empty_folder = len(os.listdir(DATA_PATH)) == 0
 
     if not empty_folder:
-        sys.exit("Error: Please clear the 'drive/raw_data/qcew/raw' folder before downloading the data.")
+        sys.exit("Error: Please clear the 'drive/raw_data/qcew/' folder before downloading the data.")
     
     log_and_print('Start raw data build.', logger)
 
-    start_year     = 2010
-    start_year_ind = 2010
+    start_year     = 2009
+    start_year_ind = 2009
     end_year       = 2019
 
-    # County-High Level
+    ## County-High Level
     folder = os.path.join(DATA_PATH, 'county')
     os.mkdir(folder)
 
@@ -64,22 +64,22 @@ if __name__ == '__main__':
 
     log_and_print("County-High Level data downloaded and unzipped.", logger)
     
-    # Area Quarterly
-    folder = os.path.join(DATA_PATH, 'area')
-    os.mkdir(folder)
+    ## Area Quarterly
+    # folder = os.path.join(DATA_PATH, 'area')
+    # os.mkdir(folder)
 
-    for year in range(start_year, end_year + 1):
-        get_year_data(year = year, data_type = 'area', outstub = folder)
+    # for year in range(start_year, end_year + 1):
+    #     get_year_data(year = year, data_type = 'area', outstub = folder)
 
-    log_and_print("By Area Quarterly data downloaded and unzipped.", logger)
+    # log_and_print("By Area Quarterly data downloaded and unzipped.", logger)
 
-    # Industry Quarterly
-    folder = os.path.join(DATA_PATH, 'industry')
-    os.mkdir(folder)
+    ## Industry Quarterly
+    # folder = os.path.join(DATA_PATH, 'industry')
+    # os.mkdir(folder)
 
-    for year in range(start_year_ind, end_year + 1):
-        get_year_data(year = year, data_type = 'industry', outstub = folder)
+    # for year in range(start_year_ind, end_year + 1):
+    #     get_year_data(year = year, data_type = 'industry', outstub = folder)
 
-    log_and_print("By Industry Quarterly data downloaded and unzipped.", logger)
+    # log_and_print("By Industry Quarterly data downloaded and unzipped.", logger)
 
-    log_and_print("Data succesfully downloaded.", logger)
+    # log_and_print("Data succesfully downloaded.", logger)
