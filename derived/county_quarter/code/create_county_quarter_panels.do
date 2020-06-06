@@ -55,7 +55,7 @@ program collapse_to_county_quarter
 	format %tq year_quarter
 	
 	collapse (mean) `rent_vars' `listing_vars' 									///
-		(max) mw_event dactual_mw sal_mw_event mw_event025 mw_event075 			///
+		(max) mw_event actual_mw dactual_mw sal_mw_event mw_event025 mw_event075 ///
 		calendar_quarter = calendar_month houses10_zip_county, 					///
 		by(zipcode year_quarter placename placetype city msa countyfips county 	///
 			statefips stateabb)
@@ -63,7 +63,7 @@ program collapse_to_county_quarter
 	xtset zipcode year_quarter /* to assert is keyed on zipcode year_quarter */
 	
 	collapse (mean) `rent_vars' `listing_vars' 									///
-		(max) mw_event dactual_mw sal_mw_event mw_event025 mw_event075 			///
+		(max) mw_event actual_mw dactual_mw sal_mw_event mw_event025 mw_event075 ///
 		[aweight = houses10_zip_county], by(countyfips year_quarter 			///
 											calendar_quarter county statefips stateabb)
 end
