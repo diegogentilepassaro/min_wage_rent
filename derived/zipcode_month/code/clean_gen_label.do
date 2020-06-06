@@ -19,7 +19,7 @@ end
 
 program clean_vars
 
-	gen 	year_month = date(date, "YMD")
+	gen year_month = date(date, "YMD")
 	gen calendar_month = month(year_month)
 	drop date
 	replace year_month = mofd(year_month)
