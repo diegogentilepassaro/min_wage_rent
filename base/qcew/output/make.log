@@ -1,0 +1,763 @@
+
+ make.py started: 2020-06-02 17:04:27 C:\Users\shermo\Documents\GitHub\min_wage_rent\base\qcew\code 
+
+
+
+
+Execute:  StataMP-64 /e do "./create_ind_county_quarter_panel.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./create_ind_county_quarter_panel.do 
+
+. set more off
+
+. clear all
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. 
+. program main
+  1.         local instub "../../../drive/raw_data/qcew/county"
+  2.         local outstub "../output"
+  3. 
+.         foreach year in 09 10 11 12 13 14 15 16 17 18 {
+  4.                 process_hl_county_year_file, instub(`instub') year(`year')
+  5.         }
+  6.         process_hl_county_year_file, instub(`instub') year(19) quarters(3)
+  7.         
+.         use "../temp/09.dta", clear
+  8.         foreach year in 10 11 12 13 14 15 16 17 18 19 {
+  9.                 append using "../temp/`year'.dta"
+ 10.         }
+ 11.     save_data "`outstub'/industry_county_qtr_emp_wage.dta", ///
+>                 key(year_quarter countyfips naics ownership) replace
+ 12. end
+
+. 
+. program process_hl_county_year_file
+  1.         syntax, instub(str) year(str) [quarters(int 4)]
+  2.         
+.         forval qtr = 1(1)`quarters' {
+  3.                 import excel "`instub'/20`year'_all_county_high_level/allh
+> lcn`year'`qtr'.xlsx", ///
+>                         sheet("US_St_Cn_MSA") firstrow clear
+  4. 
+.                 keep if (AreaType == "County")
+  5.                 drop Cnty Own StName AreaType StatusCode TotalQuarterlyWag
+> es EmploymentLocation TotalWageLocation
+  6.                 
+.                 destring Year, replace
+  7.                 destring Qtr, replace
+  8.                 gen end_month = Qtr*3
+  9.                 
+.                 gen year_quarter = qofd(mdy(end_month, 1, Year))
+ 10.                 format year_quarter %tq
+ 11.                 drop Year Qtr end_month
+ 12.                 
+.                 rename (AreaCode Area St NAICS Ownership Industry Establishme
+> nt AverageWeekly) ///
+>                         (countyfips county statefips naics ownership industry
+>  estab_count avg_week_wage)
+ 13.                 
+.                 if "`qtr'" == "1" {
+ 14.                         rename (January February March) ///
+>                                 (employment_month1 employment_month2 employme
+> nt_month3)
+ 15.                 }
+ 16.                 if "`qtr'" == "2" {
+ 17.                         rename (April May June) ///
+>                                 (employment_month1 employment_month2 employme
+> nt_month3)
+ 18.                 }
+ 19.                 if "`qtr'" == "3" {
+ 20.                         rename (July August September) ///
+>                                 (employment_month1 employment_month2 employme
+> nt_month3)
+ 21.                 }
+ 22.                 if "`qtr'" == "4" {
+ 23.                         rename (October November December) ///
+>                                 (employment_month1 employment_month2 employme
+> nt_month3)
+ 24.                 }
+ 25.                 
+.                 save "../temp/`year'`qtr'.dta", replace
+ 26.         }
+ 27.         
+.         use "../temp/`year'1.dta", clear
+ 28.         forval qtr = 2(1)`quarters' {
+ 29.                 append using "../temp/`year'`qtr'.dta"
+ 30.         }
+ 31.         
+.         order year_quarter countyfips county statefips ///
+>                 naics ownership industry estab_count
+ 32.         save_data "../temp/`year'.dta", key(year_quarter countyfips naics 
+> ownership) ///
+>                 replace log(none)
+ 33. end
+
+. 
+. * EXECUTE
+. main
+(7,307 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/091.dta not found)
+file ../temp/091.dta saved
+(7,294 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/092.dta not found)
+file ../temp/092.dta saved
+(7,307 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/093.dta not found)
+file ../temp/093.dta saved
+(7,316 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/094.dta not found)
+file ../temp/094.dta saved
+(data now sorted by year_quarter countyfips naics ownership)
+  variable year_quarter was float now int
+  variable county was str50 now str41
+  (2,424,180 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/09.dta
+Key: year_quarter countyfips naics ownership
+===============================================================================
+> ===================
+  220380:12(87744):204639831:2100043933
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+year_quarter |    220,380    197.4998    1.118191        196        199
+  countyfips |          0
+       naics |          0
+   ownership |          0
+      county |          0
+-------------+---------------------------------------------------------
+   statefips |          0
+    industry |          0
+ estab_count |    220,380    642.9734    4571.916          1     434550
+employment~1 |    220,380    8503.494     53766.5          0    4006601
+employment~2 |    220,380     8506.11    53748.39          0    3996886
+-------------+---------------------------------------------------------
+employment~3 |    220,380    8507.563    53764.31          0    3995604
+avg_week_w~e |    220,380    619.4603    317.4221          0      13846
+
+
+
+
+(note: file ../temp/09.dta not found)
+file ../temp/09.dta saved
+(7,310 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/101.dta not found)
+file ../temp/101.dta saved
+(7,304 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/102.dta not found)
+file ../temp/102.dta saved
+(7,296 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/103.dta not found)
+file ../temp/103.dta saved
+(7,281 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/104.dta not found)
+file ../temp/104.dta saved
+(data now sorted by year_quarter countyfips naics ownership)
+  variable year_quarter was float now int
+  variable county was str50 now str41
+  (2,421,694 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/10.dta
+Key: year_quarter countyfips naics ownership
+===============================================================================
+> ===================
+  220154:12(87744):3358686229:3591694610
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+year_quarter |    220,154    201.4998    1.117915        200        203
+  countyfips |          0
+       naics |          0
+   ownership |          0
+      county |          0
+-------------+---------------------------------------------------------
+   statefips |          0
+    industry |          0
+ estab_count |    220,154    642.7758    4591.416          1     436362
+employment~1 |    220,154    8428.347    53174.05          0    3884250
+employment~2 |    220,154    8457.025    53350.55          0    3900311
+-------------+---------------------------------------------------------
+employment~3 |    220,154    8490.364    53556.23          0    3924685
+avg_week_w~e |    220,154    632.9038    323.1783          0      11517
+
+
+
+
+(note: file ../temp/10.dta not found)
+file ../temp/10.dta saved
+(7,292 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/111.dta not found)
+file ../temp/111.dta saved
+(7,283 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/112.dta not found)
+file ../temp/112.dta saved
+(7,283 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/113.dta not found)
+file ../temp/113.dta saved
+(7,310 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/114.dta not found)
+file ../temp/114.dta saved
+(note: variable avg_week_wage was int, now long to accommodate using data's
+       values)
+(data now sorted by year_quarter countyfips naics ownership)
+  variable year_quarter was float now int
+  variable county was str50 now str41
+  (2,419,131 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/11.dta
+Key: year_quarter countyfips naics ownership
+===============================================================================
+> ===================
+  219921:12(87744):1023551892:430258154
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+year_quarter |    219,921    205.5007    1.118315        204        207
+  countyfips |          0
+       naics |          0
+   ownership |          0
+      county |          0
+-------------+---------------------------------------------------------
+   statefips |          0
+    industry |          0
+ estab_count |    219,921    649.2678    4709.053          1     445892
+employment~1 |    219,921    8547.596    54108.51          0    3913015
+employment~2 |    219,921    8583.939    54328.91          0    3936533
+-------------+---------------------------------------------------------
+employment~3 |    219,921    8622.069     54575.7          0    3955519
+avg_week_w~e |    219,921    652.8949    363.0849          0      54857
+
+
+
+
+(note: file ../temp/11.dta not found)
+file ../temp/11.dta saved
+(7,293 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/121.dta not found)
+file ../temp/121.dta saved
+(7,284 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/122.dta not found)
+file ../temp/122.dta saved
+(7,284 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/123.dta not found)
+file ../temp/123.dta saved
+(7,295 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/124.dta not found)
+file ../temp/124.dta saved
+(data now sorted by year_quarter countyfips naics ownership)
+  variable year_quarter was float now int
+  variable county was str50 now str41
+  (2,419,406 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/12.dta
+Key: year_quarter countyfips naics ownership
+===============================================================================
+> ===================
+  219946:12(87744):1400549458:3256924667
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+year_quarter |    219,946    209.5007    1.118118        208        211
+  countyfips |          0
+       naics |          0
+   ownership |          0
+      county |          0
+-------------+---------------------------------------------------------
+   statefips |          0
+    industry |          0
+ estab_count |    219,946    652.8105    4632.168          1     447826
+employment~1 |    219,946    8718.013    55418.84          0    4026545
+employment~2 |    219,946    8766.893    55738.04          0    4063815
+-------------+---------------------------------------------------------
+employment~3 |    219,946    8807.453    56014.12          0    4085523
+avg_week_w~e |    219,946    670.3896    351.4186          0      17308
+
+
+
+
+(note: file ../temp/12.dta not found)
+file ../temp/12.dta saved
+(7,624 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/131.dta not found)
+file ../temp/131.dta saved
+(7,620 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/132.dta not found)
+file ../temp/132.dta saved
+(7,629 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/133.dta not found)
+file ../temp/133.dta saved
+(7,638 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/134.dta not found)
+file ../temp/134.dta saved
+(data now sorted by year_quarter countyfips naics ownership)
+  variable year_quarter was float now int
+  variable county was str50 now str41
+  (2,420,429 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/13.dta
+Key: year_quarter countyfips naics ownership
+===============================================================================
+> ===================
+  220039:12(87744):3096037759:1190086266
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+year_quarter |    220,039    213.5005     1.11801        212        215
+  countyfips |          0
+       naics |          0
+   ownership |          0
+      county |          0
+-------------+---------------------------------------------------------
+   statefips |          0
+    industry |          0
+ estab_count |    220,039    658.7218    4686.498          1     436911
+employment~1 |    220,039      8867.7    56749.69          0    4125818
+employment~2 |    220,039    8924.397    57096.69          0    4165043
+-------------+---------------------------------------------------------
+employment~3 |    220,039    8955.495     57315.1          0    4177944
+avg_week_w~e |    220,039    680.8163    349.9487          0      18390
+
+
+
+
+(note: file ../temp/13.dta not found)
+file ../temp/13.dta saved
+(7,633 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/141.dta not found)
+file ../temp/141.dta saved
+(7,631 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/142.dta not found)
+file ../temp/142.dta saved
+(7,633 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/143.dta not found)
+file ../temp/143.dta saved
+(7,638 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/144.dta not found)
+file ../temp/144.dta saved
+(data now sorted by year_quarter countyfips naics ownership)
+  variable year_quarter was float now int
+  variable county was str50 now str41
+  (2,420,033 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/14.dta
+Key: year_quarter countyfips naics ownership
+===============================================================================
+> ===================
+  220003:12(87744):3522051205:4002131104
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+year_quarter |    220,003    217.5003    1.118177        216        219
+  countyfips |          0
+       naics |          0
+   ownership |          0
+      county |          0
+-------------+---------------------------------------------------------
+   statefips |          0
+    industry |          0
+ estab_count |    220,003    670.1204    4828.525          1     445243
+employment~1 |    220,003    9068.706    58193.77          0    4200385
+employment~2 |    220,003    9120.927    58527.47          0    4228954
+-------------+---------------------------------------------------------
+employment~3 |    220,003    9158.372    58759.57          0    4244204
+avg_week_w~e |    220,003    702.2545    370.7872          0      25295
+
+
+
+
+(note: file ../temp/14.dta not found)
+file ../temp/14.dta saved
+(7,622 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/151.dta not found)
+file ../temp/151.dta saved
+(7,626 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/152.dta not found)
+file ../temp/152.dta saved
+(7,627 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/153.dta not found)
+file ../temp/153.dta saved
+(7,628 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/154.dta not found)
+file ../temp/154.dta saved
+(data now sorted by year_quarter countyfips naics ownership)
+  variable year_quarter was float now int
+  variable county was str50 now str41
+  (2,422,365 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/15.dta
+Key: year_quarter countyfips naics ownership
+===============================================================================
+> ===================
+  220215:12(87744):1983030472:593088993
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+year_quarter |    220,215    221.5013    1.117753        220        223
+  countyfips |          0
+       naics |          0
+   ownership |          0
+      county |          0
+-------------+---------------------------------------------------------
+   statefips |          0
+    industry |          0
+ estab_count |    220,215    681.0475    4931.969          1     462230
+employment~1 |    220,215    9265.175    59592.07          0    4318536
+employment~2 |    220,215    9309.992    59870.83          0    4341915
+-------------+---------------------------------------------------------
+employment~3 |    220,215    9340.821    60071.06          0    4355391
+avg_week_w~e |    220,215    721.6516    397.2773          0      50787
+
+
+
+
+(note: file ../temp/15.dta not found)
+file ../temp/15.dta saved
+(7,624 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/161.dta not found)
+file ../temp/161.dta saved
+(7,629 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/162.dta not found)
+file ../temp/162.dta saved
+(7,626 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/163.dta not found)
+file ../temp/163.dta saved
+(7,627 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/164.dta not found)
+file ../temp/164.dta saved
+(data now sorted by year_quarter countyfips naics ownership)
+  variable year_quarter was float now int
+  variable county was str50 now str41
+  (2,423,740 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/16.dta
+Key: year_quarter countyfips naics ownership
+===============================================================================
+> ===================
+  220340:12(87744):1337166022:597638090
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+year_quarter |    220,340    225.5004    1.117947        224        227
+  countyfips |          0
+       naics |          0
+   ownership |          0
+      county |          0
+-------------+---------------------------------------------------------
+   statefips |          0
+    industry |          0
+ estab_count |    220,340    694.7188    5056.566          1     470304
+employment~1 |    220,340    9426.713    60884.55          0    4378570
+employment~2 |    220,340    9464.254    61124.88          0    4406325
+-------------+---------------------------------------------------------
+employment~3 |    220,340    9490.236    61248.68          0    4416052
+avg_week_w~e |    220,340    728.3092    364.3808          0       9231
+
+
+
+
+(note: file ../temp/16.dta not found)
+file ../temp/16.dta saved
+(7,627 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/171.dta not found)
+file ../temp/171.dta saved
+(7,627 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/172.dta not found)
+file ../temp/172.dta saved
+(7,625 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/173.dta not found)
+file ../temp/173.dta saved
+(7,622 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/174.dta not found)
+file ../temp/174.dta saved
+(note: variable avg_week_wage was int, now long to accommodate using data's
+       values)
+(data now sorted by year_quarter countyfips naics ownership)
+  variable year_quarter was float now int
+  variable county was str50 now str41
+  (2,424,356 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/17.dta
+Key: year_quarter countyfips naics ownership
+===============================================================================
+> ===================
+  220396:12(87744):2455769834:3741223399
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+year_quarter |    220,396    229.5002    1.118037        228        231
+  countyfips |          0
+       naics |          0
+   ownership |          0
+      county |          0
+-------------+---------------------------------------------------------
+   statefips |          0
+    industry |          0
+ estab_count |    220,396    703.1683    5163.079          1     492452
+employment~1 |    220,396    9563.931    61754.95          0    4429315
+employment~2 |    220,396    9613.746    62101.02          0    4457618
+-------------+---------------------------------------------------------
+employment~3 |    220,396    9642.845    62236.87          0    4468712
+avg_week_w~e |    220,396    751.6612    427.1167          0      94778
+
+
+
+
+(note: file ../temp/17.dta not found)
+file ../temp/17.dta saved
+(7,624 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/181.dta not found)
+file ../temp/181.dta saved
+(7,622 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/182.dta not found)
+file ../temp/182.dta saved
+(7,626 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/183.dta not found)
+file ../temp/183.dta saved
+(7,632 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/184.dta not found)
+file ../temp/184.dta saved
+(note: variable avg_week_wage was int, now long to accommodate using data's
+       values)
+(data now sorted by year_quarter countyfips naics ownership)
+  variable year_quarter was float now int
+  variable county was str50 now str41
+  (2,423,531 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/18.dta
+Key: year_quarter countyfips naics ownership
+===============================================================================
+> ===================
+  220321:12(87744):3796656317:4266694843
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+year_quarter |    220,321    233.5003    1.118108        232        235
+  countyfips |          0
+       naics |          0
+   ownership |          0
+      county |          0
+-------------+---------------------------------------------------------
+   statefips |          0
+    industry |          0
+ estab_count |    220,321    716.1449    5292.265          1     506016
+employment~1 |    220,321    9730.466     62858.5          0    4484785
+employment~2 |    220,321    9786.635    63251.24          0    4528403
+-------------+---------------------------------------------------------
+employment~3 |    220,321    9809.813    63362.92          0    4526194
+avg_week_w~e |    220,321    776.9257      577.59          0     196538
+
+
+
+
+(note: file ../temp/18.dta not found)
+file ../temp/18.dta saved
+(7,624 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/191.dta not found)
+file ../temp/191.dta saved
+(7,624 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/192.dta not found)
+file ../temp/192.dta saved
+(7,621 observations deleted)
+Year: all characters numeric; replaced as int
+Qtr: all characters numeric; replaced as byte
+(note: file ../temp/193.dta not found)
+file ../temp/193.dta saved
+(data now sorted by year_quarter countyfips naics ownership)
+  variable year_quarter was float now int
+  variable county was str50 now str41
+  (1,816,969 bytes saved)
+===============================================================================
+> ===================
+File: ../temp/19.dta
+Key: year_quarter countyfips naics ownership
+===============================================================================
+> ===================
+  165179:12(87744):1408202548:3516689267
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+year_quarter |    165,179    237.0004    .8164532        236        238
+  countyfips |          0
+       naics |          0
+   ownership |          0
+      county |          0
+-------------+---------------------------------------------------------
+   statefips |          0
+    industry |          0
+ estab_count |    165,179    731.9784    5411.255          1     511616
+employment~1 |    165,179    9829.394     63631.5          0    4474563
+employment~2 |    165,179    9880.252     63976.9          0    4501273
+-------------+---------------------------------------------------------
+employment~3 |    165,179      9904.2    64062.08          0    4499378
+avg_week_w~e |    165,179     784.353    405.5564          0      23770
+
+
+
+
+(note: file ../temp/19.dta not found)
+file ../temp/19.dta saved
+(note: variable avg_week_wage was int, now long to accommodate using data's
+       values)
+(note: variable industry was str36, now str41 to accommodate using data's
+       values)
+(data now sorted by year_quarter countyfips naics ownership)
+  (0 bytes saved)
+===============================================================================
+> ===================
+File: ../output/industry_county_qtr_emp_wage.dta
+Key: year_quarter countyfips naics ownership
+===============================================================================
+> ===================
+  2366894:12(87744):2833216098:272073781
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+year_quarter |  2,366,894    217.0042    12.41198        196        238
+  countyfips |          0
+       naics |          0
+   ownership |          0
+      county |          0
+-------------+---------------------------------------------------------
+   statefips |          0
+    industry |          0
+ estab_count |  2,366,894    675.4285    4893.592          1     511616
+employment~1 |  2,366,894     9069.23    58180.26          0    4484785
+employment~2 |  2,366,894    9111.265     58453.7          0    4528403
+-------------+---------------------------------------------------------
+employment~3 |  2,366,894     9140.01    58622.11          0    4526194
+avg_week_w~e |  2,366,894    700.0656    395.3575          0     196538
+
+
+
+
+(note: file ../output/industry_county_qtr_emp_wage.dta not found)
+file ../output/industry_county_qtr_emp_wage.dta saved
+
+. 
+end of do-file
+
+ make.py ended: 2020-06-02 17:16:13
