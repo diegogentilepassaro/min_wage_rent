@@ -4,22 +4,20 @@ adopath + ../../../lib/stata/gslab_misc/ado
 set maxvar 32000 
 
 program main
+	local instub "../../../drive/derived_large/output"
+	local outstub "../temp"
+
 	foreach data in rent listing {
 		foreach w in 6 12 {
-		use "../../../drive/derived_large/output/baseline_`data'_panel.dta", clear
+			use "`instub'/baseline_`data'_panel.dta", clear
 			create_latest_event_vars, event_dummy(sal_mw_event) w(`w') 		///
 				time(year_month) geo(zipcode) panel_end(2019m12)
 
 			drop if missing(last_sal_mw_event_rel_months`w')
-			
-			rename dactual_mw dactual_mw_`data'
-			gen dactual_mw_`data'_clean = dactual_mw_`data'
-			replace dactual_mw_`data'_clean = 0 									///
-				if last_sal_mw_event_rel_months`w' != `w' + 1
 		
-			save_data "../temp/baseline_`data'_panel_`w'.dta", 						///
+			save_data "`outstub'/baseline_`data'_panel_`w'.dta", 			///
 				key(zipcode year_month) replace log(none)
-			}
+		}
 	}
 end
 
