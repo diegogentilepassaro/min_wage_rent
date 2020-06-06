@@ -7,9 +7,7 @@ set maxvar 32000
 
 program main
 	foreach window in 2 4 {
-		use "../temp/baseline_rent_county_quarter_`window'.dta", clear
 		foreach depvar in medrentprice_sfcc medrentpricepsqft_sfcc{
-			
 			create_event_plot, depvar(`depvar') 			  	///
 				event_var(last_sal_mw_event_rel_quarters`window') ///
 				controls(" ") window(`window')	///
@@ -57,3 +55,4 @@ program main
 end
 
 main
+

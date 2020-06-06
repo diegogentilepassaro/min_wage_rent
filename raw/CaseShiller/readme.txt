@@ -10,6 +10,9 @@ https://fred.stlouisfed.org		Downloaded by Gabriele Borg on Feb, 25 2020
 
 DESCRIPTION
 ========================================================
-ROOT/drive/raw_data/CaseShiller		Complete description
+ROOT/drive/raw_data/CaseShiller		
+	
+	- CSdata_Monthly.txt           data
+        - CSdata_README.txt            description
 
 
