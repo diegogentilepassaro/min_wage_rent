@@ -3,9 +3,10 @@
 
 Notation:
 
-- ![z ~ ](https://render.githubusercontent.com/render/math?math=z%20~%20) indexes zipcode
-- ![c ~ ](https://render.githubusercontent.com/render/math?math=c%20~%20) indexes county
-- ![t ~ ](https://render.githubusercontent.com/render/math?math=t%20~%20) indexes time
+- ![z](https://render.githubusercontent.com/render/math?math=z) indexes zipcode
+- ![c](https://render.githubusercontent.com/render/math?math=c) indexes county
+- ![s](https://render.githubusercontent.com/render/math?math=s) indexes state
+- ![t](https://render.githubusercontent.com/render/math?math=t) indexes time
 - ![r](https://render.githubusercontent.com/render/math?math=r) represents rents psqft
 - ![h](https://render.githubusercontent.com/render/math?math=h) represents housing values psqft
 - ![mw_{zt}](https://render.githubusercontent.com/render/math?math=mw_%7Bzt%7D) is an indicator for mw in zipcode ![z](https://render.githubusercontent.com/render/math?math=z) period ![t](https://render.githubusercontent.com/render/math?math=t)

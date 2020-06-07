@@ -7,11 +7,11 @@ load_packages(c('haven', 'dplyr', 'truncnorm'))
 set.seed(42)
 
 main <- function() {
-  infile <- "./drive/derived_large/output/zipcode_yearmonth_panel_all.dta"
+  infile <- "../../../drive/derived_large/output/zipcode_yearmonth_panel_all.dta"
   
   DF <- load_data(infile)
   
-  DF <- simulate_rents(DF)
+  DF <- simulate_rents(DF, var = "medrentprice_sfcc")
   
 }
 
