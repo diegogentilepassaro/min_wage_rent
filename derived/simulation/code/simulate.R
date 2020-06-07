@@ -64,7 +64,7 @@ simulate_rents <- function(DF, var) {
   zipcodes = unique(DF[, c('zipcode')])
   counties = unique(DF[, c('countyfips')])
   states   = unique(DF[, c('statefips')])
-  year_months = unique(DF[, c('year_month')]) - sapply(DF[, c('year_month')], mean, na.rm = T)
+  year_months = unique(DF[, c('year_month')])
   
   
   # Zipcode effect
@@ -75,7 +75,7 @@ simulate_rents <- function(DF, var) {
   DF <- merge(DF, zipcodes, by = 'zipcode')
   
   # Year-month effect
-  period_avgs = aggregate(DF[, var], by = list(DF$zipcode), FUN = mean, na.rm = T)
+  period_avgs = aggregate(DF[, var], by = list(DF$year_month), FUN = mean, na.rm = T)
   names(period_avgs) <- c("year_month", "timeperiod_effect")
   
   year_months <- merge(year_months, period_avgs, by = 'year_month')
@@ -84,12 +84,12 @@ simulate_rents <- function(DF, var) {
   # Min wage effect
   max_n_events = max(DF$cumsum_events, na.rm = T)
   
-  DF$d_wage_rep_hh <- DF$dactual_mw*hs_week*week_month*mw_earners
-  
-  DF$mw_effect <- theta*DF$dactual_mw_1
+  DF$mw_effect <- theta*DF$dactual_mw_1*hs_week*week_month*mw_earners
   
   for (event in 2:max_n_events) {
-    DF$mw_effect <- DF$mw_effect + theta*DF[, paste0("dactual_mw_", event)]
+    DF$this_effect <- theta*DF[, paste0("dactual_mw_", event)]*hs_week*week_month*mw_earners
+    
+    DF$mw_effect <- DF$mw_effect + DF$this_effect
   }
   
   
@@ -136,7 +136,8 @@ prepare_DF <- function(DF, var) {
 }
 
 
-simulate_housing_values <- function(DF) {
+simulate_housing_values <- function(DF, num_rent_vars) {
+
   
   return(DF)
 }
