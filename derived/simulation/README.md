@@ -10,6 +10,8 @@ Notation:
 - ![r](https://render.githubusercontent.com/render/math?math=r) represents rents psqft
 - ![h](https://render.githubusercontent.com/render/math?math=h) represents housing values psqft
 - ![mw_{zt}](https://render.githubusercontent.com/render/math?math=mw_%7Bzt%7D) is an indicator for mw in zipcode ![z](https://render.githubusercontent.com/render/math?math=z) period ![t](https://render.githubusercontent.com/render/math?math=t)
+- ![dinc_{zt}^n](https://render.githubusercontent.com/render/math?math=dinc_%7Bzt%7D%5En) is the change in monthly income in a househould with 2 minimum wage earners due to MW increase ![n](https://render.githubusercontent.com/render/math?math=n)
+- ![nmw_z](https://render.githubusercontent.com/render/math?math=m_z) the number of MW changes in zipcode z
 - ![\theta](https://render.githubusercontent.com/render/math?math=%5Ctheta) is the pass-through of the mw on rents.
 - ![\epsilon](https://render.githubusercontent.com/render/math?math=%5Cepsilon) is a shock, typically iid
 
@@ -33,6 +35,8 @@ Note that, in this measure, the minimum wage is assumed to have no effect on ren
 
 #### rent2 
 
+Consider now the model
 
+![r_{zt} = \gamma_z + \delta_t + \sum_{n=1}^{nmw_z} \theta\*dinc^n_{zt} + \epsilon\_{zt}](https://render.githubusercontent.com/render/math?math=r_%7Bzt%7D%20%3D%20%5Cgamma_z%20%2B%20%5Cdelta_t%20%2B%20%5Csum_%7Bn%3D1%7D%5E%7Bnmw_z%7D%20%5Ctheta*dinc%5En_%7Bzt%7D%20%2B%20%5Cepsilon_%7Bzt%7D)
 
-
+Every minimum wage increase in the zipcode increases rents in ![theta](https://render.githubusercontent.com/render/math?math=theta)\*(the increase in income) 

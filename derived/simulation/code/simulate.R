@@ -17,7 +17,7 @@ main <- function() {
   
   save_data(DF, key = c("zipcode", "year_month"), 
             filename = sprintf("%s/simulated_zipcode_yearmonth_panel.dta", outfolder),
-            logfile  = sprintf("%s/data_file_manifest.dta", logfolder))
+            logfile  = sprintf("%s/data_file_manifest.log", logfolder))
 }
 
 load_data <- function(file) {
@@ -104,7 +104,7 @@ simulate_rents <- function(DF, var) {
   DF$rent2 <- DF$mw_effect + DF$zipcode_effect + DF$timeperiod_effect + DF$shock
   DF$rent2 <- ifelse(DF$rent2 < min_r, min_r, ifelse(DF$rent2 > max_r, max_r, DF$rent2))
   
-  
+  return(DF)
 }
 
 
