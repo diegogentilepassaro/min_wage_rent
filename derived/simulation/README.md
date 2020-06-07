@@ -27,7 +27,7 @@ Consider the model
 
 where
 - zipcode effects are computed as average of medrentprice_sfcc for each zipcode and and time effects as verage of _demeaned_ medrentprice_sfcc for each year month.
-- ![v_{zt}](https://render.githubusercontent.com/render/math?math=v_%7Bzt%7D) is a normal ![\mathcal{0}(\mu_r, \sigma^2)](https://render.githubusercontent.com/render/math?math=%5Cmathcal%7B0%7D(%5Cmu_r%2C%20%5Csigma%5E2)). 
+- ![v_{zt}](https://render.githubusercontent.com/render/math?math=v_%7Bzt%7D) is a normal ![\mathcal{N}(0, \sigma^2)](https://render.githubusercontent.com/render/math?math=%5Cmathcal%7BN%7D(0%2C%20%5Csigma%5E2)). 
 
 I truncate the resulting simulated values with the minimum and maximum of observed rents.
 
