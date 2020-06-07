@@ -51,7 +51,7 @@ simulate_rents <- function(DF, var) {
   theta    = 0.1 # passthrough
   
   
-  DF <- prepare_DF(DF)
+  DF <- prepare_DF(DF, var)
   
   size_df = dim(DF)[1]
   
@@ -82,13 +82,19 @@ simulate_rents <- function(DF, var) {
   DF <- merge(DF, year_months, by = 'year_month')
   
   # Min wage effect
+  max_n_events = max(DF$cumsum_events, na.rm = T)
+  
   DF$d_wage_rep_hh <- DF$dactual_mw*hs_week*week_month*mw_earners
-  DF$mw_effect <- theta*DF$d_wage_rep_hh
+  
+  DF$mw_effect <- theta*DF$dactual_mw_1
+  
+  for (event in 2:max_n_events) {
+    DF$mw_effect <- DF$mw_effect + theta*DF[, paste0("dactual_mw_", event)]
+  }
+  
   
   # iid shock
   DF$shock <- rnorm(size_df, mean = 0, sd = sd_shock)
-  
-  
   
   
   # SIMULATE
@@ -102,7 +108,8 @@ simulate_rents <- function(DF, var) {
 }
 
 
-prepare_DF <- function(DF) {
+prepare_DF <- function(DF, var) {
+  
   DF <- DF %>% group_by(zipcode) %>% filter(any(!is.na(eval(parse(text=var)))))
   DF <- DF[(DF$year_month >= 596) & (DF$year_month <= 715),]
   
@@ -116,6 +123,13 @@ prepare_DF <- function(DF) {
   for (event in 1:max_n_events) {
     
     DF[, paste0("mw_event_", event)] = as.numeric(DF$cumsum_events >= event)
+    
+    DF <- DF %>% group_by(zipcode) %>%
+      mutate(this_change = ifelse(cumsum_events == event, max(dactual_mw), 0))
+    DF <- DF %>% group_by(zipcode) %>%
+      mutate(this_change = max(this_change))
+    
+    DF[, paste0("dactual_mw_", event)] = DF[, paste0("mw_event_", event)]*DF$this_change
   }
   
   return(DF)
