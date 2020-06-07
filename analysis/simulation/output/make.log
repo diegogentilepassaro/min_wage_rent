@@ -1,0 +1,956 @@
+
+ make.py started: 2020-06-07 15:46:30 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\simulation\code 
+
+
+
+
+Execute:  StataMP-64 /e do "./preclean_event_studies.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./preclean_event_studies.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.         local instub "../../../drive/derived_large/output"
+  2.         local outstub "../temp"
+  3. 
+.         foreach i in 1 2 {
+  4.                 foreach w in 6 12 {
+  5.                         use "`instub'/simulated_zipcode_yearmonth_panel.dt
+> a", clear
+  6.                         create_latest_event_vars, event_dummy(sal_mw_event
+> ) w(`w')              ///
+>                                 time(year_month) geo(zipcode) panel_end(2019m
+> 12)
+  7. 
+.                         drop if missing(rent`i')
+  8.                         drop if missing(last_sal_mw_event_rel_months`w')
+  9.                         
+.                         save_data "`outstub'/baseline_panel_rent`i'_w`w'.dta"
+> ,                  ///
+>                                 key(zipcode year_month) replace log(none)
+ 10.                 }
+ 11.         }
+ 12. end
+
+. 
+. program create_latest_event_vars
+  1.         syntax, event_dummy(str) w(int) time(str) geo(str) panel_end(str)
+  2.         
+.         local window_span = `w'*2 + 1 
+  3. 
+.         gen `event_dummy'_`time' = `time' if `event_dummy' == 1
+  4.         format `event_dummy'_`time' %tm
+  5. 
+.         gen months_until_panel_ends = `=tm(`panel_end')' - `time'
+  6. 
+.         preserve
+  7.                 keep if months_until_panel_ends >= (`w' + 1)
+  8.                 collapse (max) last_`event_dummy'_`time' = `event_dummy'_`
+> time', by(`geo')
+  9. 
+.                 format last_`event_dummy'_`time' %tm
+ 10.                 keep `geo' last_`event_dummy'_`time'
+ 11. 
+.                 save_data "../temp/last_event`w'_by_`geo'.dta", key(`geo') re
+> place
+ 12.         restore
+ 13.         
+.         merge m:1 `geo' using "../temp/last_event`w'_by_`geo'.dta",          
+>                                    ///
+>                 nogen assert(3) keep(3)
+ 14.         
+.         gen last_`event_dummy'_rel_months`w' = `time' - last_`event_dummy'_`t
+> ime'
+ 15.         replace last_`event_dummy'_rel_months`w' = last_`event_dummy'_rel_
+> months`w' + `w' + 1
+ 16.         
+.         replace last_`event_dummy'_rel_months`w' = 0                         
+>                                                    ///
+>                                 if last_`event_dummy'_rel_months`w' <= 0
+ 17.         replace last_`event_dummy'_rel_months`w' = 1000                   
+>                                                       ///
+>                                 if (last_`event_dummy'_rel_months`w' > `windo
+> w_span' &                                  ///
+>                                 !missing(last_`event_dummy'_rel_months`w'))
+ 18.         
+.         gen unused_mw_event`w' = (mw_event == 1 & last_`event_dummy'_rel_mont
+> hs`w' != (`w' + 1))
+ 19.         bysort `geo' (`time'): gen cumsum_unused_events = sum(unused_mw_ev
+> ent`w')
+ 20.                 
+.         drop `event_dummy'_`time' last_`event_dummy'_`time'    
+ 21. end
+
+. 
+. main
+(405,673 missing values generated)
+(10,287 observations deleted)
+(data already sorted by zipcode)
+  variable last_sal_mw_event_year_month was float now int
+  variable zipcode was double now long
+  (20,574 bytes saved)
+============================================================================
+File: ../temp/last_event6_by_zipcode.dta
+Key: zipcode
+============================================================================
+  3429:2(80974):4203233022:1098289906
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |      3,429    54856.23    29595.42       1801      99705
+last_sal_m~h |      1,592    695.1344    24.92555        600        708
+
+
+
+
+(note: file ../temp/last_event6_by_zipcode.dta not found)
+file ../temp/last_event6_by_zipcode.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           411,476  
+    -----------------------------------------
+(220,440 missing values generated)
+(191,036 real changes made)
+(146,681 real changes made)
+(22,074 real changes made)
+(17,141 observations deleted)
+(211,255 observations deleted)
+(data already sorted by zipcode year_month)
+  variable months_until_panel_ends was float now int
+  variable last_sal_mw_event_rel_months6 was float now int
+  variable unused_mw_event6 was float now byte
+  variable cumsum_unused_events was float now byte
+  variable zipcode was double now long
+  variable year_month was double now int
+  variable zcta was double now long
+  variable countyfips was double now long
+  variable statefips was double now byte
+  variable msa was double now int
+  variable mw_event was double now byte
+  variable sal_mw_event was double now byte
+  variable mw_event025 was double now byte
+  variable mw_event075 was double now byte
+  variable pop10_zip_county was double now long
+  variable cumsum_events was double now byte
+  variable mw_event_1 was double now byte
+  variable mw_event_2 was double now byte
+  variable mw_event_3 was double now byte
+  variable mw_event_4 was double now byte
+  variable mw_event_5 was double now byte
+  variable mw_event_6 was double now byte
+  variable mw_event_7 was double now byte
+  (23,617,320 bytes saved)
+============================================================================
+File: ../temp/baseline_panel_rent1_w6.dta
+Key: zipcode year_month
+============================================================================
+  183080:51(62880):990682409:126689668
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |    183,080    65061.65    34311.54       1801      99705
+  year_month |    183,080         658    33.19648        601        715
+        zcta |    163,070    67790.81    32936.23       1801      99705
+   placetype |          0
+  countyfips |    183,080    18530.28    14469.25       2020      54061
+-------------+---------------------------------------------------------
+   statefips |    183,080    18.47487    14.46423          2         54
+         msa |    183,080     485.201    227.2466          8        860
+      fed_mw |    183,080        7.25           0       7.25       7.25
+    state_mw |    183,080    8.688786    1.260226       7.25         14
+   county_mw |     28,060    9.117617    1.695192       7.25      14.25
+-------------+---------------------------------------------------------
+    local_mw |     31,855    9.659899    1.984817       7.25         16
+   actual_mw |    183,080    8.845869    1.491921       7.25         16
+  dactual_mw |    183,080    .0318263    .1702971          0       3.25
+    mw_event |    183,080    .0499181    .2177763          0          1
+sal_mw_event |    183,080    .0316474    .1750599          0          1
+-------------+---------------------------------------------------------
+ mw_event025 |    183,080     .037754    .1906012          0          1
+ mw_event075 |    183,080    .0210072    .1434086          0          1
+medre~e_sfcc |     80,819    2117.464    2124.247        525      50000
+medre~t_sfcc |     75,389     1.62812    1.309308   .4310905   23.96932
+medli~e_sfcc |    134,876    434714.6    408579.6      17800    6750000
+-------------+---------------------------------------------------------
+medli~t_sfcc |    154,195    266.4703     233.997   15.75758   2743.823
+pct_zip_ho~y |    183,080    99.26048     4.53752      50.67        100
+pct_zip_po~y |    183,080    99.25927    4.561416      47.87        100
+pop10_zip_~y |    183,080    36479.74    16653.72        408     105549
+cumsum_eve~s |    183,080    1.019019      1.4071          0          7
+-------------+---------------------------------------------------------
+  mw_event_1 |    183,080    .4679867    .4989755          0          1
+ this_change |    183,080    .0009422    .0375824          0        1.5
+dactual_mw_1 |    182,965    .5159721     .615051          0       3.25
+  mw_event_2 |    183,080    .2610389    .4392023          0          1
+dactual_mw_2 |    183,080    .2977861     .540267          0       3.25
+-------------+---------------------------------------------------------
+  mw_event_3 |    183,080    .1679102    .3737875          0          1
+dactual_mw_3 |    183,080    .1906722    .4481809          0       3.25
+  mw_event_4 |    183,080     .087541    .2826269          0          1
+dactual_mw_4 |    183,080    .0963903    .3233407          0          2
+  mw_event_5 |    183,080    .0325541    .1774668          0          1
+-------------+---------------------------------------------------------
+dactual_mw_5 |    183,080    .0370417    .2087038          0          2
+  mw_event_6 |    183,080    .0019773    .0444227          0          1
+dactual_mw_6 |    183,080    .0029706    .0673447          0          2
+  mw_event_7 |    183,080    .0000109    .0033052          0          1
+dactual_mw_7 |    183,080    .0000164    .0049577          0        1.5
+-------------+---------------------------------------------------------
+zipcode_ef~t |    183,080    2337.439    2847.097   597.0625   48609.82
+timeperiod~t |    183,080     1660.39    168.2713   1425.651   1983.188
+   mw_effect |    182,965    39.71523    59.50377          0      417.6
+ this_effect |    183,080    .0005702    .1725297          0       52.2
+       shock |    183,080    .0196839    100.2197  -431.4315   447.1862
+-------------+---------------------------------------------------------
+       rent1 |    183,080     3997.67    2850.788   1860.463      50000
+       rent2 |    182,965    4038.365    2859.363   1860.463      50000
+months_unt~s |    183,080          61    33.19648          4        118
+last_sal_m~6 |    183,080    121.3611    325.3451          0       1000
+unused_mw_~6 |    183,080    .0412279    .1988174          0          1
+-------------+---------------------------------------------------------
+cumsum_unu~s |    183,080    2.000666    2.147704          0          9
+
+
+
+
+(note: file ../temp/baseline_panel_rent1_w6.dta not found)
+file ../temp/baseline_panel_rent1_w6.dta saved
+(405,673 missing values generated)
+(30,861 observations deleted)
+(data already sorted by zipcode)
+  variable last_sal_mw_event_year_month was float now int
+  variable zipcode was double now long
+  (20,574 bytes saved)
+============================================================================
+File: ../temp/last_event12_by_zipcode.dta
+Key: zipcode
+============================================================================
+  3429:2(80974):4153596056:3017437457
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |      3,429    54856.23    29595.42       1801      99705
+last_sal_m~h |      1,528     686.877    22.21693        600        702
+
+
+
+
+(note: file ../temp/last_event12_by_zipcode.dta not found)
+file ../temp/last_event12_by_zipcode.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           411,476  
+    -----------------------------------------
+(228,120 missing values generated)
+(183,356 real changes made)
+(119,179 real changes made)
+(24,636 real changes made)
+(17,141 observations deleted)
+(218,615 observations deleted)
+(data already sorted by zipcode year_month)
+  variable months_until_panel_ends was float now int
+  variable last_sal_mw_event_rel_months12 was float now int
+  variable unused_mw_event12 was float now byte
+  variable cumsum_unused_events was float now byte
+  variable zipcode was double now long
+  variable year_month was double now int
+  variable zcta was double now long
+  variable countyfips was double now long
+  variable statefips was double now byte
+  variable msa was double now int
+  variable mw_event was double now byte
+  variable sal_mw_event was double now byte
+  variable mw_event025 was double now byte
+  variable mw_event075 was double now byte
+  variable pop10_zip_county was double now long
+  variable cumsum_events was double now byte
+  variable mw_event_1 was double now byte
+  variable mw_event_2 was double now byte
+  variable mw_event_3 was double now byte
+  variable mw_event_4 was double now byte
+  variable mw_event_5 was double now byte
+  variable mw_event_6 was double now byte
+  variable mw_event_7 was double now byte
+  (22,667,880 bytes saved)
+============================================================================
+File: ../temp/baseline_panel_rent1_w12.dta
+Key: zipcode year_month
+============================================================================
+  175720:51(102865):3958279273:803698194
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |    175,720    65110.19    35021.46       1801      99705
+  year_month |    175,720         658    33.19648        601        715
+        zcta |    156,745    67946.05    33584.54       1801      99705
+   placetype |          0
+  countyfips |    175,720    18084.83    14601.08       2020      54061
+-------------+---------------------------------------------------------
+   statefips |    175,720    18.03403    14.59941          2         54
+         msa |    175,720    481.7153    227.7917          8        860
+      fed_mw |    175,720        7.25           0       7.25       7.25
+    state_mw |    175,720    8.735741    1.262794       7.25         14
+   county_mw |     28,060    9.117617    1.695192       7.25      14.25
+-------------+---------------------------------------------------------
+    local_mw |     31,855    9.659899    1.984817       7.25         16
+   actual_mw |    175,720    8.899404    1.497521       7.25         16
+  dactual_mw |    175,720    .0326677    .1731228          0       3.25
+    mw_event |    175,720    .0498236    .2175809          0          1
+sal_mw_event |    175,720    .0326087    .1776107          0          1
+-------------+---------------------------------------------------------
+ mw_event025 |    175,720    .0389711    .1935266          0          1
+ mw_event075 |    175,720    .0215229    .1451198          0          1
+medre~e_sfcc |     78,432     2150.77    2147.157        525      50000
+medre~t_sfcc |     72,971    1.653947    1.322633   .4310905   23.96932
+medli~e_sfcc |    129,125    447373.4    412837.8      17800    6750000
+-------------+---------------------------------------------------------
+medli~t_sfcc |    147,849    273.7803    236.1495   15.75758   2743.823
+pct_zip_ho~y |    175,720    99.24707    4.622583      50.67        100
+pct_zip_po~y |    175,720    99.24482    4.647961      47.87        100
+pop10_zip_~y |    175,720    36771.35    16716.93        408     105549
+cumsum_eve~s |    175,720    1.058787    1.421552          0          7
+-------------+---------------------------------------------------------
+  mw_event_1 |    175,720    .4846745    .4997665          0          1
+ this_change |    175,720    .0009817    .0383609          0        1.5
+dactual_mw_1 |    175,605     .535411    .6190502          0       3.25
+  mw_event_2 |    175,720    .2719725     .444977          0          1
+dactual_mw_2 |    175,720    .3102588    .5479456          0       3.25
+-------------+---------------------------------------------------------
+  mw_event_3 |    175,720    .1749431    .3799195          0          1
+dactual_mw_3 |    175,720    .1986584    .4557333          0       3.25
+  mw_event_4 |    175,720    .0912076    .2879049          0          1
+dactual_mw_4 |    175,720    .1004276     .329428          0          2
+  mw_event_5 |    175,720    .0339176    .1810176          0          1
+-------------+---------------------------------------------------------
+dactual_mw_5 |    175,720    .0385932    .2128892          0          2
+  mw_event_6 |    175,720    .0020601    .0453416          0          1
+dactual_mw_6 |    175,720     .003095    .0687378          0          2
+  mw_event_7 |    175,720    .0000114    .0033737          0          1
+dactual_mw_7 |    175,720    .0000171    .0050605          0        1.5
+-------------+---------------------------------------------------------
+zipcode_ef~t |    175,720    2390.688    2893.446   597.0625   48609.82
+timeperiod~t |    175,720     1660.39    168.2714   1425.651   1983.188
+   mw_effect |    175,605    41.30369    60.20403          0      417.6
+ this_effect |    175,720    .0005941    .1761058          0       52.2
+       shock |    175,720   -.0488022    100.2122  -424.2609   447.1862
+-------------+---------------------------------------------------------
+       rent1 |    175,720    4050.842    2896.988   1860.463      50000
+       rent2 |    175,605    4093.202    2905.048   1860.463      50000
+months_unt~s |    175,720          61    33.19648          4        118
+last_sal_~12 |    175,720    143.0166    346.1145          0       1000
+unused_mw~12 |    175,720    .0411336    .1985998          0          1
+-------------+---------------------------------------------------------
+cumsum_unu~s |    175,720    1.927749    2.073972          0          9
+
+
+
+
+(note: file ../temp/baseline_panel_rent1_w12.dta not found)
+file ../temp/baseline_panel_rent1_w12.dta saved
+(405,673 missing values generated)
+(10,287 observations deleted)
+(data already sorted by zipcode)
+  variable last_sal_mw_event_year_month was float now int
+  variable zipcode was double now long
+  (20,574 bytes saved)
+============================================================================
+File: ../temp/last_event6_by_zipcode.dta
+Key: zipcode
+============================================================================
+  3429:2(80974):4203233022:1098289906
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |      3,429    54856.23    29595.42       1801      99705
+last_sal_m~h |      1,592    695.1344    24.92555        600        708
+
+
+
+
+file ../temp/last_event6_by_zipcode.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           411,476  
+    -----------------------------------------
+(220,440 missing values generated)
+(191,036 real changes made)
+(146,681 real changes made)
+(22,074 real changes made)
+(17,256 observations deleted)
+(211,255 observations deleted)
+(data already sorted by zipcode year_month)
+  variable months_until_panel_ends was float now int
+  variable last_sal_mw_event_rel_months6 was float now int
+  variable unused_mw_event6 was float now byte
+  variable cumsum_unused_events was float now byte
+  variable zipcode was double now long
+  variable year_month was double now int
+  variable zcta was double now long
+  variable countyfips was double now long
+  variable statefips was double now byte
+  variable msa was double now int
+  variable mw_event was double now byte
+  variable sal_mw_event was double now byte
+  variable mw_event025 was double now byte
+  variable mw_event075 was double now byte
+  variable pop10_zip_county was double now long
+  variable cumsum_events was double now byte
+  variable mw_event_1 was double now byte
+  variable mw_event_2 was double now byte
+  variable mw_event_3 was double now byte
+  variable mw_event_4 was double now byte
+  variable mw_event_5 was double now byte
+  variable mw_event_6 was double now byte
+  variable mw_event_7 was double now byte
+  (23,602,485 bytes saved)
+============================================================================
+File: ../temp/baseline_panel_rent2_w6.dta
+Key: zipcode year_month
+============================================================================
+  182965:51(62880):320562907:1710225567
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |    182,965    65063.44    34322.24       1801      99705
+  year_month |    182,965         658    33.19648        601        715
+        zcta |    162,955    67794.75    32947.52       1801      99705
+   placetype |          0
+  countyfips |    182,965    18531.14    14473.75       2020      54061
+-------------+---------------------------------------------------------
+   statefips |    182,965     18.4758    14.46873          2         54
+         msa |    182,965    485.0402    227.2274          8        860
+      fed_mw |    182,965        7.25           0       7.25       7.25
+    state_mw |    182,965    8.689068    1.260571       7.25         14
+   county_mw |     28,060    9.117617    1.695192       7.25      14.25
+-------------+---------------------------------------------------------
+    local_mw |     31,855    9.659899    1.984817       7.25         16
+   actual_mw |    182,965    8.846251    1.492311       7.25         16
+  dactual_mw |    182,965    .0318449     .170348          0       3.25
+    mw_event |    182,965     .049944    .2178298          0          1
+sal_mw_event |    182,965    .0316673    .1751131          0          1
+-------------+---------------------------------------------------------
+ mw_event025 |    182,965    .0377723    .1906455          0          1
+ mw_event075 |    182,965    .0210204    .1434527          0          1
+medre~e_sfcc |     80,787    2118.018    2124.485        525      50000
+medre~t_sfcc |     75,357    1.628481    1.309469   .4310905   23.96932
+medli~e_sfcc |    134,860    434762.4    408580.2      17800    6750000
+-------------+---------------------------------------------------------
+medli~t_sfcc |    154,177    266.4978    233.9968   15.75758   2743.823
+pct_zip_ho~y |    182,965    99.26002    4.538908      50.67        100
+pct_zip_po~y |    182,965     99.2588    4.562812      47.87        100
+pop10_zip_~y |    182,965     36492.3    16651.42        408     105549
+cumsum_eve~s |    182,965    1.019031    1.407542          0          7
+-------------+---------------------------------------------------------
+  mw_event_1 |    182,965    .4676523    .4989539          0          1
+ this_change |    182,965    .0009428    .0375942          0        1.5
+dactual_mw_1 |    182,965    .5159721     .615051          0       3.25
+  mw_event_2 |    182,965     .261203    .4392915          0          1
+dactual_mw_2 |    182,965    .2979733    .5403851          0       3.25
+-------------+---------------------------------------------------------
+  mw_event_3 |    182,965    .1680157    .3738813          0          1
+dactual_mw_3 |    182,965     .190792    .4482962          0       3.25
+  mw_event_4 |    182,965     .087596    .2827072          0          1
+dactual_mw_4 |    182,965    .0964509    .3234333          0          2
+  mw_event_5 |    182,965    .0325745    .1775207          0          1
+-------------+---------------------------------------------------------
+dactual_mw_5 |    182,965     .037065    .2087674          0          2
+  mw_event_6 |    182,965    .0019785    .0444367          0          1
+dactual_mw_6 |    182,965    .0029725    .0673659          0          2
+  mw_event_7 |    182,965    .0000109    .0033062          0          1
+dactual_mw_7 |    182,965    .0000164    .0049593          0        1.5
+-------------+---------------------------------------------------------
+zipcode_ef~t |    182,965    2338.457    2847.702   597.0625   48609.82
+timeperiod~t |    182,965     1660.39    168.2713   1425.651   1983.188
+   mw_effect |    182,965    39.71523    59.50377          0      417.6
+ this_effect |    182,965    .0005706    .1725839          0       52.2
+       shock |    182,965     .014432    100.2257  -431.4315   447.1862
+-------------+---------------------------------------------------------
+       rent1 |    182,965    3998.682    2851.394   1860.463      50000
+       rent2 |    182,965    4038.365    2859.363   1860.463      50000
+months_unt~s |    182,965          61    33.19648          4        118
+last_sal_m~6 |    182,965    120.8413    324.7389          0       1000
+unused_mw_~6 |    182,965    .0412483    .1988646          0          1
+-------------+---------------------------------------------------------
+cumsum_unu~s |    182,965    2.001323    2.148213          0          9
+
+
+
+
+(note: file ../temp/baseline_panel_rent2_w6.dta not found)
+file ../temp/baseline_panel_rent2_w6.dta saved
+(405,673 missing values generated)
+(30,861 observations deleted)
+(data already sorted by zipcode)
+  variable last_sal_mw_event_year_month was float now int
+  variable zipcode was double now long
+  (20,574 bytes saved)
+============================================================================
+File: ../temp/last_event12_by_zipcode.dta
+Key: zipcode
+============================================================================
+  3429:2(80974):4153596056:3017437457
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |      3,429    54856.23    29595.42       1801      99705
+last_sal_m~h |      1,528     686.877    22.21693        600        702
+
+
+
+
+file ../temp/last_event12_by_zipcode.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           411,476  
+    -----------------------------------------
+(228,120 missing values generated)
+(183,356 real changes made)
+(119,179 real changes made)
+(24,636 real changes made)
+(17,256 observations deleted)
+(218,615 observations deleted)
+(data already sorted by zipcode year_month)
+  variable months_until_panel_ends was float now int
+  variable last_sal_mw_event_rel_months12 was float now int
+  variable unused_mw_event12 was float now byte
+  variable cumsum_unused_events was float now byte
+  variable zipcode was double now long
+  variable year_month was double now int
+  variable zcta was double now long
+  variable countyfips was double now long
+  variable statefips was double now byte
+  variable msa was double now int
+  variable mw_event was double now byte
+  variable sal_mw_event was double now byte
+  variable mw_event025 was double now byte
+  variable mw_event075 was double now byte
+  variable pop10_zip_county was double now long
+  variable cumsum_events was double now byte
+  variable mw_event_1 was double now byte
+  variable mw_event_2 was double now byte
+  variable mw_event_3 was double now byte
+  variable mw_event_4 was double now byte
+  variable mw_event_5 was double now byte
+  variable mw_event_6 was double now byte
+  variable mw_event_7 was double now byte
+  (22,653,045 bytes saved)
+============================================================================
+File: ../temp/baseline_panel_rent2_w12.dta
+Key: zipcode year_month
+============================================================================
+  175605:51(102865):3321679922:3610848525
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |    175,605    65112.09    35032.85       1801      99705
+  year_month |    175,605         658    33.19648        601        715
+        zcta |    156,630    67950.26    33596.51       1801      99705
+   placetype |          0
+  countyfips |    175,605    18085.44    14605.85       2020      54061
+-------------+---------------------------------------------------------
+   statefips |    175,605    18.03471    14.60416          2         54
+         msa |    175,605    481.5455    227.7696          8        860
+      fed_mw |    175,605        7.25           0       7.25       7.25
+    state_mw |    175,605    8.736066    1.263143       7.25         14
+   county_mw |     28,060    9.117617    1.695192       7.25      14.25
+-------------+---------------------------------------------------------
+    local_mw |     31,855    9.659899    1.984817       7.25         16
+   actual_mw |    175,605    8.899836    1.497915       7.25         16
+  dactual_mw |    175,605    .0326876    .1731767          0       3.25
+    mw_event |    175,605    .0498505    .2176367          0          1
+sal_mw_event |    175,605    .0326301    .1776669          0          1
+-------------+---------------------------------------------------------
+ mw_event025 |    175,605    .0389909    .1935739          0          1
+ mw_event075 |    175,605     .021537    .1451663          0          1
+medre~e_sfcc |     78,400    2151.355      2147.4        525      50000
+medre~t_sfcc |     72,939    1.654331    1.322796   .4310905   23.96932
+medli~e_sfcc |    129,109    447424.9    412837.4      17800    6750000
+-------------+---------------------------------------------------------
+medli~t_sfcc |    147,831    273.8099    236.1486   15.75758   2743.823
+pct_zip_ho~y |    175,605    99.24658    4.624056      50.67        100
+pct_zip_po~y |    175,605    99.24433    4.649443      47.87        100
+pop10_zip_~y |    175,605    36784.62    16714.36        408     105549
+cumsum_eve~s |    175,605    1.058825    1.422017          0          7
+-------------+---------------------------------------------------------
+  mw_event_1 |    175,605     .484337     .499756          0          1
+ this_change |    175,605    .0009823    .0383734          0        1.5
+dactual_mw_1 |    175,605     .535411    .6190502          0       3.25
+  mw_event_2 |    175,605    .2721506    .4450683          0          1
+dactual_mw_2 |    175,605     .310462    .5480674          0       3.25
+-------------+---------------------------------------------------------
+  mw_event_3 |    175,605    .1750577    .3800175          0          1
+dactual_mw_3 |    175,605    .1987885    .4558541          0       3.25
+  mw_event_4 |    175,605    .0912673    .2879897          0          1
+dactual_mw_4 |    175,605    .1004934    .3295258          0          2
+  mw_event_5 |    175,605    .0339398    .1810748          0          1
+-------------+---------------------------------------------------------
+dactual_mw_5 |    175,605    .0386185    .2129566          0          2
+  mw_event_6 |    175,605    .0020614    .0453564          0          1
+dactual_mw_6 |    175,605    .0030971    .0687603          0          2
+  mw_event_7 |    175,605    .0000114    .0033748          0          1
+dactual_mw_7 |    175,605    .0000171    .0050622          0        1.5
+-------------+---------------------------------------------------------
+zipcode_ef~t |    175,605    2391.783    2894.077   597.0625   48609.82
+timeperiod~t |    175,605     1660.39    168.2714   1425.651   1983.188
+   mw_effect |    175,605    41.30369    60.20403          0      417.6
+ this_effect |    175,605    .0005945    .1761635          0       52.2
+       shock |    175,605    -.054319    100.2185  -424.2609   447.1862
+-------------+---------------------------------------------------------
+       rent1 |    175,605    4051.932     2897.62   1860.463      50000
+       rent2 |    175,605    4093.202    2905.048   1860.463      50000
+months_unt~s |    175,605          61    33.19648          4        118
+last_sal_~12 |    175,605    142.5224    345.6033          0       1000
+unused_mw~12 |    175,605    .0411549    .1986489          0          1
+-------------+---------------------------------------------------------
+cumsum_unu~s |    175,605    1.928385    2.074496          0          9
+
+
+
+
+(note: file ../temp/baseline_panel_rent2_w12.dta not found)
+file ../temp/baseline_panel_rent2_w12.dta saved
+
+. 
+end of do-file
+
+
+Execute:  StataMP-64 /e do "./last_event_study.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./last_event_study.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/mental_coupons/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+  [8]              "../../../lib/stata/gslab_misc/ado"
+
+. adopath + ../../../lib/stata/min_wage/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+  [8]              "../../../lib/stata/gslab_misc/ado"
+  [9]              "../../../lib/stata/min_wage/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.         local instub "../temp"
+  2.         local outstub "../output"
+  3. 
+.         local FE "zipcode year_month"
+  4.         local cluster_se "zipcode"
+  5. 
+.         foreach w in 6 12 {
+  6.                 foreach i in 1 2 { 
+  7.                         use "`instub'/baseline_panel_rent`i'_w`w'.dta", cl
+> ear
+  8.                         
+.                         create_event_plot, depvar(rent`i')                   
+>                                            ///
+>                                 event_var(last_sal_mw_event_rel_months`w')   
+>                                    ///
+>                             controls(" ") window(`w')                        
+>                                            ///
+>                             absorb(`FE') cluster(`cluster_se')
+  9.                         graph export "`outstub'/last_rent`i'_w`w'.png", re
+> place 
+ 10.                 }
+ 11.         }
+ 12. end
+
+. 
+. main
+(MWFE estimator converged in 2 iterations)
+
+HDFE Linear regression                            Number of obs   =    183,080
+Absorbing 2 HDFE groups                           F(  14,   1591) =       0.91
+Statistics robust to heteroskedasticity           Prob > F        =     0.5450
+                                                  R-squared       =     0.9988
+                                                  Adj R-squared   =     0.9988
+                                                  Within R-sq.    =     0.0001
+Number of clusters (zipcode) =      1,592         Root MSE        =   100.2717
+
+                            (Std. Err. adjusted for 1,592 clusters in zipcode)
+------------------------------------------------------------------------------
+             |               Robust
+       rent1 |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6 |
+          0  |  -3.066825    3.13529    -0.98   0.328    -9.216559    3.082908
+          1  |  -6.286237   4.315937    -1.46   0.145    -14.75176    2.179284
+          2  |  -6.741444   4.386734    -1.54   0.125    -15.34583    1.862943
+          3  |  -6.855924   4.195439    -1.63   0.102    -15.08509    1.373245
+          4  |  -6.882965   4.356023    -1.58   0.114    -15.42711    1.661182
+          5  |  -3.973401   4.399113    -0.90   0.367    -12.60207    4.655265
+          7  |  -1.122578   4.254968    -0.26   0.792    -9.468511    7.223355
+          8  |  -5.230517   4.364147    -1.20   0.231     -13.7906    3.329567
+          9  |  -9.251354   4.426701    -2.09   0.037    -17.93413   -.5685736
+         10  |  -6.910653   4.362927    -1.58   0.113    -15.46834    1.647037
+         11  |  -2.479996    4.32452    -0.57   0.566    -10.96235     6.00236
+         12  |  -6.997133   4.025729    -1.74   0.082    -14.89342     .899159
+         13  |  -1.465981   4.504134    -0.33   0.745    -10.30064    7.368681
+       1000  |  -3.955781   3.170248    -1.25   0.212    -10.17408    2.262523
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     zipcode |      1592        1592           0    *|
+  year_month |       115           0         115     |
+-----------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/last_rent1_w6.png not found)
+(file ../output/last_rent1_w6.png written in PNG format)
+(MWFE estimator converged in 2 iterations)
+
+HDFE Linear regression                            Number of obs   =    182,965
+Absorbing 2 HDFE groups                           F(  14,   1590) =      63.46
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9987
+                                                  Adj R-squared   =     0.9987
+                                                  Within R-sq.    =     0.0073
+Number of clusters (zipcode) =      1,591         Root MSE        =   104.3771
+
+                            (Std. Err. adjusted for 1,591 clusters in zipcode)
+------------------------------------------------------------------------------
+             |               Robust
+       rent2 |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6 |
+          0  |  -19.07386    3.37195    -5.66   0.000    -25.68779   -12.45992
+          1  |  -3.164909   4.320938    -0.73   0.464    -11.64024    5.310425
+          2  |  -5.110191   4.383782    -1.17   0.244    -13.70879    3.488409
+          3  |  -5.601808   4.197946    -1.33   0.182     -13.8359    2.632283
+          4  |  -5.967058   4.365001    -1.37   0.172    -14.52882    2.594704
+          5  |  -4.129073   4.401892    -0.94   0.348     -12.7632     4.50505
+          7  |   36.24291   4.301314     8.43   0.000     27.80606    44.67975
+          8  |   25.12971   4.402754     5.71   0.000      16.4939    33.76552
+          9  |   20.02266   4.449796     4.50   0.000     11.29458    28.75075
+         10  |   22.08928   4.405955     5.01   0.000     13.44719    30.73137
+         11  |   26.01954   4.374983     5.95   0.000      17.4382    34.60088
+         12  |   20.93444   4.065053     5.15   0.000     12.96101    28.90787
+         13  |   14.94937   4.533145     3.30   0.001     6.057804    23.84094
+       1000  |   -25.9886   3.456327    -7.52   0.000    -32.76804   -19.20917
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     zipcode |      1591        1591           0    *|
+  year_month |       115           0         115     |
+-----------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/last_rent2_w6.png not found)
+(file ../output/last_rent2_w6.png written in PNG format)
+(MWFE estimator converged in 2 iterations)
+
+HDFE Linear regression                            Number of obs   =    175,720
+Absorbing 2 HDFE groups                           F(  26,   1527) =       1.23
+Statistics robust to heteroskedasticity           Prob > F        =     0.1923
+                                                  R-squared       =     0.9988
+                                                  Adj R-squared   =     0.9988
+                                                  Within R-sq.    =     0.0002
+Number of clusters (zipcode) =      1,528         Root MSE        =   100.2619
+
+                            (Std. Err. adjusted for 1,528 clusters in zipcode)
+------------------------------------------------------------------------------
+             |               Robust
+       rent1 |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_~12 |
+          0  |   .9180187   3.068532     0.30   0.765    -5.100964    6.937002
+          1  |   -3.03687   4.275543    -0.71   0.478    -11.42343    5.349687
+          2  |   1.675771   4.240666     0.40   0.693    -6.642375    9.993918
+          3  |   7.769059    4.19762     1.85   0.064    -.4646509    16.00277
+          4  |   .3554947   4.256597     0.08   0.933    -7.993901     8.70489
+          5  |  -1.690238    4.10346    -0.41   0.680    -9.739253    6.358776
+          6  |   1.406565   3.957421     0.36   0.722     -6.35599    9.169121
+          7  |   .7410143   4.248675     0.17   0.862    -7.592841     9.07487
+          8  |  -.6949551   4.474935    -0.16   0.877    -9.472625    8.082714
+          9  |   .9976728   4.097812     0.24   0.808    -7.040263    9.035608
+         10  |   .2875602   4.318742     0.07   0.947    -8.183733    8.758853
+         11  |  -.0868238   4.184573    -0.02   0.983    -8.294943    8.121296
+         13  |   1.135708    4.24404     0.27   0.789    -7.189056    9.460472
+         14  |  -2.462131   4.279869    -0.58   0.565    -10.85717    5.932912
+         15  |   4.411184   4.333784     1.02   0.309    -4.089613    12.91198
+         16  |  -.7179298   4.282028    -0.17   0.867    -9.117208    7.681348
+         17  |  -.7880224   4.239499    -0.19   0.853    -9.103879    7.527834
+         18  |  -4.215616   3.882536    -1.09   0.278    -11.83128    3.400051
+         19  |  -8.277123   4.321844    -1.92   0.056     -16.7545    .2002547
+         20  |  -6.930257   4.117379    -1.68   0.093    -15.00657    1.146058
+         21  |   1.994129   4.191171     0.48   0.634    -6.226932    10.21519
+         22  |    1.77154   4.254056     0.42   0.677     -6.57287    10.11595
+         23  |   1.713182   4.222248     0.41   0.685    -6.568837    9.995201
+         24  |   4.477855   4.080968     1.10   0.273     -3.52704    12.48275
+         25  |  -3.635683   4.223151    -0.86   0.389    -11.91947    4.648106
+       1000  |  -.5461209   3.145513    -0.17   0.862    -6.716103    5.623861
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     zipcode |      1528        1528           0    *|
+  year_month |       115           0         115     |
+-----------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/last_rent1_w12.png not found)
+(file ../output/last_rent1_w12.png written in PNG format)
+(MWFE estimator converged in 2 iterations)
+
+HDFE Linear regression                            Number of obs   =    175,605
+Absorbing 2 HDFE groups                           F(  26,   1526) =      57.39
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9987
+                                                  Adj R-squared   =     0.9987
+                                                  Within R-sq.    =     0.0130
+Number of clusters (zipcode) =      1,527         Root MSE        =   103.8913
+
+                            (Std. Err. adjusted for 1,527 clusters in zipcode)
+------------------------------------------------------------------------------
+             |               Robust
+       rent2 |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_~12 |
+          0  |  -26.44918   3.423978    -7.72   0.000    -33.16538   -19.73298
+          1  |   6.554785   4.354544     1.51   0.132    -1.986738    15.09631
+          2  |   9.672166   4.276838     2.26   0.024     1.283064    18.06127
+          3  |   15.19808   4.283355     3.55   0.000     6.796195    23.59997
+          4  |   8.025277   4.298726     1.87   0.062    -.4067588    16.45731
+          5  |   6.146697    4.14473     1.48   0.138    -1.983273    14.27667
+          6  |   9.172489   4.006199     2.29   0.022     1.314251    17.03073
+          7  |   6.431862   4.267391     1.51   0.132    -1.938709    14.80243
+          8  |   1.737824   4.468909     0.39   0.697    -7.028029    10.50368
+          9  |   2.894674   4.094563     0.71   0.480    -5.136891    10.92624
+         10  |   1.518747   4.320505     0.35   0.725    -6.956009    9.993502
+         11  |   .0107402   4.189316     0.00   0.998    -8.206685    8.228166
+         13  |   39.61922   4.266088     9.29   0.000      31.2512    47.98724
+         14  |   31.13804   4.319646     7.21   0.000     22.66497    39.61111
+         15  |   37.14417   4.355021     8.53   0.000     28.60171    45.68663
+         16  |   31.80593   4.336618     7.33   0.000     23.29957    40.31229
+         17  |   31.05705   4.288709     7.24   0.000     22.64466    39.46943
+         18  |   26.89034   3.931552     6.84   0.000     19.17852    34.60216
+         19  |   15.79334    4.40532     3.59   0.000      7.15222    24.43446
+         20  |   9.851925   4.225822     2.33   0.020     1.562891    18.14096
+         21  |   18.26749   4.326447     4.22   0.000     9.781074     26.7539
+         22  |   18.01052   4.391002     4.10   0.000     9.397487    26.62356
+         23  |    17.2576   4.320228     3.99   0.000     8.783387    25.73181
+         24  |   19.60577   4.246109     4.62   0.000     11.27694    27.93459
+         25  |    30.3656   4.354341     6.97   0.000     21.82447    38.90672
+       1000  |  -12.39752   3.713364    -3.34   0.001    -19.68136   -5.113687
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     zipcode |      1527        1527           0    *|
+  year_month |       115           0         115     |
+-----------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/last_rent2_w12.png not found)
+(file ../output/last_rent2_w12.png written in PNG format)
+
+. 
+end of do-file
+
+ make.py ended: 2020-06-07 15:46:56
