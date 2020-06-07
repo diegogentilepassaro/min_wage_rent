@@ -23,9 +23,13 @@ Consider the model
 
 ![r_{zt} = \gamma_z + \delta_t + \epsilon_{zt}](https://render.githubusercontent.com/render/math?math=r_%7Bzt%7D%20%3D%20%5Cgamma_z%20%2B%20%5Cdelta_t%20%2B%20%5Cepsilon_%7Bzt%7D)
 
-where ![\epsilon_{zt}](https://render.githubusercontent.com/render/math?math=%5Cepsilon_%7Bzt%7D) is a normal ![\mathcal{N}(0, \sigma^2_r)](https://render.githubusercontent.com/render/math?math=%5Cmathcal%7BN%7D(0%2C%20%5Csigma%5E2_r)) (with ![\sigma^2_r](https://render.githubusercontent.com/render/math?math=%5Csigma%5E2_r) the var of medrentpricepsqft_sfcc) trucated between ![\underline{r}](https://render.githubusercontent.com/render/math?math=%5Cunderline%7Br%7D) and ![\overline{r}](https://render.githubusercontent.com/render/math?math=%5Coverline%7Br%7D), the minimum and maximum observed values of medrentpricepsqft_sfcc. This is simulated with the R package [truncnorm](https://cran.r-project.org/web/packages/truncnorm/truncnorm.pdf).
+where
+- zipcode effects are computed as average of medrentprice_sfcc for each zipcode and and time effects as verage of _demeaned_ medrentprice_sfcc for each year month.
+- ![v_{zt}](https://render.githubusercontent.com/render/math?math=v_%7Bzt%7D) is a normal ![\mathcal{0}(\mu_r, \sigma^2)](https://render.githubusercontent.com/render/math?math=%5Cmathcal%7B0%7D(%5Cmu_r%2C%20%5Csigma%5E2)). 
 
-Note that, in this measure, the minimum wage is assumed to have no effect.
+I truncate the resulting simulated values with the minimum and maximum of observed rents.
+
+Note that, in this measure, the minimum wage is assumed to have no effect on rents.
 
 #### rent2 
 
