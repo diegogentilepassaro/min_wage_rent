@@ -50,11 +50,11 @@ simulate_rents <- function(DF, var) {
   sd_shock = 100
   theta    = 0.1 # passthrough
   
-  
   DF <- prepare_DF(DF, var)
   
   size_df = dim(DF)[1]
-  
+  max_n_events = max(DF$cumsum_events, na.rm = T)
+
   # Define objects
   mean_r = sapply(DF[, c(var)], mean, na.rm = T)
   sd_r   = sapply(DF[, c(var)], sd,  na.rm = T)
@@ -76,8 +76,10 @@ simulate_rents <- function(DF, var) {
   DF <- merge(DF, zipcodes, by = 'zipcode')
   
   # Year-month effect
-  period_avgs = aggregate(DF[, var], by = list(DF$year_month), FUN = mean, na.rm = T) - mean_r
+  period_avgs = aggregate(DF[, var], by = list(DF$year_month), FUN = mean, na.rm = T)
   names(period_avgs) <- c("year_month", "timeperiod_effect")
+  
+  period_avgs$timeperiod_effect = period_avgs$timeperiod_effect - mean(period_avgs$timeperiod_effect, na.rm = T)
   
   year_months <- merge(year_months, period_avgs, by = 'year_month')
   DF <- merge(DF, year_months, by = 'year_month')
@@ -93,10 +95,15 @@ simulate_rents <- function(DF, var) {
   st_panel <- as.data.frame(st_panel)
   
   for (state in unique(st_panel$statefips)) {
-    growth_rate = runif(3, min = -0.0005, max = 0.005)
+
+    # Gen correlated growth rates
+    seed = runif(1, min = -0.0005, max = 0.005)
+    shock1 = runif(1, min = 0.00001, max = 0.001)
+    growth_rate = c(seed, .9*seed + shock1,
+                    .9*(seed + shock1) + runif(1, min = 0.00001, max = 0.001))
     
     for (period in 597:715) {
-      rate = choose_rate(growth_rate, period)
+      rate = choose_rate(growth_rate, period)   # choose growth rate according to time period
       
       prev_period = st_panel[(st_panel$statefips == state) & 
                              (st_panel$year_month == period - 1), "state_time_effect"]
@@ -109,9 +116,7 @@ simulate_rents <- function(DF, var) {
   DF <- merge(DF, st_panel[, c("statefips", "year_month", "state_time_effect")], 
               by = c("statefips", "year_month"))
   
-  # Min wage effect
-  max_n_events = max(DF$cumsum_events, na.rm = T)
-  
+  # Min wage effect  
   DF$mw_effect <- theta*DF$dactual_mw_1*hs_week*week_month*mw_earners
   
   for (event in 2:max_n_events) {
@@ -128,15 +133,13 @@ simulate_rents <- function(DF, var) {
   DF$rent1 <- DF$zipcode_effect + DF$timeperiod_effect + DF$shock
   DF$rent1 <- ifelse(DF$rent1 < min_r, min_r, ifelse(DF$rent1 > max_r, max_r, DF$rent1))
   
-  DF$rent2 <- DF$mw_effect + DF$zipcode_effect + DF$timeperiod_effect + DF$shock
-  DF$rent2 <- ifelse(DF$rent2 < min_r, min_r, ifelse(DF$rent2 > max_r, max_r, DF$rent2))
+  DF$rent2 <- DF$rent1 + DF$mw_effect
   
   DF$rent3 <- DF$zipcode_effect + DF$timeperiod_effect + DF$state_time_effect + DF$shock
   DF$rent3 <- ifelse(DF$rent3 < min_r, min_r, ifelse(DF$rent3 > max_r, max_r, DF$rent3))
   
-  DF$rent4 <- DF$mw_effect + DF$zipcode_effect + DF$timeperiod_effect + DF$state_time_effect + DF$shock
-  DF$rent4 <- ifelse(DF$rent4 < min_r, min_r, ifelse(DF$rent4 > max_r, max_r, DF$rent4))
-  
+  DF$rent4 <- DF$rent3 + DF$mw_effect
+
   return(DF)
 }
 
