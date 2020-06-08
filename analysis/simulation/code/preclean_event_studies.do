@@ -7,18 +7,16 @@ program main
 	local instub "../../../drive/derived_large/output"
 	local outstub "../temp"
 
-	foreach i in 1 2 {
-		foreach w in 6 12 {
-			use "`instub'/simulated_zipcode_yearmonth_panel.dta", clear
-			create_latest_event_vars, event_dummy(sal_mw_event) w(`w') 		///
-				time(year_month) geo(zipcode) panel_end(2019m12)
+	foreach w in 6 12 {
+		use "`instub'/simulated_zipcode_yearmonth_panel.dta", clear
+		create_latest_event_vars, event_dummy(sal_mw_event) w(`w') 		///
+			time(year_month) geo(zipcode) panel_end(2019m12)
 
-			drop if missing(rent`i')
-			drop if missing(last_sal_mw_event_rel_months`w')
+		drop if missing(rent1)
+		drop if missing(last_sal_mw_event_rel_months`w')
 			
-			save_data "`outstub'/baseline_panel_rent`i'_w`w'.dta", 			///
-				key(zipcode year_month) replace log(none)
-		}
+		save_data "`outstub'/baseline_panel_rent_w`w'.dta", 			///
+			key(zipcode year_month) replace log(none)
 	}
 end
 
