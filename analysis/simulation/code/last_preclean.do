@@ -12,6 +12,8 @@ program main
 		create_latest_event_vars, event_dummy(sal_mw_event) w(`w') 		///
 			time(year_month) geo(zipcode) panel_end(2019m12)
 
+		bysort zipcode (year_month): gen trend = _n
+
 		drop if missing(rent1)
 		drop if missing(last_sal_mw_event_rel_months`w')
 			

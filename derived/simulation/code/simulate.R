@@ -68,6 +68,9 @@ simulate_rents <- function(DF, var) {
   
   n_states = dim(states)[1]
   
+  # iid shock
+  DF$shock <- rnorm(size_df, mean = 0, sd = sd_shock)
+  
   # Zipcode effect
   zipcodes_avgs = aggregate(DF[, var], by = list(DF$zipcode), FUN = quantile, probs = c(0.2), na.rm = T)
   names(zipcodes_avgs) <- c("zipcode", "zipcode_effect")
@@ -91,29 +94,25 @@ simulate_rents <- function(DF, var) {
                    rep(states$state_effect, times = 1, each = 120),
                    rep(596:715, times = n_states))
   
-  colnames(st_panel) = c("statefips", "state_time_effect", "year_month")
+  colnames(st_panel) = c("statefips", "state_trend", "year_month")
   st_panel <- as.data.frame(st_panel)
   
   for (state in unique(st_panel$statefips)) {
 
     # Gen correlated growth rates
-    seed = runif(1, min = -0.0005, max = 0.005)
-    shock1 = runif(1, min = 0.00001, max = 0.001)
-    growth_rate = c(seed, .9*seed + shock1,
-                    .9*(seed + shock1) + runif(1, min = 0.00001, max = 0.001))
-    
+
     for (period in 597:715) {
-      rate = choose_rate(growth_rate, period)   # choose growth rate according to time period
+      rate = runif(1, min = 0, max = 0.005)
       
       prev_period = st_panel[(st_panel$statefips == state) & 
-                             (st_panel$year_month == period - 1), "state_time_effect"]
+                             (st_panel$year_month == period - 1), "state_trend"]
       
       st_panel[(st_panel$statefips == state) & 
-               (st_panel$year_month == period), "state_time_effect"] = (1 + rate)*prev_period
+               (st_panel$year_month == period), "state_trend"] = (1 + rate)*prev_period
     }
   }
   
-  DF <- merge(DF, st_panel[, c("statefips", "year_month", "state_time_effect")], 
+  DF <- merge(DF, st_panel[, c("statefips", "year_month", "state_trend")], 
               by = c("statefips", "year_month"))
   
   # Min wage effect  
@@ -125,20 +124,20 @@ simulate_rents <- function(DF, var) {
     DF$mw_effect <- DF$mw_effect + DF$this_effect
   }
   
-  # iid shock
-  DF$shock <- rnorm(size_df, mean = 0, sd = sd_shock)
-  
   
   # SIMULATE
   DF$rent1 <- DF$zipcode_effect + DF$timeperiod_effect + DF$shock
   DF$rent1 <- ifelse(DF$rent1 < min_r, min_r, ifelse(DF$rent1 > max_r, max_r, DF$rent1))
   
-  DF$rent2 <- DF$rent1 + DF$mw_effect
   
-  DF$rent3 <- DF$zipcode_effect + DF$timeperiod_effect + DF$state_time_effect + DF$shock
+  DF$rent2 <- DF$zipcode_effect + DF$timeperiod_effect + DF$mw_effect + DF$shock
+  DF$rent2 <- ifelse(DF$rent2 < min_r, min_r, ifelse(DF$rent2 > max_r, max_r, DF$rent2))
+  
+  DF$rent3 <- DF$zipcode_effect + DF$timeperiod_effect + DF$state_trend + DF$shock
   DF$rent3 <- ifelse(DF$rent3 < min_r, min_r, ifelse(DF$rent3 > max_r, max_r, DF$rent3))
   
-  DF$rent4 <- DF$rent3 + DF$mw_effect
+  DF$rent4 <- DF$zipcode_effect + DF$timeperiod_effect + DF$state_trend + DF$mw_effect + DF$shock
+  DF$rent4 <- ifelse(DF$rent4 < min_r, min_r, ifelse(DF$rent4 > max_r, max_r, DF$rent4))
 
   return(DF)
 }
@@ -169,17 +168,6 @@ prepare_DF <- function(DF, var) {
   }
   
   return(DF)
-}
-
-choose_rate <- function(growth_rate, period) {
-  if (period %in% 596:632) {
-    rate = growth_rate[1]
-  } else if (period %in% 632:668) {
-    rate = growth_rate[2]
-  } else if (period %in% 668:715) {
-    rate = growth_rate[3]
-  }
-  return(rate)
 }
 
 

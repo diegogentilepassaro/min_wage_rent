@@ -25,13 +25,22 @@ program main
 				absorb(`FE_1') cluster(`cluster_se')
 			graph export "`outstub'/last_rent`i'_w`w'_base.png", replace
 
+			* Control for state##year_month
 			create_event_plot, depvar(rent`i') 				  				///
 				event_var(last_sal_mw_event_rel_months`w') 					///
 				controls(" ") window(`w')									///
 				absorb(`FE_2') cluster(`cluster_se')
+			graph export "`outstub'/last_rent`i'_w`w'_state_x_time.png", replace
+			
+			* Control for state-specific trend
+			create_event_plot, depvar(rent`i') 				  				///
+				event_var(last_sal_mw_event_rel_months`w') 					///
+				controls("c.trend#i.statefips") window(`w')					///
+				absorb(`FE_1') cluster(`cluster_se')
 			graph export "`outstub'/last_rent`i'_w`w'_state-trend.png", replace
 
-			* rent_var simulated as zipcode + time effects + state_specific trend
+
+			* rent_var simulated as zipcode + time effects + state_specific time effect
 			local j = `i' + 2
 
 			create_event_plot, depvar(rent`j') 				  				///
@@ -40,10 +49,18 @@ program main
 				absorb(`FE_1') cluster(`cluster_se')
 			graph export "`outstub'/last_rent`j'_w`w'_base.png", replace
 
+			* Control for state##year_month
 			create_event_plot, depvar(rent`j') 				  				///
 				event_var(last_sal_mw_event_rel_months`w') 					///
 				controls(" ") window(`w')									///
 				absorb(`FE_2') cluster(`cluster_se')
+			graph export "`outstub'/last_rent`j'_w`w'_state_x_time.png", replace
+
+			* Control for state-specific trend
+			create_event_plot, depvar(rent`j') 				  				///
+				event_var(last_sal_mw_event_rel_months`w') 					///
+				controls("c.trend#i.statefips") window(`w')					///
+				absorb(`FE_1') cluster(`cluster_se')
 			graph export "`outstub'/last_rent`j'_w`w'_state-trend.png", replace
 		}
 	}

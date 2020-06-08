@@ -45,9 +45,9 @@ Every minimum wage increase in the zipcode increases rents in ![theta](https://r
 
 The model is
 
-![r_{zst} = \gamma_z + \delta_t + \mu_{st} + \epsilon\_{zst}](https://render.githubusercontent.com/render/math?math=r_%7Bzst%7D%20%3D%20%5Cgamma_z%20%2B%20%5Cdelta_t%20%2B%20%5Cmu*t*1%5C%7Bstate%20%3D%20s%5C%7D%20%2B%20%5Cepsilon%5C_%7Bzst%7D)
+![r_{zst} = \gamma_z + \delta_t + \mu_{s}\*t + \epsilon\_{zst}](https://render.githubusercontent.com/render/math?math=r_%7Bzst%7D%20%3D%20%5Cgamma_z%20%2B%20%5Cdelta_t%20%2B%20%5Cmu_%7Bs%7D*t%20%2B%20%5Cepsilon%5C_%7Bzst%7D)
 
-This variable addes a state-specific time period effect, which is built with as a trend with a changing growth rate.
+where ![\mu_{s} = 1 + g_s](https://render.githubusercontent.com/render/math?math=%5Cmu_%7Bs%7D%20%3D%201%20%2B%20g_s) and ![g_s \sim Unif\[0,0.005\]](https://render.githubusercontent.com/render/math?math=g_s%20%5Csim%20Unif%5B0%2C0.005%5D).
 
 In this case we assume the minimum wage has no effect.
 
@@ -55,6 +55,6 @@ In this case we assume the minimum wage has no effect.
 
 The model is
 
-![r_{zt} = \gamma_z + \delta_t + \mu_{st} + \sum_{n=1}^{nmw_z} \theta\*dinc^n_{zt} + \epsilon\_{zt}](https://render.githubusercontent.com/render/math?math=r_%7Bzt%7D%20%3D%20%5Cgamma_z%20%2B%20%5Cdelta_t%20%2B%20%5Cmu_%7Bst%7D%20%2B%20%5Csum_%7Bn%3D1%7D%5E%7Bnmw_z%7D%20%5Ctheta%5C*dinc%5En_%7Bzt%7D%20%2B%20%5Cepsilon%5C_%7Bzt%7D)
+![r_{zt} = \gamma_z + \delta_t + \mu_{s}*t + \sum_{n=1}^{nmw_z} \theta*dinc^n_{zt} + \epsilon_{zt}](https://render.githubusercontent.com/render/math?math=r_%7Bzt%7D%20%3D%20%5Cgamma_z%20%2B%20%5Cdelta_t%20%2B%20%5Cmu_%7Bs%7D*t%20%2B%20%5Csum_%7Bn%3D1%7D%5E%7Bnmw_z%7D%20%5Ctheta*dinc%5En_%7Bzt%7D%20%2B%20%5Cepsilon_%7Bzt%7D)
 
 It's the same as rent3 but adding an effect of the minimum wage.
