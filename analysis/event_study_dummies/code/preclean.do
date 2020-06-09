@@ -9,13 +9,13 @@ program main
 	local logfile "../output/panels_data_file_manifest.log"
 
 	foreach data in rent listing {
-		foreach window in 12 24 {
+		foreach window in 6 12 {
 			foreach kind in last all {
 				* foreach kind in last nonoverlap all
 				use "`instub'/baseline_`data'_panel.dta", clear
 
 				create_event_dummy_vars, event_dummy(sal_mw_event) kind(`kind') w(`window')	///
-					time_var(year_month) geo_unit(zipcode) w_control(6)
+					time(year_month) geo(zipcode) w_control(6)
 		
 				save_data "`outstub'/`kind'_`data'_panel_`window'.dta",						///
 					key(zipcode year_month) replace log(`logfile')
@@ -25,121 +25,107 @@ program main
 end
 
 program create_event_dummy_vars
-	syntax, event_dummy(str) kind(str) w(int) time_var(str) geo_unit(str) w_control(int)
+	syntax, event_dummy(str) kind(str) w(int) time(str) geo(str) w_control(int)
 
-	bysort `geo_unit' (`time_var'): gen months_until_end = _N - _n
+	bysort `geo' (`time'): gen months_until_end = _N - _n
 
 	if "`kind'" == "last" {
-		gen_last_event_dummy, event_dummy(`event_dummy') time_var(`time_var') w(`w') 	///
-			geo_unit(`geo_unit')
+		gen_last_event_dummy, event_dummy(`event_dummy') time(`time') w(`w') 	///
+			geo(`geo')
 	}
 	else if "`kind'" == "all" {
 		gen all_`event_dummy' = `event_dummy'
-		bysort `geo_unit' (`time_var'): replace all_`event_dummy' = 0 					///
+		bysort `geo' (`time'): replace all_`event_dummy' = 0 					///
 			if months_until_end <= `w' // Ignore events without complete post
-	}
-	else if "`kind'" == "nonoverlap" {
-		gen_nonoverlap_event_dummy, event_dummy(`event_dummy') time_var(`time_var') 	///
-			w(`w') geo_unit(`geo_unit')
 	}
 
 	drop months_until_end
 
 	gen_event_dummies, event_dummy(`kind'_`event_dummy') w(`w') 						///
-		time_var(`time_var') geo_unit(`geo_unit')
+		time(`time') geo(`geo')
 
 	gen_control_event_dummies, all_events(mw_event) used_events(`kind'_`event_dummy')	///
-		w(`w_control') time_var(`time_var') geo_unit(`geo_unit')
+		w(`w_control') time(`time') geo(`geo')
 end
 
 program gen_last_event_dummy
-	syntax, event_dummy(str) w(str) time_var(str) geo_unit(str)
+	syntax, event_dummy(str) w(str) time(str) geo(str)
 
-	bysort `geo_unit' (`time_var'): gen     event_count = sum(`event_dummy')
-	bysort `geo_unit' (`time_var'): replace event_count = 0 if months_until_end <= `w' // Ignore events without complete post
+	bysort `geo' (`time'): gen     event_count = sum(`event_dummy')
+	bysort `geo' (`time'): replace event_count = 0 if months_until_end <= `w' // Ignore events without complete post
 
-	bysort `geo_unit'			  : egen event_max   = max(event_count)
+	bysort `geo': egen last_event = max(event_count)
 
-	replace event_count = . if `event_dummy' == 0 | event_max == 0 // Account for zipcodes with 0 last events
-	bysort `geo_unit' (`time_var'): gen last_`event_dummy' = event_count == event_max
+	replace event_count = . if `event_dummy' == 0 | last_event == 0 // Account for zipcodes with 0 last events
+	bysort `geo' (`time'): gen last_`event_dummy' = event_count == last_event
 
-	drop event_count event_max
+	drop event_count last_event
 end
 
 program gen_event_dummies
-	syntax, event_dummy(str) w(int) time_var(str) geo_unit(str)
+	syntax, event_dummy(str) w(int) time(str) geo(str)
 	
 	** gen event id, last and first mw
 	gen 	event_month = `event_dummy' == 1
-	replace event_month = 1 if `time_var' != `time_var'[_n-1] + 1  // zipcode changes
+	replace event_month = 1 if `time' != `time'[_n-1] + 1  // zipcode changes
 
 	gen 	event_month_id = sum(event_month)
 
-	bysort `geo_unit' (`time_var'): egen last_mw_event  = max(event_month_id)
-	bysort `geo_unit' (`time_var'): egen first_mw_event = min(event_month_id)
+	bysort `geo' (`time'): egen last_mw_event  = max(event_month_id)
+	bysort `geo' (`time'): egen first_mw_event = min(event_month_id)
 
-	bysort `geo_unit' (`time_var'): replace `event_dummy' = 0 if (`event_dummy' == 1) & ///
-		(_N - _n + 1 <= `w' + 1 | _n <= `w' + 1) /// Ignore events without complete window
+	bysort `geo' (`time'): replace `event_dummy' = 0 if (`event_dummy' == 1) & ///
+														(_N - _n + 1 <= `w' + 1 | _n <= `w' + 1) 
+														* Ignore events without complete post or pre window
 
 	** Create dummies
 	gen d_0 = `event_dummy'
 	local dummies "d_0"
 
-	quietly levelsof `time_var'
+	quietly levelsof `time'
 	local num_periods = `r(r)' - `w'
 
-	*forvalues i = 1/`w' {
 	forvalues i = 1/`num_periods' {
-		* Imputes missing at edge of panel
-		bysort `geo_unit' (`time_var'): gen d_neg`i' = d_0[_n + `i']
-		bysort `geo_unit' (`time_var'): gen d_`i'    = d_0[_n - `i']
-		* Fixes edges of panel
-		replace d_neg`i' = 0 if missing(d_neg`i')
-		replace d_`i'    = 0 if missing(d_`i')
-
-		*local dummies "d_neg`i' `dummies' d_`i'"
+		quietly{
+			* Imputes missing at edge of panel
+			bysort `geo' (`time'): gen d_neg`i' = d_0[_n + `i']
+			bysort `geo' (`time'): gen d_`i'    = d_0[_n - `i']
+			* Fixes edges of panel
+			replace d_neg`i' = 0 if missing(d_neg`i')
+			replace d_`i'    = 0 if missing(d_`i')
+		}
 	}
-	*egen some_dummy  = rowmax(`dummies')
-
-	* Add increasing off_window dummies
-/* 	bysort `geo_unit' (`time_var'): gen event_start = `event_dummy'[_n + `w']
-	replace event_start = 0 if missing(event_start)
-	bysort `geo_unit' (`time_var'): gen event_count = sum(event_start)
-	bysort `geo_unit' (`time_var'): gen event_end = `event_dummy'[_n - `w' - 1]
-	replace event_end = 0 if missing(event_end)
-	bysort `geo_unit' (`time_var'): gen event_count_end = sum(event_end)
-	quietly levelsof event_count
-	local end = `r(r)'-1
-	forvalues num = 1/`end'{
-		gen d_off_`num'_1 = (event_count      < `num') & (!some_dummy)
-		gen d_off_`num'_2 = (event_count_end >= `num') & (!d_off_`num'_1) & (!some_dummy)
-	}
-	bysort `geo_unit' (`time_var'): replace d_off_1_1 = 1 if last_mw_event == first_mw_event /// If no events turn on off windown dummy */
 
 	drop event_month event_month_id first_mw_event last_mw_event
-		*event_start event_end event_count event_count_end
 end
 
 program gen_control_event_dummies
-	syntax, all_events(str) used_events(str) w(int) time_var(str) geo_unit(str)
+	syntax, all_events(str) used_events(str) w(int) time(str) geo(str)
 
 	gen unused_event = `all_events' & !`used_events'
 
-	bysort `geo_unit' (`time_var'): gen cum_unused_mw_events = sum(unused_event)
+	bysort `geo' (`time'): gen cum_unused_mw_events = sum(unused_event)
 
 	months_since_and_until, event_dummy(unused_event)
 
-	bysort `geo_unit' (`time_var'): gen unused_event_PRE  = months_until <= `w'
-	bysort `geo_unit' (`time_var'): gen unused_event_POST = months_since <= `w'
+	* Careful here. These variables may be messing up close events. Check.
+	bysort `geo' (`time'): gen unused_event_PRE  = months_until <= `w'
+	bysort `geo' (`time'): gen unused_event_POST = months_since <= `w'
 
 	replace unused_event_PRE  = 0 if unused_event
 
-	** Fix edges of panel
-	bysort `geo_unit' (`time_var'): egen last_mw_event = max(cum_unused_mw_events)
-	bysort `geo_unit' (`time_var'): egen first_mw_event = min(cum_unused_mw_events)
+	bysort `geo' (`time'): gen unused_event_PRE_1 = months_until > `w'
+	bysort `geo' (`time'): gen unused_event_POST_1 = months_since > `w'
 
-	bysort `geo_unit' (`time_var'): replace unused_event_PRE  = 0 if last_mw_event  == cum_unused_mw_events
-	bysort `geo_unit' (`time_var'): replace unused_event_POST = 0 if first_mw_event == cum_unused_mw_events
+	** Fix edges of panel
+	bysort `geo' (`time'): egen last_mw_event = max(cum_unused_mw_events)
+	bysort `geo' (`time'): egen first_mw_event = min(cum_unused_mw_events)
+
+	bysort `geo' (`time'): replace unused_event_PRE  = 0 if last_mw_event  == cum_unused_mw_events
+	bysort `geo' (`time'): replace unused_event_POST = 0 if first_mw_event == cum_unused_mw_events
+
+	bysort `geo' (`time'): replace unused_event_PRE_1  = 1 if last_mw_event  == cum_unused_mw_events
+	bysort `geo' (`time'): replace unused_event_POST_1 = 1 if first_mw_event == cum_unused_mw_events
 
 	drop first_mw_event last_mw_event months_since months_until
 end

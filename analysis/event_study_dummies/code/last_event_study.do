@@ -8,47 +8,53 @@ program main
 	local instub  "../temp"
 	local outstub "../output"
 
-	local FE "zipcode calendar_month year_month"
-	*local controls "unused_event_PRE unused_event_POST"
-	*local controls "cum_unused_mw_events"
+	local FE "zipcode calendar_month#countyfips year_month#statefips"
 
-	foreach window in 12 24 {
+	foreach window in 6 12 {
 		use "`instub'/last_rent_panel_`window'.dta", clear
 
-		foreach depvar in medrentprice_sfcc medrentprice_mfr5plus 					///
-		    			medrentprice_2br medrentpricepsqft_sfcc 					///
-						medrentpricepsqft_mfr5plus medrentpricepsqft_2br {
+		drop_zipcodes_without_event, geo(zipcode) time(year_month)
+
+		foreach depvar in _sfcc _mfr5plus _2br psqft_sfcc psqft_mfr5plus psqft_2br {
 			
-			create_event_plot, depvar(`depvar') controls(" ") w(`window')	///
-				absorb(`FE') cluster(zipcode)
-			graph export "`outstub'/last_`depvar'_`window'.png", replace	
+			create_event_plot, depvar(medrentprice`depvar') w(`window')				///
+				 controls(" ") absorb(`FE') cluster(zipcode)
+			graph export "`outstub'/last_rent`depvar'_w`window'.png", replace	
 
 			* Unused control 1
-			local ctrls "unused_event_POST unused_event_PRE"
-			create_event_plot, depvar(`depvar') controls(`ctrls') w(`window')	///
-				absorb(`FE') cluster(zipcode)
-			graph export "`outstub'/control_unused_events/last_`depvar'_`window'.png", replace
+			create_event_plot, depvar(medrentprice`depvar') w(`window')				///
+				controls("unused_event_*") absorb(`FE') cluster(zipcode)
+			graph export "`outstub'/control_unused_events/last_rent`depvar'_w`window'_unused-dyn.png", replace
 
 			* Unused control 2
-			local ctrls "cum_unused_mw_events"
-			create_event_plot, depvar(`depvar') controls(`ctrls') w(`window')	///
-				absorb(`FE') cluster(zipcode)
-			graph export "`outstub'/control_unused_events_2/last_`depvar'_`window'.png", replace
+			create_event_plot, depvar(medrentprice`depvar') w(`window')				///
+				controls("i.cum_unused_mw_events")  absorb(`FE') cluster(zipcode)
+			graph export "`outstub'/control_unused_events/last_rent`depvar'_w`window'_unused-cumsum.png", replace
 		}
 	}
 	
-	foreach window in 12 24 {
+	foreach window in 6 12 {
 		use "`instub'/last_listing_panel_`window'.dta", clear
 
-		foreach depvar in medlistingprice_sfcc medlistingprice_low_tier 			///
-						medlistingprice_top_tier medlistingpricepsqft_sfcc 			///
-						medlistingpricepsqft_low_tier medlistingpricepsqft_top_tier {
+		drop_zipcodes_without_event, geo(zipcode) time(year_month)
+
+		foreach depvar in _sfcc _low_tier _top_tier psqft_sfcc psqft_low_tier psqft_top_tier {
 		
-			create_event_plot, depvar(`depvar') controls(" ") w(`window')	///
+			create_event_plot, depvar(medlistingprice`depvar') controls(" ") w(`window')	///
 				absorb(`FE') cluster(zipcode)
-			graph export "`outstub'/last_`depvar'_`window'.png", replace	
+			graph export "`outstub'/last_listing`depvar'_w`window'.png", replace	
 		}
 	}
+end
+
+program drop_zipcodes_without_event
+	syntax, geo(str) time(str)
+
+	bysort `geo' (`time'): egen some_event_in_zip = max(d_0)
+
+	keep if some_event_in_zip
+
+	drop some_event_in_zip
 end
 
 program create_event_plot
@@ -77,7 +83,7 @@ program create_event_plot
 		}
 	}
 	
-	reghdfe `depvar' `controls' `dummy_coeffs', nocons absorb(`absorb') vce(cluster `cluster')				
+	reghdfe `depvar' `dummy_coeffs' `controls', nocons absorb(`absorb') vce(cluster `cluster')				
 	
 	mat B = e(b)
 	mat V = e(V)

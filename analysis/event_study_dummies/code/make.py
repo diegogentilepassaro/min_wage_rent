@@ -20,7 +20,6 @@ set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
 clear_dirs('../output/')
 clear_dirs('../output/control_unused_events')
-clear_dirs('../output/control_unused_events_2')
 
 envir_vars = os.getenv('PATH')
 if envir_vars is None:
