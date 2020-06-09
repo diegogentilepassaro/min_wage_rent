@@ -21,12 +21,7 @@ program main
 				 controls(" ") absorb(`FE') cluster(zipcode)
 			graph export "`outstub'/last_rent`depvar'_w`window'.png", replace	
 
-			* Unused control 1
-			create_event_plot, depvar(medrentprice`depvar') w(`window')				///
-				controls("unused_event_*") absorb(`FE') cluster(zipcode)
-			graph export "`outstub'/control_unused_events/last_rent`depvar'_w`window'_unused-dyn.png", replace
-
-			* Unused control 2
+			* Unused control
 			create_event_plot, depvar(medrentprice`depvar') w(`window')				///
 				controls("i.cum_unused_mw_events")  absorb(`FE') cluster(zipcode)
 			graph export "`outstub'/control_unused_events/last_rent`depvar'_w`window'_unused-cumsum.png", replace
@@ -60,8 +55,8 @@ end
 program create_event_plot
 	syntax, depvar(str) controls(str) absorb(str) w(int) cluster(str)
 
-	quietly levelsof year_month
-	local num_periods = `r(r)' - `w'
+	qui ds
+	loc last_dummy: word `c(k)' of `r(varlist)'
 
 	local w_plus1 = `w' + 1
 	local w_span  = 2*`w' + 1
@@ -69,21 +64,19 @@ program create_event_plot
 	** Omit d_neg1
 	local dummy_coeffs  "d_0"
 	local keep_coeffs  "d_0"
-	forval i = 1(1)`num_periods' {
+	forval i = 1(1)`w' {
 		if `i'== 1 {
 			local dummy_coeffs "`dummy_coeffs' d_`i'"
-			local keep_coeffs  "`keep_coeffs' d_`i'"
 		}
 		else if `i' <= `w' {
 			local dummy_coeffs "d_neg`i' `dummy_coeffs' d_`i'"
-			local keep_coeffs  "d_neg`i' `keep_coeffs' d_`i'"
 		}
 		else {
 			local dummy_coeffs "`dummy_coeffs' d_neg`i' d_`i'"
 		}
 	}
 	
-	reghdfe `depvar' `dummy_coeffs' `controls', nocons absorb(`absorb') vce(cluster `cluster')				
+	reghdfe `depvar' `dummy_coeffs' d_neg`w_plus1'-`last_dummy' `controls', nocons absorb(`absorb') vce(cluster `cluster')				
 	
 	mat B = e(b)
 	mat V = e(V)
