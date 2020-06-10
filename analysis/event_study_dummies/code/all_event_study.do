@@ -12,7 +12,7 @@ program main
 	foreach window in 6 12 {
 		use "`instub'/all_rent_panel_`window'.dta", clear
 
-		drop_zipcodes_without_event, geo(zipcode) time(year_month)
+		*drop_zipcodes_without_event, geo(zipcode) time(year_month)
 
 		foreach depvar in _sfcc psqft_sfcc {
 						  *  _sfcc _mfr5plus _2br psqft_sfcc psqft_mfr5plus psqft_2br {
