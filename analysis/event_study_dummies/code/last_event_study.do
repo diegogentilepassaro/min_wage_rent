@@ -32,7 +32,7 @@ program main
 	foreach window in 6 12 {
 		use "`instub'/last_listing_panel_`window'.dta", clear
 
-		drop_zipcodes_without_event, geo(zipcode) time(year_month)
+		*drop_zipcodes_without_event, geo(zipcode) time(year_month)
 
 		foreach depvar in _sfcc psqft_sfcc {
 							* _sfcc _low_tier _top_tier psqft_sfcc psqft_low_tier psqft_top_tier {
