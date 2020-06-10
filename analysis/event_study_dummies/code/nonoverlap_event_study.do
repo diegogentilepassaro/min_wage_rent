@@ -7,7 +7,7 @@ program main
 	local instub  "../temp"
 	local outstub "../output"
 
-	local FE "zipcode year_month#statefips"
+	local FE "countyfips year_month#statefips"
 
 	foreach window in 5 {
 		use "`instub'/nonoverlap_rent_panel_`window'.dta", clear
