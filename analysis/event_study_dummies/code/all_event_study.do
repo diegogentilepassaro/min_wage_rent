@@ -7,15 +7,16 @@ program main
 	local instub  "../temp"
 	local outstub "../output"
 
-	local FE "zipcode calendar_month#countyfips year_month#statefips"
+	local FE "zipcode year_month#statefips"
 
 	foreach window in 6 12 {
 		use "`instub'/all_rent_panel_`window'.dta", clear
 
 		drop_zipcodes_without_event, geo(zipcode) time(year_month)
 
-		foreach depvar in _sfcc _mfr5plus _2br psqft_sfcc psqft_mfr5plus psqft_2br {
-			
+		foreach depvar in _sfcc psqft_sfcc {
+						  *  _sfcc _mfr5plus _2br psqft_sfcc psqft_mfr5plus psqft_2br {
+
 			create_event_plot, depvar(medrentprice`depvar') w(`window')				///
 				 controls(" ") absorb(`FE') cluster(zipcode)
 			graph export "`outstub'/all_rent`depvar'_w`window'.png", replace		
@@ -32,8 +33,9 @@ program main
 
 		drop_zipcodes_without_event, geo(zipcode) time(year_month)
 
-		foreach depvar in _sfcc _low_tier _top_tier psqft_sfcc psqft_low_tier psqft_top_tier {
-		
+		foreach depvar in _sfcc psqft_sfcc {
+							* _sfcc _low_tier _top_tier psqft_sfcc psqft_low_tier psqft_top_tier {
+
 			create_event_plot, depvar(medlistingprice`depvar') controls(" ") w(`window')	///
 				absorb(`FE') cluster(zipcode)
 			graph export "`outstub'/all_listing`depvar'_w`window'.png", replace	

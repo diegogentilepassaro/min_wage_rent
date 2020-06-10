@@ -11,23 +11,40 @@ program main
 	foreach data in rent listing {
 		foreach window in 6 12 {
 			foreach kind in last all {
-				* foreach kind in last nonoverlap all
+
 				use "`instub'/baseline_`data'_panel.dta", clear
 
+				create_other_vars, time(year_month) geo(zipcode)
+
 				create_event_dummy_vars, event_dummy(sal_mw_event) kind(`kind') w(`window')	///
-					time(year_month) geo(zipcode) w_control(6)
-		
+					time(year_month) geo(zipcode)
+
 				drop_vars_with_all_zero
 
 				save_data "`outstub'/`kind'_`data'_panel_`window'.dta",						///
 					key(zipcode year_month) replace log(`logfile')
 			}
 		}
+
+		local kind "nonoverlap"
+		local window = 5
+
+		use "`instub'/baseline_`data'_panel.dta", clear
+
+		create_other_vars, time(year_month) geo(zipcode)
+
+		create_event_dummy_vars, event_dummy(sal_mw_event) kind(`kind') w(`window')	///
+			time(year_month) geo(zipcode)
+
+		drop_vars_with_all_zero
+
+		save_data "`outstub'/`kind'_`data'_panel_`window'.dta",						///
+			key(zipcode year_month) replace log(`logfile')
 	}
 end
 
 program create_event_dummy_vars
-	syntax, event_dummy(str) kind(str) w(int) time(str) geo(str) w_control(int)
+	syntax, event_dummy(str) kind(str) w(int) time(str) geo(str)
 
 	bysort `geo' (`time'): gen months_until_end = _N - _n
 
@@ -40,11 +57,15 @@ program create_event_dummy_vars
 		bysort `geo' (`time'): replace all_`event_dummy' = 0 					///
 			if months_until_end <= `w' // Ignore events without complete post
 	}
+	else if "`kind'" == "nonoverlap" {
+		gen_nonoverlap_event_dummy, event_dummy(`event_dummy') time(`time') 	///
+			w(`w') geo(`geo')
+	}
 
 	drop months_until_end
 
 	gen_control_event_dummies, all_events(mw_event) used_events(`kind'_`event_dummy')	///
-		w(`w_control') time(`time') geo(`geo')
+		time(`time') geo(`geo')
 		
 	gen_event_dummies, event_dummy(`kind'_`event_dummy') w(`w') 						///
 		time(`time') geo(`geo')
@@ -62,6 +83,29 @@ program gen_last_event_dummy
 	bysort `geo' (`time'): gen last_`event_dummy' = event_count == last_event
 
 	drop event_count last_event
+end
+
+program gen_nonoverlap_event_dummy
+	syntax, event_dummy(str) w(str) time(str) geo(str)
+
+	months_since_and_until, event_dummy(`event_dummy')
+
+	bysort `geo' (`time'): gen     event_count = sum(`event_dummy')
+	bysort `geo' (`time'): replace event_count = 0 if months_until_end <= `w' // Ignore events without complete post
+	bysort `geo'			  : egen    event_max   = max(event_count)
+
+	gen nonoverlap_`event_dummy' = `event_dummy'
+
+	bysort `geo' (`time'): replace nonoverlap_`event_dummy' = 0 		///
+		if months_until <= 2*`w' | (months_until <= `w' & event_count == event_max)
+	bysort `geo' (`time'): replace nonoverlap_`event_dummy' = 0 		///
+		if months_since[_n-1] <= 2*`w' | _n == 1 | (months_since[_n-1] <= `w' & event_count == 0)
+		// Need 2*w since and until to avoid events with overlapping windows
+
+	bysort `geo' (`time'): replace nonoverlap_`event_dummy' = 0 		///
+		if months_until_end <= `w' // Ignore events without complete post
+
+	drop months_since months_until event_count event_max
 end
 
 program gen_event_dummies
@@ -102,7 +146,7 @@ program gen_event_dummies
 end
 
 program gen_control_event_dummies
-	syntax, all_events(str) used_events(str) w(int) time(str) geo(str)
+	syntax, all_events(str) used_events(str) time(str) geo(str)
 
 	gen unused_event = `all_events' & !`used_events'
 
@@ -151,6 +195,12 @@ program months_since_and_until
 
 		drop event_month event_month_id
 	}
+end
+
+program create_other_vars
+	syntax, time(str) geo(str)
+
+	bysort `geo' (`time'): gen trend = _n
 end
 
 program drop_vars_with_all_zero

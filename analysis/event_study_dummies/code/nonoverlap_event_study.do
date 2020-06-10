@@ -1,6 +1,5 @@
 clear all
 set more off
-adopath + ../../../lib/stata/mental_coupons/ado
 adopath + ../../../lib/stata/gslab_misc/ado
 set maxvar 32000 
 
@@ -10,36 +9,36 @@ program main
 
 	local FE "zipcode year_month#statefips"
 
-	foreach window in 6 12 {
-		use "`instub'/last_rent_panel_`window'.dta", clear
+	foreach window in 5 {
+		use "`instub'/nonoverlap_rent_panel_`window'.dta", clear
 
 		drop_zipcodes_without_event, geo(zipcode) time(year_month)
 
 		foreach depvar in _sfcc psqft_sfcc {
 						  *  _sfcc _mfr5plus _2br psqft_sfcc psqft_mfr5plus psqft_2br {
-			
+
 			create_event_plot, depvar(medrentprice`depvar') w(`window')				///
 				 controls(" ") absorb(`FE') cluster(zipcode)
-			graph export "`outstub'/last_rent`depvar'_w`window'.png", replace	
+			graph export "`outstub'/nonoverlap_rent`depvar'_w`window'.png", replace		
 
 			* Unused control
 			create_event_plot, depvar(medrentprice`depvar') w(`window')				///
-				controls("i.cum_unused_mw_events")  absorb(`FE') cluster(zipcode)
-			graph export "`outstub'/control_unused_events/last_rent`depvar'_w`window'_unused-cumsum.png", replace
+				controls("i.cum_unused_mw_events") absorb(`FE') cluster(zipcode)
+			graph export "`outstub'/control_unused_events/nonoverlap_rent`depvar'_w`window'_unused-cumsum.png", replace
 		}
 	}
 	
-	foreach window in 6 12 {
-		use "`instub'/last_listing_panel_`window'.dta", clear
+	foreach window in 5 {
+		use "`instub'/nonoverlap_listing_panel_`window'.dta", clear
 
 		drop_zipcodes_without_event, geo(zipcode) time(year_month)
 
 		foreach depvar in _sfcc psqft_sfcc {
 							* _sfcc _low_tier _top_tier psqft_sfcc psqft_low_tier psqft_top_tier {
-		
+
 			create_event_plot, depvar(medlistingprice`depvar') controls(" ") w(`window')	///
 				absorb(`FE') cluster(zipcode)
-			graph export "`outstub'/last_listing`depvar'_w`window'.png", replace	
+			graph export "`outstub'/nonoverlap_listing`depvar'_w`window'.png", replace	
 		}
 	}
 end
@@ -50,7 +49,7 @@ program drop_zipcodes_without_event
 	bysort `geo' (`time'): egen some_event_in_zip = max(d_0)
 
 	keep if some_event_in_zip
-
+	
 	drop some_event_in_zip
 end
 
@@ -101,7 +100,8 @@ program create_event_plot
 			local j = `j' + 1
 		}
 	}
-
+	mat list A
+	
 	mat tA = A'
 
 	coefplot matrix(tA[1]), vertical ci((tA[2] tA[3])) 					///
@@ -109,5 +109,6 @@ program create_event_plot
 		xlabel(1 "-`w'" `w_plus1' "0" `w_span' "`w'")					///
 		xline(0, lcol(grey) lpat(dot)) name(`name') title(`title')
 end
+
 
 main
