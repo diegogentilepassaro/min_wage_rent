@@ -103,7 +103,7 @@ program main
 		nonote
 
 	esttab lincom1 lincom2 lincom3 lincom4 using "../output/fd_dynamic_lincom_table.tex", compress se replace ///
-        stats(zs_trend zs_trend_sq zs_trend_cu r2 N, fmt(%9.0g) ///
+        stats(zs_trend zs_trend_sq zs_trend_cu N, fmt(%9.0g) ///
 		labels("Zipcode-specifc linear trend" ///
 	    "Zipcode-specific linear and square trend" ///
 		"Zipcode-specific linear, square and cubic trend" "Observations")) ///
