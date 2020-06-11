@@ -8,7 +8,7 @@ program main
 	local instub  "../temp"
 	local outstub "../output"
 
-	local FE "countyfips year_month#statefips"
+	local FE "zipcode year_month#statefips"
 
 	foreach window in 6 12 {
 		use "`instub'/last_rent_panel_`window'.dta", clear

@@ -17,7 +17,7 @@ from gslab_make.dir_mod import *
 # SET DEFAULT OPTIONS
 set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
-#clear_dirs('../temp/')
+clear_dirs('../temp/')
 clear_dirs('../output/')
 clear_dirs('../output/control_unused_events')
 
@@ -34,7 +34,7 @@ elif "Stata15" in envir_vars:
 
 start_make_logging()
 
-#run_stata(program = 'preclean.do', executable = stata)
+run_stata(program = 'preclean.do', executable = stata)
 run_stata(program = 'all_event_study.do', executable = stata)
 run_stata(program = 'last_event_study.do', executable = stata)
 run_stata(program = 'nonoverlap_event_study.do', executable = stata)
