@@ -1,0 +1,937 @@
+
+ make.py started: 2020-06-10 12:49:25 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\event_study_exploration\code 
+
+
+
+
+Execute:  StataMP-64 /e do "./preclean_event_studies.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./preclean_event_studies.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.         local instub "../../../drive/derived_large/output"
+  2.         local outstub "../temp"
+  3. 
+.         foreach data in rent listing {
+  4.                 foreach w in 6 {
+  5.                         use "`instub'/baseline_`data'_panel.dta", clear
+  6.                         qui sum year_month
+  7.                         gen trend = year_month - r(min) + 1
+  8.                         gen trend_sq = trend^2
+  9.                         gen trend_cu = trend^3
+ 10.                         create_latest_event_vars, event_dummy(sal_mw_event
+> ) w(`w')              ///
+>                                 time(year_month) geo(zipcode) panel_end(2019m
+> 12)
+ 11. 
+.                         gen treated = (!missing(last_sal_mw_event_rel_months`
+> w'))
+ 12.                         replace last_sal_mw_event_rel_months = 20000 if mi
+> ssing(last_sal_mw_event_rel_months`w')
+ 13.                 
+.                         save_data "`outstub'/baseline_`data'_panel_`w'.dta", 
+>                    ///
+>                                 key(zipcode year_month) replace log(none)
+ 14.                 }
+ 15.         }
+ 16. end
+
+. 
+. program create_latest_event_vars
+  1.         syntax, event_dummy(str) w(int) time(str) geo(str) panel_end(str)
+  2.         
+.         local window_span = `w'*2 + 1 
+  3. 
+.         gen `event_dummy'_`time' = `time' if `event_dummy' == 1
+  4.         format `event_dummy'_`time' %tm
+  5. 
+.         gen months_until_panel_ends = `=tm(`panel_end')' - `time'
+  6. 
+.         preserve
+  7.                 keep if months_until_panel_ends >= (`w' + 1)
+  8.                 collapse (max) last_`event_dummy'_`time' = `event_dummy'_`
+> time', by(`geo')
+  9. 
+.                 format last_`event_dummy'_`time' %tm
+ 10.                 keep `geo' last_`event_dummy'_`time'
+ 11. 
+.                 save_data "../temp/last_event`w'_by_`geo'.dta", key(`geo') re
+> place
+ 12.         restore
+ 13.         
+.         merge m:1 `geo' using "../temp/last_event`w'_by_`geo'.dta",          
+>                                    ///
+>                 nogen assert(3) keep(3)
+ 14.         
+.         gen last_`event_dummy'_rel_months`w' = `time' - last_`event_dummy'_`t
+> ime'
+ 15.         replace last_`event_dummy'_rel_months`w' = last_`event_dummy'_rel_
+> months`w' + `w' + 1
+ 16.         
+.         replace last_`event_dummy'_rel_months`w' = 0                         
+>                                                    ///
+>                                 if last_`event_dummy'_rel_months`w' <= 0
+ 17.         replace last_`event_dummy'_rel_months`w' = 1000                   
+>                                                       ///
+>                                 if (last_`event_dummy'_rel_months`w' > `windo
+> w_span' &                                  ///
+>                                 !missing(last_`event_dummy'_rel_months`w'))
+ 18.         
+.         gen unused_mw_event`w' = (mw_event == 1 & last_`event_dummy'_rel_mont
+> hs`w' != (`w' + 1))
+ 19.         bysort `geo' (`time'): gen cumsum_unused_events = sum(unused_mw_ev
+> ent`w')
+ 20.                 
+.         drop `event_dummy'_`time' last_`event_dummy'_`time'    
+ 21. end
+
+. 
+. main
+(148,387 missing values generated)
+(8,771 observations deleted)
+(data already sorted by zipcode)
+  variable last_sal_mw_event_year_month was float now int
+  (2,506 bytes saved)
+============================================================================
+File: ../temp/last_event6_by_zipcode.dta
+Key: zipcode
+============================================================================
+  1253:2(80974):3812991907:3332711510
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |      1,253    51319.01    29015.52       2113      99577
+last_sal_m~h |        539    693.3878    29.10007        606        708
+
+
+
+
+(note: file ../temp/last_event6_by_zipcode.dta not found)
+file ../temp/last_event6_by_zipcode.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           150,360  
+    -----------------------------------------
+(85,680 missing values generated)
+(64,680 real changes made)
+(46,602 real changes made)
+(10,571 real changes made)
+(85,680 real changes made)
+(data already sorted by zipcode year_month)
+  variable trend was float now int
+  variable trend_sq was float now int
+  variable months_until_panel_ends was float now int
+  variable last_sal_mw_event_rel_months6 was float now int
+  variable unused_mw_event6 was float now byte
+  variable cumsum_unused_events was float now byte
+  variable treated was float now byte
+  (2,556,120 bytes saved)
+============================================================================
+File: ../temp/baseline_rent_panel_6.dta
+Key: zipcode year_month
+============================================================================
+  150360:35(68192):909027683:3973003208
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |    150,360    51319.01    29004.04       2113      99577
+  year_month |    150,360       659.5    34.63993        600        719
+  place_code |    124,200       40791    22611.89        410      87240
+   placetype |          0
+  countyfips |    150,000    24129.28    16433.47       1003      56021
+-------------+---------------------------------------------------------
+      county |          0
+   statefips |    150,360    24.02953    16.37417          1         56
+medre~e_sfcc |    122,702    1641.121    693.2088        595       6595
+      fed_mw |    150,360        7.25           0       7.25       7.25
+    state_mw |    150,360     8.00464    1.065423       7.25         14
+-------------+---------------------------------------------------------
+   county_mw |      8,160    9.078529    1.577343       7.25      14.25
+county_abo~w |      8,160    .3058824    .4608084          0          1
+    local_mw |      8,760    9.512664     1.87633       7.25         16
+local_abov~w |      8,760    .3606164    .4802068          0          1
+   actual_mw |    150,360    8.063602    1.192165       7.25         16
+-------------+---------------------------------------------------------
+  dactual_mw |    150,360    .0149477    .1111675          0       2.21
+    mw_event |    150,360    .0335595    .1800929          0          1
+calendar_m~h |    150,360         6.5    3.452064          1         12
+         msa |    150,360    436.0295    241.1196         12        860
+sal_mw_event |    150,360    .0131218    .1137969          0          1
+-------------+---------------------------------------------------------
+ mw_event025 |    150,360    .0176377    .1316309          0          1
+ mw_event075 |    150,360    .0079542    .0888314          0          1
+m~e_mfr5plus |     43,854    1717.106    754.5874        450       6095
+medren~e_2br |     30,748    1998.906    1020.178        495       6800
+medre~t_sfcc |    109,861    1.182011    .7855536   .4180214   6.731387
+-------------+---------------------------------------------------------
+medren~t_2br |     23,145    1.855966    .9358948   .5015197   6.499599
+m~t_mfr5plus |     34,604    1.845265    1.008575   .5106889   6.471716
+       trend |    150,360        60.5    34.63993          1        120
+    trend_sq |    150,360    4860.167    4326.627          1      14400
+    trend_cu |    150,360      439230    496178.5          1    1728000
+-------------+---------------------------------------------------------
+months_unt~s |    150,360        59.5    34.63993          0        119
+last_sal_m~6 |    150,360    11467.28    9823.718          0      20000
+unused_mw_~6 |    150,360    .0299747    .1705181          0          1
+cumsum_unu~s |    150,360    1.690456    2.339568          0          9
+     treated |    150,360    .4301676    .4951011          0          1
+
+
+
+
+(note: file ../temp/baseline_rent_panel_6.dta not found)
+file ../temp/baseline_rent_panel_6.dta saved
+(868,661 missing values generated)
+(51,380 observations deleted)
+(data already sorted by zipcode)
+  variable last_sal_mw_event_year_month was float now int
+  (14,680 bytes saved)
+============================================================================
+File: ../temp/last_event6_by_zipcode.dta
+Key: zipcode
+============================================================================
+  7340:2(80974):161392358:456489051
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |      7,340    49317.23    30077.48        623      99835
+last_sal_m~h |      3,547    691.8948    24.69891        600        708
+
+
+
+
+file ../temp/last_event6_by_zipcode.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           880,800  
+    -----------------------------------------
+(455,160 missing values generated)
+(425,640 real changes made)
+(301,212 real changes made)
+(74,860 real changes made)
+(455,160 real changes made)
+(data already sorted by zipcode year_month)
+  variable trend was float now int
+  variable trend_sq was float now int
+  variable months_until_panel_ends was float now int
+  variable last_sal_mw_event_rel_months6 was float now int
+  variable unused_mw_event6 was float now byte
+  variable cumsum_unused_events was float now byte
+  variable treated was float now byte
+  (14,973,600 bytes saved)
+============================================================================
+File: ../temp/baseline_listing_panel_6.dta
+Key: zipcode year_month
+============================================================================
+  880800:35(67175):3145253362:2031620171
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |    880,800    49317.23    30075.45        623      99835
+  year_month |    880,800       659.5    34.63983        600        719
+  place_code |    585,600    42534.43    23557.23        100      88940
+   placetype |          0
+  countyfips |    878,280    27602.77       16102       1001      56043
+-------------+---------------------------------------------------------
+      county |          0
+   statefips |    880,800    27.53515    16.08137          1         56
+medli~e_sfcc |    808,496    287402.5    229385.3      17800    4650000
+      fed_mw |    880,800        7.25           0       7.25       7.25
+    state_mw |    880,800    8.035056    1.106818       7.25         14
+-------------+---------------------------------------------------------
+   county_mw |     57,840    9.150929    1.789128       7.25      14.25
+county_abo~w |     57,840    .3211272    .4669136          0          1
+    local_mw |     29,160    9.576741    1.949892       7.25         16
+local_abov~w |     29,160    .3610082    .4803012          0          1
+   actual_mw |    880,800    8.076259    1.201798       7.25         16
+-------------+---------------------------------------------------------
+  dactual_mw |    880,798     .014879    .1095602          0       3.25
+    mw_event |    880,798    .0308027     .172783          0          1
+calendar_m~h |    880,800         6.5    3.452054          1         12
+         msa |    841,320    441.1928    239.1531          1        861
+sal_mw_event |    880,800    .0137818    .1165842          0          1
+-------------+---------------------------------------------------------
+ mw_event025 |    880,800       .0187    .1354636          0          1
+ mw_event075 |    880,800    .0085434    .0920347          0          1
+m~e_low_tier |    171,057    150399.7    88559.11      16050     849990
+m~e_top_tier |    378,409    438882.5    291658.6     112450    4467500
+medli~t_sfcc |    771,233    158.6368    106.5712   15.84572   1869.522
+-------------+---------------------------------------------------------
+m~t_low_tier |    217,467    120.8199    76.96063   15.82222   1672.388
+m~t_top_tier |    388,024     184.993    126.9185   53.23853   2003.942
+       trend |    880,800        60.5    34.63983          1        120
+    trend_sq |    880,800    4860.167    4326.615          1      14400
+    trend_cu |    880,800      439230    496177.1          1    1728000
+-------------+---------------------------------------------------------
+months_unt~s |    880,800        59.5    34.63983          0        119
+last_sal_m~6 |    880,800    10420.51    9909.648          0      20000
+unused_mw_~6 |    880,800    .0267779    .1614339          0          1
+cumsum_unu~s |    880,800    1.432547    2.144776          0          9
+     treated |    880,800    .4832425    .4997194          0          1
+
+
+
+
+(note: file ../temp/baseline_listing_panel_6.dta not found)
+file ../temp/baseline_listing_panel_6.dta saved
+
+. 
+end of do-file
+
+
+Execute:  StataMP-64 /e do "./county_vs_zipcode_last.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./county_vs_zipcode_last.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/mental_coupons/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+  [8]              "../../../lib/stata/gslab_misc/ado"
+
+. adopath + ../../../lib/stata/min_wage/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+  [8]              "../../../lib/stata/gslab_misc/ado"
+  [9]              "../../../lib/stata/min_wage/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.         local instub "../temp"
+  2.         local outstub "../output"
+  3. 
+.         local controls "i.cumsum_unused_events"
+  4.         local CFE "countyfips year_month c.trend#i.countyfips c.trend_sq#i
+> .countyfips c.trend_cu#i.countyfips"
+  5.         local ZFE "zipcode year_month c.trend#i.zipcode c.trend_sq#i.zipco
+> de c.trend_cu#i.zipcode"
+  6.         local cluster_se "statefips"
+  7. 
+.         use "`instub'/baseline_rent_panel_6.dta" if treated == 1, clear
+  8. 
+.         foreach depvar in psqft_sfcc { 
+  9.                 
+.                 create_event_plot, depvar(medrentprice`depvar')              
+>                    ///
+>                         event_var(last_sal_mw_event_rel_months6)             
+>                            ///
+>                         controls(`controls') window(6)                       
+>                            ///
+>                         absorb(`CFE') cluster(`cluster_se')
+ 10.                 graph export "`outstub'/last_rent_cfe_`depvar'_w6.png", re
+> place 
+ 11.         }
+ 12.         
+.         foreach depvar in psqft_sfcc { 
+ 13.                 
+.                 create_event_plot, depvar(medrentprice`depvar')              
+>                    ///
+>                         event_var(last_sal_mw_event_rel_months6)             
+>                            ///
+>                         controls(`controls') window(6)                       
+>                            ///
+>                         absorb(`ZFE') cluster(`cluster_se')
+ 14.                 graph export "`outstub'/last_rent_zfe_`depvar'_w6.png", re
+> place 
+ 15.         }       
+ 16.         
+.         use "`instub'/baseline_listing_panel_6.dta" if treated == 1, clear
+ 17.         foreach depvar in psqft_sfcc {
+ 18.         
+.                 create_event_plot, depvar(medlistingprice`depvar')           
+>                    ///
+>                         event_var(last_sal_mw_event_rel_months6)             
+>                            ///
+>                         controls(`controls') window(6)                       
+>                            ///
+>                         absorb(`CFE') cluster(`cluster_se')
+ 19.                 graph export "`outstub'/last_listing_cfe_`depvar'_w6.png",
+>  replace      
+ 20.         }
+ 21.         
+.         foreach depvar in psqft_sfcc {
+ 22.         
+.                 create_event_plot, depvar(medlistingprice`depvar')           
+>                    ///
+>                         event_var(last_sal_mw_event_rel_months6)             
+>                            ///
+>                         controls(`controls') window(6)                       
+>                            ///
+>                         absorb(`ZFE') cluster(`cluster_se')
+ 23.                 graph export "`outstub'/last_listing_zfe_`depvar'_w6.png",
+>  replace      
+ 24.         }
+ 25. end
+
+. 
+. main
+(MWFE estimator converged in 522 iterations)
+warning: missing F statistic; dropped variables due to collinearity or too few 
+> clusters
+
+HDFE Linear regression                            Number of obs   =     44,025
+Absorbing 5 HDFE groups                           F(  23,     22) =          .
+Statistics robust to heteroskedasticity           Prob > F        =          .
+                                                  R-squared       =     0.9245
+                                                  Adj R-squared   =     0.9236
+                                                  Within R-sq.    =     0.0020
+Number of clusters (statefips) =         23       Root MSE        =     0.3006
+
+                             (Std. Err. adjusted for 23 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+medre~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6 |
+          0  |  -.0003178   .0109506    -0.03   0.977    -.0230278    .0223923
+          1  |     .00069   .0094573     0.07   0.942    -.0189232    .0203031
+          2  |   .0009071   .0067913     0.13   0.895    -.0131772    .0149913
+          3  |  -.0009328   .0041044    -0.23   0.822    -.0094449    .0075792
+          4  |   -.000056    .005518    -0.01   0.992    -.0114997    .0113876
+          5  |   .0003957   .0039242     0.10   0.921    -.0077427    .0085341
+          7  |   .0095252   .0051444     1.85   0.078    -.0011436    .0201939
+          8  |   .0174884   .0090662     1.93   0.067    -.0013137    .0362905
+          9  |   .0168159   .0086374     1.95   0.064     -.001097    .0347287
+         10  |   .0239838   .0105282     2.28   0.033     .0021497     .045818
+         11  |   .0210197   .0124948     1.68   0.107     -.004893    .0469324
+         12  |   .0265024   .0147276     1.80   0.086    -.0040407    .0570456
+         13  |   .0296663   .0142201     2.09   0.049     .0001756    .0591571
+       1000  |   .0283823   .0206139     1.38   0.182    -.0143683    .0711329
+             |
+cumsum_unu~s |
+          1  |   .0258921   .0134768     1.92   0.068    -.0020569    .0538412
+          2  |   .0963696   .0310137     3.11   0.005     .0320511    .1606881
+          3  |   .1531483   .0552329     2.77   0.011     .0386023    .2676944
+          4  |   .1919684   .0751629     2.55   0.018     .0360902    .3478467
+          5  |   .1975539   .0960077     2.06   0.052     -.001554    .3966618
+          6  |   .2280196   .1190711     1.91   0.069    -.0189186    .4749579
+          7  |   .2289102    .115731     1.98   0.061    -.0111013    .4689217
+          8  |   .2558665   .1146756     2.23   0.036     .0180439    .4936891
+          9  |   .3965953   .1243637     3.19   0.004     .1386808    .6545097
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+---------------------------------------------------------------+
+           Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-----------------------+---------------------------------------|
+            countyfips |        82          82           0    *|
+            year_month |       119           0         119     |
+    countyfips#c.trend |        82           0          82    ?|
+ countyfips#c.trend_sq |        82           0          82    ?|
+ countyfips#c.trend_cu |        82           0          82    ?|
+---------------------------------------------------------------+
+? = number of redundant parameters may be higher
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/last_rent_cfe_psqft_sfcc_w6.png not found)
+(file ../output/last_rent_cfe_psqft_sfcc_w6.png written in PNG format)
+(MWFE estimator converged in 785 iterations)
+warning: missing F statistic; dropped variables due to collinearity or too few 
+> clusters
+
+HDFE Linear regression                            Number of obs   =     44,025
+Absorbing 5 HDFE groups                           F(  23,     22) =          .
+Statistics robust to heteroskedasticity           Prob > F        =          .
+                                                  R-squared       =     0.9974
+                                                  Adj R-squared   =     0.9973
+                                                  Within R-sq.    =     0.0042
+Number of clusters (statefips) =         23       Root MSE        =     0.0563
+
+                             (Std. Err. adjusted for 23 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+medre~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6 |
+          0  |   .0042652   .0057914     0.74   0.469    -.0077454    .0162757
+          1  |   .0045478   .0077591     0.59   0.564    -.0115437    .0206392
+          2  |    .004339   .0067199     0.65   0.525    -.0095972    .0182751
+          3  |   .0018478   .0041779     0.44   0.663    -.0068167    .0105123
+          4  |   .0020594    .005204     0.40   0.696    -.0087331    .0128518
+          5  |   .0011969   .0036263     0.33   0.744    -.0063236    .0087175
+          7  |   .0050216   .0036183     1.39   0.179    -.0024823    .0125255
+          8  |   .0114756   .0060112     1.91   0.069    -.0009909    .0239421
+          9  |   .0082311   .0055389     1.49   0.151    -.0032559    .0197181
+         10  |   .0141172   .0070047     2.02   0.056    -.0004096    .0286439
+         11  |   .0093335   .0084324     1.11   0.280    -.0081542    .0268212
+         12  |   .0137282   .0094612     1.45   0.161    -.0058931    .0333495
+         13  |   .0114678   .0057464     2.00   0.059    -.0004496    .0233852
+       1000  |   .0049111   .0070225     0.70   0.492    -.0096528    .0194749
+             |
+cumsum_unu~s |
+          1  |  -.0039859   .0048396    -0.82   0.419    -.0140226    .0060507
+          2  |   .0034136    .009958     0.34   0.735     -.017238    .0240652
+          3  |    .008529   .0135356     0.63   0.535    -.0195422    .0366001
+          4  |   .0138205   .0160035     0.86   0.397    -.0193688    .0470097
+          5  |   .0134623   .0233614     0.58   0.570    -.0349862    .0619108
+          6  |   .0045907   .0345947     0.13   0.896    -.0671543    .0763356
+          7  |  -.0151075   .0297766    -0.51   0.617    -.0768604    .0466453
+          8  |  -.0139358   .0397593    -0.35   0.729    -.0963915    .0685199
+          9  |   .1210714   .0586747     2.06   0.051    -.0006126    .2427553
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------------+
+        Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------------+---------------------------------------|
+            zipcode |       443         443           0    *|
+         year_month |       119           0         119     |
+    zipcode#c.trend |       443           0         443    ?|
+ zipcode#c.trend_sq |       443           0         443    ?|
+ zipcode#c.trend_cu |       443           0         443    ?|
+------------------------------------------------------------+
+? = number of redundant parameters may be higher
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/last_rent_zfe_psqft_sfcc_w6.png not found)
+(file ../output/last_rent_zfe_psqft_sfcc_w6.png written in PNG format)
+(MWFE estimator converged in 520 iterations)
+
+HDFE Linear regression                            Number of obs   =    372,702
+Absorbing 5 HDFE groups                           F(  23,     28) =    2082.29
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.7067
+                                                  Adj R-squared   =     0.7051
+                                                  Within R-sq.    =     0.0033
+Number of clusters (statefips) =         29       Root MSE        =    70.0539
+
+                             (Std. Err. adjusted for 29 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+medli~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6 |
+          0  |  -.6799274   1.163014    -0.58   0.563    -3.062253    1.702398
+          1  |   -.357809   .5341354    -0.67   0.508    -1.451936    .7363177
+          2  |   .1636398   .4377421     0.37   0.711    -.7330341    1.060314
+          3  |   .0525167   .3962439     0.13   0.896    -.7591521    .8641855
+          4  |  -.0584784   .3646567    -0.16   0.874    -.8054438    .6884869
+          5  |    .122568   .3152582     0.39   0.700    -.5232092    .7683452
+          7  |    1.25327   .7487929     1.67   0.105    -.2805626    2.787103
+          8  |   1.515464   .9078233     1.67   0.106    -.3441279    3.375056
+          9  |   1.459913   1.029465     1.42   0.167    -.6488494    3.568676
+         10  |   1.715344   1.170963     1.46   0.154    -.6832654    4.113953
+         11  |   1.778078    1.38961     1.28   0.211    -1.068408    4.624565
+         12  |   1.884247   1.612798     1.17   0.253    -1.419419    5.187913
+         13  |   3.530834   2.399826     1.47   0.152    -1.384987    8.446655
+       1000  |   4.547183   2.443441     1.86   0.073    -.4579791    9.552346
+             |
+cumsum_unu~s |
+          1  |  -.0831174   1.635915    -0.05   0.960    -3.434137    3.267903
+          2  |   .8759099   3.419121     0.26   0.800    -6.127841    7.879661
+          3  |   4.371944   6.196005     0.71   0.486    -8.319998    17.06389
+          4  |   8.973998   7.346547     1.22   0.232    -6.074721    24.02272
+          5  |   13.20049   10.05666     1.31   0.200    -7.399634    33.80061
+          6  |   25.64906   15.17621     1.69   0.102    -5.437984    56.73611
+          7  |   37.04926   22.25565     1.66   0.107    -8.539378     82.6379
+          8  |   55.97205   35.19514     1.59   0.123    -16.12193     128.066
+          9  |   203.4931   30.45488     6.68   0.000     141.1091    265.8771
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+---------------------------------------------------------------+
+           Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-----------------------+---------------------------------------|
+            countyfips |       463         463           0    *|
+            year_month |       120           0         120     |
+    countyfips#c.trend |       463           0         463    ?|
+ countyfips#c.trend_sq |       463           0         463    ?|
+ countyfips#c.trend_cu |       463           0         463    ?|
+---------------------------------------------------------------+
+? = number of redundant parameters may be higher
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/last_listing_cfe_psqft_sfcc_w6.png not found)
+(file ../output/last_listing_cfe_psqft_sfcc_w6.png written in PNG format)
+(MWFE estimator converged in 766 iterations)
+
+HDFE Linear regression                            Number of obs   =    372,822
+Absorbing 5 HDFE groups                           F(  23,     28) =    2921.65
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9959
+                                                  Adj R-squared   =     0.9957
+                                                  Within R-sq.    =     0.0047
+Number of clusters (statefips) =         29       Root MSE        =     8.4254
+
+                             (Std. Err. adjusted for 29 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+medli~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6 |
+          0  |   .2037383   .8533652     0.24   0.813    -1.544301    1.951778
+          1  |   .1998746   .6616975     0.30   0.765    -1.155551    1.555301
+          2  |   .5202954   .5244462     0.99   0.330     -.553984    1.594575
+          3  |   .3004461    .401887     0.75   0.461    -.5227821    1.123674
+          4  |   .0438458   .2778131     0.16   0.876    -.5252286    .6129202
+          5  |   .0858361   .1653287     0.52   0.608    -.2528243    .4244965
+          7  |   .2242537   .1512756     1.48   0.149    -.0856203    .5341277
+          8  |   .2680517    .281688     0.95   0.349    -.3089599    .8450634
+          9  |  -.0697968    .333732    -0.21   0.836    -.7534159    .6138222
+         10  |   .0167424   .4299735     0.04   0.969    -.8640185    .8975033
+         11  |   -.112804    .548498    -0.21   0.839    -1.236351    1.010743
+         12  |  -.3845031   .6363345    -0.60   0.551    -1.687975    .9189689
+         13  |  -.1194394   .7048501    -0.17   0.867    -1.563259    1.324381
+       1000  |   .6556135   1.216942     0.54   0.594    -1.837179    3.148406
+             |
+cumsum_unu~s |
+          1  |  -1.202763   1.129942    -1.06   0.296    -3.517345    1.111819
+          2  |  -2.893668   2.219459    -1.30   0.203    -7.440024    1.652688
+          3  |  -3.714734   3.536729    -1.05   0.303     -10.9594    3.529928
+          4  |   -3.28877   3.862037    -0.85   0.402    -11.19979    4.622255
+          5  |  -2.967306    3.50667    -0.85   0.405    -10.15039    4.215782
+          6  |   .5694312   3.375065     0.17   0.867    -6.344076    7.482939
+          7  |    .992291   3.400867     0.29   0.773     -5.97407    7.958652
+          8  |   1.642662   3.486533     0.47   0.641    -5.499177    8.784502
+          9  |   29.10168   3.951258     7.37   0.000      21.0079    37.19547
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------------+
+        Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------------+---------------------------------------|
+            zipcode |      3237        3237           0    *|
+         year_month |       120           0         120     |
+    zipcode#c.trend |      3237           0        3237    ?|
+ zipcode#c.trend_sq |      3237           0        3237    ?|
+ zipcode#c.trend_cu |      3237           0        3237    ?|
+------------------------------------------------------------+
+? = number of redundant parameters may be higher
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/last_listing_zfe_psqft_sfcc_w6.png not found)
+(file ../output/last_listing_zfe_psqft_sfcc_w6.png written in PNG format)
+
+. 
+end of do-file
+
+
+Execute:  StataMP-64 /e do "./treated_vs_all_last.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./treated_vs_all_last.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/mental_coupons/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+  [8]              "../../../lib/stata/gslab_misc/ado"
+
+. adopath + ../../../lib/stata/min_wage/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/mental_coupons/ado"
+  [8]              "../../../lib/stata/gslab_misc/ado"
+  [9]              "../../../lib/stata/min_wage/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.         local instub "../temp"
+  2.         local outstub "../output"
+  3. 
+.         local controls "i.treated i.cumsum_unused_events"
+  4.         local CFE "countyfips year_month c.trend#i.countyfips c.trend_sq#i
+> .countyfips c.trend_cu#i.countyfips"
+  5.         local cluster_se "statefips"
+  6. 
+.         use "`instub'/baseline_rent_panel_6.dta", clear
+  7.         foreach depvar in psqft_sfcc { 
+  8.                 
+.                 create_event_plot, depvar(medrentprice`depvar')              
+>                    ///
+>                         event_var(last_sal_mw_event_rel_months6)             
+>                            ///
+>                         controls(`controls') window(6)                       
+>                            ///
+>                         absorb(`CFE') cluster(`cluster_se')
+  9.                 graph export "`outstub'/last_rent_cfe_with_control_`depvar
+> '_w6.png", replace    
+ 10.         }
+ 11.         
+.         use "`instub'/baseline_listing_panel_6.dta", clear
+ 12.         foreach depvar in psqft_sfcc {
+ 13.         
+.                 create_event_plot, depvar(medlistingprice`depvar')           
+>                    ///
+>                         event_var(last_sal_mw_event_rel_months6)             
+>                            ///
+>                         controls(`controls') window(6)                       
+>                            ///
+>                         absorb(`CFE') cluster(`cluster_se')
+ 14.                 graph export "`outstub'/last_listing_cfe_with_control_`dep
+> var'_w6.png", replace 
+ 15.         }
+ 16. end
+
+. 
+. main
+(MWFE estimator converged in 759 iterations)
+note: 1.treated omitted because of collinearity
+
+HDFE Linear regression                            Number of obs   =    109,557
+Absorbing 5 HDFE groups                           F(  24,     39) = 1561911.38
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9064
+                                                  Adj R-squared   =     0.9055
+                                                  Within R-sq.    =     0.0334
+Number of clusters (statefips) =         40       Root MSE        =     0.2418
+
+                             (Std. Err. adjusted for 40 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+medre~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6 |
+          0  |   .0011921   .0089189     0.13   0.894    -.0168482    .0192323
+          1  |   .0039693   .0089121     0.45   0.659    -.0140571    .0219957
+          2  |   .0009721   .0056073     0.17   0.863    -.0103697    .0123138
+          3  |  -.0024062   .0034172    -0.70   0.486    -.0093181    .0045058
+          4  |  -.0019749   .0044951    -0.44   0.663    -.0110671    .0071173
+          5  |  -.0003755   .0031082    -0.12   0.904    -.0066624    .0059115
+          7  |     .00954   .0040086     2.38   0.022     .0014319    .0176481
+          8  |   .0153438   .0077211     1.99   0.054    -.0002736    .0309612
+          9  |   .0167192   .0072173     2.32   0.026     .0021208    .0313176
+         10  |   .0255137   .0097838     2.61   0.013     .0057241    .0453033
+         11  |   .0284494   .0112686     2.52   0.016     .0056565    .0512423
+         12  |   .0344087   .0148343     2.32   0.026     .0044035    .0644139
+         13  |   .0329097   .0137748     2.39   0.022     .0050476    .0607719
+       1000  |   .0281004   .0166882     1.68   0.100    -.0056546    .0618555
+      20000  |  -.8124646   .0066294  -122.55   0.000    -.8258739   -.7990552
+             |
+   1.treated |          0  (omitted)
+             |
+cumsum_unu~s |
+          1  |   .0236791    .011279     2.10   0.042     .0008653     .046493
+          2  |    .076406   .0267873     2.85   0.007     .0222235    .1305884
+          3  |   .1136408   .0446932     2.54   0.015     .0232402    .2040414
+          4  |   .1407909   .0569262     2.47   0.018     .0256468     .255935
+          5  |   .1462929   .0668936     2.19   0.035     .0109877    .2815981
+          6  |   .1517725   .0779276     1.95   0.059    -.0058509    .3093959
+          7  |   .1459626   .0755554     1.93   0.061    -.0068627    .2987879
+          8  |   .1468448   .0752428     1.95   0.058    -.0053481    .2990377
+          9  |   .3056436   .0839833     3.64   0.001     .1357713    .4755158
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+---------------------------------------------------------------+
+           Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-----------------------+---------------------------------------|
+            countyfips |       225         225           0    *|
+            year_month |       119           0         119     |
+    countyfips#c.trend |       225           0         225    ?|
+ countyfips#c.trend_sq |       225           0         225    ?|
+ countyfips#c.trend_cu |       225           0         225    ?|
+---------------------------------------------------------------+
+? = number of redundant parameters may be higher
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/last_rent_cfe_with_control_psqft_sfcc_w6.png not found)
+(file ../output/last_rent_cfe_with_control_psqft_sfcc_w6.png written in PNG for
+> mat)
+(MWFE estimator converged in 799 iterations)
+note: 1.treated omitted because of collinearity
+
+HDFE Linear regression                            Number of obs   =    769,356
+Absorbing 5 HDFE groups                           F(  24,     50) =    2956.77
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.7270
+                                                  Adj R-squared   =     0.7251
+                                                  Within R-sq.    =     0.0041
+Number of clusters (statefips) =         51       Root MSE        =    55.9270
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+medli~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6 |
+          0  |  -1.036253    1.16376    -0.89   0.377    -3.373733    1.301228
+          1  |   .2335702   .6324295     0.37   0.713    -1.036702    1.503842
+          2  |   .6528385   .5006082     1.30   0.198    -.3526628     1.65834
+          3  |   .4916169   .4323501     1.14   0.261    -.3767838    1.360018
+          4  |   .2696034   .3527862     0.76   0.448    -.4389885    .9781954
+          5  |    .310964   .2480425     1.25   0.216    -.1872439     .809172
+          7  |   1.026872   .8155791     1.26   0.214    -.6112664    2.665011
+          8  |   1.188702   1.014211     1.17   0.247    -.8483999    3.225804
+          9  |   1.173944   1.179046     1.00   0.324    -1.194239    3.542128
+         10  |   1.539581   1.333022     1.15   0.254    -1.137872    4.217033
+         11  |   1.597305   1.535568     1.04   0.303    -1.486974    4.681583
+         12  |   1.510313   1.705655     0.89   0.380    -1.915597    4.936222
+         13  |   2.143342   2.133584     1.00   0.320    -2.142089    6.428772
+       1000  |   2.972811   2.414654     1.23   0.224    -1.877164    7.822785
+      20000  |  -105.9756   67.50127    -1.57   0.123    -241.5559    29.60465
+             |
+   1.treated |          0  (omitted)
+             |
+cumsum_unu~s |
+          1  |  -1.703593   1.342706    -1.27   0.210    -4.400497     .993311
+          2  |  -2.998923   3.094296    -0.97   0.337    -9.213999    3.216153
+          3  |  -1.882065   5.461773    -0.34   0.732    -12.85236    9.088229
+          4  |  -.0939475   5.997142    -0.02   0.988    -12.13956    11.95167
+          5  |   1.729824   7.493691     0.23   0.818     -13.3217    16.78134
+          6  |   8.648988   11.14214     0.78   0.441    -13.73066    31.02863
+          7  |   14.94568   16.40646     0.91   0.367    -18.00767    47.89904
+          8  |   24.25258   23.93108     1.01   0.316     -23.8144    72.31957
+          9  |   180.9537    24.8211     7.29   0.000     131.0991    230.8084
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+---------------------------------------------------------------+
+           Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-----------------------+---------------------------------------|
+            countyfips |      1313        1313           0    *|
+            year_month |       120           0         120     |
+    countyfips#c.trend |      1313           0        1313    ?|
+ countyfips#c.trend_sq |      1313           0        1313    ?|
+ countyfips#c.trend_cu |      1313           0        1313    ?|
+---------------------------------------------------------------+
+? = number of redundant parameters may be higher
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/last_listing_cfe_with_control_psqft_sfcc_w6.png not found
+> )
+(file ../output/last_listing_cfe_with_control_psqft_sfcc_w6.png written in PNG 
+> format)
+
+. 
+end of do-file
+
+ make.py ended: 2020-06-10 17:33:30
