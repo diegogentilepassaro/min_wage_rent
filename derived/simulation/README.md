@@ -13,8 +13,8 @@ Notation:
 - ![I_{zt}](https://render.githubusercontent.com/render/math?math=I_%7Bzt%7D) is an indicator for a mw change in zipcode ![z](https://render.githubusercontent.com/render/math?math=z) period ![t](https://render.githubusercontent.com/render/math?math=t)
 - ![dinc_{zt}^n](https://render.githubusercontent.com/render/math?math=dinc_%7Bzt%7D%5En) is the change in monthly income in a househould with 2 minimum wage earners due to MW increase ![n](https://render.githubusercontent.com/render/math?math=n)
 - ![nmw_{zt}](https://render.githubusercontent.com/render/math?math=nmw_%7Bzt%7D) the number of MW changes in zipcode ![z](https://render.githubusercontent.com/render/math?math=z) up to period ![t](https://render.githubusercontent.com/render/math?math=t)
-- ![\theta_1](https://render.githubusercontent.com/render/math?math=%5Ctheta_1) is the pass-through of the mw on rents, set to 0.1.
-- ![\theta_2](https://render.githubusercontent.com/render/math?math=%5Ctheta_2) is the level effect of any mw change on rents, set to $20.
+- ![\theta_1](https://render.githubusercontent.com/render/math?math=%5Ctheta_1) is the pass-through of the mw on rents, set to 0.05.
+- ![\theta_2](https://render.githubusercontent.com/render/math?math=%5Ctheta_2) is the level effect of any mw change on rents, set to $30.
 - ![\epsilon](https://render.githubusercontent.com/render/math?math=%5Cepsilon) is a shock, typically iid
 
 ### Rents
