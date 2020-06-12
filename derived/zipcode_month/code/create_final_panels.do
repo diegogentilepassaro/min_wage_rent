@@ -79,7 +79,7 @@ program create_baseline_panel
 		year_month calendar_month `var' 								///
 		actual_mw dactual_mw mw_event 									///
 		local_abovestate_mw county_abovestate_mw local_mw 				///
-		county_mw state_mw fed_mw 										///
+		county_mw state_mw fed_mw which_mw										///
 		sal_mw_event mw_event025 mw_event075 							///
 		using "`instub'/zipcode_yearmonth_panel.dta", clear
 		
