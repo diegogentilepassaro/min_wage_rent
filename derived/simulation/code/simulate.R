@@ -47,8 +47,9 @@ simulate_rents <- function(DF, var) {
   week_month = 4.35
   mw_earners = 2
   
-  sd_shock = 100
+  sd_shock = 85
   theta    = 0.1 # passthrough
+  theta_level = 20
   
   DF <- prepare_DF(DF, var)
   
@@ -98,11 +99,8 @@ simulate_rents <- function(DF, var) {
   st_panel <- as.data.frame(st_panel)
   
   for (state in unique(st_panel$statefips)) {
-
-    # Gen correlated growth rates
-
     for (period in 597:715) {
-      rate = runif(1, min = 0, max = 0.005)
+      rate = runif(1, min = 0.001, max = 0.007)
       
       prev_period = st_panel[(st_panel$statefips == state) & 
                              (st_panel$year_month == period - 1), "state_trend"]
@@ -116,12 +114,15 @@ simulate_rents <- function(DF, var) {
               by = c("statefips", "year_month"))
   
   # Min wage effect  
-  DF$mw_effect <- theta*DF$dactual_mw_1*hs_week*week_month*mw_earners
+  DF$mw_effect       <- theta*DF$dactual_mw_1*hs_week*week_month*mw_earners
+  DF$mw_effect_level <- ifelse(DF$dactual_mw_1 == 1, theta_level, 0)
   
   for (event in 2:max_n_events) {
-    DF$this_effect <- theta*DF[, paste0("dactual_mw_", event)]*hs_week*week_month*mw_earners
+    DF$this_effect       <- theta*DF[, paste0("dactual_mw_", event)]*hs_week*week_month*mw_earners
+    DF$this_effect_level <- ifelse(DF[, paste0("dactual_mw_", event)] == 1, theta_level, 0)
     
-    DF$mw_effect <- DF$mw_effect + DF$this_effect
+    DF$mw_effect       <- DF$mw_effect + DF$this_effect
+    DF$mw_effect_level <- DF$mw_effect_level + DF$this_effect_level
   }
   
   
@@ -129,16 +130,23 @@ simulate_rents <- function(DF, var) {
   DF$rent1 <- DF$zipcode_effect + DF$timeperiod_effect + DF$shock
   DF$rent1 <- ifelse(DF$rent1 < min_r, min_r, ifelse(DF$rent1 > max_r, max_r, DF$rent1))
   
-  
   DF$rent2 <- DF$zipcode_effect + DF$timeperiod_effect + DF$mw_effect + DF$shock
   DF$rent2 <- ifelse(DF$rent2 < min_r, min_r, ifelse(DF$rent2 > max_r, max_r, DF$rent2))
   
-  DF$rent3 <- DF$zipcode_effect + DF$timeperiod_effect + DF$state_trend + DF$shock
+  DF$rent3 <- DF$zipcode_effect + DF$timeperiod_effect + DF$mw_effect_level + DF$shock
   DF$rent3 <- ifelse(DF$rent3 < min_r, min_r, ifelse(DF$rent3 > max_r, max_r, DF$rent3))
   
-  DF$rent4 <- DF$zipcode_effect + DF$timeperiod_effect + DF$state_trend + DF$mw_effect + DF$shock
+  DF$rent4 <- DF$zipcode_effect + DF$timeperiod_effect + DF$state_trend + DF$shock
   DF$rent4 <- ifelse(DF$rent4 < min_r, min_r, ifelse(DF$rent4 > max_r, max_r, DF$rent4))
+  
+  DF$rent5 <- DF$zipcode_effect + DF$timeperiod_effect + DF$state_trend + DF$mw_effect + DF$shock
+  DF$rent5 <- ifelse(DF$rent5 < min_r, min_r, ifelse(DF$rent5 > max_r, max_r, DF$rent5))
+  
+  DF$rent6 <- DF$zipcode_effect + DF$timeperiod_effect + DF$state_trend + DF$mw_effect_level + DF$shock
+  DF$rent6 <- ifelse(DF$rent6 < min_r, min_r, ifelse(DF$rent6 > max_r, max_r, DF$rent6))
 
+  DF <- DF %>% select(-c(this_effect, this_effect_level, this_change))
+  
   return(DF)
 }
 
