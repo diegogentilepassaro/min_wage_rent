@@ -47,9 +47,9 @@ simulate_rents <- function(DF, var) {
   week_month = 4.35
   mw_earners = 2
   
-  sd_shock = 85
-  theta    = 0.1 # passthrough
-  theta_level = 20
+  sd_shock = 75
+  theta    = 0.05 # passthrough
+  theta_level = 30
   
   DF <- prepare_DF(DF, var)
   

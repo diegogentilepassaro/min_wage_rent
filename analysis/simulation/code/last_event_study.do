@@ -16,7 +16,7 @@ program main
 	foreach w in 6 12 {
 		use "`instub'/baseline_panel_rent_w`w'.dta", clear
 
-		foreach i in 1 2 {
+		foreach i in 1 2 3 {
 			
 			* rent_var simulated as zipcode + time effects
 			create_event_plot, depvar(rent`i') 				  				///
@@ -41,7 +41,7 @@ program main
 
 
 			* rent_var simulated as zipcode + time effects + state_specific time effect
-			local j = `i' + 2
+			local j = `i' + 3
 
 			create_event_plot, depvar(rent`j') 				  				///
 				event_var(last_sal_mw_event_rel_months`w') 					///
