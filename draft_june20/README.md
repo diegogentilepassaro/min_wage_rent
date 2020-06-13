@@ -1,4 +1,4 @@
--------------------- GITHUB / OVERLEAF SYNC --------------------
+# GITHUB / OVERLEAF SYNC 
 
 The overleaf project for a given document (e.g. a draft) shall be organized in a single main folder that can be considered as an another independent yet-connected repo living in master.  
 
@@ -10,7 +10,7 @@ Note that deleting and modifying the uploaded folder coming from master will aff
 
 
 
-TO UPDATE FIGURES AND TABLES: 
+## TO UPDATE FIGURES AND TABLES: 
 
 1) commit and push desired output to master
 
@@ -20,6 +20,6 @@ TO UPDATE FIGURES AND TABLES:
 
 
 
-TO UPDATE MASTER FROM OVERLEAF (I.E. ADDED TEXT IN DRAFT/PAPER):
+## TO UPDATE MASTER FROM OVERLEAF (I.E. ADDED TEXT IN DRAFT/PAPER):
 
-1)pull from Overleaf: git pull overleaf master   
+1) pull from Overleaf: git pull overleaf master   
