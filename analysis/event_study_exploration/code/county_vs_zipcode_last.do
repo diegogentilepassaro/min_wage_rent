@@ -1,6 +1,5 @@
 clear all
 set more off
-adopath + ../../../lib/stata/mental_coupons/ado
 adopath + ../../../lib/stata/gslab_misc/ado
 adopath + ../../../lib/stata/min_wage/ado
 set maxvar 32000 
