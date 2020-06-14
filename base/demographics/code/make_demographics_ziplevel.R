@@ -9,7 +9,7 @@ main <- function() {
    data_version <- "0043"
    
    datadir <- paste0("../../../drive/raw_data/census/tract/nhgis", data_version, "_csv/")
-   xwalkdir <- "../../../drive/raw_data/hud_Xwalks/" 
+   xwalkdir <- "../../../raw/crosswalk/" 
    outdir  <- "../output/"
    tempdir <- "../temp"
          
@@ -106,7 +106,6 @@ format_tables <- function(x, datadir, data_version) {
                        'child_share2010', 'teen_share2010', 'youngadult_share2010', 'adult_share2010', 'elder_share2010', 
                        'housing_units2010')
       
-      data <- data[, ..target_vars]
       
    }
    
@@ -130,7 +129,6 @@ format_tables <- function(x, datadir, data_version) {
       target_vars <- c('tract_fips', 'county_fips', 
                        'renthouse_share2010')
       
-      data <- data[, ..target_vars]
    }
    
    else if (x == 'ds191_20125_2012_tract.csv') {
@@ -169,7 +167,6 @@ format_tables <- function(x, datadir, data_version) {
                        'unemp_share20105', 
                        'employee_share20105')
       
-      data <- data[, ..target_vars]
       
       
    }
@@ -192,9 +189,9 @@ format_tables <- function(x, datadir, data_version) {
       target_vars <- c('tract_fips', 'county_fips', 
                        'med_earn_healthsup_20105', 'med_earn_protectserv_20105', 'med_earn_foodserv_20105', 'med_earn_cleaning_20105', 'med_earn_perscare_20105', 'med_earn_prodtransp_20105')
       
-      data <- data[, ..target_vars]
       
    }
+   data <- data[, ..target_vars]
    
 
    return(data)

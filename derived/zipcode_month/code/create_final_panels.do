@@ -68,6 +68,9 @@ program main
 
 	* Baseline all
 	use "`instub'/zipcode_yearmonth_panel.dta", clear
+	if "`add_demo'" == "yes" {
+		merge m:1 zipcode using `instub'/zip_ready.dta, nogen assert(1 2 3) keep(1 3)	
+	}
 	save_data "`outstub'/zipcode_yearmonth_panel_all.dta", key(zipcode year_month) ///
 		log(`logfile') replace
 end
