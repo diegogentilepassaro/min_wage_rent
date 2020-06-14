@@ -10,10 +10,7 @@ program main
 	foreach data in rent listing {
 		foreach w in 6 {
 			use "`instub'/baseline_`data'_panel.dta", clear
-			qui sum year_month
-			gen trend = year_month - r(min) + 1
-			gen trend_sq = trend^2
-			gen trend_cu = trend^3
+
 			create_latest_event_vars, event_dummy(sal_mw_event) w(`w') 		///
 				time(year_month) geo(zipcode) panel_end(2019m12)
 

@@ -8,7 +8,7 @@ program main
 	local instub "../temp"
 	local outstub "../output"
 
-	local controls "i.treated i.cumsum_unused_events"
+	local controls "i.cumsum_unused_events"
 	local CFE "countyfips year_month c.trend#i.countyfips c.trend_sq#i.countyfips c.trend_cu#i.countyfips"
 	local cluster_se "statefips"
 

@@ -10,7 +10,7 @@ program main
 
 	local controls "i.cumsum_unused_events"
 	local CFE "countyfips year_month c.trend#i.countyfips c.trend_sq#i.countyfips c.trend_cu#i.countyfips"
-	local ZFE "zipcode year_month c.trend#i.zipcode c.trend_sq#i.zipcode c.trend_cu#i.zipcode"
+	local ZFE "zipcode year_month c.trend#i.countyfips c.trend_sq#i.countyfips c.trend_cu#i.countyfips"
 	local cluster_se "statefips"
 
 	use "`instub'/baseline_rent_panel_6.dta" if treated == 1, clear

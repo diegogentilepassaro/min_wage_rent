@@ -24,6 +24,8 @@ program clean_vars
 	drop date
 	replace year_month = mofd(year_month)
 	format  year_month %tm
+	
+
 
 	keep if !missing(year_month)
 	keep if !missing(zipcode)
@@ -38,8 +40,11 @@ end
 
 program gen_vars
 
-	bysort zipcode (year_month): gen trend = _n
-
+	qui sum year_month
+	gen trend = year_month - r(min) + 1
+	gen trend_sq = trend^2
+	gen trend_cu = trend^3
+	
 	local mw_types `" "" "_smallbusiness" "'
 	foreach var_type in `mw_types' {
 
