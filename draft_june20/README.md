@@ -1,6 +1,6 @@
 # GITHUB / OVERLEAF SYNC 
 
-The overleaf project for a given document (e.g. a draft) shall be organized in a single main folder that can be considered as an another independent yet-connected repo living in master.  
+The overleaf project for a given document (e.g. a draft) shall be organized in a single main folder that can be considered as an another independent yet-connected repo living in master.
 
 Overleaf communicates ONLY with master. It is not possible to use branches. When the document is modified online, you need to pull it also to the master repo in order to have a local copy. When new outcomes are pushed to master instead, they must be pushed to the Overleaf repo as well to update the online document. You need to use the terminal to push changes to overleaf. Local changes can instead by normally pushed via GitHub Desktop (you must do it before pushing to Overleaf). 
 
@@ -24,4 +24,5 @@ For more information see [link1](https://www.overleaf.com/learn/how-to/How_do_I_
 
 ## TO UPDATE MASTER FROM OVERLEAF (I.E. ADDED TEXT IN DRAFT/PAPER):
 
-1) pull from Overleaf: `git pull overleaf master`   
+1) pull from Overleaf: `git pull overleaf master`  
+2) The Overleaf changes will be only local. You need to push them to the master origin repo (normal push) 
