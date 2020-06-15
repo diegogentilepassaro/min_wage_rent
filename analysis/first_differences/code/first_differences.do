@@ -69,40 +69,66 @@ program run_dynamic_model
     syntax, depvar(str) absorb(str) cluster(str)
 	
 	eststo clear
-	eststo reg1: reghdfe D.`depvar' L(-6/6).D.ln_mw, 			///
+	eststo reg1: reghdfe D.`depvar' L(-5/5).D.ln_mw, 			///
 	    absorb(`absorb') ///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("No") trend_sq("No") trend_cu("No")
+	
+	coefplot, vertical base gen
+	
+	preserve
+	keep __at __b __se
+	rename (__at __b __se) (at b se)
+	tset at
+	gen cumsum_b = b[1]
+	replace cumsum_b = cumsum_b[_n-1] + b[_n] if _n>1
+	keep if !missing(at)
 
+	gen b_lb = b - 2*se
+	gen b_ub = b + 2*se
+
+	twoway (scatter b at, mcol(navy)) ///
+		(rcap b_lb b_ub at, col(navy)) ///
+		(line cumsum at, lcol(olive)), ///
+		yline(0, lcol(grey) lpat(dot)) ///
+		graphregion(color(white)) bgcolor(white) ///
+		xlabel(1 "F5D.ln_mw" 2 "F4D.ln_mw" 3 "F3D.ln_mw" 4 "F2D.ln_mw" ///
+		5 "FD.ln_mw" 6 "D.ln_mw" 7 "LD.ln_mw" 8 "L2D.ln_mw" 9 "L3D.ln_mw" ///
+		10 "L4D.ln_mw" 11 "L5D.ln_mw", labsize(vsmall)) xtitle("Leads and lags of ln MW") ///
+		ytitle("Effect on ln rent per sqft (dollars)") ///
+		legend(order(1 "Coefficient" 3 "Cumulative sum of coefficients"))
+	graph export "../output/fd_dynamic.png", replace
+	restore
+	
 	eststo lincom1: lincomest D1.ln_mw + LD.ln_mw + L2D.ln_mw + 	///
-	    L3D.ln_mw + L4D.ln_mw + L5D.ln_mw + L6D.ln_mw
+	    L3D.ln_mw + L4D.ln_mw + L5D.ln_mw
 	comment_table, trend_lin("No") trend_sq("No") trend_cu("No")
 	
-	eststo reg2: reghdfe D.`depvar' L(-6/6).D.ln_mw, 			///
+	eststo reg2: reghdfe D.`depvar' L(-5/5).D.ln_mw, 			///
 	    absorb(`absorb' c.trend#i.zipcode) ///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("Yes") trend_sq("No") trend_cu("No")
 
 	eststo lincom2: lincomest D1.ln_mw + LD.ln_mw + L2D.ln_mw + 	///
-	    L3D.ln_mw + L4D.ln_mw + L5D.ln_mw + L6D.ln_mw
+	    L3D.ln_mw + L4D.ln_mw + L5D.ln_mw
 	comment_table, trend_lin("Yes") trend_sq("No") trend_cu("No")
 	
-	eststo reg3: reghdfe D.`depvar' L(-6/6).D.ln_mw, 			///
+	eststo reg3: reghdfe D.`depvar' L(-5/5).D.ln_mw, 			///
 	    absorb(`absorb' c.trend#i.zipcode c.trend_sq#i.zipcode) ///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("No")
 
 	eststo lincom3: lincomest D1.ln_mw + LD.ln_mw + L2D.ln_mw + 	///
-	    L3D.ln_mw + L4D.ln_mw + L5D.ln_mw + L6D.ln_mw
+	    L3D.ln_mw + L4D.ln_mw + L5D.ln_mw
 	comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("No")
 
-	eststo reg4: reghdfe D.`depvar' L(-6/6).D.ln_mw, 			///
+	eststo reg4: reghdfe D.`depvar' L(-5/5).D.ln_mw, 			///
 	    absorb(`absorb' c.trend#i.zipcode c.trend_sq#i.zipcode c.trend_cu#i.zipcode) ///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("Yes")
 	
 	eststo lincom4: lincomest D1.ln_mw + LD.ln_mw + L2D.ln_mw + 	///
-	    L3D.ln_mw + L4D.ln_mw + L5D.ln_mw + L6D.ln_mw
+	    L3D.ln_mw + L4D.ln_mw + L5D.ln_mw
 	comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("Yes")
 end 
 program comment_table
