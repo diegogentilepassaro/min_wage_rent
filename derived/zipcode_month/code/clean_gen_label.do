@@ -34,6 +34,12 @@ program clean_vars
 	
 	replace dactual_mw = round(dactual_mw, 0.01)
 	replace dactual_mw = 0 if dactual_mw < 0
+
+	label define which_mw 1 "federal" 2 "state" 3 "county" 4 "local"
+	encode which_mw, g(which_mw2) label(which_mw)
+	order which_mw2, after(which_mw)
+	drop which_mw
+	rename which_mw2 which_mw
 end
 
 program gen_vars
