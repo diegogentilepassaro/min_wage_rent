@@ -1,12 +1,10 @@
 OVERVIEW
 ========================================================
-Crosswalks used to build dataset
+This directory contains data from the US department of housing and urban development. 
+The file is a zipcode-censustract crosswalk for the 1st quarter of 2013. File downloaded in April 2020.
 
 
-SOURCE & DESCRIPTION
+SOURCE
 ========================================================
-state_name_fips_usps.xlsx	Complete description
-
-zip_to_zcta_2019.xslx		Crosswalk zip to zcta. Downloaded by Diego Gentile on May 2020
-				from https://www.udsmapper.org/zcta-crosswalk.cfm
-
+US HUD
+https://www.huduser.gov/portal/datasets/usps_crosswalk.html

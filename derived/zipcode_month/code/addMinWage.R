@@ -152,15 +152,41 @@ create_minwage_eventvars <- function(x){
 
    x[,actual_mw := rowMaxs(as.matrix(x[,..mw_vars_regular]), na.rm = T)][,
       actual_mw:= ifelse(actual_mw == -Inf, NA, actual_mw)]
-
+   
+   
    x[,actual_mw_smallbusiness := rowMaxs(as.matrix(x[,..mw_vars_smallb]), na.rm = T)][,
       actual_mw_smallbusiness := ifelse(actual_mw_smallbusiness == -Inf, NA, actual_mw_smallbusiness)]
+   
+   
+   which_colmax <- function(df, cols_to_compare) {
+      this_cols <- df[, ..cols_to_compare]
+      
+
+      this_cols2 <- data.table(value=unlist(this_cols, use.names = F), 
+                               colid = 1:nrow(this_cols), rowid = rep(names(this_cols), each=nrow(this_cols)))
+
+      setkey(this_cols2, colid, value)
+      
+      which.col <- this_cols2[J(unique(colid), this_cols2[J(unique(colid)), value, mult="last"]), rowid, mult="last"]
+      
+      df[, 'which_mw':= which.col][, 'which_mw' := str_remove_all(which_mw, '_mw$')]
+
+      return(df)
+   }
+   x <- which_colmax(df = x, cols_to_compare = mw_vars_regular)
+   
    
    setorderv(x, cols = c('zipcode', 'date'))
    x[,Dactual_mw := actual_mw - shift(actual_mw), by = 'zipcode'][,
       mw_event := ifelse(Dactual_mw > 0 , 1, 0)]
    x[,Dactual_mw_smallbusiness := actual_mw_smallbusiness - shift(actual_mw_smallbusiness), by = 'zipcode'][,
       mw_event_smallbusiness := ifelse(Dactual_mw_smallbusiness > 0 , 1, 0)]
+   
+   x[, which_mw2 := paste0(which_mw, '_event')]
+   inds <- unique(x$which_mw2)
+   x[Dactual_mw > 0, (inds) := lapply(inds, function(x) which_mw2 == x)]
+   x[, which_mw2 := NULL]
+   x[, (inds):= lapply(.SD, function(y) {ifelse(is.na(y), 0, y)}), .SDcols = inds]
 
    return(x)
 }
