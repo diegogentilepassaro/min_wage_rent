@@ -85,6 +85,7 @@ program create_baseline_panel
 		county_mw state_mw fed_mw                                       ///  
 		which_mw fed_event state_event county_event local_event			///
 		sal_mw_event mw_event025 mw_event075 							///
+		trend trend_sq trend_cu                                         ///
 		using "`instub'/zipcode_yearmonth_panel.dta", clear
 		
 	keep if (year_month >= `=mofd(td(`start_date'))' & 					///
