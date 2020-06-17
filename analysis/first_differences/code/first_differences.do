@@ -48,6 +48,9 @@ program run_static_model
 		absorb(`absorb') ///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("No") trend_sq("No") trend_cu("No")
+	
+	scalar static_effect = _b[D.ln_mw]
+	scalar static_effect_se = _se[D.ln_mw]
 
 	eststo: reghdfe D.`depvar' D.ln_mw,							///
 		absorb(`absorb' c.trend#i.zipcode) ///
@@ -80,6 +83,14 @@ program run_dynamic_model
 	keep __at __b __se
 	rename (__at __b __se) (at b se)
 	tset at
+	
+	gen static_path = 0 if at <= 5 
+	replace static_path = scalar(static_effect) if at > 5
+	gen static_path_lb = 0 if at <= 5
+	replace static_path_lb = scalar(static_effect) - 2*scalar(static_effect_se) if at > 5
+	gen static_path_ub = 0 if at <= 5
+	replace static_path_ub = scalar(static_effect) + 2*scalar(static_effect_se) if at > 5
+	
 	gen cumsum_b = b[1]
 	replace cumsum_b = cumsum_b[_n-1] + b[_n] if _n>1
 	keep if !missing(at)
@@ -89,15 +100,17 @@ program run_dynamic_model
 
 	twoway (scatter b at, mcol(navy)) ///
 		(rcap b_lb b_ub at, col(navy)) ///
-		(line cumsum at, lcol(olive)), ///
+		(line cumsum at, lcol(green)) ///
+		(line static_path at, lcol(maroon)), ///
 		yline(0, lcol(grey) lpat(dot)) ///
 		graphregion(color(white)) bgcolor(white) ///
 		xlabel(1 "F5D.ln_mw" 2 "F4D.ln_mw" 3 "F3D.ln_mw" 4 "F2D.ln_mw" ///
 		5 "FD.ln_mw" 6 "D.ln_mw" 7 "LD.ln_mw" 8 "L2D.ln_mw" 9 "L3D.ln_mw" ///
 		10 "L4D.ln_mw" 11 "L5D.ln_mw", labsize(vsmall)) xtitle("Leads and lags of ln MW") ///
-		ytitle("Effect on ln rent per sqft (dollars)") ///
-		legend(order(1 "Coefficient" 3 "Cumulative sum of coefficients"))
-	graph export "../output/fd_dynamic.png", replace
+		ytitle("Effect on ln rent per sqft") ///
+		legend(order(1 "Dynamic model coefficients" 3 "Cumulative sum: dynamic model" ///
+		4 "Implied cumulative sum: static model") size(small))
+	graph export "../output/fd_models.png", replace
 	restore
 	
 	eststo lincom1: lincomest D1.ln_mw + LD.ln_mw + L2D.ln_mw + 	///
@@ -130,7 +143,8 @@ program run_dynamic_model
 	eststo lincom4: lincomest D1.ln_mw + LD.ln_mw + L2D.ln_mw + 	///
 	    L3D.ln_mw + L4D.ln_mw + L5D.ln_mw
 	comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("Yes")
-end 
+end
+
 program comment_table
 	syntax, trend_lin(str) trend_sq(str) trend_cu(str)
 

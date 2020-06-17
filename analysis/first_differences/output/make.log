@@ -1,5 +1,5 @@
 
- make.py started: 2020-06-15 08:11:53 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\first_differences\code 
+ make.py started: 2020-06-17 08:09:32 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\first_differences\code 
 
 
 
@@ -233,26 +233,29 @@ Notes:
 >                 absorb(`absorb') ///
 >                 vce(cluster `cluster') nocons
   4.         comment_table, trend_lin("No") trend_sq("No") trend_cu("No")
-  5. 
+  5.         
+.         scalar static_effect = _b[D.ln_mw]
+  6.         scalar static_effect_se = _se[D.ln_mw]
+  7. 
 .         eststo: reghdfe D.`depvar' D.ln_mw,                                  
 >                    ///
 >                 absorb(`absorb' c.trend#i.zipcode) ///
 >                 vce(cluster `cluster') nocons
-  6.         comment_table, trend_lin("Yes") trend_sq("No") trend_cu("No")
-  7. 
+  8.         comment_table, trend_lin("Yes") trend_sq("No") trend_cu("No")
+  9. 
 .         eststo: reghdfe D.`depvar' D.ln_mw,                                  
 >                    ///
 >                 absorb(`absorb' c.trend#i.zipcode  c.trend_sq#i.zipcode) ///
 >                 vce(cluster `cluster') nocons
-  8.         comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("No")
-  9. 
+ 10.         comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("No")
+ 11. 
 .         eststo: reghdfe D.`depvar' D.ln_mw,                                  
 >                    ///
 >                 absorb(`absorb' c.trend#i.zipcode  c.trend_sq#i.zipcode c.tre
 > nd_cu#i.zipcode) ///
 >                 vce(cluster `cluster') nocons
- 10.         comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("Yes")
- 11. end
+ 12.         comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("Yes")
+ 13. end
 
 . 
 . program run_dynamic_model
@@ -271,16 +274,27 @@ Notes:
   7.         keep __at __b __se
   8.         rename (__at __b __se) (at b se)
   9.         tset at
- 10.         gen cumsum_b = b[1]
- 11.         replace cumsum_b = cumsum_b[_n-1] + b[_n] if _n>1
- 12.         keep if !missing(at)
- 13. 
+ 10.         
+.         gen static_path = 0 if at <= 5 
+ 11.         replace static_path = scalar(static_effect) if at > 5
+ 12.         gen static_path_lb = 0 if at <= 5
+ 13.         replace static_path_lb = scalar(static_effect) - 2*scalar(static_e
+> ffect_se) if at > 5
+ 14.         gen static_path_ub = 0 if at <= 5
+ 15.         replace static_path_ub = scalar(static_effect) + 2*scalar(static_e
+> ffect_se) if at > 5
+ 16.         
+.         gen cumsum_b = b[1]
+ 17.         replace cumsum_b = cumsum_b[_n-1] + b[_n] if _n>1
+ 18.         keep if !missing(at)
+ 19. 
 .         gen b_lb = b - 2*se
- 14.         gen b_ub = b + 2*se
- 15. 
+ 20.         gen b_ub = b + 2*se
+ 21. 
 .         twoway (scatter b at, mcol(navy)) ///
 >                 (rcap b_lb b_ub at, col(navy)) ///
->                 (line cumsum at, lcol(olive)), ///
+>                 (line cumsum at, lcol(green)) ///
+>                 (line static_path at, lcol(maroon)), ///
 >                 yline(0, lcol(grey) lpat(dot)) ///
 >                 graphregion(color(white)) bgcolor(white) ///
 >                 xlabel(1 "F5D.ln_mw" 2 "F4D.ln_mw" 3 "F3D.ln_mw" 4 "F2D.ln_mw
@@ -289,48 +303,50 @@ Notes:
 > _mw" ///
 >                 10 "L4D.ln_mw" 11 "L5D.ln_mw", labsize(vsmall)) xtitle("Leads
 >  and lags of ln MW") ///
->                 ytitle("Effect on ln rent per sqft (dollars)") ///
->                 legend(order(1 "Coefficient" 3 "Cumulative sum of coefficient
-> s"))
- 16.         graph export "../output/fd_dynamic.png", replace
- 17.         restore
- 18.         
+>                 ytitle("Effect on ln rent per sqft") ///
+>                 legend(order(1 "Dynamic model coefficients" 3 "Cumulative sum
+> : dynamic model" ///
+>                 4 "Implied cumulative sum: static model") size(small))
+ 22.         graph export "../output/fd_models.png", replace
+ 23.         restore
+ 24.         
 .         eststo lincom1: lincomest D1.ln_mw + LD.ln_mw + L2D.ln_mw +     ///
 >             L3D.ln_mw + L4D.ln_mw + L5D.ln_mw
- 19.         comment_table, trend_lin("No") trend_sq("No") trend_cu("No")
- 20.         
+ 25.         comment_table, trend_lin("No") trend_sq("No") trend_cu("No")
+ 26.         
 .         eststo reg2: reghdfe D.`depvar' L(-5/5).D.ln_mw,                     
 >    ///
 >             absorb(`absorb' c.trend#i.zipcode) ///
 >                 vce(cluster `cluster') nocons
- 21.         comment_table, trend_lin("Yes") trend_sq("No") trend_cu("No")
- 22. 
+ 27.         comment_table, trend_lin("Yes") trend_sq("No") trend_cu("No")
+ 28. 
 .         eststo lincom2: lincomest D1.ln_mw + LD.ln_mw + L2D.ln_mw +     ///
 >             L3D.ln_mw + L4D.ln_mw + L5D.ln_mw
- 23.         comment_table, trend_lin("Yes") trend_sq("No") trend_cu("No")
- 24.         
+ 29.         comment_table, trend_lin("Yes") trend_sq("No") trend_cu("No")
+ 30.         
 .         eststo reg3: reghdfe D.`depvar' L(-5/5).D.ln_mw,                     
 >    ///
 >             absorb(`absorb' c.trend#i.zipcode c.trend_sq#i.zipcode) ///
 >                 vce(cluster `cluster') nocons
- 25.         comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("No")
- 26. 
+ 31.         comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("No")
+ 32. 
 .         eststo lincom3: lincomest D1.ln_mw + LD.ln_mw + L2D.ln_mw +     ///
 >             L3D.ln_mw + L4D.ln_mw + L5D.ln_mw
- 27.         comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("No")
- 28. 
+ 33.         comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("No")
+ 34. 
 .         eststo reg4: reghdfe D.`depvar' L(-5/5).D.ln_mw,                     
 >    ///
 >             absorb(`absorb' c.trend#i.zipcode c.trend_sq#i.zipcode c.trend_cu
 > #i.zipcode) ///
 >                 vce(cluster `cluster') nocons
- 29.         comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("Yes")
- 30.         
+ 35.         comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("Yes")
+ 36.         
 .         eststo lincom4: lincomest D1.ln_mw + LD.ln_mw + L2D.ln_mw +     ///
 >             L3D.ln_mw + L4D.ln_mw + L5D.ln_mw
- 31.         comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("Yes")
- 32. end 
+ 37.         comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("Yes")
+ 38. end
 
+. 
 . program comment_table
   1.         syntax, trend_lin(str) trend_sq(str) trend_cu(str)
   2. 
@@ -556,11 +572,17 @@ __ll1           float   %9.0g                 CI1: lower limit
 __ul1           float   %9.0g                 CI1: upper limit
         time variable:  at, 1 to 11
                 delta:  1 unit
+(150,355 missing values generated)
+(150,355 real changes made)
+(150,355 missing values generated)
+(150,355 real changes made)
+(150,355 missing values generated)
+(150,355 real changes made)
 (150,359 real changes made, 150,349 to missing)
 (150,349 observations deleted)
 (note:  named style grey not found in class color, default attributes used)
-(note: file ../output/fd_dynamic.png not found)
-(file ../output/fd_dynamic.png written in PNG format)
+(note: file ../output/fd_models.png not found)
+(file ../output/fd_models.png written in PNG format)
 Confidence interval for formula:
 D1.ln_mw+LD.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw+L5D.ln_mw
 
@@ -782,4 +804,4 @@ added macro:
 . 
 end of do-file
 
- make.py ended: 2020-06-15 08:22:27
+ make.py ended: 2020-06-17 08:21:45
