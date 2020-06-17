@@ -8,38 +8,35 @@ program main
 	local outstub "../output"
 
 	local FE "zipcode year_month#statefips"
-
-	foreach window in 6 12 {
-		use "`instub'/all_rent_panel_`window'.dta", clear
-
-		*drop_zipcodes_without_event, geo(zipcode) time(year_month)
-
-		foreach depvar in _sfcc psqft_sfcc {
-						  *  _sfcc _mfr5plus _2br psqft_sfcc psqft_mfr5plus psqft_2br {
-
-			create_event_plot, depvar(medrentprice`depvar') w(`window')				///
-				 controls(" ") absorb(`FE') cluster(zipcode)
-			graph export "`outstub'/all_rent`depvar'_w`window'.png", replace		
-
-			* Unused control
-			create_event_plot, depvar(medrentprice`depvar') w(`window')				///
-				controls("i.cum_unused_mw_events") absorb(`FE') cluster(zipcode)
-			graph export "`outstub'/control_unused_events/all_rent`depvar'_w`window'_unused-cumsum.png", replace
-		}
-	}
+    local window = 6
 	
-	foreach window in 6 12 {
-		use "`instub'/all_listing_panel_`window'.dta", clear
+	use "`instub'/all_rent_panel_`window'.dta", clear
 
-		*drop_zipcodes_without_event, geo(zipcode) time(year_month)
+	*drop_zipcodes_without_event, geo(zipcode) time(year_month)
 
-		foreach depvar in _sfcc psqft_sfcc {
-							* _sfcc _low_tier _top_tier psqft_sfcc psqft_low_tier psqft_top_tier {
+	foreach depvar in _sfcc psqft_sfcc {
+					  *  _sfcc _mfr5plus _2br psqft_sfcc psqft_mfr5plus psqft_2br {
 
-			create_event_plot, depvar(medlistingprice`depvar') controls(" ") w(`window')	///
-				absorb(`FE') cluster(zipcode)
-			graph export "`outstub'/all_listing`depvar'_w`window'.png", replace	
-		}
+		create_event_plot, depvar(medrentprice`depvar') w(`window')				///
+			 controls(" ") absorb(`FE') cluster(zipcode)
+		graph export "`outstub'/all_rent`depvar'_w`window'.png", replace		
+
+		* Unused control
+		create_event_plot, depvar(medrentprice`depvar') w(`window')				///
+			controls("i.cum_unused_mw_events") absorb(`FE') cluster(zipcode)
+		graph export "`outstub'/control_unused_events/all_rent`depvar'_w`window'_unused-cumsum.png", replace
+	}
+
+	use "`instub'/all_listing_panel_`window'.dta", clear
+
+	*drop_zipcodes_without_event, geo(zipcode) time(year_month)
+
+	foreach depvar in _sfcc psqft_sfcc {
+						* _sfcc _low_tier _top_tier psqft_sfcc psqft_low_tier psqft_top_tier {
+
+		create_event_plot, depvar(medlistingprice`depvar') controls(" ") w(`window')	///
+			absorb(`FE') cluster(zipcode)
+		graph export "`outstub'/all_listing`depvar'_w`window'.png", replace	
 	}
 end
 
@@ -77,7 +74,8 @@ program create_event_plot
 		}
 	}
 	
-	reghdfe `depvar' `dummy_coeffs' d_neg`w_plus1'-`last_dummy' `controls', nocons absorb(`absorb') vce(cluster `cluster')				
+	reghdfe `depvar' `dummy_coeffs' d_neg`w_plus1'-`last_dummy' `controls', ///
+	    nocons absorb(`absorb') vce(cluster `cluster')				
 	
 	mat B = e(b)
 	mat V = e(V)

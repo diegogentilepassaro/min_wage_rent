@@ -9,12 +9,9 @@ program main
 	local logfile "../output/panels_data_file_manifest.log"
 
 	foreach data in rent listing {
-		foreach window in 6 12 {
 			foreach kind in last all {
-
+                local window = 6
 				use "`instub'/baseline_`data'_panel.dta", clear
-
-				create_other_vars, time(year_month) geo(zipcode)
 
 				create_event_dummy_vars, event_dummy(sal_mw_event) kind(`kind') w(`window')	///
 					time(year_month) geo(zipcode)
@@ -24,14 +21,12 @@ program main
 				save_data "`outstub'/`kind'_`data'_panel_`window'.dta",						///
 					key(zipcode year_month) replace log(`logfile')
 			}
-		}
+			
 
 		local kind "nonoverlap"
 		local window = 5
 
 		use "`instub'/baseline_`data'_panel.dta", clear
-
-		create_other_vars, time(year_month) geo(zipcode)
 
 		create_event_dummy_vars, event_dummy(sal_mw_event) kind(`kind') w(`window')	///
 			time(year_month) geo(zipcode)
@@ -195,12 +190,6 @@ program months_since_and_until
 
 		drop event_month event_month_id
 	}
-end
-
-program create_other_vars
-	syntax, time(str) geo(str)
-
-	bysort `geo' (`time'): gen trend = _n
 end
 
 program drop_vars_with_all_zero

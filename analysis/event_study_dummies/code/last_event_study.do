@@ -9,38 +9,35 @@ program main
 	local outstub "../output"
 
 	local FE "zipcode year_month#statefips"
+    local window = 6
+	
+	use "`instub'/last_rent_panel_`window'.dta", clear
 
-	foreach window in 6 12 {
-		use "`instub'/last_rent_panel_`window'.dta", clear
+	*drop_zipcodes_without_event, geo(zipcode) time(year_month)
 
-		*drop_zipcodes_without_event, geo(zipcode) time(year_month)
+	foreach depvar in _sfcc psqft_sfcc {
+					  *  _sfcc _mfr5plus _2br psqft_sfcc psqft_mfr5plus psqft_2br {
+		
+		create_event_plot, depvar(medrentprice`depvar') w(`window')				///
+			 controls(" ") absorb(`FE') cluster(zipcode)
+		graph export "`outstub'/last_rent`depvar'_w`window'.png", replace	
 
-		foreach depvar in _sfcc psqft_sfcc {
-						  *  _sfcc _mfr5plus _2br psqft_sfcc psqft_mfr5plus psqft_2br {
-			
-			create_event_plot, depvar(medrentprice`depvar') w(`window')				///
-				 controls(" ") absorb(`FE') cluster(zipcode)
-			graph export "`outstub'/last_rent`depvar'_w`window'.png", replace	
-
-			* Unused control
-			create_event_plot, depvar(medrentprice`depvar') w(`window')				///
-				controls("i.cum_unused_mw_events")  absorb(`FE') cluster(zipcode)
-			graph export "`outstub'/control_unused_events/last_rent`depvar'_w`window'_unused-cumsum.png", replace
-		}
+		* Unused control
+		create_event_plot, depvar(medrentprice`depvar') w(`window')				///
+			controls("i.cum_unused_mw_events")  absorb(`FE') cluster(zipcode)
+		graph export "`outstub'/control_unused_events/last_rent`depvar'_w`window'_unused-cumsum.png", replace
 	}
 	
-	foreach window in 6 12 {
-		use "`instub'/last_listing_panel_`window'.dta", clear
+	use "`instub'/last_listing_panel_`window'.dta", clear
 
-		*drop_zipcodes_without_event, geo(zipcode) time(year_month)
+	*drop_zipcodes_without_event, geo(zipcode) time(year_month)
 
-		foreach depvar in _sfcc psqft_sfcc {
-							* _sfcc _low_tier _top_tier psqft_sfcc psqft_low_tier psqft_top_tier {
-		
-			create_event_plot, depvar(medlistingprice`depvar') controls(" ") w(`window')	///
-				absorb(`FE') cluster(zipcode)
-			graph export "`outstub'/last_listing`depvar'_w`window'.png", replace	
-		}
+	foreach depvar in _sfcc psqft_sfcc {
+						* _sfcc _low_tier _top_tier psqft_sfcc psqft_low_tier psqft_top_tier {
+	
+		create_event_plot, depvar(medlistingprice`depvar') controls(" ") w(`window')	///
+			absorb(`FE') cluster(zipcode)
+		graph export "`outstub'/last_listing`depvar'_w`window'.png", replace	
 	}
 end
 
