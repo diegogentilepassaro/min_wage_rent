@@ -5,8 +5,17 @@ adopath + ../../../lib/stata/mental_coupons/ado
 
 program main
 	local instub "../temp"
+	local indemo "../../../base/demographics/output/"
 	local outstub "../../../drive/derived_large/output"
 	local logfile "../output/data_file_manifest.log"
+
+	local add_demo = "yes"
+
+	if "`add_demo'" == "yes" {
+		import delim using "`indemo'zip_demo.csv", clear
+		save_data "`instub'/zip_ready.dta", replace key(zipcode) log(`logfile')
+	} 
+
 
 	* Baseline rents
 	local rent_vars "medrentprice_mfr5plus" 
@@ -23,6 +32,9 @@ program main
 	foreach var in `rent_vars' {
 		merge 1:1 zipcode year_month using "`instub'/baseline_`var'.dta", 	///
 		    nogen keep(1 3)
+	}
+	if "`add_demo'" == "yes" {
+		merge m:1 zipcode using `instub'/zip_ready.dta, nogen assert(1 2 3) keep(1 3)	
 	}
 
 	save_data "`outstub'/baseline_rent_panel.dta", key(zipcode year_month) 	///
@@ -45,6 +57,10 @@ program main
 		merge 1:1 zipcode year_month using "`instub'/baseline_`var'.dta", 	///
 			nogen keep(1 3)
 	}
+	if "`add_demo'" == "yes" {
+		merge m:1 zipcode using `instub'/zip_ready.dta, nogen assert(1 2 3) keep(1 3)	
+	}
+
 
 	save_data "`outstub'/baseline_listing_panel.dta", key(zipcode year_month) ///
 		log(`logfile') replace
@@ -52,6 +68,9 @@ program main
 
 	* Baseline all
 	use "`instub'/zipcode_yearmonth_panel.dta", clear
+	if "`add_demo'" == "yes" {
+		merge m:1 zipcode using `instub'/zip_ready.dta, nogen assert(1 2 3) keep(1 3)	
+	}
 	save_data "`outstub'/zipcode_yearmonth_panel_all.dta", key(zipcode year_month) ///
 		log(`logfile') replace
 end
@@ -63,8 +82,10 @@ program create_baseline_panel
 		year_month calendar_month `var' 								///
 		actual_mw dactual_mw mw_event 									///
 		local_abovestate_mw county_abovestate_mw local_mw 				///
-		county_mw state_mw fed_mw 										///
+		county_mw state_mw fed_mw                                       ///  
+		which_mw fed_event state_event county_event local_event			///
 		sal_mw_event mw_event025 mw_event075 							///
+		trend trend_sq trend_cu                                         ///
 		using "`instub'/zipcode_yearmonth_panel.dta", clear
 		
 	keep if (year_month >= `=mofd(td(`start_date'))' & 					///
@@ -83,7 +104,7 @@ program create_baseline_panel
 		
 	xtset zipcode year_month
 	assert r(balanced) == "strongly balanced"
-	
+
 	save_data "../temp/baseline_`var'.dta", key(zipcode year_month) 	///
 		replace log(none)
 end
