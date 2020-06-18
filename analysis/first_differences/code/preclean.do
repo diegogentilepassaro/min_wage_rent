@@ -33,13 +33,16 @@ program create_vars
 
 	foreach var in `heterogeneity_vars' {
 		xtile `var'_nat_dec = `var', nq(10)
+		xtile `var'_nat_qtl = `var', nq(5)
 		levelsof statefips, local(states)
 
 		foreach state in `states'{
 			xtile deciles_`state'_`var' = `var' if statefips == `state', nq(10)
+			xtile qtiles_`state'_`var' = `var' if statefips == `state', nq(5)
 		}
 		egen `var'_st_dec = rowtotal(deciles_*)
-		drop deciles_*
+		egen `var'_st_qtl = rowtotal(qtiles_*)
+		drop deciles_* qtiles_*
 	}
 end
 
