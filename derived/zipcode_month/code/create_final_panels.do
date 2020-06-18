@@ -25,7 +25,7 @@ program main
 
 	foreach var in medrentprice_sfcc `rent_vars' {
 		create_baseline_panel, instub(`instub') var(`var')					///
-			balance_date(01jan2016) start_date(01jan2010) end_date(01dec2019)
+			balance_date(01jul2015) start_date(01jan2010) end_date(01dec2019)
 	}
 
 	use "`instub'/baseline_medrentprice_sfcc.dta", clear
@@ -49,7 +49,7 @@ program main
 
 	foreach var in medlistingprice_sfcc `listing_vars' {
 		create_baseline_panel, instub(`instub') var(`var') 					///
-			balance_date(01jan2016) start_date(01jan2010) end_date(01dec2019)
+			balance_date(01jul2015) start_date(01jan2010) end_date(01dec2019)
 	}
 
 	use "`instub'/baseline_medlistingprice_sfcc.dta", clear
