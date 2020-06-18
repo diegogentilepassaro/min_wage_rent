@@ -38,6 +38,8 @@ program create_vars
 	}
 
 	gen nonwhite_share2010 = 1 - white_share2010
+	
+	gen trend_times2 = 2*trend
 
 	foreach var in `heterogeneity_vars' {
 		*xtile `var'_nat_dec = `var', nq(10)

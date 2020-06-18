@@ -17,8 +17,7 @@ program main
 	esttab * using "`outstub'/fd_table.tex", keep(D.ln_mw) compress se replace 			///
 		stats(zs_trend zs_trend_sq zs_trend_cu r2 N, fmt(%s3 %s3 %s3 %9.3f %9.0g) 		///
 		labels("Zipcode-specifc linear trend" 											///
-		"Zipcode-specific linear and square trend" 										///
-		"Zipcode-specific linear, square and cubic trend" 								///
+		"Zipcode-specific linear and square trend" 								///
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
 		nonote
 	
@@ -26,21 +25,20 @@ program main
 	run_dynamic_model, depvar(ln_med_rent_psqft) absorb(year_month) 					///
 		cluster(statefips)
 	
-	esttab reg1 reg2 reg3 reg4 using "`outstub'/fd_dynamic_table.tex", 					///
+	esttab reg1 reg2 reg3 using "`outstub'/fd_dynamic_table.tex", 					///
 		keep(*.ln_mw) compress se replace 												///
 		stats(zs_trend zs_trend_sq zs_trend_cu r2 N, fmt(%s3 %s3 %s3 %9.3f %9.0g) 		///
 		labels("Zipcode-specifc linear trend" 											///
-		"Zipcode-specific linear and square trend" 										///
-		"Zipcode-specific linear, square and cubic trend" 								///
+		"Zipcode-specific linear and square trend"								///
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
 		nonote
 
-	esttab lincom1 lincom2 lincom3 lincom4 using "`outstub'/fd_dynamic_lincom_table.tex", ///
+	esttab lincom1 lincom2 lincom3 using "`outstub'/fd_dynamic_lincom_table.tex", ///
 		compress se replace 															///
         stats(zs_trend zs_trend_sq zs_trend_cu N, fmt(%s3 %s3 %s3 %9.0g) 				///
 		labels("Zipcode-specifc linear trend" 											///
-	    "Zipcode-specific linear and square trend" 										///
-		"Zipcode-specific linear, square and cubic trend" "Observations")) 				///
+	    "Zipcode-specific linear and square trend" ///
+		"Observations")) 				///
 		star(* 0.10 ** 0.05 *** 0.01) 													///
 		nonote coeflabel((1) "Sum of MW effects")
 
@@ -63,25 +61,20 @@ program run_static_model
 	eststo reg1: reghdfe D.`depvar' D.ln_mw,							///
 		absorb(`absorb') 												///
 		vce(cluster `cluster') nocons
-	comment_table, trend_lin("No") trend_sq("No") trend_cu("No")
+	comment_table, trend_lin("No") trend_sq("No")
 	
 	scalar static_effect = _b[D.ln_mw]
 	scalar static_effect_se = _se[D.ln_mw]
 
 	eststo: reghdfe D.`depvar' D.ln_mw,									///
-		absorb(`absorb' c.trend#i.zipcode) 								///
+		absorb(`absorb' i.zipcode) 								///
 		vce(cluster `cluster') nocons
-	comment_table, trend_lin("Yes") trend_sq("No") trend_cu("No")
+	comment_table, trend_lin("Yes") trend_sq("No")
 
 	eststo: reghdfe D.`depvar' D.ln_mw,									///
-		absorb(`absorb' c.trend#i.zipcode  c.trend_sq#i.zipcode) 		///
+		absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) 		///
 		vce(cluster `cluster') nocons
-	comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("No")
-
-	eststo: reghdfe D.`depvar' D.ln_mw,									///
-		absorb(`absorb' c.trend#i.zipcode  c.trend_sq#i.zipcode c.trend_cu#i.zipcode) ///
-		vce(cluster `cluster') nocons
-	comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("Yes")
+	comment_table, trend_lin("Yes") trend_sq("Yes")
 end
 
 program run_dynamic_model
@@ -96,7 +89,7 @@ program run_dynamic_model
 	eststo reg1: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw, 			///
 		absorb(`absorb') 											///
 		vce(cluster `cluster') nocons
-	comment_table, trend_lin("No") trend_sq("No") trend_cu("No")
+	comment_table, trend_lin("No") trend_sq("No")
 	
 	coefplot, vertical base gen
 	
@@ -135,31 +128,23 @@ program run_dynamic_model
 	restore
 	
 	eststo lincom1: lincomest `lincomest_coeffs'
-	comment_table, trend_lin("No") trend_sq("No") trend_cu("No")
+	comment_table, trend_lin("No") trend_sq("No")
 	
 	eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw  `if', 		///
-		absorb(`absorb' c.trend#i.zipcode) 							///
+		absorb(`absorb' i.zipcode) 							///
 		vce(cluster `cluster') nocons
-	comment_table, trend_lin("Yes") trend_sq("No") trend_cu("No")
+	comment_table, trend_lin("Yes") trend_sq("No")
 
 	eststo lincom2: lincomest `lincomest_coeffs'
-	comment_table, trend_lin("Yes") trend_sq("No") trend_cu("No")
+	comment_table, trend_lin("Yes") trend_sq("No")
 	
 	eststo reg3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if',		///
-		absorb(`absorb' c.trend#i.zipcode c.trend_sq#i.zipcode) 	///
+		absorb(`absorb' i.zipcod c.trend_times2#i.zipcode) 	///
 		vce(cluster `cluster') nocons
-	comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("No")
+	comment_table, trend_lin("Yes") trend_sq("Yes")
 
 	eststo lincom3: lincomest `lincomest_coeffs'
-	comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("No")
-
-	eststo reg4: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if',		///
-		absorb(`absorb' c.trend#i.zipcode c.trend_sq#i.zipcode c.trend_cu#i.zipcode) ///
-		vce(cluster `cluster') nocons
-	comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("Yes")
-	
-	eststo lincom4: lincomest `lincomest_coeffs'
-	comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("Yes")
+	comment_table, trend_lin("Yes") trend_sq("Yes")
 end
 
 program run_static_heterogeneity
@@ -172,7 +157,7 @@ program run_static_heterogeneity
 
 	forvalues i = 1(1)`qtles' {
 		quietly reghdfe D.`depvar' D.ln_mw if `het_var' == `i',							///
-			absorb(`absorb' c.trend#i.zipcode c.trend_sq#i.zipcode c.trend_cu#i.zipcode) ///
+			absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) ///
 			vce(cluster `cluster') nocons
 
 		mat B = e(b)
@@ -217,11 +202,10 @@ program build_ytitle, rclass
 end
 
 program comment_table
-	syntax, trend_lin(str) trend_sq(str) trend_cu(str)
+	syntax, trend_lin(str) trend_sq(str)
 
 	estadd local zs_trend 		"`trend_lin'"	
 	estadd local zs_trend_sq 	"`trend_sq'"
-	estadd local zs_trend_cu 	"`trend_cu'"
 end
 
 main
