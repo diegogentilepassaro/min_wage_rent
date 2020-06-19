@@ -133,27 +133,37 @@ program run_dynamic_model
 		gen b_lags_ub = b_lags + 1.96*se_lags
 		
 		gen cumsum_b_lags = b_lags[1]
-		replace cumsum_b_lags = cumsum_b_lags[_n-1] + b_lags[_n] if _n>1
-
+		replace cumsum_b_lags = cumsum_b_lags[_n-1] + b_lags[_n] if _n > 1
+		
 		replace at = at + `w'
 		
 		merge 1:1 at using "../temp/plot_coeffs.dta", nogen
 		replace cumsum_b_lags = 0 if at <= `w'
 		sort at
 		
-		twoway (scatter b_full at, mcol(navy)) ///
-			(rcap b_full_lb b_full_ub at, col(navy)) ///
-			(scatter b_lags at, mcol(maroon)) ///
-			(rcap b_lags_lb b_lags_ub at, col(maroon)) ///
-			(line cumsum_b_lags at, lcol(maroon)) ///
-			(line static_path at, lcol(green)), ///
-			yline(0, lcol(grey) lpat(dot)) ///
-			graphregion(color(white)) bgcolor(white) ///
+		// To avoid the lines overlapping perfectly
+		gen at_full = at - 0.09
+		gen at_lags = at + 0.09
+		replace at_full = at if _n <= `w'
+		replace at_lags = at if _n <= `w'
+
+		replace cumsum_b_lags = cumsum_b_lags - 0.00007 if _n <= `w'
+		replace static_path = static_path + 0.00007 if _n <= `w'
+
+		// Figure
+		twoway (scatter b_full at_full, mcol(navy)) 				///
+			(rcap b_full_lb b_full_ub at_full, col(navy)) 			///
+			(scatter b_lags at_lags, mcol(maroon)) 					///
+			(rcap b_lags_lb b_lags_ub at_lags, col(maroon)) 		///
+			(line static_path at, lcol(gs4) lpat(dash)) 			///
+			(line cumsum_b_lags at, lcol(maroon)), 					///
+			yline(0, lcol(grey) lpat(dot)) 							///
+			graphregion(color(white)) bgcolor(white) 				///
 			xlabel(1 "F5D.ln_mw" 2 "F4D.ln_mw" 3 "F3D.ln_mw" 4 "F2D.ln_mw" ///
 			5 "FD.ln_mw" 6 "D.ln_mw" 7 "LD.ln_mw" 8 "L2D.ln_mw" 9 "L3D.ln_mw" ///
 			10 "L4D.ln_mw" 11 "L5D.ln_mw", labsize(vsmall)) xtitle("Leads and lags of ln MW") ///
-			ytitle("Effect on ln rent per sqft") ///
-			legend(order(1 "Full dynamic model coefficients" 3 "Distributed lags model" ///
+			ytitle("Effect on ln rent per sqft") 					///
+			legend(order(1 "Full dynamic model" 3 "Distributed lags model" ///
 			5 "Effects path static model" 6 "Effects path distributed lags model") size(small))
 		graph export "../output/fd_models.png", replace
 	restore 
