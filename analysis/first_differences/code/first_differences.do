@@ -177,7 +177,7 @@ program run_static_heterogeneity
 
     eststo clear
 	reghdfe D.`depvar' c.d_ln_mw#i.`het_var',							///
-		absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) ///
+		absorb(`absorb') ///
 		vce(cluster `cluster') nocons
 
 	coefplot, base graphregion(color(white)) bgcolor(white)						///
