@@ -27,8 +27,8 @@ program main
 	
 	esttab reg1 reg2 reg3 using "`outstub'/fd_dynamic_table.tex", 					///
 		keep(*.ln_mw) compress se replace 												///
-		stats(zs_trend zs_trend_sq zs_trend_cu r2 N, fmt(%s3 %s3 %s3 %9.3f %9.0g) 		///
-		labels("Zipcode-specifc linear trend" 											///
+		stats(p_value_F zs_trend zs_trend_sq zs_trend_cu r2 N, fmt(%9.3f %s3 %s3 %s3 %9.3f %9.0g) 		///
+		labels("P-value no pretrends" "Zipcode-specifc linear trend" 											///
 		"Zipcode-specific linear and square trend"								///
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
 		nonote
@@ -90,7 +90,10 @@ program run_dynamic_model
 		absorb(`absorb') 											///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("No") trend_sq("No")
-		
+	
+	test (F5D.ln_mw = 0) (F4D.ln_mw = 0) (F3D.ln_mw = 0) (F2D.ln_mw = 0) (F1D.ln_mw = 0)
+    estadd scalar p_value_F = r(p)
+
 	preserve
 		coefplot, vertical base gen
 		keep __at __b __se
@@ -113,7 +116,7 @@ program run_dynamic_model
 		
 	eststo lincom1: lincomest `lincomest_coeffs'
 	comment_table, trend_lin("No") trend_sq("No")
-	
+			
 	qui reghdfe D.`depvar' L(0/`w').D.ln_mw, 			///
 		absorb(`absorb') 											///
 		vce(cluster `cluster') nocons
@@ -159,7 +162,10 @@ program run_dynamic_model
 		absorb(`absorb' i.zipcode) 							///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("Yes") trend_sq("No")
-
+	
+	test (F5D.ln_mw = 0) (F4D.ln_mw = 0) (F3D.ln_mw = 0) (F2D.ln_mw = 0) (F1D.ln_mw = 0)
+    estadd scalar p_value_F = r(p)
+	
 	eststo lincom2: lincomest `lincomest_coeffs'
 	comment_table, trend_lin("Yes") trend_sq("No")
 	
@@ -168,6 +174,9 @@ program run_dynamic_model
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("Yes") trend_sq("Yes")
 
+	test (F5D.ln_mw = 0) (F4D.ln_mw = 0) (F3D.ln_mw = 0) (F2D.ln_mw = 0) (F1D.ln_mw = 0)
+    estadd scalar p_value_F = r(p)
+	
 	eststo lincom3: lincomest `lincomest_coeffs'
 	comment_table, trend_lin("Yes") trend_sq("Yes")
 end
