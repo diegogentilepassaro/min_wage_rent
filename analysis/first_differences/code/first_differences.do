@@ -114,8 +114,7 @@ program run_dynamic_model
 	eststo lincom1: lincomest `lincomest_coeffs'
 	comment_table, trend_lin("No") trend_sq("No")
 	
-	qui reghdfe D.`depvar' L(0/`w').D.ln_mw, 			///
-		absorb(`absorb') 											///
+	qui reghdfe D.`depvar' L(0/`w').D.ln_mw, absorb(`absorb') 			///
 		vce(cluster `cluster') nocons
 			
 	preserve
@@ -141,10 +140,11 @@ program run_dynamic_model
 		// To avoid the lines overlapping perfectly
 		gen at_full = at - 0.09
 		gen at_lags = at + 0.09
-		replace at_lags = at if _n <= 5
+		replace at_full = at if _n <= `w'
+		replace at_lags = at if _n <= `w'
 
-		replace cumsum_b_lags = cumsum_b_lags - 0.00007 if _n <= 5
-		replace static_path = static_path + 0.00007 if _n <= 5
+		replace cumsum_b_lags = cumsum_b_lags - 0.00007 if _n <= `w'
+		replace static_path = static_path + 0.00007 if _n <= `w'
 
 		// Figure
 		twoway (scatter b_full at_full, mcol(navy)) 				///
