@@ -26,7 +26,8 @@ program main
 	simplify_varnames
 
 	xtset zipcode year_month
-	
+	gen d_ln_mw = D.ln_mw
+
 	save_data "`outstub'/fd_rent_panel.dta", key(zipcode year_month) replace log(`logfile')
 end
 

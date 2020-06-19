@@ -90,45 +90,70 @@ program run_dynamic_model
 		absorb(`absorb') 											///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("No") trend_sq("No")
-	
-	coefplot, vertical base gen
-	
+		
 	preserve
+		coefplot, vertical base gen
 		keep __at __b __se
-		rename (__at __b __se) (at b se)
-		tset at
+		rename (__at __b __se) (at b_full se_full)
 		
-		gen static_path = 0 if at <= 5 
-		replace static_path = scalar(static_effect) if at > 5
-		gen static_path_lb = 0 if at <= 5
-		replace static_path_lb = scalar(static_effect) - 1.96*scalar(static_effect_se) if at > 5
-		gen static_path_ub = 0 if at <= 5
-		replace static_path_ub = scalar(static_effect) + 1.96*scalar(static_effect_se) if at > 5
-		
-		gen cumsum_b = b[1]
-		replace cumsum_b = cumsum_b[_n-1] + b[_n] if _n>1
 		keep if !missing(at)
 
-		gen b_lb = b - 1.96*se
-		gen b_ub = b + 1.96*se
+		gen b_full_lb = b_full - 1.96*se_full
+		gen b_full_ub = b_full + 1.96*se_full
+		
+		gen static_path = 0 if at <= `w' 
+		replace static_path = scalar(static_effect) if at > `w'
+		gen static_path_lb = 0 if at <= `w'
+		replace static_path_lb = scalar(static_effect) - 1.96*scalar(static_effect_se) if at > `w'
+		gen static_path_ub = 0 if at <= `w'
+		replace static_path_ub = scalar(static_effect) + 1.96*scalar(static_effect_se) if at > `w'
+		
+		save "../temp/plot_coeffs.dta", replace
+    restore
+		
+	eststo lincom1: lincomest `lincomest_coeffs'
+	comment_table, trend_lin("No") trend_sq("No")
+	
+	qui reghdfe D.`depvar' L(0/`w').D.ln_mw, 			///
+		absorb(`absorb') 											///
+		vce(cluster `cluster') nocons
+			
+	preserve
+		coefplot, vertical base gen
+		keep __at __b __se
+		rename (__at __b __se) (at b_lags se_lags)
+		tset at
 
-		twoway (scatter b at, mcol(navy)) ///
-			(rcap b_lb b_ub at, col(navy)) ///
-			(line cumsum at, lcol(green)) ///
-			(line static_path at, lcol(maroon)), ///
+	    keep if !missing(at)
+
+		gen b_lags_lb = b_lags - 1.96*se_lags
+		gen b_lags_ub = b_lags + 1.96*se_lags
+		
+		gen cumsum_b_lags = b_lags[1]
+		replace cumsum_b_lags = cumsum_b_lags[_n-1] + b_lags[_n] if _n>1
+
+		replace at = at + `w'
+		
+		merge 1:1 at using "../temp/plot_coeffs.dta", nogen
+		replace cumsum_b_lags = 0 if at <= `w'
+		sort at
+		
+		twoway (scatter b_full at, mcol(navy)) ///
+			(rcap b_full_lb b_full_ub at, col(navy)) ///
+			(scatter b_lags at, mcol(maroon)) ///
+			(rcap b_lags_lb b_lags_ub at, col(maroon)) ///
+			(line cumsum_b_lags at, lcol(maroon)) ///
+			(line static_path at, lcol(green)), ///
 			yline(0, lcol(grey) lpat(dot)) ///
 			graphregion(color(white)) bgcolor(white) ///
 			xlabel(1 "F5D.ln_mw" 2 "F4D.ln_mw" 3 "F3D.ln_mw" 4 "F2D.ln_mw" ///
 			5 "FD.ln_mw" 6 "D.ln_mw" 7 "LD.ln_mw" 8 "L2D.ln_mw" 9 "L3D.ln_mw" ///
 			10 "L4D.ln_mw" 11 "L5D.ln_mw", labsize(vsmall)) xtitle("Leads and lags of ln MW") ///
 			ytitle("Effect on ln rent per sqft") ///
-			legend(order(1 "Dynamic model coefficients" 3 "Cumulative sum: dynamic model" ///
-			4 "Implied cumulative sum: static model") size(small))
+			legend(order(1 "Full dynamic model coefficients" 3 "Distributed lags model" ///
+			5 "Effects path static model" 6 "Effects path distributed lags model") size(small))
 		graph export "../output/fd_models.png", replace
-	restore
-	
-	eststo lincom1: lincomest `lincomest_coeffs'
-	comment_table, trend_lin("No") trend_sq("No")
+	restore 
 	
 	eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw  `if', 		///
 		absorb(`absorb' i.zipcode) 							///
@@ -150,32 +175,16 @@ end
 program run_static_heterogeneity
 	syntax, depvar(str) absorb(str) cluster(str) het_var(str) ytitle(str) [qtles(int 5)]
 
-	eststo clear
+    eststo clear
+	reghdfe D.`depvar' c.d_ln_mw#i.`het_var',							///
+		absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) ///
+		vce(cluster `cluster') nocons
 
-	mat A = J(`qtles', 3, .)
-	mat colnames A = coeff ci_low ci_high
-
-	forvalues i = 1(1)`qtles' {
-		quietly reghdfe D.`depvar' D.ln_mw if `het_var' == `i',							///
-			absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) ///
-			vce(cluster `cluster') nocons
-
-		mat B = e(b)
-		mat V = e(V)
-
-		mat A[`i', 1] = B[1, 1]
-		mat A[`i', 2] = B[1, 1] - 1.96*(V[1, 1]^.5)
-		mat A[`i', 3] = B[1, 1] + 1.96*(V[1, 1]^.5)
-	}
-
-	mat tA = A'
-
-	coefplot matrix(tA[1]), ci((tA[2] tA[3])) 							///
-		graphregion(color(white)) bgcolor(white)						///
-		ylabel(1 "1" 2 "2" 3 "3" 4 "4" 5 "5")							///
-		ytitle(`ytitle') 												///
-		xtitle("Estimated effect of ln MW on ln rents")					///
-		xline(0, lcol(grey) lpat(dot))
+	coefplot, base graphregion(color(white)) bgcolor(white)						///
+	ylabel(1 "1" 2 "2" 3 "3" 4 "4" 5 "5")							///
+	ytitle(`ytitle') 												///
+	xtitle("Estimated effect of ln MW on ln rents")					///
+	xline(0, lcol(grey) lpat(dot))
 end
 
 program build_ytitle, rclass
