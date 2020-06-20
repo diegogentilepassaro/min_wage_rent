@@ -1,6 +1,6 @@
 program create_event_plot
 	syntax [if], depvar(str) event_var(str) controls(str) absorb(str) 			///
-		window(int) cluster(str) [* name(str) title(str) ytitle(str)]
+		window(int) cluster(str) [* name(str) title(str) ytitle(str) yaxis(str)]
 
 	local window_plus1 = `window' + 1
 	local window_span = 2*`window' + 1
@@ -18,6 +18,6 @@ program create_event_plot
 		xlabel(1 "-`window'" `window_plus1' "0" `window_span' "`window'") 		///
 		xline(`window_plus1', lcol(grey) lpat(dot)) 							///
 		yline(0, lcol(grey) lpat(dot)) 											///
-		name(`name') title(`title') ytitle(`ytitle')
+		`yaxis' name(`name') title(`title') ytitle(`ytitle')
 end
 

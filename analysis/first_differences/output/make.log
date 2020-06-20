@@ -1,5 +1,5 @@
 
- make.py started: 2020-06-17 08:09:32 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\first_differences\code 
+ make.py started: 2020-06-19 16:24:38 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\first_differences\code 
 
 
 
@@ -47,62 +47,161 @@ Notes:
 
 . 
 . program main
-  1.         use "../../../drive/derived_large/output/baseline_rent_panel.dta",
->  clear
-  2.         keep zipcode place_code msa countyfips statefips year_month calend
-> ar_month ///
->                 actual_mw medrentpricepsqft_sfcc medrentprice_sfcc trend tren
-> d_sq trend_cu
-  3.         
-.         foreach var in actual_mw medrentpricepsqft_sfcc medrentprice_sfcc{
-  4.                 gen ln_`var' = ln(`var')
-  5.         }
-  6. 
+  1.         local instub "../../../drive/derived_large/output"
+  2.         local outstub "../temp"
+  3.         local logfile "../output/data_file_manifest.log"
+  4. 
+. 
+.         use "`instub'/baseline_rent_panel.dta", clear
+  5.         keep zipcode place_code msa countyfips statefips                  
+>                                               ///
+>                 year_month calendar_month trend trend_sq trend_cu            
+>                                            ///
+>                 actual_mw medrentpricepsqft_sfcc medrentprice_sfcc           
+>                                            ///
+>                 med_hhinc20105 renthouse_share2010 white_share2010 black_shar
+> e2010                      ///
+>                 college_share20105 work_county_share20105
+  6.         
+. 
+.         local het_vars "med_hhinc20105 renthouse_share2010 college_share20105
+>  black_share2010"
+  7.         local het_vars "`het_vars' nonwhite_share2010 work_county_share201
+> 05"
+  8. 
+.         create_vars,    log_vars(actual_mw medrentpricepsqft_sfcc medrentpric
+> e_sfcc)    ///
+>                                         heterogeneity_vars(`het_vars')
+  9.         
+.         simplify_varnames
+ 10. 
 .         xtset zipcode year_month
-  7.         
-.     rename (ln_actual_mw ln_medrentpricepsqft_sfcc) (ln_mw ln_med_rent_psqft)
-  8.         
-.         
-.         save_data "../temp/fd_rent_panel.dta", key(zipcode year_month) replac
-> e
-  9. end
+ 11.         gen d_ln_mw = D.ln_mw
+ 12. 
+.         save_data "`outstub'/fd_rent_panel.dta", key(zipcode year_month) repl
+> ace log(`logfile')
+ 13. end
+
+. 
+. program create_vars
+  1.         syntax, log_vars(str) heterogeneity_vars(str)
+  2. 
+.         foreach var in `log_vars' {
+  3.                 gen ln_`var' = ln(`var')
+  4.         }
+  5. 
+.         gen nonwhite_share2010 = 1 - white_share2010
+  6.         
+.         gen trend_times2 = 2*trend
+  7. 
+.         foreach var in `heterogeneity_vars' {
+  8.                 *xtile `var'_nat_dec = `var', nq(10)
+.                 xtile `var'_nat_qtl = `var', nq(5)
+  9.                 levelsof statefips, local(states)
+ 10. 
+.                 foreach state in `states'{
+ 11.                         *xtile deciles_`state'_`var' = `var' if statefips 
+> == `state', nq(10)
+.                         xtile qtiles_`state'_`var' = `var' if statefips == `s
+> tate', nq(5)
+ 12.                 }
+ 13.                 *egen `var'_st_dec = rowtotal(deciles_*)
+.                 egen `var'_st_qtl = rowtotal(qtiles_*)
+ 14.                 
+.                 *drop deciles_* qtiles_*
+.                 drop qtiles_*
+ 15.         }
+ 16. end
+
+. 
+. program simplify_varnames
+  1.         
+.     rename      (ln_actual_mw   ln_medrentpricepsqft_sfcc)              ///
+>                 (ln_mw                  ln_med_rent_psqft)
+  2. 
+. end
 
 . 
 . main
-(40,499 missing values generated)
-(27,658 missing values generated)
+(43,225 missing values generated)
+(30,956 missing values generated)
+1 2 4 5 6 8 9 10 11 12 13 15 16 17 18 20 21 22 24 25 26 27 28 29 32 34 35 36 37
+>  39 40 41 42 44 45 47 48 49 51 53 54 56
+1 2 4 5 6 8 9 10 11 12 13 15 16 17 18 20 21 22 24 25 26 27 28 29 32 34 35 36 37
+>  39 40 41 42 44 45 47 48 49 51 53 54 56
+1 2 4 5 6 8 9 10 11 12 13 15 16 17 18 20 21 22 24 25 26 27 28 29 32 34 35 36 37
+>  39 40 41 42 44 45 47 48 49 51 53 54 56
+1 2 4 5 6 8 9 10 11 12 13 15 16 17 18 20 21 22 24 25 26 27 28 29 32 34 35 36 37
+>  39 40 41 42 44 45 47 48 49 51 53 54 56
+1 2 4 5 6 8 9 10 11 12 13 15 16 17 18 20 21 22 24 25 26 27 28 29 32 34 35 36 37
+>  39 40 41 42 44 45 47 48 49 51 53 54 56
+1 2 4 5 6 8 9 10 11 12 13 15 16 17 18 20 21 22 24 25 26 27 28 29 32 34 35 36 37
+>  39 40 41 42 44 45 47 48 49 51 53 54 56
        panel variable:  zipcode (strongly balanced)
         time variable:  year_month, 2010m1 to 2019m12
                 delta:  1 month
+(1,305 missing values generated)
 (data already sorted by zipcode year_month)
-  (0 bytes saved)
+  variable trend_times2 was float now int
+  variable med_hhinc20105_st_qtl was float now byte
+  variable renthouse_share2010_st_qtl was float now byte
+  variable college_share20105_st_qtl was float now byte
+  variable black_share2010_st_qtl was float now byte
+  variable nonwhite_share2010_st_qtl was float now byte
+  variable work_county_share20105_st_qtl was float now byte
+  (3,132,000 bytes saved)
 ============================================================================
 File: ../temp/fd_rent_panel.dta
 Key: zipcode year_month
 ============================================================================
-  150360:16(19328):1689201119:2658988827
+  156600:37(57114):2539692295:3415963192
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
-     zipcode |    150,360    51319.01    29004.04       2113      99577
-  year_month |    150,360       659.5    34.63993        600        719
-  place_code |    124,200       40791    22611.89        410      87240
-  countyfips |    150,000    24129.28    16433.47       1003      56021
-   statefips |    150,360    24.02953    16.37417          1         56
+     zipcode |    156,600    51920.57    29185.78       2113      99577
+  year_month |    156,600       659.5    34.63992        600        719
+  place_code |    129,840    40657.65    22564.03        410      87240
+  countyfips |    156,240    24077.04    16484.28       1003      56021
+   statefips |    156,600    23.97854    16.42626          1         56
 -------------+---------------------------------------------------------
-medre~e_sfcc |    122,702    1641.121    693.2088        595       6595
-   actual_mw |    150,360    8.063602    1.192165       7.25         16
-calendar_m~h |    150,360         6.5    3.452064          1         12
-         msa |    150,360    436.0295    241.1196         12        860
-       trend |    150,360       225.5    34.63993        166        285
+medre~e_sfcc |    125,644    1651.102    702.9949        595       6595
+   actual_mw |    156,600    8.077733    1.207496       7.25         16
+calendar_m~h |    156,600         6.5    3.452064          1         12
+         msa |    156,600    436.1801    240.1675         12        860
+       trend |    156,600       225.5    34.63992        166        285
 -------------+---------------------------------------------------------
-    trend_sq |    150,360    52050.17    15659.42      27556      81225
-    trend_cu |    150,360    1.23e+07     5408204    4574296   2.31e+07
-medre~t_sfcc |    109,861    1.182011    .7855536   .4180214   6.731387
-       ln_mw |    150,360    2.078049    .1313575   1.981001   2.772589
-ln_med_ren~t |    109,861    .0411796    .4492291  -.8722228   1.906781
+    trend_sq |    156,600    52050.17    15659.42      27556      81225
+    trend_cu |    156,600    1.23e+07     5408203    4574296   2.31e+07
+medre~t_sfcc |    113,375    1.188344    .7824813   .4180214   6.731387
+white_s~2010 |    156,600    .5450552    .2217932   .0036694   .9396675
+black_s~2010 |    156,600    .1651694    .2005277   .0034277   .9753516
 -------------+---------------------------------------------------------
-ln_medrent~c |    122,702     7.32918    .3733732   6.388561   8.794067
+renthou~2010 |    156,600    .3799848    .1759554    .062864   .9660729
+work_c~20105 |    156,600    .7582464    .2010222   .1421741   .9951102
+colleg~20105 |    156,600    .4411882    .1670347   .0860239   .9081349
+med_hh~20105 |    156,600    66919.72    24575.33   20527.66   191553.2
+       ln_mw |    156,600    2.079598    .1327617   1.981001   2.772589
+-------------+---------------------------------------------------------
+ln_med_ren~t |    113,375    .0472541    .4493362  -.8722228   1.906781
+ln_medrent~c |    125,644    7.334093    .3761665   6.388561   8.794067
+nonwhit~2010 |    156,600    .4549448    .2217932   .0603325   .9963306
+trend_times2 |    156,600         451    69.27985        332        570
+med_h~at_qtl |    156,600           3    1.414218          1          5
+-------------+---------------------------------------------------------
+med_h~st_qtl |    156,600     2.94636    1.415909          1          5
+renth~at_qtl |    156,600           3    1.414218          1          5
+renth~st_qtl |    156,600     2.94636    1.415909          1          5
+colle~at_qtl |    156,600           3    1.414218          1          5
+colle~st_qtl |    156,600     2.94636    1.415909          1          5
+-------------+---------------------------------------------------------
+black~at_qtl |    156,600           3    1.414218          1          5
+black~st_qtl |    156,600     2.94636    1.415909          1          5
+nonwh~at_qtl |    156,600           3    1.414218          1          5
+nonwh~st_qtl |    156,600     2.94636    1.415909          1          5
+work_~at_qtl |    156,600           3    1.414218          1          5
+-------------+---------------------------------------------------------
+work_~st_qtl |    156,600     2.94636    1.415909          1          5
+     d_ln_mw |    155,295    .0016437    .0119548   -.290338   .2412503
 
 
 
@@ -167,213 +266,311 @@ Notes:
 
 . 
 . program main
-  1.         use "../temp/fd_rent_panel.dta", clear
-  2.         
-.         run_static_model, depvar(ln_med_rent_psqft) ///
->             absorb(year_month) cluster(statefips)
-  3.         
-.         esttab * using "../output/fd_table.tex", keep(D.ln_mw) compress se re
-> place      ///
->         stats(zs_trend zs_trend_sq zs_trend_cu r2 N, fmt(%9.3f %9.0g)        
->                            ///
+  1.         local instub "../temp"
+  2.         local outstub "../output"
+  3. 
+.         use "`instub'/fd_rent_panel.dta", clear
+  4. 
+.         * Static Model
+.         run_static_model, depvar(ln_med_rent_psqft) absorb(year_month)       
+>                                    ///
+>                 cluster(statefips)
+  5. 
+.         esttab * using "`outstub'/fd_table.tex", keep(D.ln_mw) compress se re
+> place                      ///
+>                 stats(zs_trend zs_trend_sq zs_trend_cu r2 N, fmt(%s3 %s3 %s3 
+> %9.3f %9.0g)               ///
 >                 labels("Zipcode-specifc linear trend"                        
 >                                                            ///
->             "Zipcode-specific linear and square trend"                       
->                                                    ///
->                 "Zipcode-specific linear, square and cubic trend"            
->                                                    ///
->             "R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01)       
->                                    ///
+>                 "Zipcode-specific linear and square trend"                   
+>                                            ///
+>                 "R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01)   
+>                                            ///
 >                 nonote
-  4.         
-.         run_dynamic_model, depvar(ln_med_rent_psqft) ///
->             absorb(year_month) cluster(statefips)
-  5.         
-.         esttab reg1 reg2 reg3 reg4 using "../output/fd_dynamic_table.tex",   
+  6.         
+.         * Dynamic Model
+.         run_dynamic_model, depvar(ln_med_rent_psqft) absorb(year_month)      
 >                                    ///
+>                 cluster(statefips)
+  7.         
+.         esttab reg1 reg2 reg3 using "`outstub'/fd_dynamic_table.tex",        
+>                            ///
 >                 keep(*.ln_mw) compress se replace                            
->                                                    ///
->         stats(zs_trend zs_trend_sq zs_trend_cu r2 N, fmt(%9.3f %9.0g)        
->                            ///
->                 labels("Zipcode-specifc linear trend"                        
->                                                            ///
->             "Zipcode-specific linear and square trend"                       
->                                                    ///
->                 "Zipcode-specific linear, square and cubic trend"            
->                                                    ///
->             "R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01)       
->                                    ///
+>                                                                    ///
+>                 stats(p_value_F zs_trend zs_trend_sq zs_trend_cu r2 N, fmt(%9
+> .3f %s3 %s3 %s3 %9.3f %9.0g)               ///
+>                 labels("P-value no pretrends" "Zipcode-specifc linear trend" 
+>                                                                              
+>       ///
+>                 "Zipcode-specific linear and square trend"                   
+>                                            ///
+>                 "R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01)   
+>                                            ///
 >                 nonote
-  6. 
-.         esttab lincom1 lincom2 lincom3 lincom4 using "../output/fd_dynamic_li
-> ncom_table.tex", ///
+  8. 
+.         esttab lincom1 lincom2 lincom3 using "`outstub'/fd_dynamic_lincom_tab
+> le.tex", ///
 >                 compress se replace                                          
 >                                                                            //
 > /
->         stats(zs_trend zs_trend_sq zs_trend_cu N, fmt(%9.0g)                 
->                                    ///
+>         stats(zs_trend zs_trend_sq zs_trend_cu N, fmt(%s3 %s3 %s3 %9.0g)     
+>                            ///
 >                 labels("Zipcode-specifc linear trend"                        
 >                                                            ///
->             "Zipcode-specific linear and square trend"                       
->                                                    ///
->                 "Zipcode-specific linear, square and cubic trend" "Observatio
-> ns"))                              ///
+>             "Zipcode-specific linear and square trend" ///
+>                 "Observations"))                                ///
 >                 star(* 0.10 ** 0.05 *** 0.01)                                
 >                                                                    ///
 >                 nonote coeflabel((1) "Sum of MW effects")
-  7. end
+  9. 
+.         * Heterogeneity
+.         foreach var in med_hhinc20105 renthouse_share2010 college_share20105 
+>                            ///
+>                                 black_share2010 nonwhite_share2010 work_count
+> y_share20105 {
+ 10. 
+.                 build_ytitle, var(`var')
+ 11. 
+.                 run_static_heterogeneity, depvar(ln_med_rent_psqft) absorb(ye
+> ar_month)                  ///
+>                         het_var(`var'_st_qtl) cluster(statefips) ytitle(`r(ti
+> tle)')
+ 12.                 graph export "`outstub'/fd_static_heter_`var'.png", replac
+> e
+ 13.         }
+ 14. end
 
 . 
 . program run_static_model
   1.     syntax, depvar(str) absorb(str) cluster(str)
-  2.         
+  2. 
 .         eststo clear
-  3.         eststo: reghdfe D.`depvar' D.ln_mw,                               
->                       ///
->                 absorb(`absorb') ///
+  3.         eststo reg1: reghdfe D.`depvar' D.ln_mw,                          
+>                               ///
+>                 absorb(`absorb')                                             
+>                                                    ///
 >                 vce(cluster `cluster') nocons
-  4.         comment_table, trend_lin("No") trend_sq("No") trend_cu("No")
+  4.         comment_table, trend_lin("No") trend_sq("No")
   5.         
 .         scalar static_effect = _b[D.ln_mw]
   6.         scalar static_effect_se = _se[D.ln_mw]
   7. 
 .         eststo: reghdfe D.`depvar' D.ln_mw,                                  
->                    ///
->                 absorb(`absorb' c.trend#i.zipcode) ///
+>                                    ///
+>                 absorb(`absorb' i.zipcode)                                   
+>                            ///
 >                 vce(cluster `cluster') nocons
-  8.         comment_table, trend_lin("Yes") trend_sq("No") trend_cu("No")
+  8.         comment_table, trend_lin("Yes") trend_sq("No")
   9. 
 .         eststo: reghdfe D.`depvar' D.ln_mw,                                  
->                    ///
->                 absorb(`absorb' c.trend#i.zipcode  c.trend_sq#i.zipcode) ///
+>                                    ///
+>                 absorb(`absorb' i.zipcode c.trend_times2#i.zipcode)          
+>    ///
 >                 vce(cluster `cluster') nocons
- 10.         comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("No")
- 11. 
-.         eststo: reghdfe D.`depvar' D.ln_mw,                                  
->                    ///
->                 absorb(`absorb' c.trend#i.zipcode  c.trend_sq#i.zipcode c.tre
-> nd_cu#i.zipcode) ///
->                 vce(cluster `cluster') nocons
- 12.         comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("Yes")
- 13. end
+ 10.         comment_table, trend_lin("Yes") trend_sq("Yes")
+ 11. end
 
 . 
 . program run_dynamic_model
-  1.     syntax, depvar(str) absorb(str) cluster(str)
+  1.         syntax, depvar(str) absorb(str) cluster(str) [w(int 5)]
   2.         
+.         local lincomest_coeffs "D1.ln_mw + LD.ln_mw"
+  3.         forvalues i = 2(1)`w'{
+  4.                 local lincomest_coeffs "`lincomest_coeffs' + L`i'D.ln_mw"
+  5.         }
+  6. 
 .         eststo clear
-  3.         eststo reg1: reghdfe D.`depvar' L(-5/5).D.ln_mw,                  
+  7.         eststo reg1: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw,              
 >       ///
->             absorb(`absorb') ///
+>                 absorb(`absorb')                                             
+>                                            ///
 >                 vce(cluster `cluster') nocons
-  4.         comment_table, trend_lin("No") trend_sq("No") trend_cu("No")
-  5.         
-.         coefplot, vertical base gen
-  6.         
+  8.         comment_table, trend_lin("No") trend_sq("No")
+  9.         
+.         test (F5D.ln_mw = 0) (F4D.ln_mw = 0) (F3D.ln_mw = 0) (F2D.ln_mw = 0) 
+> (F1D.ln_mw = 0)
+ 10.     estadd scalar p_value_F = r(p)
+ 11. 
 .         preserve
-  7.         keep __at __b __se
-  8.         rename (__at __b __se) (at b se)
-  9.         tset at
- 10.         
-.         gen static_path = 0 if at <= 5 
- 11.         replace static_path = scalar(static_effect) if at > 5
- 12.         gen static_path_lb = 0 if at <= 5
- 13.         replace static_path_lb = scalar(static_effect) - 2*scalar(static_e
-> ffect_se) if at > 5
- 14.         gen static_path_ub = 0 if at <= 5
- 15.         replace static_path_ub = scalar(static_effect) + 2*scalar(static_e
-> ffect_se) if at > 5
- 16.         
-.         gen cumsum_b = b[1]
- 17.         replace cumsum_b = cumsum_b[_n-1] + b[_n] if _n>1
- 18.         keep if !missing(at)
- 19. 
-.         gen b_lb = b - 2*se
- 20.         gen b_ub = b + 2*se
- 21. 
-.         twoway (scatter b at, mcol(navy)) ///
->                 (rcap b_lb b_ub at, col(navy)) ///
->                 (line cumsum at, lcol(green)) ///
->                 (line static_path at, lcol(maroon)), ///
->                 yline(0, lcol(grey) lpat(dot)) ///
->                 graphregion(color(white)) bgcolor(white) ///
->                 xlabel(1 "F5D.ln_mw" 2 "F4D.ln_mw" 3 "F3D.ln_mw" 4 "F2D.ln_mw
-> " ///
->                 5 "FD.ln_mw" 6 "D.ln_mw" 7 "LD.ln_mw" 8 "L2D.ln_mw" 9 "L3D.ln
-> _mw" ///
->                 10 "L4D.ln_mw" 11 "L5D.ln_mw", labsize(vsmall)) xtitle("Leads
->  and lags of ln MW") ///
->                 ytitle("Effect on ln rent per sqft") ///
->                 legend(order(1 "Dynamic model coefficients" 3 "Cumulative sum
-> : dynamic model" ///
->                 4 "Implied cumulative sum: static model") size(small))
- 22.         graph export "../output/fd_models.png", replace
- 23.         restore
- 24.         
-.         eststo lincom1: lincomest D1.ln_mw + LD.ln_mw + L2D.ln_mw +     ///
->             L3D.ln_mw + L4D.ln_mw + L5D.ln_mw
- 25.         comment_table, trend_lin("No") trend_sq("No") trend_cu("No")
- 26.         
-.         eststo reg2: reghdfe D.`depvar' L(-5/5).D.ln_mw,                     
->    ///
->             absorb(`absorb' c.trend#i.zipcode) ///
+ 12.                 coefplot, vertical base gen
+ 13.                 keep __at __b __se
+ 14.                 rename (__at __b __se) (at b_full se_full)
+ 15.                 
+.                 keep if !missing(at)
+ 16. 
+.                 gen b_full_lb = b_full - 1.96*se_full
+ 17.                 gen b_full_ub = b_full + 1.96*se_full
+ 18.                 
+.                 gen static_path = 0 if at <= `w' 
+ 19.                 replace static_path = scalar(static_effect) if at > `w'
+ 20.                 gen static_path_lb = 0 if at <= `w'
+ 21.                 replace static_path_lb = scalar(static_effect) - 1.96*scal
+> ar(static_effect_se) if at > `w'
+ 22.                 gen static_path_ub = 0 if at <= `w'
+ 23.                 replace static_path_ub = scalar(static_effect) + 1.96*scal
+> ar(static_effect_se) if at > `w'
+ 24.                 
+.                 save "../temp/plot_coeffs.dta", replace
+ 25.     restore
+ 26.                 
+.         eststo lincom1: lincomest `lincomest_coeffs'
+ 27.         comment_table, trend_lin("No") trend_sq("No")
+ 28.                         
+.         qui reghdfe D.`depvar' L(0/`w').D.ln_mw,                        ///
+>                 absorb(`absorb')                                             
+>                                            ///
 >                 vce(cluster `cluster') nocons
- 27.         comment_table, trend_lin("Yes") trend_sq("No") trend_cu("No")
- 28. 
-.         eststo lincom2: lincomest D1.ln_mw + LD.ln_mw + L2D.ln_mw +     ///
->             L3D.ln_mw + L4D.ln_mw + L5D.ln_mw
- 29.         comment_table, trend_lin("Yes") trend_sq("No") trend_cu("No")
- 30.         
-.         eststo reg3: reghdfe D.`depvar' L(-5/5).D.ln_mw,                     
->    ///
->             absorb(`absorb' c.trend#i.zipcode c.trend_sq#i.zipcode) ///
->                 vce(cluster `cluster') nocons
- 31.         comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("No")
- 32. 
-.         eststo lincom3: lincomest D1.ln_mw + LD.ln_mw + L2D.ln_mw +     ///
->             L3D.ln_mw + L4D.ln_mw + L5D.ln_mw
- 33.         comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("No")
+ 29.                         
+.         preserve
+ 30.                 coefplot, vertical base gen
+ 31.                 keep __at __b __se
+ 32.                 rename (__at __b __se) (at b_lags se_lags)
+ 33.                 tset at
  34. 
-.         eststo reg4: reghdfe D.`depvar' L(-5/5).D.ln_mw,                     
+.             keep if !missing(at)
+ 35. 
+.                 gen b_lags_lb = b_lags - 1.96*se_lags
+ 36.                 gen b_lags_ub = b_lags + 1.96*se_lags
+ 37.                 
+.                 gen cumsum_b_lags = b_lags[1]
+ 38.                 replace cumsum_b_lags = cumsum_b_lags[_n-1] + b_lags[_n] i
+> f _n>1
+ 39. 
+.                 replace at = at + `w'
+ 40.                 
+.                 merge 1:1 at using "../temp/plot_coeffs.dta", nogen
+ 41.                 replace cumsum_b_lags = 0 if at <= `w'
+ 42.                 sort at
+ 43.                 
+.                 twoway (scatter b_full at, mcol(navy)) ///
+>                         (rcap b_full_lb b_full_ub at, col(navy)) ///
+>                         (scatter b_lags at, mcol(maroon)) ///
+>                         (rcap b_lags_lb b_lags_ub at, col(maroon)) ///
+>                         (line cumsum_b_lags at, lcol(maroon)) ///
+>                         (line static_path at, lcol(green)), ///
+>                         yline(0, lcol(grey) lpat(dot)) ///
+>                         graphregion(color(white)) bgcolor(white) ///
+>                         xlabel(1 "F5D.ln_mw" 2 "F4D.ln_mw" 3 "F3D.ln_mw" 4 "F
+> 2D.ln_mw" ///
+>                         5 "FD.ln_mw" 6 "D.ln_mw" 7 "LD.ln_mw" 8 "L2D.ln_mw" 9
+>  "L3D.ln_mw" ///
+>                         10 "L4D.ln_mw" 11 "L5D.ln_mw", labsize(vsmall)) xtitl
+> e("Leads and lags of ln MW") ///
+>                         ytitle("Effect on ln rent per sqft")                 
+>                    ///
+>                         legend(order(1 "Full dynamic model" 3 "Distributed la
+> gs model" ///
+>                         5 "Effects path static model" 6 "Effects path distrib
+> uted lags model") size(small))
+ 44.                 graph export "../output/fd_models.png", replace
+ 45.         restore 
+ 46.         
+.         eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw  `if',           
 >    ///
->             absorb(`absorb' c.trend#i.zipcode c.trend_sq#i.zipcode c.trend_cu
-> #i.zipcode) ///
+>                 absorb(`absorb' i.zipcode)                                   
+>                    ///
 >                 vce(cluster `cluster') nocons
- 35.         comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("Yes")
- 36.         
-.         eststo lincom4: lincomest D1.ln_mw + LD.ln_mw + L2D.ln_mw +     ///
->             L3D.ln_mw + L4D.ln_mw + L5D.ln_mw
- 37.         comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("Yes")
- 38. end
+ 47.         comment_table, trend_lin("Yes") trend_sq("No")
+ 48.         
+.         test (F5D.ln_mw = 0) (F4D.ln_mw = 0) (F3D.ln_mw = 0) (F2D.ln_mw = 0) 
+> (F1D.ln_mw = 0)
+ 49.     estadd scalar p_value_F = r(p)
+ 50.         
+.         eststo lincom2: lincomest `lincomest_coeffs'
+ 51.         comment_table, trend_lin("Yes") trend_sq("No")
+ 52.         
+.         eststo reg3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if',            
+>    ///
+>                 absorb(`absorb' i.zipcod c.trend_times2#i.zipcode)      ///
+>                 vce(cluster `cluster') nocons
+ 53.         comment_table, trend_lin("Yes") trend_sq("Yes")
+ 54. 
+.         test (F5D.ln_mw = 0) (F4D.ln_mw = 0) (F3D.ln_mw = 0) (F2D.ln_mw = 0) 
+> (F1D.ln_mw = 0)
+ 55.     estadd scalar p_value_F = r(p)
+ 56.         
+.         eststo lincom3: lincomest `lincomest_coeffs'
+ 57.         comment_table, trend_lin("Yes") trend_sq("Yes")
+ 58. end
+
+. 
+. program run_static_heterogeneity
+  1.         syntax, depvar(str) absorb(str) cluster(str) het_var(str) ytitle(s
+> tr) [qtles(int 5)]
+  2. 
+.     eststo clear
+  3.         reghdfe D.`depvar' c.d_ln_mw#i.`het_var',                         
+>                               ///
+>                 absorb(`absorb') ///
+>                 vce(cluster `cluster') nocons
+  4. 
+.         coefplot, base graphregion(color(white)) bgcolor(white)              
+>                            ///
+>         ylabel(1 "1" 2 "2" 3 "3" 4 "4" 5 "5")                                
+>                    ///
+>         ytitle(`ytitle')                                                     
+>                                            ///
+>         xtitle("Estimated effect of ln MW on ln rents")                      
+>            ///
+>         xline(0, lcol(grey) lpat(dot))
+  5. end
+
+. 
+. program build_ytitle, rclass
+  1.         syntax, var(str)
+  2. 
+.         if "`var'" == "med_hhinc20105" {
+  3.                 return local title "Quintiles of 2010 state mean income di
+> stribution"
+  4.         }
+  5.         if "`var'" == "renthouse_share2010" {
+  6.                 return local title "Quintiles of 2010 share of houses rent
+> "
+  7.         }
+  8.         if "`var'" == "college_share20105" {
+  9.                 return local title "Quintiles of 2010 college share"
+ 10.         }
+ 11.         if "`var'" == "black_share2010" {
+ 12.                 return local title "Quintiles of 2010 share of black indiv
+> iduals"
+ 13.         }
+ 14.         if "`var'" == "nonwhite_share2010" {
+ 15.                 return local title "Quintiles of 2010 share of non-white i
+> ndividuals"
+ 16.         }
+ 17.         if "`var'" == "work_county_share20105" {
+ 18.                 return local title "Quintiles of 2010 share who work in co
+> unty"
+ 19.         }                 
+ 20. end
 
 . 
 . program comment_table
-  1.         syntax, trend_lin(str) trend_sq(str) trend_cu(str)
+  1.         syntax, trend_lin(str) trend_sq(str)
   2. 
 .         estadd local zs_trend           "`trend_lin'"   
   3.         estadd local zs_trend_sq        "`trend_sq'"
-  4.         estadd local zs_trend_cu        "`trend_cu'"
-  5. end
+  4. end
 
 . 
 . main
 (MWFE estimator converged in 1 iterations)
 
-HDFE Linear regression                            Number of obs   =    108,763
-Absorbing 1 HDFE group                            F(   1,     39) =       3.85
-Statistics robust to heteroskedasticity           Prob > F        =     0.0569
-                                                  R-squared       =     0.0220
-                                                  Adj R-squared   =     0.0209
+HDFE Linear regression                            Number of obs   =    112,232
+Absorbing 1 HDFE group                            F(   1,     40) =       4.07
+Statistics robust to heteroskedasticity           Prob > F        =     0.0504
+                                                  R-squared       =     0.0218
+                                                  Adj R-squared   =     0.0208
                                                   Within R-sq.    =     0.0001
-Number of clusters (statefips) =         40       Root MSE        =     0.0277
+Number of clusters (statefips) =         41       Root MSE        =     0.0279
 
-                             (Std. Err. adjusted for 40 clusters in statefips)
+                             (Std. Err. adjusted for 41 clusters in statefips)
 ------------------------------------------------------------------------------
 D.           |               Robust
 ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
        ln_mw |
-         D1. |   .0270025   .0137584     1.96   0.057    -.0008266    .0548315
+         D1. |   .0259256   .0128533     2.02   0.050    -.0000519    .0519031
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
@@ -382,43 +579,39 @@ Absorbed degrees of freedom:
 -------------+---------------------------------------|
   year_month |       118           0         118     |
 -----------------------------------------------------+
-(est1 stored)
 
 added macro:
            e(zs_trend) : "No"
 
 added macro:
         e(zs_trend_sq) : "No"
-
-added macro:
-        e(zs_trend_cu) : "No"
 (MWFE estimator converged in 5 iterations)
 
-HDFE Linear regression                            Number of obs   =    108,763
-Absorbing 2 HDFE groups                           F(   1,     39) =       4.32
-Statistics robust to heteroskedasticity           Prob > F        =     0.0442
-                                                  R-squared       =     0.0238
-                                                  Adj R-squared   =     0.0127
+HDFE Linear regression                            Number of obs   =    112,232
+Absorbing 2 HDFE groups                           F(   1,     40) =       4.49
+Statistics robust to heteroskedasticity           Prob > F        =     0.0404
+                                                  R-squared       =     0.0236
+                                                  Adj R-squared   =     0.0125
                                                   Within R-sq.    =     0.0001
-Number of clusters (statefips) =         40       Root MSE        =     0.0278
+Number of clusters (statefips) =         41       Root MSE        =     0.0281
 
-                             (Std. Err. adjusted for 40 clusters in statefips)
+                             (Std. Err. adjusted for 41 clusters in statefips)
 ------------------------------------------------------------------------------
 D.           |               Robust
 ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
        ln_mw |
-         D1. |   .0269371   .0129531     2.08   0.044     .0007369    .0531373
+         D1. |   .0255844   .0120774     2.12   0.040     .0011749    .0499938
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
----------------------------------------------------------+
-     Absorbed FE | Categories  - Redundant  = Num. Coefs |
------------------+---------------------------------------|
-      year_month |       118           0         118     |
- zipcode#c.trend |      1098           0        1098    ?|
----------------------------------------------------------+
-? = number of redundant parameters may be higher
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       118           0         118     |
+     zipcode |      1143        1143           0    *|
+-----------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
 (est2 stored)
 
 added macro:
@@ -426,37 +619,35 @@ added macro:
 
 added macro:
         e(zs_trend_sq) : "No"
+(MWFE estimator converged in 29 iterations)
 
-added macro:
-        e(zs_trend_cu) : "No"
-(MWFE estimator converged in 25 iterations)
-
-HDFE Linear regression                            Number of obs   =    108,763
-Absorbing 3 HDFE groups                           F(   1,     39) =       4.19
-Statistics robust to heteroskedasticity           Prob > F        =     0.0474
-                                                  R-squared       =     0.0263
-                                                  Adj R-squared   =     0.0052
+HDFE Linear regression                            Number of obs   =    112,232
+Absorbing 3 HDFE groups                           F(   1,     40) =       4.68
+Statistics robust to heteroskedasticity           Prob > F        =     0.0365
+                                                  R-squared       =     0.0264
+                                                  Adj R-squared   =     0.0051
                                                   Within R-sq.    =     0.0001
-Number of clusters (statefips) =         40       Root MSE        =     0.0279
+Number of clusters (statefips) =         41       Root MSE        =     0.0282
 
-                             (Std. Err. adjusted for 40 clusters in statefips)
+                             (Std. Err. adjusted for 41 clusters in statefips)
 ------------------------------------------------------------------------------
 D.           |               Robust
 ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
        ln_mw |
-         D1. |   .0264333   .0129119     2.05   0.047     .0003166      .05255
+         D1. |   .0253648   .0117209     2.16   0.036     .0016759    .0490537
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
-------------------------------------------------------------+
-        Absorbed FE | Categories  - Redundant  = Num. Coefs |
---------------------+---------------------------------------|
-         year_month |       118           0         118     |
-    zipcode#c.trend |      1098           0        1098    ?|
- zipcode#c.trend_sq |      1098           0        1098    ?|
-------------------------------------------------------------+
+----------------------------------------------------------------+
+            Absorbed FE | Categories  - Redundant  = Num. Coefs |
+------------------------+---------------------------------------|
+             year_month |       118           0         118     |
+                zipcode |      1143        1143           0    *|
+ zipcode#c.trend_times2 |      1143           0        1143    ?|
+----------------------------------------------------------------+
 ? = number of redundant parameters may be higher
+* = FE nested within cluster; treated as redundant for DoF computation
 (est3 stored)
 
 added macro:
@@ -464,77 +655,35 @@ added macro:
 
 added macro:
         e(zs_trend_sq) : "Yes"
-
-added macro:
-        e(zs_trend_cu) : "No"
-(MWFE estimator converged in 159 iterations)
-
-HDFE Linear regression                            Number of obs   =    108,763
-Absorbing 4 HDFE groups                           F(   1,     39) =       3.83
-Statistics robust to heteroskedasticity           Prob > F        =     0.0576
-                                                  R-squared       =     0.0290
-                                                  Adj R-squared   =    -0.0025
-                                                  Within R-sq.    =     0.0001
-Number of clusters (statefips) =         40       Root MSE        =     0.0280
-
-                             (Std. Err. adjusted for 40 clusters in statefips)
-------------------------------------------------------------------------------
-D.           |               Robust
-ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-       ln_mw |
-         D1. |   .0259148   .0132445     1.96   0.058    -.0008747    .0527043
-------------------------------------------------------------------------------
-
-Absorbed degrees of freedom:
-------------------------------------------------------------+
-        Absorbed FE | Categories  - Redundant  = Num. Coefs |
---------------------+---------------------------------------|
-         year_month |       118           0         118     |
-    zipcode#c.trend |      1098           0        1098    ?|
- zipcode#c.trend_sq |      1098           0        1098    ?|
- zipcode#c.trend_cu |      1098           0        1098    ?|
-------------------------------------------------------------+
-? = number of redundant parameters may be higher
-(est4 stored)
-
-added macro:
-           e(zs_trend) : "Yes"
-
-added macro:
-        e(zs_trend_sq) : "Yes"
-
-added macro:
-        e(zs_trend_cu) : "Yes"
 (note: file ../output/fd_table.tex not found)
 (output written to ../output/fd_table.tex)
 (MWFE estimator converged in 1 iterations)
 
-HDFE Linear regression                            Number of obs   =    103,202
-Absorbing 1 HDFE group                            F(  11,     39) =       5.35
+HDFE Linear regression                            Number of obs   =    106,446
+Absorbing 1 HDFE group                            F(  11,     40) =       5.24
 Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.0223
-                                                  Adj R-squared   =     0.0212
+                                                  R-squared       =     0.0222
+                                                  Adj R-squared   =     0.0211
                                                   Within R-sq.    =     0.0002
-Number of clusters (statefips) =         40       Root MSE        =     0.0277
+Number of clusters (statefips) =         41       Root MSE        =     0.0280
 
-                             (Std. Err. adjusted for 40 clusters in statefips)
+                             (Std. Err. adjusted for 41 clusters in statefips)
 ------------------------------------------------------------------------------
 D.           |               Robust
 ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
        ln_mw |
-        F5D. |  -.0112712   .0095938    -1.17   0.247    -.0306765    .0081341
-        F4D. |  -.0044511   .0121409    -0.37   0.716    -.0290085    .0201062
-        F3D. |   .0029455    .011315     0.26   0.796    -.0199412    .0258323
-        F2D. |   .0040384   .0131304     0.31   0.760    -.0225203    .0305971
-         FD. |  -.0035317   .0109534    -0.32   0.749    -.0256871    .0186237
-         D1. |   .0280288   .0136156     2.06   0.046     .0004887    .0555689
-         LD. |   .0126523   .0056748     2.23   0.032     .0011739    .0241307
-        L2D. |  -.0078337   .0136237    -0.58   0.569    -.0353902    .0197229
-        L3D. |   .0067939   .0085019     0.80   0.429    -.0104028    .0239906
-        L4D. |   .0106391   .0073019     1.46   0.153    -.0041304    .0254085
-        L5D. |   .0091586   .0066995     1.37   0.179    -.0043923    .0227096
+        F5D. |  -.0145811   .0091019    -1.60   0.117    -.0329768    .0038145
+        F4D. |  -.0023173   .0116215    -0.20   0.843    -.0258053    .0211707
+        F3D. |   .0013676   .0093121     0.15   0.884    -.0174528     .020188
+        F2D. |   .0060834   .0115399     0.53   0.601    -.0172396    .0294063
+         FD. |  -.0002799    .012286    -0.02   0.982    -.0251108    .0245511
+         D1. |   .0269594   .0126674     2.13   0.040     .0013576    .0525611
+         LD. |   .0135887   .0071476     1.90   0.065    -.0008571    .0280345
+        L2D. |  -.0070198   .0133432    -0.53   0.602    -.0339874    .0199478
+        L3D. |   .0036445    .008078     0.45   0.654    -.0126817    .0199707
+        L4D. |   .0108004   .0069303     1.56   0.127    -.0032063    .0248071
+        L5D. |   .0086176   .0068622     1.26   0.216    -.0052515    .0224867
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
@@ -550,8 +699,17 @@ added macro:
 added macro:
         e(zs_trend_sq) : "No"
 
-added macro:
-        e(zs_trend_cu) : "No"
+ ( 1)  F5D.ln_mw = 0
+ ( 2)  F4D.ln_mw = 0
+ ( 3)  F3D.ln_mw = 0
+ ( 4)  F2D.ln_mw = 0
+ ( 5)  FD.ln_mw = 0
+
+       F(  5,    40) =    0.77
+            Prob > F =    0.5787
+
+added scalar:
+          e(p_value_F) =  .57874804
 
 Generated variables:
               storage   display    value
@@ -570,19 +728,15 @@ __df            byte    %9.0g                 degrees of freedom
 __pval          float   %9.0g                 p-value
 __ll1           float   %9.0g                 CI1: lower limit
 __ul1           float   %9.0g                 CI1: upper limit
-        time variable:  at, 1 to 11
-                delta:  1 unit
-(150,355 missing values generated)
-(150,355 real changes made)
-(150,355 missing values generated)
-(150,355 real changes made)
-(150,355 missing values generated)
-(150,355 real changes made)
-(150,359 real changes made, 150,349 to missing)
-(150,349 observations deleted)
-(note:  named style grey not found in class color, default attributes used)
-(note: file ../output/fd_models.png not found)
-(file ../output/fd_models.png written in PNG format)
+(156,589 observations deleted)
+(6 missing values generated)
+(6 real changes made)
+(6 missing values generated)
+(6 real changes made)
+(6 missing values generated)
+(6 real changes made)
+(note: file ../temp/plot_coeffs.dta not found)
+file ../temp/plot_coeffs.dta saved
 Confidence interval for formula:
 D1.ln_mw+LD.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw+L5D.ln_mw
 
@@ -590,7 +744,7 @@ D1.ln_mw+LD.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw+L5D.ln_mw
 D.           |
 ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |   .0594391   .0357927     1.66   0.105    -.0129585    .1318367
+         (1) |   .0565908   .0346648     1.63   0.110    -.0134693    .1266508
 ------------------------------------------------------------------------------
 
 added macro:
@@ -599,45 +753,82 @@ added macro:
 added macro:
         e(zs_trend_sq) : "No"
 
-added macro:
-        e(zs_trend_cu) : "No"
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+        time variable:  at, 1 to 6
+                delta:  1 unit
+(156,594 observations deleted)
+(5 real changes made)
+(6 real changes made)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             5
+        from master                         0  
+        from using                          5  
+
+    matched                                 6  
+    -----------------------------------------
+(5 real changes made)
+(5 real changes made)
+(5 real changes made)
+(5 real changes made)
+(5 real changes made)
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/fd_models.png not found)
+(file ../output/fd_models.png written in PNG format)
 (MWFE estimator converged in 5 iterations)
 
-HDFE Linear regression                            Number of obs   =    103,202
-Absorbing 2 HDFE groups                           F(  11,     39) =       5.55
-Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.0243
-                                                  Adj R-squared   =     0.0126
+HDFE Linear regression                            Number of obs   =    106,446
+Absorbing 2 HDFE groups                           F(  11,     40) =       4.81
+Statistics robust to heteroskedasticity           Prob > F        =     0.0001
+                                                  R-squared       =     0.0242
+                                                  Adj R-squared   =     0.0125
                                                   Within R-sq.    =     0.0002
-Number of clusters (statefips) =         40       Root MSE        =     0.0279
+Number of clusters (statefips) =         41       Root MSE        =     0.0281
 
-                             (Std. Err. adjusted for 40 clusters in statefips)
+                             (Std. Err. adjusted for 41 clusters in statefips)
 ------------------------------------------------------------------------------
 D.           |               Robust
 ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
        ln_mw |
-        F5D. |   -.011455    .009806    -1.17   0.250    -.0312895    .0083796
-        F4D. |  -.0049048   .0112887    -0.43   0.666    -.0277384    .0179288
-        F3D. |   .0024562   .0104189     0.24   0.815    -.0186181    .0235305
-        F2D. |   .0035583   .0136464     0.26   0.796    -.0240442    .0311609
-         FD. |  -.0038899   .0120022    -0.32   0.748    -.0281668    .0203869
-         D1. |   .0277154   .0126859     2.18   0.035     .0020558     .053375
-         LD. |   .0120271   .0062703     1.92   0.062    -.0006557    .0247099
-        L2D. |  -.0085104   .0134187    -0.63   0.530    -.0356522    .0186315
-        L3D. |   .0060847   .0076922     0.79   0.434    -.0094741    .0216436
-        L4D. |   .0099144   .0074055     1.34   0.188    -.0050646    .0248934
-        L5D. |   .0084487   .0071052     1.19   0.242    -.0059229    .0228204
+        F5D. |  -.0150136   .0091963    -1.63   0.110    -.0336001    .0035728
+        F4D. |  -.0029665   .0110455    -0.27   0.790    -.0252902    .0193572
+        F3D. |    .000681   .0084369     0.08   0.936    -.0163707    .0177326
+        F2D. |   .0054092   .0120315     0.45   0.655    -.0189073    .0297257
+         FD. |  -.0008166   .0126646    -0.06   0.949    -.0264128    .0247796
+         D1. |   .0264734   .0119734     2.21   0.033     .0022743    .0506724
+         LD. |   .0128458   .0073693     1.74   0.089    -.0020482    .0277398
+        L2D. |   -.007814   .0134593    -0.58   0.565    -.0350163    .0193882
+        L3D. |    .002815    .007494     0.38   0.709     -.012331     .017961
+        L4D. |   .0099733   .0069373     1.44   0.158    -.0040475    .0239942
+        L5D. |   .0078062   .0073472     1.06   0.294    -.0070431    .0226556
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
----------------------------------------------------------+
-     Absorbed FE | Categories  - Redundant  = Num. Coefs |
------------------+---------------------------------------|
-      year_month |       109           0         109     |
- zipcode#c.trend |      1098           0        1098    ?|
----------------------------------------------------------+
-? = number of redundant parameters may be higher
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       109           0         109     |
+     zipcode |      1143        1143           0    *|
+-----------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
 
 added macro:
            e(zs_trend) : "Yes"
@@ -645,8 +836,17 @@ added macro:
 added macro:
         e(zs_trend_sq) : "No"
 
-added macro:
-        e(zs_trend_cu) : "No"
+ ( 1)  F5D.ln_mw = 0
+ ( 2)  F4D.ln_mw = 0
+ ( 3)  F3D.ln_mw = 0
+ ( 4)  F2D.ln_mw = 0
+ ( 5)  FD.ln_mw = 0
+
+       F(  5,    40) =    0.75
+            Prob > F =    0.5915
+
+added scalar:
+          e(p_value_F) =  .59151566
 Confidence interval for formula:
 D1.ln_mw+LD.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw+L5D.ln_mw
 
@@ -654,7 +854,7 @@ D1.ln_mw+LD.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw+L5D.ln_mw
 D.           |
 ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |     .05568   .0327748     1.70   0.097    -.0106133    .1219733
+         (1) |   .0520996   .0334271     1.56   0.127    -.0154591    .1196584
 ------------------------------------------------------------------------------
 
 added macro:
@@ -662,47 +862,45 @@ added macro:
 
 added macro:
         e(zs_trend_sq) : "No"
+(MWFE estimator converged in 31 iterations)
 
-added macro:
-        e(zs_trend_cu) : "No"
-(MWFE estimator converged in 26 iterations)
-
-HDFE Linear regression                            Number of obs   =    103,202
-Absorbing 3 HDFE groups                           F(  11,     39) =       5.42
-Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.0271
-                                                  Adj R-squared   =     0.0048
+HDFE Linear regression                            Number of obs   =    106,446
+Absorbing 3 HDFE groups                           F(  11,     40) =       5.12
+Statistics robust to heteroskedasticity           Prob > F        =     0.0001
+                                                  R-squared       =     0.0272
+                                                  Adj R-squared   =     0.0047
                                                   Within R-sq.    =     0.0002
-Number of clusters (statefips) =         40       Root MSE        =     0.0280
+Number of clusters (statefips) =         41       Root MSE        =     0.0283
 
-                             (Std. Err. adjusted for 40 clusters in statefips)
+                             (Std. Err. adjusted for 41 clusters in statefips)
 ------------------------------------------------------------------------------
 D.           |               Robust
 ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
        ln_mw |
-        F5D. |  -.0123421   .0101883    -1.21   0.233    -.0329499    .0082657
-        F4D. |  -.0061491   .0106059    -0.58   0.565    -.0276015    .0153034
-        F3D. |   .0013336   .0106242     0.13   0.901    -.0201559    .0228231
-        F2D. |   .0024593   .0134717     0.18   0.856    -.0247897    .0297084
-         FD. |  -.0050719   .0128839    -0.39   0.696    -.0311321    .0209884
-         D1. |   .0266508   .0123843     2.15   0.038     .0016013    .0517004
-         LD. |   .0103594   .0064069     1.62   0.114    -.0025999    .0233186
-        L2D. |  -.0101531   .0126306    -0.80   0.426    -.0357009    .0153947
-        L3D. |   .0045499   .0084542     0.54   0.594    -.0125504    .0216501
-        L4D. |   .0084678    .007561     1.12   0.270    -.0068258    .0237613
-        L5D. |   .0073265   .0070559     1.04   0.305    -.0069454    .0215984
+        F5D. |  -.0154682   .0094359    -1.64   0.109    -.0345389    .0036024
+        F4D. |  -.0037707   .0101416    -0.37   0.712    -.0242676    .0167263
+        F3D. |   .0000358   .0084435     0.00   0.997    -.0170293    .0171008
+        F2D. |   .0048145   .0115284     0.42   0.678    -.0184851    .0281142
+         FD. |  -.0015063   .0142166    -0.11   0.916     -.030239    .0272264
+         D1. |    .025882   .0110871     2.33   0.025     .0034742    .0482899
+         LD. |   .0117815   .0080422     1.46   0.151    -.0044724    .0280354
+        L2D. |  -.0088256    .012337    -0.72   0.479    -.0337596    .0161084
+        L3D. |    .001942   .0081118     0.24   0.812    -.0144525    .0183365
+        L4D. |   .0092022   .0072322     1.27   0.211    -.0054147     .023819
+        L5D. |   .0073672   .0071714     1.03   0.310    -.0071268    .0218612
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
-------------------------------------------------------------+
-        Absorbed FE | Categories  - Redundant  = Num. Coefs |
---------------------+---------------------------------------|
-         year_month |       109           0         109     |
-    zipcode#c.trend |      1098           0        1098    ?|
- zipcode#c.trend_sq |      1098           0        1098    ?|
-------------------------------------------------------------+
+----------------------------------------------------------------+
+            Absorbed FE | Categories  - Redundant  = Num. Coefs |
+------------------------+---------------------------------------|
+             year_month |       109           0         109     |
+                zipcode |      1143        1143           0    *|
+ zipcode#c.trend_times2 |      1143           0        1143    ?|
+----------------------------------------------------------------+
 ? = number of redundant parameters may be higher
+* = FE nested within cluster; treated as redundant for DoF computation
 
 added macro:
            e(zs_trend) : "Yes"
@@ -710,8 +908,17 @@ added macro:
 added macro:
         e(zs_trend_sq) : "Yes"
 
-added macro:
-        e(zs_trend_cu) : "No"
+ ( 1)  F5D.ln_mw = 0
+ ( 2)  F4D.ln_mw = 0
+ ( 3)  F3D.ln_mw = 0
+ ( 4)  F2D.ln_mw = 0
+ ( 5)  FD.ln_mw = 0
+
+       F(  5,    40) =    0.72
+            Prob > F =    0.6142
+
+added scalar:
+          e(p_value_F) =  .61415739
 Confidence interval for formula:
 D1.ln_mw+LD.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw+L5D.ln_mw
 
@@ -719,7 +926,7 @@ D1.ln_mw+LD.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw+L5D.ln_mw
 D.           |
 ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |   .0472013   .0308375     1.53   0.134    -.0151734     .109576
+         (1) |   .0473493   .0300668     1.57   0.123    -.0134179    .1081165
 ------------------------------------------------------------------------------
 
 added macro:
@@ -727,81 +934,211 @@ added macro:
 
 added macro:
         e(zs_trend_sq) : "Yes"
-
-added macro:
-        e(zs_trend_cu) : "No"
-(MWFE estimator converged in 201 iterations)
-
-HDFE Linear regression                            Number of obs   =    103,202
-Absorbing 4 HDFE groups                           F(  11,     39) =       5.89
-Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.0298
-                                                  Adj R-squared   =    -0.0033
-                                                  Within R-sq.    =     0.0002
-Number of clusters (statefips) =         40       Root MSE        =     0.0281
-
-                             (Std. Err. adjusted for 40 clusters in statefips)
-------------------------------------------------------------------------------
-D.           |               Robust
-ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-       ln_mw |
-        F5D. |  -.0114877   .0101864    -1.13   0.266    -.0320915    .0091162
-        F4D. |  -.0048631   .0100356    -0.48   0.631     -.025162    .0154358
-        F3D. |   .0025787   .0104095     0.25   0.806    -.0184764    .0236338
-        F2D. |   .0037499   .0139036     0.27   0.789    -.0243728    .0318725
-         FD. |  -.0042076   .0131121    -0.32   0.750    -.0307294    .0223142
-         D1. |   .0274856   .0127231     2.16   0.037     .0017507    .0532206
-         LD. |   .0111159    .007425     1.50   0.142    -.0039026    .0261344
-        L2D. |  -.0093922   .0133652    -0.70   0.486    -.0364258    .0176413
-        L3D. |   .0053161   .0089405     0.59   0.556    -.0127678       .0234
-        L4D. |   .0092487   .0085267     1.08   0.285    -.0079982    .0264957
-        L5D. |   .0081958   .0072308     1.13   0.264    -.0064297    .0228214
-------------------------------------------------------------------------------
-
-Absorbed degrees of freedom:
-------------------------------------------------------------+
-        Absorbed FE | Categories  - Redundant  = Num. Coefs |
---------------------+---------------------------------------|
-         year_month |       109           0         109     |
-    zipcode#c.trend |      1098           0        1098    ?|
- zipcode#c.trend_sq |      1098           0        1098    ?|
- zipcode#c.trend_cu |      1098           0        1098    ?|
-------------------------------------------------------------+
-? = number of redundant parameters may be higher
-
-added macro:
-           e(zs_trend) : "Yes"
-
-added macro:
-        e(zs_trend_sq) : "Yes"
-
-added macro:
-        e(zs_trend_cu) : "Yes"
-Confidence interval for formula:
-D1.ln_mw+LD.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw+L5D.ln_mw
-
-------------------------------------------------------------------------------
-D.           |
-ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-         (1) |     .05197   .0363894     1.43   0.161    -.0216345    .1255745
-------------------------------------------------------------------------------
-
-added macro:
-           e(zs_trend) : "Yes"
-
-added macro:
-        e(zs_trend_sq) : "Yes"
-
-added macro:
-        e(zs_trend_cu) : "Yes"
 (note: file ../output/fd_dynamic_table.tex not found)
 (output written to ../output/fd_dynamic_table.tex)
 (note: file ../output/fd_dynamic_lincom_table.tex not found)
 (output written to ../output/fd_dynamic_lincom_table.tex)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    112,232
+Absorbing 1 HDFE group                            F(   5,     40) =       1.80
+Statistics robust to heteroskedasticity           Prob > F        =     0.1343
+                                                  R-squared       =     0.0219
+                                                  Adj R-squared   =     0.0208
+                                                  Within R-sq.    =     0.0001
+Number of clusters (statefips) =         41       Root MSE        =     0.0279
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+D.           |               Robust
+ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+med_h~st_qtl#|
+   c.d_ln_mw |
+          1  |   .0474557   .0228484     2.08   0.044     .0012774    .0936341
+          2  |   .0163436   .0230851     0.71   0.483    -.0303131    .0630004
+          3  |   .0211644   .0206421     1.03   0.311    -.0205548    .0628836
+          4  |   .0275054   .0185699     1.48   0.146    -.0100257    .0650366
+          5  |   .0165251   .0107439     1.54   0.132    -.0051892    .0382394
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       118           0         118     |
+-----------------------------------------------------+
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/fd_static_heter_med_hhinc20105.png not found)
+(file ../output/fd_static_heter_med_hhinc20105.png written in PNG format)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    112,232
+Absorbing 1 HDFE group                            F(   5,     40) =       2.02
+Statistics robust to heteroskedasticity           Prob > F        =     0.0966
+                                                  R-squared       =     0.0219
+                                                  Adj R-squared   =     0.0208
+                                                  Within R-sq.    =     0.0002
+Number of clusters (statefips) =         41       Root MSE        =     0.0279
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+D.           |               Robust
+ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+renth~st_qtl#|
+   c.d_ln_mw |
+          1  |   .0253948   .0154514     1.64   0.108    -.0058338    .0566233
+          2  |   .0309489   .0135736     2.28   0.028     .0035155    .0583822
+          3  |  -.0035889   .0224867    -0.16   0.874    -.0490362    .0418585
+          4  |   .0408653   .0216573     1.89   0.066    -.0029058    .0846364
+          5  |   .0357744   .0205103     1.74   0.089    -.0056786    .0772274
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       118           0         118     |
+-----------------------------------------------------+
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/fd_static_heter_renthouse_share2010.png not found)
+(file ../output/fd_static_heter_renthouse_share2010.png written in PNG format)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    112,232
+Absorbing 1 HDFE group                            F(   5,     40) =       4.78
+Statistics robust to heteroskedasticity           Prob > F        =     0.0016
+                                                  R-squared       =     0.0219
+                                                  Adj R-squared   =     0.0208
+                                                  Within R-sq.    =     0.0002
+Number of clusters (statefips) =         41       Root MSE        =     0.0279
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+D.           |               Robust
+ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+colle~st_qtl#|
+   c.d_ln_mw |
+          1  |   .0321337   .0233057     1.38   0.176     -.014969    .0792363
+          2  |   .0512963   .0170884     3.00   0.005     .0167595    .0858332
+          3  |   .0427287   .0250349     1.71   0.096    -.0078687    .0933261
+          4  |   .0019245    .024149     0.08   0.937    -.0468824    .0507314
+          5  |   .0094738   .0139682     0.68   0.502    -.0187569    .0377046
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       118           0         118     |
+-----------------------------------------------------+
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/fd_static_heter_college_share20105.png not found)
+(file ../output/fd_static_heter_college_share20105.png written in PNG format)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    112,232
+Absorbing 1 HDFE group                            F(   5,     40) =       1.79
+Statistics robust to heteroskedasticity           Prob > F        =     0.1370
+                                                  R-squared       =     0.0219
+                                                  Adj R-squared   =     0.0208
+                                                  Within R-sq.    =     0.0001
+Number of clusters (statefips) =         41       Root MSE        =     0.0279
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+D.           |               Robust
+ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+black~st_qtl#|
+   c.d_ln_mw |
+          1  |   .0226885   .0166484     1.36   0.181    -.0109592    .0563363
+          2  |   .0150579   .0220342     0.68   0.498    -.0294749    .0595908
+          3  |   .0226757   .0127327     1.78   0.083    -.0030579    .0484094
+          4  |   .0215455   .0183037     1.18   0.246    -.0154477    .0585387
+          5  |   .0497041   .0260071     1.91   0.063    -.0028582    .1022665
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       118           0         118     |
+-----------------------------------------------------+
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/fd_static_heter_black_share2010.png not found)
+(file ../output/fd_static_heter_black_share2010.png written in PNG format)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    112,232
+Absorbing 1 HDFE group                            F(   5,     40) =       1.52
+Statistics robust to heteroskedasticity           Prob > F        =     0.2054
+                                                  R-squared       =     0.0218
+                                                  Adj R-squared   =     0.0208
+                                                  Within R-sq.    =     0.0001
+Number of clusters (statefips) =         41       Root MSE        =     0.0279
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+D.           |               Robust
+ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+nonwh~st_qtl#|
+   c.d_ln_mw |
+          1  |   .0223616   .0201484     1.11   0.274    -.0183599     .063083
+          2  |    .021694   .0166228     1.31   0.199     -.011902      .05529
+          3  |   .0194035   .0148842     1.30   0.200    -.0106785    .0494855
+          4  |   .0337981   .0154022     2.19   0.034      .002669    .0649271
+          5  |   .0317978   .0221655     1.43   0.159    -.0130003    .0765959
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       118           0         118     |
+-----------------------------------------------------+
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/fd_static_heter_nonwhite_share2010.png not found)
+(file ../output/fd_static_heter_nonwhite_share2010.png written in PNG format)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    112,232
+Absorbing 1 HDFE group                            F(   5,     40) =       3.35
+Statistics robust to heteroskedasticity           Prob > F        =     0.0128
+                                                  R-squared       =     0.0219
+                                                  Adj R-squared   =     0.0208
+                                                  Within R-sq.    =     0.0002
+Number of clusters (statefips) =         41       Root MSE        =     0.0279
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+D.           |               Robust
+ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+work_~st_qtl#|
+   c.d_ln_mw |
+          1  |   .0542129   .0169345     3.20   0.003     .0199869    .0884389
+          2  |   .0296269   .0197159     1.50   0.141    -.0102204    .0694742
+          3  |   .0245416   .0210757     1.16   0.251    -.0180539    .0671372
+          4  |    .007115   .0212888     0.33   0.740    -.0359113    .0501412
+          5  |   .0215111   .0329753     0.65   0.518    -.0451344    .0881566
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       118           0         118     |
+-----------------------------------------------------+
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/fd_static_heter_work_county_share20105.png not found)
+(file ../output/fd_static_heter_work_county_share20105.png written in PNG forma
+> t)
 
 . 
 end of do-file
 
- make.py ended: 2020-06-17 08:21:45
+ make.py ended: 2020-06-19 16:27:21

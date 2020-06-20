@@ -5,14 +5,14 @@ adopath + ../../../lib/stata/mental_coupons/ado
 
 program main
 	local instub "../temp"
-	local indemo "../../../base/demographics/output/"
+	local indemo "../../../drive/base_large/output"
 	local outstub "../../../drive/derived_large/output"
 	local logfile "../output/data_file_manifest.log"
 
 	local add_demo = "yes"
 
 	if "`add_demo'" == "yes" {
-		import delim using "`indemo'zip_demo.csv", clear
+		import delim using "`indemo'/zip_demo.csv", clear
 		save_data "`instub'/zip_ready.dta", replace key(zipcode) log(`logfile')
 	} 
 
@@ -25,7 +25,7 @@ program main
 
 	foreach var in medrentprice_sfcc `rent_vars' {
 		create_baseline_panel, instub(`instub') var(`var')					///
-			balance_date(01jan2015) start_date(01jan2010) end_date(12dec2019)
+			balance_date(01jul2015) start_date(01jan2010) end_date(01dec2019)
 	}
 
 	use "`instub'/baseline_medrentprice_sfcc.dta", clear
@@ -49,7 +49,7 @@ program main
 
 	foreach var in medlistingprice_sfcc `listing_vars' {
 		create_baseline_panel, instub(`instub') var(`var') 					///
-			balance_date(01jan2015) start_date(01jan2010) end_date(12dec2019)
+			balance_date(01jul2015) start_date(01jan2010) end_date(01dec2019)
 	}
 
 	use "`instub'/baseline_medlistingprice_sfcc.dta", clear

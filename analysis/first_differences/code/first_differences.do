@@ -5,152 +5,235 @@ adopath + ../../../lib/stata/min_wage/ado
 set maxvar 32000 
 
 program main
-	use "../temp/fd_rent_panel.dta", clear
-	
-	run_static_model, depvar(ln_med_rent_psqft) ///
-	    absorb(year_month) cluster(statefips)
-	
- 	esttab * using "../output/fd_table.tex", keep(D.ln_mw) compress se replace 	///
-        stats(zs_trend zs_trend_sq zs_trend_cu r2 N, fmt(%9.3f %9.0g) 					///
+	local instub "../temp"
+	local outstub "../output"
+
+	use "`instub'/fd_rent_panel.dta", clear
+
+	* Static Model
+	run_static_model, depvar(ln_med_rent_psqft) absorb(year_month) 						///
+		cluster(statefips)
+
+	esttab * using "`outstub'/fd_table.tex", keep(D.ln_mw) compress se replace 			///
+		stats(zs_trend zs_trend_sq zs_trend_cu r2 N, fmt(%s3 %s3 %s3 %9.3f %9.0g) 		///
 		labels("Zipcode-specifc linear trend" 											///
-	    "Zipcode-specific linear and square trend" 										///
-		"Zipcode-specific linear, square and cubic trend" 								///
-	    "R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
+		"Zipcode-specific linear and square trend" 								///
+		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
 		nonote
 	
-	run_dynamic_model, depvar(ln_med_rent_psqft) ///
-	    absorb(year_month) cluster(statefips)
+	* Dynamic Model
+	run_dynamic_model, depvar(ln_med_rent_psqft) absorb(year_month) 					///
+		cluster(statefips)
 	
- 	esttab reg1 reg2 reg3 reg4 using "../output/fd_dynamic_table.tex", 					///
- 		keep(*.ln_mw) compress se replace 										///
-        stats(zs_trend zs_trend_sq zs_trend_cu r2 N, fmt(%9.3f %9.0g) 					///
-		labels("Zipcode-specifc linear trend" 											///
-	    "Zipcode-specific linear and square trend" 										///
-		"Zipcode-specific linear, square and cubic trend" 								///
-	    "R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
+	esttab reg1 reg2 reg3 using "`outstub'/fd_dynamic_table.tex", 					///
+		keep(*.ln_mw) compress se replace 												///
+		stats(p_value_F zs_trend zs_trend_sq zs_trend_cu r2 N, fmt(%9.3f %s3 %s3 %s3 %9.3f %9.0g) 		///
+		labels("P-value no pretrends" "Zipcode-specifc linear trend" 											///
+		"Zipcode-specific linear and square trend"								///
+		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
 		nonote
 
-	esttab lincom1 lincom2 lincom3 lincom4 using "../output/fd_dynamic_lincom_table.tex", ///
+	esttab lincom1 lincom2 lincom3 using "`outstub'/fd_dynamic_lincom_table.tex", ///
 		compress se replace 															///
-        stats(zs_trend zs_trend_sq zs_trend_cu N, fmt(%9.0g) 							///
+        stats(zs_trend zs_trend_sq zs_trend_cu N, fmt(%s3 %s3 %s3 %9.0g) 				///
 		labels("Zipcode-specifc linear trend" 											///
-	    "Zipcode-specific linear and square trend" 										///
-		"Zipcode-specific linear, square and cubic trend" "Observations")) 				///
+	    "Zipcode-specific linear and square trend" ///
+		"Observations")) 				///
 		star(* 0.10 ** 0.05 *** 0.01) 													///
 		nonote coeflabel((1) "Sum of MW effects")
+
+	* Heterogeneity
+	foreach var in med_hhinc20105 renthouse_share2010 college_share20105 				///
+				black_share2010 nonwhite_share2010 work_county_share20105 {
+
+		build_ytitle, var(`var')
+
+		run_static_heterogeneity, depvar(ln_med_rent_psqft) absorb(year_month) 			///
+			het_var(`var'_st_qtl) cluster(statefips) ytitle(`r(title)')
+		graph export "`outstub'/fd_static_heter_`var'.png", replace
+	}
 end
 
 program run_static_model
     syntax, depvar(str) absorb(str) cluster(str)
-	
+
 	eststo clear
-	eststo: reghdfe D.`depvar' D.ln_mw,							///
-		absorb(`absorb') ///
+	eststo reg1: reghdfe D.`depvar' D.ln_mw,							///
+		absorb(`absorb') 												///
 		vce(cluster `cluster') nocons
-	comment_table, trend_lin("No") trend_sq("No") trend_cu("No")
+	comment_table, trend_lin("No") trend_sq("No")
 	
 	scalar static_effect = _b[D.ln_mw]
 	scalar static_effect_se = _se[D.ln_mw]
 
-	eststo: reghdfe D.`depvar' D.ln_mw,							///
-		absorb(`absorb' c.trend#i.zipcode) ///
+	eststo: reghdfe D.`depvar' D.ln_mw,									///
+		absorb(`absorb' i.zipcode) 								///
 		vce(cluster `cluster') nocons
-	comment_table, trend_lin("Yes") trend_sq("No") trend_cu("No")
+	comment_table, trend_lin("Yes") trend_sq("No")
 
-	eststo: reghdfe D.`depvar' D.ln_mw,							///
-		absorb(`absorb' c.trend#i.zipcode  c.trend_sq#i.zipcode) ///
+	eststo: reghdfe D.`depvar' D.ln_mw,									///
+		absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) 		///
 		vce(cluster `cluster') nocons
-	comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("No")
-
-	eststo: reghdfe D.`depvar' D.ln_mw,							///
-		absorb(`absorb' c.trend#i.zipcode  c.trend_sq#i.zipcode c.trend_cu#i.zipcode) ///
-		vce(cluster `cluster') nocons
-	comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("Yes")
+	comment_table, trend_lin("Yes") trend_sq("Yes")
 end
 
 program run_dynamic_model
-    syntax, depvar(str) absorb(str) cluster(str)
+	syntax, depvar(str) absorb(str) cluster(str) [w(int 5)]
 	
+	local lincomest_coeffs "D1.ln_mw + LD.ln_mw"
+	forvalues i = 2(1)`w'{
+		local lincomest_coeffs "`lincomest_coeffs' + L`i'D.ln_mw"
+	}
+
 	eststo clear
-	eststo reg1: reghdfe D.`depvar' L(-5/5).D.ln_mw, 			///
-	    absorb(`absorb') ///
+	eststo reg1: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw, 			///
+		absorb(`absorb') 											///
 		vce(cluster `cluster') nocons
-	comment_table, trend_lin("No") trend_sq("No") trend_cu("No")
+	comment_table, trend_lin("No") trend_sq("No")
 	
-	coefplot, vertical base gen
-	
+	test (F5D.ln_mw = 0) (F4D.ln_mw = 0) (F3D.ln_mw = 0) (F2D.ln_mw = 0) (F1D.ln_mw = 0)
+    estadd scalar p_value_F = r(p)
+
 	preserve
-	keep __at __b __se
-	rename (__at __b __se) (at b se)
-	tset at
-	
-	gen static_path = 0 if at <= 5 
-	replace static_path = scalar(static_effect) if at > 5
-	gen static_path_lb = 0 if at <= 5
-	replace static_path_lb = scalar(static_effect) - 2*scalar(static_effect_se) if at > 5
-	gen static_path_ub = 0 if at <= 5
-	replace static_path_ub = scalar(static_effect) + 2*scalar(static_effect_se) if at > 5
-	
-	gen cumsum_b = b[1]
-	replace cumsum_b = cumsum_b[_n-1] + b[_n] if _n>1
-	keep if !missing(at)
+		coefplot, vertical base gen
+		keep __at __b __se
+		rename (__at __b __se) (at b_full se_full)
+		
+		keep if !missing(at)
 
-	gen b_lb = b - 2*se
-	gen b_ub = b + 2*se
-
-	twoway (scatter b at, mcol(navy)) ///
-		(rcap b_lb b_ub at, col(navy)) ///
-		(line cumsum at, lcol(green)) ///
-		(line static_path at, lcol(maroon)), ///
-		yline(0, lcol(grey) lpat(dot)) ///
-		graphregion(color(white)) bgcolor(white) ///
-		xlabel(1 "F5D.ln_mw" 2 "F4D.ln_mw" 3 "F3D.ln_mw" 4 "F2D.ln_mw" ///
-		5 "FD.ln_mw" 6 "D.ln_mw" 7 "LD.ln_mw" 8 "L2D.ln_mw" 9 "L3D.ln_mw" ///
-		10 "L4D.ln_mw" 11 "L5D.ln_mw", labsize(vsmall)) xtitle("Leads and lags of ln MW") ///
-		ytitle("Effect on ln rent per sqft") ///
-		legend(order(1 "Dynamic model coefficients" 3 "Cumulative sum: dynamic model" ///
-		4 "Implied cumulative sum: static model") size(small))
-	graph export "../output/fd_models.png", replace
-	restore
-	
-	eststo lincom1: lincomest D1.ln_mw + LD.ln_mw + L2D.ln_mw + 	///
-	    L3D.ln_mw + L4D.ln_mw + L5D.ln_mw
-	comment_table, trend_lin("No") trend_sq("No") trend_cu("No")
-	
-	eststo reg2: reghdfe D.`depvar' L(-5/5).D.ln_mw, 			///
-	    absorb(`absorb' c.trend#i.zipcode) ///
+		gen b_full_lb = b_full - 1.96*se_full
+		gen b_full_ub = b_full + 1.96*se_full
+		
+		gen static_path = 0 if at <= `w' 
+		replace static_path = scalar(static_effect) if at > `w'
+		gen static_path_lb = 0 if at <= `w'
+		replace static_path_lb = scalar(static_effect) - 1.96*scalar(static_effect_se) if at > `w'
+		gen static_path_ub = 0 if at <= `w'
+		replace static_path_ub = scalar(static_effect) + 1.96*scalar(static_effect_se) if at > `w'
+		
+		save "../temp/plot_coeffs.dta", replace
+    restore
+		
+	eststo lincom1: lincomest `lincomest_coeffs'
+	comment_table, trend_lin("No") trend_sq("No")
+			
+	qui reghdfe D.`depvar' L(0/`w').D.ln_mw, 			///
+		absorb(`absorb') 											///
 		vce(cluster `cluster') nocons
-	comment_table, trend_lin("Yes") trend_sq("No") trend_cu("No")
+			
+	preserve
+		coefplot, vertical base gen
+		keep __at __b __se
+		rename (__at __b __se) (at b_lags se_lags)
+		tset at
 
-	eststo lincom2: lincomest D1.ln_mw + LD.ln_mw + L2D.ln_mw + 	///
-	    L3D.ln_mw + L4D.ln_mw + L5D.ln_mw
-	comment_table, trend_lin("Yes") trend_sq("No") trend_cu("No")
+	    keep if !missing(at)
+
+		gen b_lags_lb = b_lags - 1.96*se_lags
+		gen b_lags_ub = b_lags + 1.96*se_lags
+		
+		gen cumsum_b_lags = b_lags[1]
+		replace cumsum_b_lags = cumsum_b_lags[_n-1] + b_lags[_n] if _n > 1
+		
+		replace at = at + `w'
+		
+		merge 1:1 at using "../temp/plot_coeffs.dta", nogen
+		replace cumsum_b_lags = 0 if at <= `w'
+		sort at
+		
+		// To avoid the lines overlapping perfectly
+		gen at_full = at - 0.09
+		gen at_lags = at + 0.09
+		replace at_full = at if _n <= `w'
+		replace at_lags = at if _n <= `w'
+
+		replace cumsum_b_lags = cumsum_b_lags - 0.00007 if _n <= `w'
+		replace static_path = static_path + 0.00007 if _n <= `w'
+
+		// Figure
+		twoway (scatter b_full at_full, mcol(navy)) 				///
+			(rcap b_full_lb b_full_ub at_full, col(navy)) 			///
+			(scatter b_lags at_lags, mcol(maroon)) 					///
+			(rcap b_lags_lb b_lags_ub at_lags, col(maroon)) 		///
+			(line static_path at, lcol(gs4) lpat(dash)) 			///
+			(line cumsum_b_lags at, lcol(maroon)), 					///
+			yline(0, lcol(grey) lpat(dot)) 							///
+			graphregion(color(white)) bgcolor(white) 				///
+			xlabel(1 "F5D.ln_mw" 2 "F4D.ln_mw" 3 "F3D.ln_mw" 4 "F2D.ln_mw" ///
+			5 "FD.ln_mw" 6 "D.ln_mw" 7 "LD.ln_mw" 8 "L2D.ln_mw" 9 "L3D.ln_mw" ///
+			10 "L4D.ln_mw" 11 "L5D.ln_mw", labsize(vsmall)) xtitle("Leads and lags of ln MW") ///
+			ytitle("Effect on ln rent per sqft") 					///
+			legend(order(1 "Full dynamic model" 3 "Distributed lags model" ///
+			5 "Effects path static model" 6 "Effects path distributed lags model") size(small))
+		graph export "../output/fd_models.png", replace
+	restore 
 	
-	eststo reg3: reghdfe D.`depvar' L(-5/5).D.ln_mw, 			///
-	    absorb(`absorb' c.trend#i.zipcode c.trend_sq#i.zipcode) ///
+	eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw  `if', 		///
+		absorb(`absorb' i.zipcode) 							///
 		vce(cluster `cluster') nocons
-	comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("No")
-
-	eststo lincom3: lincomest D1.ln_mw + LD.ln_mw + L2D.ln_mw + 	///
-	    L3D.ln_mw + L4D.ln_mw + L5D.ln_mw
-	comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("No")
-
-	eststo reg4: reghdfe D.`depvar' L(-5/5).D.ln_mw, 			///
-	    absorb(`absorb' c.trend#i.zipcode c.trend_sq#i.zipcode c.trend_cu#i.zipcode) ///
-		vce(cluster `cluster') nocons
-	comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("Yes")
+	comment_table, trend_lin("Yes") trend_sq("No")
 	
-	eststo lincom4: lincomest D1.ln_mw + LD.ln_mw + L2D.ln_mw + 	///
-	    L3D.ln_mw + L4D.ln_mw + L5D.ln_mw
-	comment_table, trend_lin("Yes") trend_sq("Yes") trend_cu("Yes")
+	test (F5D.ln_mw = 0) (F4D.ln_mw = 0) (F3D.ln_mw = 0) (F2D.ln_mw = 0) (F1D.ln_mw = 0)
+    estadd scalar p_value_F = r(p)
+	
+	eststo lincom2: lincomest `lincomest_coeffs'
+	comment_table, trend_lin("Yes") trend_sq("No")
+	
+	eststo reg3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if',		///
+		absorb(`absorb' i.zipcod c.trend_times2#i.zipcode) 	///
+		vce(cluster `cluster') nocons
+	comment_table, trend_lin("Yes") trend_sq("Yes")
+
+	test (F5D.ln_mw = 0) (F4D.ln_mw = 0) (F3D.ln_mw = 0) (F2D.ln_mw = 0) (F1D.ln_mw = 0)
+    estadd scalar p_value_F = r(p)
+	
+	eststo lincom3: lincomest `lincomest_coeffs'
+	comment_table, trend_lin("Yes") trend_sq("Yes")
+end
+
+program run_static_heterogeneity
+	syntax, depvar(str) absorb(str) cluster(str) het_var(str) ytitle(str) [qtles(int 5)]
+
+    eststo clear
+	reghdfe D.`depvar' c.d_ln_mw#i.`het_var',							///
+		absorb(`absorb') ///
+		vce(cluster `cluster') nocons
+
+	coefplot, base graphregion(color(white)) bgcolor(white)						///
+	ylabel(1 "1" 2 "2" 3 "3" 4 "4" 5 "5")							///
+	ytitle(`ytitle') 												///
+	xtitle("Estimated effect of ln MW on ln rents")					///
+	xline(0, lcol(grey) lpat(dot))
+end
+
+program build_ytitle, rclass
+	syntax, var(str)
+
+	if "`var'" == "med_hhinc20105" {
+		return local title "Quintiles of 2010 state mean income distribution"
+	}
+	if "`var'" == "renthouse_share2010" {
+		return local title "Quintiles of 2010 share of houses rent"
+	}
+	if "`var'" == "college_share20105" {
+		return local title "Quintiles of 2010 college share"
+	}
+	if "`var'" == "black_share2010" {
+		return local title "Quintiles of 2010 share of black individuals"
+	}
+	if "`var'" == "nonwhite_share2010" {
+		return local title "Quintiles of 2010 share of non-white individuals"
+	}
+	if "`var'" == "work_county_share20105" {
+		return local title "Quintiles of 2010 share who work in county"
+	}		  
 end
 
 program comment_table
-	syntax, trend_lin(str) trend_sq(str) trend_cu(str)
+	syntax, trend_lin(str) trend_sq(str)
 
 	estadd local zs_trend 		"`trend_lin'"	
 	estadd local zs_trend_sq 	"`trend_sq'"
-	estadd local zs_trend_cu 	"`trend_cu'"
 end
 
 main

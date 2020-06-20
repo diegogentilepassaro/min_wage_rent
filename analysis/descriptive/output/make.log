@@ -1,271 +1,456 @@
 
- make.py started: 2020-04-07 19:33:18 C:\Users\gabriel\Dropbox (Brown)\research\min_wage_rent\analysis\descriptive\code 
+ make.py started: 2020-06-19 09:38:53 C:\Users\gabriel\Dropbox (Brown)\research\min_wage_rent\analysis\descriptive\code 
 
 
 
 
-Execute:  R CMD BATCH --no-save "./zillow_descriptive.R" zillow_descriptive.Rout
+Execute:  StataMP-64 /e do "./desc_stats_general.do"
 
-R version 3.6.1 (2019-07-05) -- "Action of the Toes"
-Copyright (C) 2019 The R Foundation for Statistical Computing
-Platform: x86_64-w64-mingw32/x64 (64-bit)
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
 
-R is free software and comes with ABSOLUTELY NO WARRANTY.
-You are welcome to redistribute it under certain conditions.
-Type 'license()' or 'licence()' for distribution details.
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
 
-  Natural language support but running in an English locale
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
 
-R is a collaborative project with many contributors.
-Type 'contributors()' for more information and
-'citation()' on how to cite R or R packages in publications.
+. do ./desc_stats_general.do 
 
-Type 'demo()' for some demos, 'help()' for on-line help, or
-'help.start()' for an HTML browser interface to help.
-Type 'q()' to quit R.
+. set more off
 
-> remove(list = ls())
-> source("../../../lib/R/load_packages.R")
-> source("../../../lib/R/save_data.R")
+. clear all
 
-Please cite as: 
+. adopath + ../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files (x86)\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files (x86)\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../lib/stata/gslab_misc/ado"
 
- Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
- R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
+. adopath + ../../lib/stata/mental_coupons/ado
+  [1]  (BASE)      "C:\Program Files (x86)\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files (x86)\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../lib/stata/gslab_misc/ado"
+  [8]              "../../lib/stata/mental_coupons/ado"
+
+. 
+. 
+. program main 
+  1.         local instub  = "../../../drive/" 
+  2.         local outstub = "../output/"
+  3. 
+.         us_stats, instub(`instub')
+  4.         // baseline_rent_stats, instub(`instub')
+.         // baseline_listing_stats, instub(`instub')
+.         // baseline_yearmonth_stats, instub(`instub')
+. 
+.         *build_table
+. end 
+
+. 
+. 
+. program us_stats
+  1.         syntax, instub(str)
+  2. 
+.         import delim `instub'/raw_data/census/tract/nhgis0041_csv/nhgis0041_d
+> s239_20185_2018_tract.csv, clear
+  3. 
+.         g statefips = string(statea, "%02.0f")
+  4.         g countyfips = string(countya, "%03.0f")
+  5.         g tractfips = string(tracta, "%06.0f")
+  6. 
+.         g tract_fips = statefips + countyfips + tractfips
+  7. 
+.         rename (ajwme001 aj1se001 ajzae001) (pop housing_units med_hhinc)
+  8. 
+.         g housing_rent_sh = aj1ue003 / aj1ue001
+  9. 
+.         
+.         order aj1ue003 aj1ue001, last
+ 10.         replace housing_rent_sh = 0 if aj1ue003 == 0 & aj1um001==0 
+ 11. 
+.         keep tract_fips pop housing_units housing_rent_sh med_hhinc
+ 12. 
+.         save ../temp/us_stats_tract.dta, replace
+ 13. 
+.         import excel `instub'/raw_data/hud_Xwalks/TRACT_ZIP_122018.xlsx, firs
+> trow clear
+ 14.         rename (tract zip) (tract_fips zipcode)
+ 15.         keep tract_fips zipcode tot_ratio
+ 16. 
+. 
+.         merge m:1 tract_fips using ../temp/us_stats_tract.dta, nogen assert(1
+>  2 3) keep(1 3)
+ 17.         sort zipcode
+ 18. 
+.         collapse (sum) pop housing_units (mean) med_hhinc housing_rent_sh [iw
+>  = tot_ratio], by (zipcode)
+ 19. 
+.         save ../temp/us_stats_zipcode.dta, replace
+ 20. 
+.         destring zipcode, replace
+ 21.         collapse (sum) pop housing_units (mean) med_hhinc housing_rent_sh 
+> (count) zipcode
+ 22. 
+.         g pop_sh = 1
+ 23.         g housing_units_sh = 1
+ 24.         g zipcode_sh = 1
+ 25. 
+.         order zipcode zipcode_sh pop pop_sh housing_units housing_units_sh me
+> d_hhinc housing_rent_sh
+ 26.         save ../temp/us_panel_stats_zipcode.dta, replace
+ 27. 
+.         keep pop housing_units zipcode
+ 28.         rename (pop housing_units zipcode) (USpop UShousing_units USzipcod
+> e)
+ 29.         save ../temp/us_totals.dta, replace 
+ 30. 
+. 
+. end
+
+. 
+. program baseline_rent_stats
+  1.         syntax, instub(str)
+  2. 
+.         use `instub'/derived_large/output/baseline_rent_panel.dta, clear
+  3.         keep zipcode 
+  4.         duplicates drop
+  5.         g zip2 = string(zipcode, "%05.0f")
+  6.         drop zipcode 
+  7.         rename zip2 zipcode 
+  8.         tempfile baseline_rent_zip 
+  9.         save "`baseline_rent_zip'", replace 
+ 10. 
+.         use ../temp/us_stats_zipcode.dta, clear 
+ 11. 
+.         merge 1:1 zipcode using `baseline_rent_zip', nogen assert(1 2 3) keep
+> (3)
+ 12. 
+.         destring zipcode, replace
+ 13. 
+.         collapse (sum) pop housing_units (mean) med_hhinc housing_rent_sh (co
+> unt) zipcode
+ 14. 
+.         merge 1:1 _n using ../temp/us_totals, nogen assert(1 2 3)
+ 15. 
+.         g pop_sh = pop/USpop
+ 16.         g housing_units_sh = housing_units/UShousing_units
+ 17.         g zipcode_sh = zipcode/USzipcode
+ 18. 
+.         drop USpop UShousing_units USzipcode
+ 19. 
+.         order zipcode zipcode_sh pop pop_sh housing_units housing_units_sh me
+> d_hhinc housing_rent_sh
+ 20. 
+.         save ../temp/rent_panel_stats_zipcode.dta, replace 
+ 21. end 
+
+. 
+. 
+. program baseline_listing_stats
+  1.         syntax, instub(str)
+  2. 
+.         use `instub'/derived_large/output/baseline_listing_panel.dta, clear
+  3.         keep zipcode 
+  4.         duplicates drop
+  5.         g zip2 = string(zipcode, "%05.0f")
+  6.         drop zipcode 
+  7.         rename zip2 zipcode 
+  8.         tempfile baseline_listing_zip 
+  9.         save "`baseline_listing_zip'", replace 
+ 10. 
+.         use ../temp/us_stats_zipcode.dta, clear 
+ 11. 
+.         merge 1:1 zipcode using `baseline_listing_zip', nogen assert(1 2 3) k
+> eep(3)
+ 12. 
+.         destring zipcode, replace
+ 13. 
+.         collapse (sum) pop housing_units (mean) med_hhinc housing_rent_sh (co
+> unt) zipcode
+ 14. 
+.         merge 1:1 _n using ../temp/us_totals, nogen assert(1 2 3)
+ 15. 
+.         g pop_sh = pop/USpop
+ 16.         g housing_units_sh = housing_units/UShousing_units
+ 17.         g zipcode_sh = zipcode/USzipcode
+ 18. 
+.         drop USpop UShousing_units USzipcode
+ 19. 
+.         order zipcode zipcode_sh pop pop_sh housing_units housing_units_sh me
+> d_hhinc housing_rent_sh
+ 20. 
+.         save ../temp/listing_panel_stats_zipcode.dta, replace 
+ 21. end 
+
+. 
+. 
+. program baseline_yearmonth_stats
+  1.         syntax, instub(str)
+  2. 
+.         use "../../../drive/derived_large/output/zipcode_yearmonth_panel_all.
+> dta", clear
+  3.         
+.         keep if year_month == `=tm(2019m1)'
+  4.         g zip2 = string(zipcode, "%05.0f")
+  5.         drop zipcode 
+  6.         rename zip2 zipcode 
+  7.         tempfile baseline_yearmonth_zip 
+  8.         save "`baseline_yearmonth_zip'", replace 
+  9. 
+.         use ../temp/us_stats_zipcode.dta, clear 
+ 10. 
+.         merge 1:1 zipcode using `baseline_yearmonth_zip', nogen assert(1 2 3)
+>  keep(1 3)
+ 11. 
+.         destring zipcode, replace
+ 12. 
+.         collapse (sum) pop housing_units (mean) med_hhinc housing_rent_sh (co
+> unt) zipcode
+ 13. 
+.         merge 1:1 _n using ../temp/us_totals, nogen assert(1 2 3)
+ 14. 
+.         g pop_sh = pop/USpop
+ 15.         g housing_units_sh = housing_units/UShousing_units
+ 16.         g zipcode_sh = zipcode/USzipcode
+ 17. 
+.         drop USpop UShousing_units USzipcode
+ 18. 
+.         order zipcode zipcode_sh pop pop_sh housing_units housing_units_sh me
+> d_hhinc housing_rent_sh
+ 19. 
+.         save ../temp/yearmonth_panel_stats_zipcode.dta, replace 
+ 20. end 
+
+. 
+. 
+. program build_table 
+  1.         mat t = J(8, 4, .)
+  2.         use ../temp/rent_panel_stats_zipcode.dta, clear
+  3.         append using ../temp/listing_panel_stats_zipcode.dta
+  4.         append using ../temp/yearmonth_panel_stats_zipcode.dta
+  5.         append using ../temp/us_panel_stats_zipcode.dta
+  6. 
+.         format pop housing_units med_hhinc %20.0fc
+  7. 
+. 
+.         forval x = 1/4 {
+  8.                 mat t[1, `x'] = zipcode[`x']
+  9.                 mat t[2, `x'] = round(zipcode_sh[`x'], .001) 
+ 10.                 mat t[3, `x'] = pop[`x']
+ 11.                 mat t[4, `x'] = round(pop_sh[`x'], .001)
+ 12.                 mat t[5, `x'] = housing_units[`x']
+ 13.                 mat t[6, `x'] = round(housing_units_sh[`x'], .001)
+ 14.                 mat t[7, `x'] = med_hhinc[`x']'
+ 15.                 mat t[8, `x'] = round(housing_rent_sh[`x'], .001)
+ 16.         }
+ 17. 
+.         local rownames `" "zipcode" "(\%)" "population" "(\%)"  "housing unit
+> s" "(\%)"  "median income"  "rent/income ratio" "'
+ 18.         mat rowname t = `rownames'
+ 19. 
+.         local dsets_names = `" "Rent Panel" "Listing Panel" "Full Panel" "U.S
+> ." "'
+ 20.         mat colname t = `dsets_names'
+ 21. 
+. 
+.         outtable using ../output/desc_stats.tex, mat(t) center replace 
+ 22. 
+. 
+. 
+. 
+. end
+
+. 
+. 
+. 
+. main 
+(50 vars, 74,001 obs)
+(887 missing values generated)
+(0 real changes made)
+(note: file ../temp/us_stats_tract.dta not found)
+file ../temp/us_stats_tract.dta saved
+file ../../../drive//raw_data/hud_Xwalks/TRACT_ZIP_122018.xlsx not found
+r(601);
+
+end of do-file
+r(601);
 
 
-Attaching package: 'dplyr'
+Execute:  StataMP-64 /e do "./wage_rent_motivation.do"
 
-The following objects are masked from 'package:stats':
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
 
-    filter, lag
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
 
-The following objects are masked from 'package:base':
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
 
-    intersect, setdiff, setequal, union
+. do ./wage_rent_motivation.do 
 
+. set more off
 
-Attaching package: 'data.table'
+. clear all
 
-The following objects are masked from 'package:dplyr':
+. adopath + ../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files (x86)\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files (x86)\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../lib/stata/gslab_misc/ado"
 
-    between, first, last
+. adopath + ../../lib/stata/mental_coupons/ado
+  [1]  (BASE)      "C:\Program Files (x86)\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files (x86)\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../lib/stata/gslab_misc/ado"
+  [8]              "../../lib/stata/mental_coupons/ado"
 
-Warning message:
-package 'dplyr' was built under R version 3.6.2 
-> 
-> load_packages(c('tidyverse', 'data.table', 'tidycensus', 'matrixStats', 'knitr', 'kableExtra', 'ggplot2', 'png', 'grid'))
--- Attaching packages --------------------------------------- tidyverse 1.3.0 --
-v ggplot2 3.2.1     v purrr   0.3.3
-v tibble  2.1.3     v stringr 1.4.0
-v tidyr   1.0.0     v forcats 0.4.0
-v readr   1.3.1     
--- Conflicts ------------------------------------------ tidyverse_conflicts() --
-x data.table::between() masks dplyr::between()
-x dplyr::filter()       masks stats::filter()
-x data.table::first()   masks dplyr::first()
-x dplyr::lag()          masks stats::lag()
-x data.table::last()    masks dplyr::last()
-x purrr::transpose()    masks data.table::transpose()
+. set scheme s1color
 
-Attaching package: 'matrixStats'
+. 
+. 
+. program main 
+  1.         local instub  = "../../../drive/derived_large/output/" 
+  2.         local outstub = "../output/"
+  3. 
+.         nMW_rent_corr, output(`outstub') instub(`instub') target_yr(2019) ///
+>                                         target_qt(3) start_yr(2012) ///
+>                                         target_vars("medrentpricepsqft_sfcc m
+> edlistingpricepsqft_sfcc")
+  4. 
+. 
+. end 
 
-The following object is masked from 'package:dplyr':
+. 
+. 
+. 
+. program nMW_rent_corr 
+  1.         syntax, output(str) instub(str) target_yr(int) target_qt(int) star
+> t_yr(int) target_vars(str)
+  2. 
+.         use `instub'county_quarter_panel_all.dta, clear 
+  3.         egen county_id = group(countyfips)
+  4.         xtset county_id year_quarter
+  5. 
+.         g year = year(dofq(year_quarter))
+  6.         
+. 
+. 
+.         preserve
+  7.         bys county_id (year_quarter): egen tot_sal_mw_events = sum(sal_mw_
+> event)
+  8.         collapse (first) tot_sal_mw_events, by(county_id)
+  9.         sum tot_sal_mw_events, det 
+ 10.         xtile ev_qtl = tot_sal_mw_events, n(2)
+ 11.         keep county_id ev_qtl
+ 12.         tempfile n_event_qt
+ 13.         save "`n_event_qt'", replace 
+ 14.         restore 
+ 15. 
+.         merge m:1 county_id using `n_event_qt', assert(1 2 3) keep(1 3) nogen
+>  
+ 16. 
+.         collapse (mean) `target_vars' (first) ev_qtl, by(county_id year)
+ 17. 
+.         winsor2 `target_vars', cuts(1 95) by(year)
+ 18. 
+.         keep if year>=`start_yr'
+ 19.         
+. 
+.         collapse `target_vars', by(year ev_qtl)
+ 20. 
+.         drop if missing(medrentpricepsqft_sfcc)
+ 21. 
+. 
+.         foreach var in `target_vars' {
+ 22.                 bys ev_qtl (year): gen start_`var' = `var'[1]
+ 23.                 replace `var' = `var' / start_`var'
+ 24.         }
+ 25. 
+.         twoway (connected medrentpricepsqft_sfcc year if ev_qtl==1) ///
+>                    (connected medrentpricepsqft_sfcc year if ev_qtl==2), ///
+>                    legend(order(1 "less than 5 MW changes" 2 "more than 5 MW 
+> changes"))
+ 26.               
+. end 
 
-    count
+. 
+. 
+. 
+. 
+. 
+. main
+       panel variable:  county_id (unbalanced)
+        time variable:  year_quarter, 1996q2 to 2019q4
+                delta:  1 quarter
 
+                  (first) tot_sal_mw_events
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%            3              1
+ 5%            3              1
+10%            3              1       Obs               2,977
+25%            4              2       Sum of Wgt.       2,977
 
-Attaching package: 'kableExtra'
+50%            5                      Mean           5.255291
+                        Largest       Std. Dev.      1.736312
+75%            5             13
+90%            7             14       Variance       3.014778
+95%            8             19       Skewness       2.024398
+99%           12             21       Kurtosis       10.31525
+(note: file C:\Users\gabriel\AppData\Local\Temp\ST_95e0_000002.tmp not found)
+file C:\Users\gabriel\AppData\Local\Temp\ST_95e0_000002.tmp saved
 
-The following object is masked from 'package:dplyr':
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           281,526  
+    -----------------------------------------
+(47,304 observations deleted)
+(0 observations deleted)
+(16 real changes made)
+(16 real changes made)
 
-    group_rows
+. 
+end of do-file
 
-Warning messages:
-1: package 'tidyverse' was built under R version 3.6.2 
-2: package 'ggplot2' was built under R version 3.6.2 
-3: package 'tidyr' was built under R version 3.6.2 
-4: package 'purrr' was built under R version 3.6.2 
-> 
-> theme_set(theme_minimal())
-> 
-> main <- function() {
-+    datadir <- "../../../drive/derived_large/output/"
-+    outdir <- "../output/"
-+    tempdir <- "../temp/"
-+    
-+    df <- fread(paste0(datadir, "data_clean.csv"))
-+    
-+    df <- prepare_data(df)
-+ 
-+    descriptive_table(df, outdir)
-+ 
-+    zillow_plots(df, outdir)
-+ }
-> 
-> 
-> prepare_data <- function(x) {
-+    x[,date := as.Date(date, "%Y-%m-%d")]
-+ }
-> 
-> 
-> descriptive_table <- function(d, outstub) {
-+    
-+    d <- setDT(d)
-+    
-+    geovars <- c('zipcode', 'date', 'city', 'msa', 'county', 'statename', 'stateabb', 'i.statename', 'place', 'placename', 'countyname', 'state', 'year', 'placetype', 'placepop10', 'zippctpop10', 'zippcthouse10', 'zippctland')
-+    
-+ 
-+    minwage_vars <- names(d) %>%
-+       str_subset(pattern = "mw")
-+    
-+    
-+    zillow_varlist <- setdiff(colnames(d), 
-+                              c(geovars, minwage_vars))
-+    
-+    
-+    d[, year := as.numeric(substr(date, 1,4))]
-+    
-+    pre2010_varlist <- sapply(zillow_varlist, function(v) {
-+       first_year <- d[
-+          !is.na(get(v)), 
-+          ]
-+       
-+       first_year <- min(first_year$year, na.rm = T)
-+       
-+       return(first_year)
-+    })
-+    pre2010_varlist<- names(pre2010_varlist[pre2010_varlist<2010])
-+    post2010_varlist <- setdiff(zillow_varlist, pre2010_varlist)
-+    
-+    zillow_missingZip <- sapply(zillow_varlist, function(x) {
-+       
-+       if (x %in% post2010_varlist) d <- d[year>=2010,]
-+       
-+       tot_zip <- length(unique(d[!is.na(get(x)),]$zipcode))
-+       totNA_zip <- length(unique(d$zipcode)) - tot_zip
-+       
-+       results <- c('totNA' = totNA_zip, 'tot_zip' = tot_zip)
-+       return(results)
-+    })
-+    zillow_missingZip <- t(zillow_missingZip)
-+    
-+    
-+    
-+    zillow_sumstats <- sapply(zillow_varlist, function(x) {
-+       
-+       
-+       if (x %in% post2010_varlist) d <- d[year>=2010,]
-+       
-+       sel_vars <- c('zipcode', 'mw_event', x)
-+       
-+       data <- d[,..sel_vars]
-+       
-+       data[, isNA := is.na(get(x))][
-+          isNA==0, ]
-+       
-+       N <- data[, .N]
-+       
-+       data_len <- data[,.N, by = zipcode]
-+       
-+       summstats <- function(x) list(mean = mean(x, na.rm = T), sd = sd(x, na.rm = T), median = median(x, na.rm = T), min = min(x, na.rm = T), max = max(x, na.rm = T))
-+       
-+       len_subtable <- data_len[,unlist(lapply(.SD, summstats)), .SDcols = c('N')]
-+       
-+       event_per_zip <- data[,.(N.event = sum(mw_event, na.rm = T)), by = zipcode][,.(N.event = mean(N.event, na.rm = T))]
-+       
-+       event_per_zip <- event_per_zip$N.event
-+       
-+       summary_var <- data[,unlist(lapply(.SD, summstats)), .SDcols = x]
-+       
-+       names(summary_var) <- c('mean', 'SD', 'median', 'min', 'max')
-+       
-+       
-+       results <- c( len_subtable,
-+                     'EventPerZip' = event_per_zip,
-+                     'N' = N,
-+                     summary_var)
-+       
-+       
-+       return(results)
-+    })
-+    zillow_sumstats <- t(zillow_sumstats)
-+    
-+    
-+    options('scipen' = 999, 'digits' = 4)
-+    final_table <- setDT(data.frame('ZillowSeries' = row.names(zillow_missingZip),
-+                                    zillow_missingZip,
-+                                    zillow_sumstats))
-+    
-+    save_data(final_table,
-+              key = 'ZillowSeries',
-+              filename = paste0(outstub, 'zillow_descriptive.csv'))
-+ }
-> 
-> 
-> zillow_plots <- function(data, outstub) {
-+    geovars <- c('zipcode', 'date', 'city', 'msa', 'county', 'statename', 'stateabb', 'i.statename', 'place', 'placename', 'countyname', 'state', 'year', 'placetype', 'placepop10', 'zippctpop10', 'zippcthouse10', 'zippctland')
-+    
-+    
-+    minwage_vars <- names(data) %>%
-+       str_subset(pattern = "mw")
-+    
-+    
-+    zillow_varlist <- setdiff(colnames(data), 
-+                              c(geovars, minwage_vars))
-+    
-+    plots <- lapply(zillow_varlist, function(x) {
-+       cols <- c('date', x)
-+       d <- data[,..cols]
-+       
-+       d <- d[is.na(get(x))==0,]
-+       
-+       sdmean <- function(y) {
-+          sdm <- sd(y, na.rm = T) / sqrt(length(y))
-+          return(sdm)
-+       }
-+       
-+       d <- d[, .('mean' = mean(get(x), na.rm = T), 'sdm' = sdmean(get(x))), by = 'date']
-+       d[, c('CIlow', 'CIup'):= .((mean - 1.96*sdm), (mean + 1.96*sdm))]
-+       
-+       
-+       d[,date := as.Date(date, format = "%Y-%m-%d")]
-+       brks <- c('2010-06-01', '2011-06-01', '2012-06-01', '2013-06-01', '2014-06-01', '2015-06-01', '2016-06-01', '2017-06-01', '2018-06-01', '2019-06-01')
-+       brks <- as.Date(brks, format = "%Y-%m-%d")
-+       lbls <- lubridate::year(brks)
-+       
-+       plot <- ggplot(d, aes(x = date, group = 1)) +
-+          geom_line(aes(y = mean)) +
-+          geom_ribbon(aes(ymin = CIlow, ymax = CIup), fill = "gray80", alpha = 0.8) +
-+          labs(title = x,
-+               caption = "Source: Zillow.com") + 
-+          scale_x_date(labels = lbls, breaks = brks)
-+       print(plot)
-+       return(plot)
-+    })
-+    names(plots) <- zillow_varlist
-+    
-+    pdf(paste0(outstub,'zillow_plots.pdf'))
-+    lapply(plots,function(x){
-+       img <- x
-+       grid.draw(img)
-+    })
-+    dev.off()
-+ }
-> 
-> 
-> main()
-[1] "File '../output/zillow_descriptive.csv' saved successfully."
-pdf 
-  2 
-Warning messages:
-1: Removed 1 rows containing missing values (geom_path). 
-2: Removed 1 rows containing missing values (geom_path). 
-3: Removed 1 rows containing missing values (geom_path). 
-4: Removed 1 rows containing missing values (geom_path). 
-> 
-> proc.time()
-   user  system elapsed 
- 285.03   56.01  313.75 
-
- make.py ended: 2020-04-07 19:38:34
+ make.py ended: 2020-06-19 09:39:08
