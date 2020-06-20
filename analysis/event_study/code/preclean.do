@@ -8,12 +8,14 @@ program main
 	local outstub "../temp"
 
 	foreach data in rent listing {
-		foreach w in 6 12 {
+		foreach w in 6 {
 			use "`instub'/baseline_`data'_panel.dta", clear
+			
 			create_latest_event_vars, event_dummy(sal_mw_event) w(`w') 		///
 				time(year_month) geo(zipcode) panel_end(2019m12)
 
-			drop if missing(last_sal_mw_event_rel_months`w')
+			gen treated = (!missing(last_sal_mw_event_rel_months`w'))
+			replace last_sal_mw_event_rel_months = 20000 if missing(last_sal_mw_event_rel_months`w')
 		
 			save_data "`outstub'/baseline_`data'_panel_`w'.dta", 			///
 				key(zipcode year_month) replace log(none)

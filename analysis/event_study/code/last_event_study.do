@@ -10,10 +10,10 @@ program main
 	local outstub "../output"
 
 	local controls "i.cumsum_unused_events"
-	local FE "zipcode calendar_month#countyfips year_month#statefips"
-	local cluster_se "zipcode"
+	local FE "zipcode year_month c.trend#i.countyfips c.trend_sq#i.countyfips"
+	local cluster_se "statefips"
 
-	foreach w in 6 12 {
+	foreach w in 6 {
 		use "`instub'/baseline_rent_panel_`w'.dta", clear
 
 		foreach depvar in _sfcc _2br _mfr5plus psqft_sfcc psqft_2br psqft_mfr5plus { 
@@ -34,7 +34,7 @@ program main
 	graph export "../output/two_way_last_medrentpricepsqft_sfcc6.png", replace
 	
 
-	foreach w in 6 12 {
+	foreach w in 6 {
 		use "`instub'/baseline_listing_panel_`w'.dta", clear
 		foreach depvar in 	_sfcc 		_low_tier 		_top_tier 			///
 		    				psqft_sfcc 	psqft_low_tier 	psqft_top_tier {
