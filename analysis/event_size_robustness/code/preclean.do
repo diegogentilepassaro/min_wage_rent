@@ -7,16 +7,22 @@ program main
 	local instub "../../../drive/derived_large/output"
 	local outstub "../temp"
 
-	foreach data in rent listing {
-		foreach w in 6 12 {
+	foreach data in rent {
+		foreach w in 6 {
 			use "`instub'/baseline_`data'_panel.dta", clear
 
 			create_latest_event_vars, event_dummy(mw_event025) w(`w')				///
 				time(year_month) geo(zipcode) panel_end(2019m12)
 			drop months_until_panel_ends
 
+			gen treated025 = !missing(last_mw_event025_rel_months`w')
+			replace last_mw_event025_rel_months`w' = 20000 if !treated025
+
 			create_latest_event_vars, event_dummy(mw_event075) w(`w')				///
 				time(year_month) geo(zipcode) panel_end(2019m12)
+
+			gen treated075 = !missing(last_mw_event075_rel_months`w')
+			replace last_mw_event075_rel_months`w' = 20000 if !treated075
 
 			save_data "`outstub'/baseline_`data'_panel_`w'.dta",					///
 				key(zipcode year_month) replace log(none)

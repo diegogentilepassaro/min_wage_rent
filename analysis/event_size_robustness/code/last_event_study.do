@@ -8,41 +8,44 @@ program main
 	local instub "../temp"
 	local outstub "../output"
 
-	local FE "zipcode calendar_month#countyfips year_month#statefips"
-	local cluster_se "zipcode"
+	local ZFE "zipcode year_month c.trend#i.countyfips c.trend_sq#i.countyfips"
+	local cluster_se "statefips"
+	local yaxis "ylabel(-0.01(0.01)0.05) yscale(range(-0.01(0.01)0.05))"
 
-	foreach w in 6 12 {
+	foreach w in 6 {
+		foreach depvar in psqft_sfcc {
+			foreach data in rent {
 
-		local depvar "psqft_sfcc"
+				use "`instub'/baseline_`data'_panel_`w'.dta", clear
+					
+				create_event_plot, depvar(med`data'price`depvar') 					///
+					event_var(last_mw_event025_rel_months`w') 						///
+					controls("i.c_unused_mw_event025_`w'") window(`w')				///
+					absorb(`ZFE') cluster(`cluster_se') yaxis(`yaxis')
+				graph export "../output/last_`data'`depvar'_event025_w`w'.png", replace
+				
+				create_event_plot, depvar(med`data'price`depvar') 					///
+					event_var(last_mw_event075_rel_months`w') 						///
+					controls("i.c_unused_mw_event075_`w'") window(`w')				///
+					absorb(`ZFE') cluster(`cluster_se') yaxis(`yaxis')
+				graph export "`outstub'/last_`data'`depvar'_event075_w`w'.png", replace
+			}
 
-		use "`instub'/baseline_rent_panel_`w'.dta", clear
-			
-	    create_event_plot, depvar(medrentprice`depvar') 					///
-			event_var(last_mw_event025_rel_months`w') 						///
-			controls("i.c_unused_mw_event025_`w'") window(`w')				///
-			absorb(`FE') cluster(`cluster_se')
-	    graph export "../output/last_rent`depvar'_event025_w`w'.png", replace
+		use "`instub'/baseline_rent_panel_`w'.dta" if treated025, clear
+					
+		create_event_plot, depvar(medrentprice`depvar') 							///
+			event_var(last_mw_event025_rel_months`w') 								///
+			controls("i.c_unused_mw_event025_`w'") window(`w')						///
+			absorb(`ZFE') cluster(`cluster_se') yaxis(`yaxis')
+		graph export "../output/last_rent`depvar'_event025_w`w'_treated-only.png", replace
 		
-	    create_event_plot, depvar(medrentprice`depvar') 					///
-			event_var(last_mw_event075_rel_months`w') 						///
-			controls("i.c_unused_mw_event075_`w'") window(`w')				///
-			absorb(`FE') cluster(`cluster_se')
-	    graph export "`outstub'/last_rent`depvar'_event075_w`w'.png", replace
-		
-
-		use "`instub'/baseline_listing_panel_`w'.dta", clear
-		
-        create_event_plot, depvar(medlistingprice`depvar') 						///
-			event_var(last_mw_event025_rel_months`w') 							///
-			controls("i.c_unused_mw_event025_`w'") window(`w')					///
-			absorb(`FE') cluster(`cluster_se')
-	    graph export "../output/last_listing`depvar'_event025_w`w'.png", replace
-		
-	    create_event_plot, depvar(medlistingprice`depvar') 						///
-			event_var(last_mw_event075_rel_months`w') 							///
-			controls("i.c_unused_mw_event075_`w'") window(`w')					///
-			absorb(`FE') cluster(`cluster_se')
-	    graph export "`outstub'/last_listing`depvar'_event075_w`w'.png", replace
+		use "`instub'/baseline_rent_panel_`w'.dta" if treated075, clear
+		create_event_plot, depvar(medrentprice`depvar') 							///
+			event_var(last_mw_event075_rel_months`w') 								///
+			controls("i.c_unused_mw_event075_`w'") window(`w')						///
+			absorb(`ZFE') cluster(`cluster_se') yaxis(`yaxis')
+		graph export "`outstub'/last_rent`depvar'_event075_w`w'_treated-only.png", replace
+		}
 	}
 end
 
