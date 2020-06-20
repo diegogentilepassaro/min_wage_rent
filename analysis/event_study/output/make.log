@@ -1,5 +1,5 @@
 
- make.py started: 2020-06-19 19:38:56 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\event_study\code 
+ make.py started: 2020-06-20 12:38:48 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\event_study\code 
 
 
 
@@ -49,27 +49,28 @@ Notes:
 . program main
   1.         local instub "../../../drive/derived_large/output"
   2.         local outstub "../temp"
-  3. 
+  3.         local logfile "../output/data_file_manifest.log"
+  4. 
 .         foreach data in rent listing {
-  4.                 foreach w in 6 {
-  5.                         use "`instub'/baseline_`data'_panel.dta", clear
-  6.                         
+  5.                 foreach w in 6 {
+  6.                         use "`instub'/baseline_`data'_panel.dta", clear
+  7.                         
 .                         create_latest_event_vars, event_dummy(sal_mw_event) w
 > (`w')              ///
 >                                 time(year_month) geo(zipcode) panel_end(2019m
 > 12)
-  7. 
-.                         gen treated = (!missing(last_sal_mw_event_rel_months`
-> w'))
-  8.                         replace last_sal_mw_event_rel_months = 20000 if mi
-> ssing(last_sal_mw_event_rel_months`w')
-  9.                 
+  8. 
+.                         create_vars, log_vars(actual_mw med`data'pricepsqft_s
+> fcc med`data'price_sfcc)
+  9.                         simplify_varnames, data(`data')
+ 10. 
 .                         save_data "`outstub'/baseline_`data'_panel_`w'.dta", 
 >                    ///
->                                 key(zipcode year_month) replace log(none)
- 10.                 }
- 11.         }
- 12. end
+>                                 key(zipcode year_month) replace log(`logfile'
+> )
+ 11.                 }
+ 12.         }
+ 13. end
 
 . 
 . program create_latest_event_vars
@@ -95,7 +96,7 @@ Notes:
  12.         restore
  13.         
 .         merge m:1 `geo' using "../temp/last_event`w'_by_`geo'.dta",          
->                                    ///
+>    ///
 >                 nogen assert(3) keep(3)
  14.         
 .         gen last_`event_dummy'_rel_months`w' = `time' - last_`event_dummy'_`t
@@ -103,22 +104,52 @@ Notes:
  15.         replace last_`event_dummy'_rel_months`w' = last_`event_dummy'_rel_
 > months`w' + `w' + 1
  16.         
+.         gen treated = !missing(last_`event_dummy'_rel_months`w')
+ 17. 
 .         replace last_`event_dummy'_rel_months`w' = 0                         
->                                                    ///
->                                 if last_`event_dummy'_rel_months`w' <= 0
- 17.         replace last_`event_dummy'_rel_months`w' = 1000                   
->                                                       ///
->                                 if (last_`event_dummy'_rel_months`w' > `windo
-> w_span' &                                  ///
->                                 !missing(last_`event_dummy'_rel_months`w'))
- 18.         
+>                    /// 0 is pre-period
+>                                 if last_`event_dummy'_rel_months`w' <= 0 & tr
+> eated
+ 18.         replace last_`event_dummy'_rel_months`w' = 1000                   
+>                       /// 1000 is post-period
+>                                 if last_`event_dummy'_rel_months`w' > `window
+> _span' & treated
+ 19.         replace last_`event_dummy'_rel_months`w' = 5000 if !treated       
+>               /// 5000 means never treated
+>                                 
+ 20. 
 .         gen unused_mw_event`w' = (mw_event == 1 & last_`event_dummy'_rel_mont
 > hs`w' != (`w' + 1))
- 19.         bysort `geo' (`time'): gen cumsum_unused_events = sum(unused_mw_ev
+ 21.         bysort `geo' (`time'): gen cumsum_unused_events = sum(unused_mw_ev
 > ent`w')
- 20.                 
+ 22.         
 .         drop `event_dummy'_`time' last_`event_dummy'_`time'    
- 21. end
+ 23. end
+
+. 
+. program create_vars
+  1.         syntax, log_vars(str)
+  2. 
+.         foreach var in `log_vars' {
+  3.                 gen ln_`var' = ln(`var')
+  4.         }
+  5. end
+
+. 
+. program simplify_varnames
+  1.         syntax, data(str)
+  2.         
+.         local marker "rent"
+  3.         if "`data'" == "listing" {
+  4.                 local marker "houseprice"
+  5.         }
+  6. 
+.         rename  (ln_actual_mw   ln_med`data'pricepsqft_sfcc ln_med`data'price
+> _sfcc)  ///
+>                         (ln_mw                  ln_`marker'_psqft            
+>            ln_`marker')
+  7. 
+. end
 
 . 
 . main
@@ -154,18 +185,20 @@ file ../temp/last_event6_by_zipcode.dta saved
 (49,729 real changes made)
 (11,050 real changes made)
 (87,840 real changes made)
+(43,225 missing values generated)
+(30,956 missing values generated)
 (data already sorted by zipcode year_month)
   variable months_until_panel_ends was float now int
   variable last_sal_mw_event_rel_months6 was float now int
+  variable treated was float now byte
   variable unused_mw_event6 was float now byte
   variable cumsum_unused_events was float now byte
-  variable treated was float now byte
   (2,035,800 bytes saved)
 ============================================================================
 File: ../temp/baseline_rent_panel_6.dta
 Key: zipcode year_month
 ============================================================================
-  156600:73(40879):1831358336:1817566282
+  156600:76(90867):3787635507:2043751827
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -251,11 +284,15 @@ med_earn_c~5 |    155,040     22797.4    11990.55       2499   246364.8
 med_~e_20105 |    156,600    19792.87    10529.06       2499     250001
 med~sp_20105 |    156,480    34127.94    11516.45   15005.94   193485.7
 months_unt~s |    156,600        59.5    34.63992          0        119
-last_sal_m~6 |    156,600    11289.29    9848.402          0      20000
+last_sal_m~6 |    156,600    2875.493    2413.531          0       5000
 -------------+---------------------------------------------------------
+     treated |    156,600    .4390805    .4962765          0          1
 unused_mw_~6 |    156,600    .0301916    .1711147          0          1
 cumsum_unu~s |    156,600    1.705881    2.350182          0          9
-     treated |    156,600    .4390805    .4962765          0          1
+       ln_mw |    156,600    2.079598    .1327617   1.981001   2.772589
+ln_rent_ps~t |    113,375    .0472541    .4493362  -.8722228   1.906781
+-------------+---------------------------------------------------------
+     ln_rent |    125,644    7.334093    .3761665   6.388561   8.794067
 
 
 
@@ -293,18 +330,20 @@ file ../temp/last_event6_by_zipcode.dta saved
 (318,377 real changes made)
 (77,943 real changes made)
 (475,320 real changes made)
+(120,224 missing values generated)
+(95,040 missing values generated)
 (data already sorted by zipcode year_month)
   variable months_until_panel_ends was float now int
   variable last_sal_mw_event_rel_months6 was float now int
+  variable treated was float now byte
   variable unused_mw_event6 was float now byte
   variable cumsum_unused_events was float now byte
-  variable treated was float now byte
   (12,010,440 bytes saved)
 ============================================================================
 File: ../temp/baseline_listing_panel_6.dta
 Key: zipcode year_month
 ============================================================================
-  923880:73(57649):3546012500:3856736536
+  923880:76(53733):4147722405:1929491635
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -390,11 +429,15 @@ med_earn_c~5 |    918,840    22010.93    10566.81       2499   246364.8
 med_~e_20105 |    919,440    17433.12    8164.185       2499     250001
 med~sp_20105 |    921,960    33625.26    9930.205       2499   193485.7
 months_unt~s |    923,880        59.5    34.63983          0        119
-last_sal_m~6 |    923,880    10374.38    9912.096          0      20000
+last_sal_m~6 |    923,880    2657.145    2426.111          0       5000
 -------------+---------------------------------------------------------
+     treated |    923,880    .4855176    .4997905          0          1
 unused_mw_~6 |    923,880    .0268119    .1615335          0          1
 cumsum_unu~s |    923,880    1.432712    2.142798          0          9
-     treated |    923,880    .4855176    .4997905          0          1
+       ln_mw |    923,880    2.079757    .1338212   1.981001   2.772589
+ln_housepr~t |    803,656    4.928917    .5080557   2.762899   7.938212
+-------------+---------------------------------------------------------
+ln_housepr~e |    828,840    12.38676    .5865717   9.786954   15.54273
 
 
 
@@ -435,15 +478,6 @@ Notes:
 
 . set more off
 
-. adopath + ../../../lib/stata/mental_coupons/ado
-  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
-  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
-  [3]              "."
-  [4]  (PERSONAL)  "c:\ado\personal/"
-  [5]  (PLUS)      "c:\ado\plus/"
-  [6]  (OLDPLACE)  "c:\ado/"
-  [7]              "../../../lib/stata/mental_coupons/ado"
-
 . adopath + ../../../lib/stata/gslab_misc/ado
   [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
   [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
@@ -451,8 +485,7 @@ Notes:
   [4]  (PERSONAL)  "c:\ado\personal/"
   [5]  (PLUS)      "c:\ado\plus/"
   [6]  (OLDPLACE)  "c:\ado/"
-  [7]              "../../../lib/stata/mental_coupons/ado"
-  [8]              "../../../lib/stata/gslab_misc/ado"
+  [7]              "../../../lib/stata/gslab_misc/ado"
 
 . adopath + ../../../lib/stata/min_wage/ado
   [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
@@ -461,9 +494,8 @@ Notes:
   [4]  (PERSONAL)  "c:\ado\personal/"
   [5]  (PLUS)      "c:\ado\plus/"
   [6]  (OLDPLACE)  "c:\ado/"
-  [7]              "../../../lib/stata/mental_coupons/ado"
-  [8]              "../../../lib/stata/gslab_misc/ado"
-  [9]              "../../../lib/stata/min_wage/ado"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+  [8]              "../../../lib/stata/min_wage/ado"
 
 . set maxvar 32000 
 
@@ -474,440 +506,258 @@ Notes:
   2.         local outstub "../output"
   3. 
 .         local controls "i.cumsum_unused_events"
-  4.         local FE "zipcode year_month c.trend#i.countyfips c.trend_sq#i.cou
-> ntyfips"
-  5.         local cluster_se "statefips"
-  6. 
+  4.         local FE "zipcode year_month"
+  5.         local FE_trend "zipcode year_month c.trend#i.countyfips c.trend_sq
+> #i.countyfips"
+  6.         local cluster_se "statefips"
+  7. 
 .         foreach w in 6 {
-  7.                 use "`instub'/baseline_rent_panel_`w'.dta", clear
-  8. 
+  8.                 use "`instub'/baseline_rent_panel_`w'.dta", clear
+  9. 
 .                 foreach depvar in _sfcc _2br _mfr5plus psqft_sfcc psqft_2br p
 > sqft_mfr5plus { 
-  9.                         
-.                         create_event_plot, depvar(medrentprice`depvar')      
->                            ///
+ 10.                         
+.                         create_event_plot_with_untreated, depvar(medrentprice
+> `depvar')          ///
 >                                 event_var(last_sal_mw_event_rel_months`w')   
->                                    ///
->                             controls(`controls') window(`w')                 
->                                    ///
->                             absorb(`FE') cluster(`cluster_se')
- 10.                         graph export "`outstub'/last_rent`depvar'_w`w'.png
-> ", replace    
- 11.                 }
- 12.         }
- 13.         
-.         use "`instub'/baseline_rent_panel_6.dta", clear
- 14.         create_event_plot, depvar(medrentpricepsqft_sfcc)                 
->                               ///
->                 event_var(last_sal_mw_event_rel_months6)                     
->                                    ///
->                 controls(`controls') window(6)                               
 >                                            ///
->                 absorb(zipcode year_month) cluster(`cluster_se')
- 15.         graph export "../output/two_way_last_medrentpricepsqft_sfcc6.png",
->  replace
- 16.         
-. 
-.         foreach w in 6 {
- 17.                 use "`instub'/baseline_listing_panel_`w'.dta", clear
- 18.                 foreach depvar in       _sfcc           _low_tier         
->       _top_tier                       ///
->                                                 psqft_sfcc      psqft_low_tie
-> r  psqft_top_tier {
- 19.                 
-.                         create_event_plot, depvar(medlistingprice`depvar')   
+>                                 controls(`controls') window(`w')             
+>                                                    ///
+>                                 absorb(`FE') cluster(`cluster_se')
+ 11.                         graph export "`outstub'/last_rent`depvar'_w`w'.png
+> ", replace    
+ 12.                 }
+ 13. 
+.                 create_event_plot_with_untreated, depvar(ln_rent_psqft)      
 >                            ///
+>                         event_var(last_sal_mw_event_rel_months`w')           
+>                                            ///
+>                         controls(`controls') window(`w')                     
+>                                                            ///
+>                         absorb(`FE') cluster(`cluster_se')
+ 14.                 graph export "`outstub'/last_ln_rentpsqft_sfccw`w'.png", r
+> eplace
+ 15. 
+.                 create_event_plot_with_untreated, depvar(medrentpricepsqft_sf
+> cc)                ///
+>                         event_var(last_sal_mw_event_rel_months`w')           
+>                                            ///
+>                         controls(`controls') window(`w')                     
+>                                                            ///
+>                         absorb(`FE_trend') cluster(`cluster_se')
+ 16.                 graph export "`outstub'/last_rentpsqft_sfccw`w'_county-tre
+> nd.png", replace
+ 17.         }
+ 18.         
+.         foreach w in 6 {
+ 19.                 use "`instub'/baseline_listing_panel_`w'.dta", clear
+ 20.                 foreach depvar in       _sfcc           _low_tier         
+>       _top_tier                               ///
+>                                                         psqft_sfcc      psqft
+> _low_tier  psqft_top_tier {
+ 21. 
+.                         create_event_plot_with_untreated, depvar(medlistingpr
+> ice`depvar')       ///
 >                                 event_var(last_sal_mw_event_rel_months`w')   
->                                    ///
->                             controls(`controls') window(`w')                 
->                                    ///
->                             absorb(`FE') cluster(`cluster_se')
- 20.                         graph export "`outstub'/last_listing`depvar'_w`w'.
+>                                            ///
+>                                 controls(`controls') window(`w')             
+>                                                    ///
+>                                 absorb(`FE') cluster(`cluster_se')
+ 22.                         graph export "`outstub'/last_listing`depvar'_w`w'.
 > png", replace 
- 21.                 }
- 22.         }
- 23. end
+ 23.                 }
+ 24. 
+.                 create_event_plot_with_untreated, depvar(ln_houseprice_psqft)
+>                    ///
+>                         event_var(last_sal_mw_event_rel_months`w')           
+>                                            ///
+>                         controls(`controls') window(`w')                     
+>                                                    ///
+>                         absorb(`FE') cluster(`cluster_se')
+ 25.                 graph export "`outstub'/last_listingpsqft_sfccw`w'_county-
+> trend.png", replace
+ 26. 
+.                 create_event_plot_with_untreated, depvar(medlistingpricepsqft
+> _sfcc)     ///
+>                         event_var(last_sal_mw_event_rel_months`w')           
+>                                            ///
+>                         controls(`controls') window(`w')                     
+>                                                    ///
+>                         absorb(`FE_trend') cluster(`cluster_se')
+ 27.                 graph export "`outstub'/last_listingpsqft_sfccw`w'_county-
+> trend.png", replace
+ 28.         }
+ 29. end
 
 . 
 . main
-note: 20000bn.last_sal_mw_event_rel_months6 is probably collinear with the fixe
-> d effects (all partialled-out values are close to zero; tol = 1.0e-09)
-(MWFE estimator converged in 286 iterations)
-note: 20000.last_sal_mw_event_rel_months6 omitted because of collinearity
+(MWFE estimator converged in 6 iterations)
 
-HDFE Linear regression                            Number of obs   =    125,354
-Absorbing 4 HDFE groups                           F(  23,     41) =      26.46
+HDFE Linear regression                            Number of obs   =    125,644
+Absorbing 2 HDFE groups                           F(  23,     41) =     147.98
 Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9838
-                                                  Adj R-squared   =     0.9835
-                                                  Within R-sq.    =     0.0019
-Number of clusters (statefips) =         42       Root MSE        =    90.3470
+                                                  R-squared       =     0.9773
+                                                  Adj R-squared   =     0.9770
+                                                  Within R-sq.    =     0.0430
+Number of clusters (statefips) =         42       Root MSE        =   106.5824
 
                              (Std. Err. adjusted for 42 clusters in statefips)
 ------------------------------------------------------------------------------
              |               Robust
 medre~e_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-last_sal_m~6 |
-          0  |   6.185403   8.823978     0.70   0.487    -11.63498    24.00579
-          1  |   3.285558   9.850049     0.33   0.740    -16.60702    23.17814
-          2  |   .7243788   7.569083     0.10   0.924    -14.56169    16.01045
-          3  |  -6.695227   6.847921    -0.98   0.334    -20.52488    7.134431
-          4  |  -2.088923   4.988839    -0.42   0.678    -12.16409    7.986242
-          5  |  -2.041668   3.404635    -0.60   0.552    -8.917468    4.834132
-          7  |   2.657086   4.329771     0.61   0.543    -6.087063    11.40124
-          8  |   3.329345   5.771588     0.58   0.567    -8.326613     14.9853
-          9  |   1.721961   6.724012     0.26   0.799    -11.85746    15.30138
-         10  |   .5158943   7.630322     0.07   0.946    -14.89385    15.92564
-         11  |  -.9506092   7.188234    -0.13   0.895    -15.46754    13.56632
-         12  |   .2582124   8.696101     0.03   0.976    -17.30392    17.82034
-         13  |     2.9618   7.426332     0.40   0.692    -12.03598    17.95958
-       1000  |   .0481978   11.61186     0.00   0.997    -23.40244    23.49883
-      20000  |          0  (omitted)
+last_sal_m~6#|
+     treated |
+        0 1  |  -7.971464   22.46741    -0.35   0.725    -53.34531    37.40238
+        1 1  |  -.1122679   7.010074    -0.02   0.987     -14.2694    14.04486
+        2 1  |  -2.053501   6.569521    -0.31   0.756    -15.32092    11.21391
+        3 1  |  -8.911106   6.280602    -1.42   0.164    -21.59504    3.772827
+        4 1  |  -3.680601   5.454058    -0.67   0.504     -14.6953    7.334094
+        5 1  |  -2.809595   3.876671    -0.72   0.473    -10.63869    5.019502
+        7 1  |   2.997861   5.814715     0.52   0.609    -8.745193    14.74092
+        8 1  |   1.039365   6.699615     0.16   0.877    -12.49078    14.56951
+        9 1  |  -.0390692   8.214891    -0.00   0.996    -16.62938    16.55124
+       10 1  |  -.4079099   9.257224    -0.04   0.965    -19.10325    18.28743
+       11 1  |  -1.263487    8.97251    -0.14   0.889    -19.38384    16.85686
+       12 1  |   .5887526   9.309215     0.06   0.950    -18.21159    19.38909
+       13 1  |   3.058895   10.37813     0.29   0.770    -17.90017    24.01796
+     1000 1  |  -53.02562   17.71137    -2.99   0.005    -88.79446   -17.25678
              |
 cumsum_unu~s |
-          1  |   20.54573   12.52182     1.64   0.108    -4.742593    45.83405
-          2  |   18.55396    15.0526     1.23   0.225    -11.84538     48.9533
-          3  |   28.25293   12.87318     2.19   0.034     2.255022    54.25083
-          4  |   15.10898   17.93136     0.84   0.404    -21.10413    51.32209
-          5  |   20.72877   19.65809     1.05   0.298    -18.97155    60.42908
-          6  |   17.54121   20.70313     0.85   0.402     -24.2696    59.35202
-          7  |   11.09727   16.00593     0.69   0.492    -21.22737     43.4219
-          8  |   17.21858   19.29988     0.89   0.378    -21.75831    56.19548
-          9  |   65.04259   29.16397     2.23   0.031     6.144749    123.9404
+          1  |   71.67777   24.52293     2.92   0.006     22.15271    121.2028
+          2  |   75.48974   28.98311     2.60   0.013     16.95715    134.0223
+          3  |   95.15731   32.40047     2.94   0.005     29.72322    160.5914
+          4  |   122.6629    56.4296     2.17   0.036     8.700966    236.6248
+          5  |   116.2242   42.61393     2.73   0.009     30.16357    202.2847
+          6  |   152.9223   41.02144     3.73   0.001     70.07783    235.7668
+          7  |   180.5198   35.50332     5.08   0.000     108.8193    252.2202
+          8  |   169.8851   40.44328     4.20   0.000     88.20819    251.5619
+          9  |   347.6506   45.22082     7.69   0.000     256.3253    438.9759
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
----------------------------------------------------------------+
-           Absorbed FE | Categories  - Redundant  = Num. Coefs |
------------------------+---------------------------------------|
-               zipcode |      1302        1302           0    *|
-            year_month |       119           0         119     |
-    countyfips#c.trend |       245           0         245    ?|
- countyfips#c.trend_sq |       245           0         245    ?|
----------------------------------------------------------------+
-? = number of redundant parameters may be higher
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     zipcode |      1305        1305           0    *|
+  year_month |       119           0         119     |
+-----------------------------------------------------+
 * = FE nested within cluster; treated as redundant for DoF computation
-(note:  named style grey not found in class color, default attributes used)
 (note:  named style grey not found in class color, default attributes used)
 (note: file ../output/last_rent_sfcc_w6.png not found)
 (file ../output/last_rent_sfcc_w6.png written in PNG format)
-note: 20000bn.last_sal_mw_event_rel_months6 is probably collinear with the fixe
-> d effects (all partialled-out values are close to zero; tol = 1.0e-09)
-(MWFE estimator converged in 244 iterations)
-note: 20000.last_sal_mw_event_rel_months6 omitted because of collinearity
+(MWFE estimator converged in 6 iterations)
 
 HDFE Linear regression                            Number of obs   =     32,426
-Absorbing 4 HDFE groups                           F(  23,     25) =   46421.11
+Absorbing 2 HDFE groups                           F(  23,     25) =     265.41
 Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9883
-                                                  Adj R-squared   =     0.9881
-                                                  Within R-sq.    =     0.0063
-Number of clusters (statefips) =         26       Root MSE        =   110.7902
+                                                  R-squared       =     0.9848
+                                                  Adj R-squared   =     0.9846
+                                                  Within R-sq.    =     0.0489
+Number of clusters (statefips) =         26       Root MSE        =   126.0686
 
                              (Std. Err. adjusted for 26 clusters in statefips)
 ------------------------------------------------------------------------------
              |               Robust
 medren~e_2br |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-last_sal_m~6 |
-          0  |    9.06798   25.57904     0.35   0.726    -43.61304      61.749
-          1  |  -.7589617   14.73368    -0.05   0.959    -31.10354    29.58562
-          2  |  -16.08295   12.18782    -1.32   0.199    -41.18425    9.018339
-          3  |  -2.703863   7.208856    -0.38   0.711    -17.55078    12.14305
-          4  |  -3.851712   5.285489    -0.73   0.473    -14.73738    7.033957
-          5  |   2.345018    3.54403     0.66   0.514    -4.954049    9.644084
-          7  |  -1.215112   5.334519    -0.23   0.822    -12.20176    9.771535
-          8  |   8.065323    10.2069     0.79   0.437    -12.95617    29.08682
-          9  |   9.061163   12.31496     0.74   0.469    -16.30197    34.42429
-         10  |   .3226854   8.718319     0.04   0.971    -17.63303     18.2784
-         11  |   24.47793   16.82728     1.45   0.158    -10.17851    59.13437
-         12  |   25.90259    17.2705     1.50   0.146    -9.666674    61.47185
-         13  |    25.8369   16.45481     1.57   0.129    -8.052406    59.72621
-       1000  |   42.77488   23.64026     1.81   0.082    -5.913148     91.4629
-      20000  |          0  (omitted)
+last_sal_m~6#|
+     treated |
+        0 1  |    6.42254   15.48135     0.41   0.682    -25.46189    38.30697
+        1 1  |   4.177385   8.756137     0.48   0.637    -13.85622    22.21099
+        2 1  |  -11.94794   8.692701    -1.37   0.181     -29.8509    5.955007
+        3 1  |  -.1184421   6.894555    -0.02   0.986    -14.31804    14.08116
+        4 1  |   -2.75445   6.249249    -0.44   0.663    -15.62502    10.11612
+        5 1  |   2.154172   3.819479     0.56   0.578    -5.712193    10.02054
+        7 1  |   .5104206   4.482969     0.11   0.910    -8.722427    9.743268
+        8 1  |    6.48135   10.02939     0.65   0.524    -14.17457    27.13727
+        9 1  |   4.083155   10.68979     0.38   0.706    -17.93289     26.0992
+       10 1  |  -6.297333    11.5514    -0.55   0.590    -30.08788    17.49321
+       11 1  |   16.24385   14.94051     1.09   0.287     -14.5267    47.01441
+       12 1  |   16.24058   15.34064     1.06   0.300    -15.35405    47.83522
+       13 1  |   15.32136   12.59251     1.22   0.235    -10.61341    41.25613
+     1000 1  |   -9.13505   17.36496    -0.53   0.603    -44.89886    26.62876
              |
 cumsum_unu~s |
-          1  |  -21.39284   15.15626    -1.41   0.170    -52.60775    9.822066
-          2  |  -7.186271   25.42584    -0.28   0.780    -59.55177    45.17923
-          3  |    -13.458   36.05262    -0.37   0.712    -87.70976    60.79376
-          4  |  -32.10002   45.41946    -0.71   0.486    -125.6432    61.44311
-          5  |  -30.99083   52.45331    -0.59   0.560    -139.0204    77.03878
-          6  |   -31.3302    48.5078    -0.65   0.524    -131.2339    68.57349
-          7  |  -83.79113   42.42924    -1.97   0.059    -171.1758    3.593519
-          8  |  -100.8033   45.20372    -2.23   0.035    -193.9021   -7.704497
-          9  |  -56.20154   93.98228    -0.60   0.555    -249.7617    137.3586
+          1  |   94.53648   28.97911     3.26   0.003      34.8529    154.2201
+          2  |   125.3539   44.21645     2.84   0.009     34.28839    216.4193
+          3  |   139.9511   39.42946     3.55   0.002     58.74461    221.1576
+          4  |   170.4637   50.24091     3.39   0.002     66.99062    273.9368
+          5  |   174.0147   42.54173     4.09   0.000     86.39836     261.631
+          6  |   233.9069   58.83968     3.98   0.001     112.7243    355.0894
+          7  |   236.4856   67.83965     3.49   0.002     96.76724     376.204
+          8  |    228.009   66.49249     3.43   0.002      91.0652    364.9529
+          9  |   323.1804    73.1434     4.42   0.000     172.5387     473.822
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
----------------------------------------------------------------+
-           Absorbed FE | Categories  - Redundant  = Num. Coefs |
------------------------+---------------------------------------|
-               zipcode |       344         344           0    *|
-            year_month |       112           0         112     |
-    countyfips#c.trend |        78           0          78    ?|
- countyfips#c.trend_sq |        78           0          78    ?|
----------------------------------------------------------------+
-? = number of redundant parameters may be higher
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     zipcode |       344         344           0    *|
+  year_month |       112           0         112     |
+-----------------------------------------------------+
 * = FE nested within cluster; treated as redundant for DoF computation
-(note:  named style grey not found in class color, default attributes used)
 (note:  named style grey not found in class color, default attributes used)
 (note: file ../output/last_rent_2br_w6.png not found)
 (file ../output/last_rent_2br_w6.png written in PNG format)
 (dropped 1 singleton observations)
-note: 20000bn.last_sal_mw_event_rel_months6 is probably collinear with the fixe
-> d effects (all partialled-out values are close to zero; tol = 1.0e-09)
-(MWFE estimator converged in 238 iterations)
-note: 20000.last_sal_mw_event_rel_months6 omitted because of collinearity
+(MWFE estimator converged in 6 iterations)
 
-HDFE Linear regression                            Number of obs   =     47,019
-Absorbing 4 HDFE groups                           F(  23,     28) =     186.42
+HDFE Linear regression                            Number of obs   =     47,090
+Absorbing 2 HDFE groups                           F(  23,     28) =      84.70
 Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9849
-                                                  Adj R-squared   =     0.9846
-                                                  Within R-sq.    =     0.0035
-Number of clusters (statefips) =         29       Root MSE        =    94.1047
+                                                  R-squared       =     0.9790
+                                                  Adj R-squared   =     0.9788
+                                                  Within R-sq.    =     0.0420
+Number of clusters (statefips) =         29       Root MSE        =   110.3896
 
                              (Std. Err. adjusted for 29 clusters in statefips)
 ------------------------------------------------------------------------------
              |               Robust
 m~e_mfr5plus |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-last_sal_m~6 |
-          0  |    9.41804    16.8306     0.56   0.580    -25.05788    43.89396
-          1  |   5.063301   7.300102     0.69   0.494     -9.89028    20.01688
-          2  |  -2.084804    7.19296    -0.29   0.774    -16.81891    12.64931
-          3  |   2.446497   8.948891     0.27   0.787    -15.88447    20.77747
-          4  |  -2.433625   8.379335    -0.29   0.774    -19.59791    14.73066
-          5  |   -3.86977   6.912206    -0.56   0.580    -18.02878    10.28924
-          7  |  -8.354174   5.552268    -1.50   0.144    -19.72748    3.019132
-          8  |  -14.52405   6.021362    -2.41   0.023    -26.85825   -2.189849
-          9  |  -12.35565   7.635095    -1.62   0.117    -27.99543    3.284135
-         10  |  -10.18538   9.175696    -1.11   0.276    -28.98094    8.610186
-         11  |   .0794938   13.28472     0.01   0.995    -27.13302    27.29201
-         12  |   12.61832   14.64862     0.86   0.396    -17.38802    42.62466
-         13  |   17.22343   16.45885     1.05   0.304    -16.49099    50.93785
-       1000  |   7.585678   17.96747     0.42   0.676    -29.21902    44.39038
-      20000  |          0  (omitted)
+last_sal_m~6#|
+     treated |
+        0 1  |  -13.48868   11.61361    -1.16   0.255    -37.27809    10.30072
+        1 1  |   .4047678   6.808047     0.06   0.953    -13.54088    14.35042
+        2 1  |  -5.487421    8.01104    -0.68   0.499    -21.89729    10.92245
+        3 1  |  -.7802444   10.11581    -0.08   0.939    -21.50154    19.94105
+        4 1  |  -4.571899   9.088548    -0.50   0.619    -23.18895    14.04515
+        5 1  |  -5.605223   6.587535    -0.85   0.402    -19.09918    7.888731
+        7 1  |   -4.34703   5.431048    -0.80   0.430    -15.47203    6.777967
+        8 1  |  -12.40017   7.211849    -1.72   0.097    -27.17298    2.372629
+        9 1  |  -11.55409   10.42146    -1.11   0.277    -32.90148    9.793302
+       10 1  |  -9.121483   11.68594    -0.78   0.442    -33.05905    14.81608
+       11 1  |   1.526327   13.67439     0.11   0.912    -26.48439    29.53705
+       12 1  |   14.48635   13.56585     1.07   0.295    -13.30204    42.27474
+       13 1  |   19.48434   12.04226     1.62   0.117    -5.183111    44.15179
+     1000 1  |  -29.52483   16.04535    -1.84   0.076    -62.39225     3.34259
              |
 cumsum_unu~s |
-          1  |  -9.032605   11.49413    -0.79   0.439    -32.57726    14.51205
-          2  |  -1.373966   17.96881    -0.08   0.940    -38.18141    35.43348
-          3  |   -2.83248   27.86788    -0.10   0.920    -59.91725    54.25229
-          4  |  -20.84682   38.88358    -0.54   0.596    -100.4962    58.80259
-          5  |   -24.5911   50.94177    -0.48   0.633    -128.9406    79.75838
-          6  |  -29.84591   51.94843    -0.57   0.570    -136.2574    76.56562
-          7  |  -60.78667   46.99847    -1.29   0.206    -157.0587    35.48533
-          8  |  -90.53275   48.94633    -1.85   0.075    -190.7948    9.729266
-          9  |  -86.08418   89.19683    -0.97   0.343    -268.7956    96.62724
+          1  |   71.48941   22.03328     3.24   0.003     26.35628    116.6225
+          2  |    99.1507   31.51973     3.15   0.004     34.58546    163.7159
+          3  |   122.1049   36.24555     3.37   0.002     47.85922    196.3505
+          4  |   120.0652   53.48801     2.24   0.033     10.49994    229.6304
+          5  |   128.3116   42.85637     2.99   0.006     40.52431    216.0989
+          6  |   167.2548   57.19228     2.92   0.007     50.10173    284.4079
+          7  |   170.7158   51.52818     3.31   0.003     65.16507    276.2665
+          8  |   150.2089   53.58441     2.80   0.009     40.44619    259.9716
+          9  |   184.2639   55.32646     3.33   0.002     70.93283    297.5951
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
----------------------------------------------------------------+
-           Absorbed FE | Categories  - Redundant  = Num. Coefs |
------------------------+---------------------------------------|
-               zipcode |       497         497           0    *|
-            year_month |       118           0         118     |
-    countyfips#c.trend |       110           0         110    ?|
- countyfips#c.trend_sq |       110           0         110    ?|
----------------------------------------------------------------+
-? = number of redundant parameters may be higher
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     zipcode |       498         498           0    *|
+  year_month |       118           0         118     |
+-----------------------------------------------------+
 * = FE nested within cluster; treated as redundant for DoF computation
-(note:  named style grey not found in class color, default attributes used)
 (note:  named style grey not found in class color, default attributes used)
 (note: file ../output/last_rent_mfr5plus_w6.png not found)
 (file ../output/last_rent_mfr5plus_w6.png written in PNG format)
-note: 20000bn.last_sal_mw_event_rel_months6 is probably collinear with the fixe
-> d effects (all partialled-out values are close to zero; tol = 1.0e-09)
-(MWFE estimator converged in 262 iterations)
-note: 20000.last_sal_mw_event_rel_months6 omitted because of collinearity
-
-HDFE Linear regression                            Number of obs   =    113,071
-Absorbing 4 HDFE groups                           F(  23,     40) =      21.73
-Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9950
-                                                  Adj R-squared   =     0.9949
-                                                  Within R-sq.    =     0.0056
-Number of clusters (statefips) =         41       Root MSE        =     0.0559
-
-                             (Std. Err. adjusted for 41 clusters in statefips)
-------------------------------------------------------------------------------
-             |               Robust
-medre~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-last_sal_m~6 |
-          0  |    .005525   .0051708     1.07   0.292    -.0049256    .0159756
-          1  |   .0068363   .0061704     1.11   0.275    -.0056345     .019307
-          2  |   .0022468   .0036533     0.62   0.542    -.0051368    .0096304
-          3  |  -.0017034   .0027559    -0.62   0.540    -.0072734    .0038665
-          4  |  -.0013148   .0044212    -0.30   0.768    -.0102504    .0076208
-          5  |  -.0009896   .0031071    -0.32   0.752    -.0072693    .0052901
-          7  |   .0049986   .0037343     1.34   0.188    -.0025487    .0125458
-          8  |   .0097612   .0068785     1.42   0.164    -.0041408    .0236633
-          9  |    .011128   .0067171     1.66   0.105    -.0024478    .0247038
-         10  |   .0182973   .0091335     2.00   0.052    -.0001622    .0367569
-         11  |   .0194688   .0108003     1.80   0.079    -.0023593     .041297
-         12  |   .0230746   .0138404     1.67   0.103    -.0048979    .0510471
-         13  |   .0202191   .0119056     1.70   0.097     -.003843    .0442812
-       1000  |    .015843   .0124655     1.27   0.211    -.0093507    .0410368
-      20000  |          0  (omitted)
-             |
-cumsum_unu~s |
-          1  |  -.0049461   .0058344    -0.85   0.402    -.0167379    .0068457
-          2  |   .0052967   .0079689     0.66   0.510    -.0108091    .0214026
-          3  |   .0075358   .0152162     0.50   0.623    -.0232173    .0382888
-          4  |   .0100494   .0192069     0.52   0.604    -.0287692    .0488679
-          5  |   .0118171   .0273761     0.43   0.668     -.043512    .0671461
-          6  |   .0162854   .0305449     0.53   0.597    -.0454481     .078019
-          7  |   .0027449   .0264828     0.10   0.918    -.0507788    .0562685
-          8  |  -.0113631    .028677    -0.40   0.694    -.0693216    .0465953
-          9  |   .1762359   .1094074     1.61   0.115    -.0448847    .3973566
-------------------------------------------------------------------------------
-
-Absorbed degrees of freedom:
----------------------------------------------------------------+
-           Absorbed FE | Categories  - Redundant  = Num. Coefs |
------------------------+---------------------------------------|
-               zipcode |      1140        1140           0    *|
-            year_month |       119           0         119     |
-    countyfips#c.trend |       231           0         231    ?|
- countyfips#c.trend_sq |       231           0         231    ?|
----------------------------------------------------------------+
-? = number of redundant parameters may be higher
-* = FE nested within cluster; treated as redundant for DoF computation
-(note:  named style grey not found in class color, default attributes used)
-(note:  named style grey not found in class color, default attributes used)
-(note: file ../output/last_rentpsqft_sfcc_w6.png not found)
-(file ../output/last_rentpsqft_sfcc_w6.png written in PNG format)
-(dropped 7 singleton observations)
-note: 20000bn.last_sal_mw_event_rel_months6 is probably collinear with the fixe
-> d effects (all partialled-out values are close to zero; tol = 1.0e-09)
-(MWFE estimator converged in 219 iterations)
-note: 20000.last_sal_mw_event_rel_months6 omitted because of collinearity
-
-HDFE Linear regression                            Number of obs   =     24,782
-Absorbing 4 HDFE groups                           F(  23,     23) =     810.33
-Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9917
-                                                  Adj R-squared   =     0.9915
-                                                  Within R-sq.    =     0.0108
-Number of clusters (statefips) =         24       Root MSE        =     0.0847
-
-                             (Std. Err. adjusted for 24 clusters in statefips)
-------------------------------------------------------------------------------
-             |               Robust
-medren~t_2br |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-last_sal_m~6 |
-          0  |   .0269448   .0293706     0.92   0.368    -.0338129    .0877026
-          1  |   .0171268   .0233515     0.73   0.471    -.0311794    .0654331
-          2  |   .0072788   .0188632     0.39   0.703    -.0317427    .0463002
-          3  |   .0015688   .0115038     0.14   0.893    -.0222286    .0253661
-          4  |  -.0021662   .0089859    -0.24   0.812     -.020755    .0164226
-          5  |  -.0028305   .0078598    -0.36   0.722    -.0190897    .0134287
-          7  |  -.0080887   .0087227    -0.93   0.363    -.0261331    .0099556
-          8  |  -.0015825   .0098724    -0.16   0.874    -.0220052    .0188402
-          9  |   .0010459   .0178961     0.06   0.954     -.035975    .0380668
-         10  |    .001938   .0202965     0.10   0.925    -.0400485    .0439246
-         11  |   .0253234   .0255766     0.99   0.332    -.0275859    .0782326
-         12  |   .0377919   .0253072     1.49   0.149    -.0145601    .0901438
-         13  |   .0295197    .022508     1.31   0.203    -.0170416     .076081
-       1000  |   .0281758   .0252282     1.12   0.276    -.0240128    .0803643
-      20000  |          0  (omitted)
-             |
-cumsum_unu~s |
-          1  |   .0054543   .0217464     0.25   0.804    -.0395316    .0504402
-          2  |   .0116039   .0349991     0.33   0.743    -.0607973    .0840052
-          3  |   .0191804   .0497436     0.39   0.703    -.0837222    .1220829
-          4  |   .0193045     .05422     0.36   0.725    -.0928582    .1314672
-          5  |   .0244411   .0596999     0.41   0.686    -.0990576    .1479398
-          6  |  -.0012005   .0649683    -0.02   0.985    -.1355976    .1331967
-          7  |  -.0670566   .0619438    -1.08   0.290    -.1951972     .061084
-          8  |  -.0877743    .066857    -1.31   0.202    -.2260786    .0505299
-          9  |   -.015401   .1194742    -0.13   0.899    -.2625522    .2317502
-------------------------------------------------------------------------------
-
-Absorbed degrees of freedom:
----------------------------------------------------------------+
-           Absorbed FE | Categories  - Redundant  = Num. Coefs |
------------------------+---------------------------------------|
-               zipcode |       273         273           0    *|
-            year_month |       112           0         112     |
-    countyfips#c.trend |        70           0          70    ?|
- countyfips#c.trend_sq |        70           0          70    ?|
----------------------------------------------------------------+
-? = number of redundant parameters may be higher
-* = FE nested within cluster; treated as redundant for DoF computation
-(note:  named style grey not found in class color, default attributes used)
-(note:  named style grey not found in class color, default attributes used)
-(note: file ../output/last_rentpsqft_2br_w6.png not found)
-(file ../output/last_rentpsqft_2br_w6.png written in PNG format)
-note: 20000bn.last_sal_mw_event_rel_months6 is probably collinear with the fixe
-> d effects (all partialled-out values are close to zero; tol = 1.0e-09)
-(MWFE estimator converged in 278 iterations)
-note: 20000.last_sal_mw_event_rel_months6 omitted because of collinearity
-
-HDFE Linear regression                            Number of obs   =     37,588
-Absorbing 4 HDFE groups                           F(  23,     27) =    7562.11
-Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9919
-                                                  Adj R-squared   =     0.9917
-                                                  Within R-sq.    =     0.0122
-Number of clusters (statefips) =         28       Root MSE        =     0.0913
-
-                             (Std. Err. adjusted for 28 clusters in statefips)
-------------------------------------------------------------------------------
-             |               Robust
-m~t_mfr5plus |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-last_sal_m~6 |
-          0  |   .0034737   .0207966     0.17   0.869    -.0391975    .0461448
-          1  |  -.0075872   .0126101    -0.60   0.552    -.0334609    .0182865
-          2  |   .0005841   .0085676     0.07   0.946    -.0169951    .0181634
-          3  |  -.0055953   .0072475    -0.77   0.447     -.020466    .0092754
-          4  |  -.0077294   .0058048    -1.33   0.194    -.0196399    .0041811
-          5  |  -.0083311   .0061199    -1.36   0.185    -.0208882    .0042259
-          7  |   .0005573   .0068031     0.08   0.935    -.0134015    .0145162
-          8  |    .006153    .007407     0.83   0.413    -.0090448    .0213509
-          9  |   .0090985   .0102979     0.88   0.385    -.0120311    .0302281
-         10  |   .0181622   .0134229     1.35   0.187    -.0093792    .0457036
-         11  |   .0377163   .0171237     2.20   0.036     .0025813    .0728513
-         12  |   .0450083    .019103     2.36   0.026     .0058122    .0842044
-         13  |   .0455317   .0208042     2.19   0.037     .0028449    .0882185
-       1000  |   .0389795   .0258892     1.51   0.144    -.0141409    .0920998
-      20000  |          0  (omitted)
-             |
-cumsum_unu~s |
-          1  |   .0192344   .0229296     0.84   0.409    -.0278132     .066282
-          2  |   .0256785   .0387272     0.66   0.513    -.0537831    .1051401
-          3  |   .0308411   .0582831     0.53   0.601    -.0887459    .1504281
-          4  |   .0350725    .069575     0.50   0.618    -.1076836    .1778286
-          5  |   .0470226    .082823     0.57   0.575    -.1229162    .2169615
-          6  |   .0311983   .0858055     0.36   0.719    -.1448601    .2072567
-          7  |  -.0030096   .0739641    -0.04   0.968    -.1547715    .1487523
-          8  |   -.024109   .0743472    -0.32   0.748    -.1766569    .1284388
-          9  |   .3232517   .0707446     4.57   0.000     .1780957    .4684077
-------------------------------------------------------------------------------
-
-Absorbed degrees of freedom:
----------------------------------------------------------------+
-           Absorbed FE | Categories  - Redundant  = Num. Coefs |
------------------------+---------------------------------------|
-               zipcode |       417         417           0    *|
-            year_month |       119           0         119     |
-    countyfips#c.trend |       104           0         104    ?|
- countyfips#c.trend_sq |       104           0         104    ?|
----------------------------------------------------------------+
-? = number of redundant parameters may be higher
-* = FE nested within cluster; treated as redundant for DoF computation
-(note:  named style grey not found in class color, default attributes used)
-(note:  named style grey not found in class color, default attributes used)
-(note: file ../output/last_rentpsqft_mfr5plus_w6.png not found)
-(file ../output/last_rentpsqft_mfr5plus_w6.png written in PNG format)
-note: 20000bn.last_sal_mw_event_rel_months6 is probably collinear with the fixe
-> d effects (all partialled-out values are close to zero; tol = 1.0e-09)
 (MWFE estimator converged in 6 iterations)
-note: 20000.last_sal_mw_event_rel_months6 omitted because of collinearity
 
 HDFE Linear regression                            Number of obs   =    113,375
 Absorbing 2 HDFE groups                           F(  23,     40) =      89.37
@@ -922,22 +772,22 @@ Number of clusters (statefips) =         41       Root MSE        =     0.0701
              |               Robust
 medre~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-last_sal_m~6 |
-          0  |  -.0051521    .017392    -0.30   0.769    -.0403026    .0299984
-          1  |   .0053726   .0073877     0.73   0.471    -.0095586    .0203037
-          2  |   .0009745   .0058755     0.17   0.869    -.0109003    .0128493
-          3  |  -.0027825   .0048719    -0.57   0.571     -.012629     .007064
-          4  |   -.002281   .0056196    -0.41   0.687    -.0136387    .0090767
-          5  |  -.0013481   .0032711    -0.41   0.682    -.0079593    .0052632
-          7  |   .0112227   .0036981     3.03   0.004     .0037486    .0186968
-          8  |   .0150363   .0051923     2.90   0.006     .0045423    .0255304
-          9  |   .0165488   .0059047     2.80   0.008     .0046149    .0284827
-         10  |   .0238101   .0075181     3.17   0.003     .0086153    .0390048
-         11  |   .0252017   .0092385     2.73   0.009     .0065301    .0438733
-         12  |   .0289723    .010633     2.72   0.009     .0074822    .0504624
-         13  |   .0284874   .0081415     3.50   0.001     .0120328    .0449421
-       1000  |  -.0086798   .0123862    -0.70   0.488    -.0337133    .0163537
-      20000  |          0  (omitted)
+last_sal_m~6#|
+     treated |
+        0 1  |  -.0051521    .017392    -0.30   0.769    -.0403026    .0299984
+        1 1  |   .0053726   .0073877     0.73   0.471    -.0095586    .0203037
+        2 1  |   .0009745   .0058755     0.17   0.869    -.0109003    .0128493
+        3 1  |  -.0027825   .0048719    -0.57   0.571     -.012629     .007064
+        4 1  |   -.002281   .0056196    -0.41   0.687    -.0136387    .0090767
+        5 1  |  -.0013481   .0032711    -0.41   0.682    -.0079593    .0052632
+        7 1  |   .0112227   .0036981     3.03   0.004     .0037486    .0186968
+        8 1  |   .0150363   .0051923     2.90   0.006     .0045423    .0255304
+        9 1  |   .0165488   .0059047     2.80   0.008     .0046149    .0284827
+       10 1  |   .0238101   .0075181     3.17   0.003     .0086153    .0390048
+       11 1  |   .0252017   .0092385     2.73   0.009     .0065301    .0438733
+       12 1  |   .0289723    .010633     2.72   0.009     .0074822    .0504624
+       13 1  |   .0284874   .0081415     3.50   0.001     .0120328    .0449421
+     1000 1  |  -.0086798   .0123862    -0.70   0.488    -.0337133    .0163537
              |
 cumsum_unu~s |
           1  |     .04836   .0142361     3.40   0.002     .0195878    .0771322
@@ -960,201 +810,620 @@ Absorbed degrees of freedom:
 -----------------------------------------------------+
 * = FE nested within cluster; treated as redundant for DoF computation
 (note:  named style grey not found in class color, default attributes used)
-(note:  named style grey not found in class color, default attributes used)
-(note: file ../output/two_way_last_medrentpricepsqft_sfcc6.png not found)
-(file ../output/two_way_last_medrentpricepsqft_sfcc6.png written in PNG format)
-note: 20000bn.last_sal_mw_event_rel_months6 is probably collinear with the fixe
-> d effects (all partialled-out values are close to zero; tol = 1.0e-09)
-(MWFE estimator converged in 307 iterations)
-note: 20000.last_sal_mw_event_rel_months6 omitted because of collinearity
+(note: file ../output/last_rentpsqft_sfcc_w6.png not found)
+(file ../output/last_rentpsqft_sfcc_w6.png written in PNG format)
+(dropped 7 singleton observations)
+(MWFE estimator converged in 6 iterations)
 
-HDFE Linear regression                            Number of obs   =    826,457
-Absorbing 4 HDFE groups                           F(  23,     50) =       9.78
+HDFE Linear regression                            Number of obs   =     24,782
+Absorbing 2 HDFE groups                           F(  23,     23) =    1459.83
 Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9806
-                                                  Adj R-squared   =     0.9804
-                                                  Within R-sq.    =     0.0026
-Number of clusters (statefips) =         51       Root MSE        = 33411.6754
+                                                  R-squared       =     0.9876
+                                                  Adj R-squared   =     0.9874
+                                                  Within R-sq.    =     0.0790
+Number of clusters (statefips) =         24       Root MSE        =     0.1029
+
+                             (Std. Err. adjusted for 24 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+medren~t_2br |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6#|
+     treated |
+        0 1  |  -.0152163   .0206287    -0.74   0.468    -.0578901    .0274574
+        1 1  |   .0133018   .0185444     0.72   0.480    -.0250603    .0516638
+        2 1  |    .004887   .0155773     0.31   0.757    -.0273371    .0371112
+        3 1  |  -.0005377   .0101261    -0.05   0.958     -.021485    .0204097
+        4 1  |  -.0039072   .0091651    -0.43   0.674    -.0228666    .0150522
+        5 1  |  -.0042406   .0078341    -0.54   0.594    -.0204468    .0119655
+        7 1  |   .0078507   .0088136     0.89   0.382    -.0103818    .0260831
+        8 1  |   .0145531   .0122886     1.18   0.248    -.0108678    .0399739
+        9 1  |   .0171036    .019853     0.86   0.398    -.0239654    .0581726
+       10 1  |   .0184354   .0241494     0.76   0.453    -.0315214    .0683922
+       11 1  |   .0419865    .030289     1.39   0.179     -.020671     .104644
+       12 1  |    .055201   .0287846     1.92   0.068    -.0043445    .1147466
+       13 1  |   .0577472   .0232205     2.49   0.021     .0097119    .1057824
+     1000 1  |   .0351576   .0275254     1.28   0.214     -.021783    .0920982
+             |
+cumsum_unu~s |
+          1  |   .0763355   .0355378     2.15   0.042     .0028198    .1498511
+          2  |   .0891284   .0399973     2.23   0.036     .0063878    .1718691
+          3  |   .1153499   .0456262     2.53   0.019      .020965    .2097349
+          4  |   .1597953   .0579762     2.76   0.011     .0398625    .2797281
+          5  |   .1802943   .0614384     2.93   0.007     .0531994    .3073892
+          6  |   .2139479   .0671421     3.19   0.004      .075054    .3528418
+          7  |   .2130547   .0726242     2.93   0.007     .0628201    .3632893
+          8  |   .2435698   .0844453     2.88   0.008     .0688814    .4182582
+          9  |    .465816   .1693886     2.75   0.011     .1154089     .816223
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     zipcode |       273         273           0    *|
+  year_month |       112           0         112     |
+-----------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/last_rentpsqft_2br_w6.png not found)
+(file ../output/last_rentpsqft_2br_w6.png written in PNG format)
+(MWFE estimator converged in 6 iterations)
+
+HDFE Linear regression                            Number of obs   =     37,588
+Absorbing 2 HDFE groups                           F(  23,     27) =   16410.01
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9869
+                                                  Adj R-squared   =     0.9867
+                                                  Within R-sq.    =     0.0772
+Number of clusters (statefips) =         28       Root MSE        =     0.1156
+
+                             (Std. Err. adjusted for 28 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+m~t_mfr5plus |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6#|
+     treated |
+        0 1  |  -.0285656   .0207623    -1.38   0.180    -.0711663    .0140351
+        1 1  |  -.0104456   .0101176    -1.03   0.311    -.0312052     .010314
+        2 1  |  -.0006499    .007833    -0.08   0.934    -.0167219    .0154222
+        3 1  |  -.0069433   .0081067    -0.86   0.399    -.0235769    .0096903
+        4 1  |  -.0090653   .0072285    -1.25   0.221    -.0238969    .0057662
+        5 1  |   -.009557   .0060801    -1.57   0.128    -.0220323    .0029184
+        7 1  |   .0124099   .0080751     1.54   0.136    -.0041588    .0289786
+        8 1  |   .0167892   .0096205     1.75   0.092    -.0029505    .0365289
+        9 1  |   .0187331   .0163328     1.15   0.261    -.0147791    .0522452
+       10 1  |   .0280644   .0173401     1.62   0.117    -.0075145    .0636433
+       11 1  |   .0475146    .020378     2.33   0.027     .0057024    .0893268
+       12 1  |   .0551598   .0188169     2.93   0.007     .0165507    .0937689
+       13 1  |   .0617993   .0174587     3.54   0.001      .025977    .0976215
+     1000 1  |   .0095347   .0196905     0.48   0.632     -.030867    .0499363
+             |
+cumsum_unu~s |
+          1  |   .0882399   .0437463     2.02   0.054    -.0015201        .178
+          2  |   .1081935   .0551726     1.96   0.060    -.0050113    .2213982
+          3  |   .1226785    .061119     2.01   0.055    -.0027273    .2480842
+          4  |   .1612879   .0809661     1.99   0.057    -.0048408    .3274167
+          5  |   .1610497   .0805863     2.00   0.056    -.0042997    .3263992
+          6  |   .1978253   .0885059     2.24   0.034     .0162261    .3794244
+          7  |   .2143911   .0855296     2.51   0.019     .0388988    .3898833
+          8  |   .2405976   .1105905     2.18   0.039     .0136847    .4675105
+          9  |   .9067356   .0891738    10.17   0.000     .7237661    1.089705
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     zipcode |       417         417           0    *|
+  year_month |       119           0         119     |
+-----------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/last_rentpsqft_mfr5plus_w6.png not found)
+(file ../output/last_rentpsqft_mfr5plus_w6.png written in PNG format)
+(MWFE estimator converged in 6 iterations)
+
+HDFE Linear regression                            Number of obs   =    113,375
+Absorbing 2 HDFE groups                           F(  23,     40) =      31.34
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9890
+                                                  Adj R-squared   =     0.9888
+                                                  Within R-sq.    =     0.0718
+Number of clusters (statefips) =         41       Root MSE        =     0.0475
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+ln_rent_ps~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6#|
+     treated |
+        0 1  |   .0064957   .0116388     0.56   0.580    -.0170272    .0300187
+        1 1  |   .0047298    .003919     1.21   0.235    -.0031909    .0126504
+        2 1  |   .0023555   .0030194     0.78   0.440     -.003747    .0084579
+        3 1  |  -.0000424   .0024251    -0.02   0.986    -.0049437     .004859
+        4 1  |   .0002122   .0021706     0.10   0.923    -.0041748    .0045992
+        5 1  |   .0008134   .0019879     0.41   0.685    -.0032042     .004831
+        7 1  |   .0011701   .0024989     0.47   0.642    -.0038804    .0062205
+        8 1  |   .0021195   .0029418     0.72   0.475    -.0038262    .0080651
+        9 1  |   .0033198   .0036138     0.92   0.364     -.003984    .0106237
+       10 1  |   .0067229   .0048314     1.39   0.172    -.0030417    .0164875
+       11 1  |   .0064805   .0053779     1.21   0.235    -.0043886    .0173495
+       12 1  |   .0057244   .0051073     1.12   0.269    -.0045978    .0160467
+       13 1  |   .0056969   .0054217     1.05   0.300    -.0052607    .0166545
+     1000 1  |  -.0161479   .0080847    -2.00   0.053    -.0324877    .0001919
+             |
+cumsum_unu~s |
+          1  |   .0123161   .0085102     1.45   0.156    -.0048836    .0295159
+          2  |   .0083893   .0105981     0.79   0.433    -.0130302    .0298088
+          3  |   .0063388   .0153447     0.41   0.682    -.0246739    .0373515
+          4  |   .0170526   .0218738     0.78   0.440     -.027156    .0612612
+          5  |   .0254379   .0244776     1.04   0.305    -.0240331    .0749089
+          6  |   .0568134   .0232243     2.45   0.019     .0098753    .1037514
+          7  |   .0834814    .024565     3.40   0.002     .0338337    .1331291
+          8  |   .0675996   .0283431     2.39   0.022     .0103161    .1248831
+          9  |   .0843694   .0324851     2.60   0.013     .0187146    .1500241
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     zipcode |      1143        1143           0    *|
+  year_month |       119           0         119     |
+-----------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/last_ln_rentpsqft_sfccw6.png not found)
+(file ../output/last_ln_rentpsqft_sfccw6.png written in PNG format)
+(MWFE estimator converged in 234 iterations)
+
+HDFE Linear regression                            Number of obs   =    113,071
+Absorbing 4 HDFE groups                           F(  23,     40) =      21.73
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9950
+                                                  Adj R-squared   =     0.9949
+                                                  Within R-sq.    =     0.0056
+Number of clusters (statefips) =         41       Root MSE        =     0.0559
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+medre~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6#|
+     treated |
+        0 1  |    .005525   .0051708     1.07   0.292    -.0049256    .0159756
+        1 1  |   .0068363   .0061704     1.11   0.275    -.0056345     .019307
+        2 1  |   .0022468   .0036533     0.62   0.542    -.0051368    .0096304
+        3 1  |  -.0017034   .0027559    -0.62   0.540    -.0072734    .0038665
+        4 1  |  -.0013148   .0044212    -0.30   0.768    -.0102504    .0076208
+        5 1  |  -.0009896   .0031071    -0.32   0.752    -.0072693    .0052901
+        7 1  |   .0049986   .0037343     1.34   0.188    -.0025487    .0125458
+        8 1  |   .0097612   .0068785     1.42   0.164    -.0041408    .0236633
+        9 1  |    .011128   .0067171     1.66   0.105    -.0024478    .0247038
+       10 1  |   .0182973   .0091335     2.00   0.052    -.0001622    .0367569
+       11 1  |   .0194688   .0108003     1.80   0.079    -.0023593     .041297
+       12 1  |   .0230746   .0138404     1.67   0.103    -.0048979    .0510471
+       13 1  |   .0202191   .0119056     1.70   0.097     -.003843    .0442812
+     1000 1  |    .015843   .0124655     1.27   0.211    -.0093507    .0410368
+             |
+cumsum_unu~s |
+          1  |  -.0049461   .0058344    -0.85   0.402    -.0167379    .0068458
+          2  |   .0052967    .007969     0.66   0.510    -.0108091    .0214026
+          3  |   .0075358   .0152162     0.50   0.623    -.0232173    .0382889
+          4  |   .0100494   .0192069     0.52   0.604    -.0287692    .0488679
+          5  |   .0118171    .027376     0.43   0.668     -.043512    .0671461
+          6  |   .0162854   .0305449     0.53   0.597    -.0454481     .078019
+          7  |   .0027449   .0264828     0.10   0.918    -.0507788    .0562685
+          8  |  -.0113631    .028677    -0.40   0.694    -.0693216    .0465953
+          9  |   .1762359   .1094074     1.61   0.115    -.0448847    .3973566
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+---------------------------------------------------------------+
+           Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-----------------------+---------------------------------------|
+               zipcode |      1140        1140           0    *|
+            year_month |       119           0         119     |
+    countyfips#c.trend |       231           0         231    ?|
+ countyfips#c.trend_sq |       231           0         231    ?|
+---------------------------------------------------------------+
+? = number of redundant parameters may be higher
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/last_rentpsqft_sfccw6_county-trend.png not found)
+(file ../output/last_rentpsqft_sfccw6_county-trend.png written in PNG format)
+(MWFE estimator converged in 5 iterations)
+
+HDFE Linear regression                            Number of obs   =    828,840
+Absorbing 2 HDFE groups                           F(  23,     50) =     430.56
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9665
+                                                  Adj R-squared   =     0.9661
+                                                  Within R-sq.    =     0.0508
+Number of clusters (statefips) =         51       Root MSE        = 43834.0140
 
                              (Std. Err. adjusted for 51 clusters in statefips)
 ------------------------------------------------------------------------------
              |               Robust
 medli~e_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-last_sal_m~6 |
-          0  |   4800.031   2875.565     1.67   0.101     -975.712    10575.77
-          1  |    4486.63   2485.527     1.81   0.077    -505.6978    9478.959
-          2  |   3707.929   1921.404     1.93   0.059    -151.3237    7567.182
-          3  |   2606.252   1320.261     1.97   0.054    -45.57035    5258.073
-          4  |   1224.659   791.2369     1.55   0.128    -364.5874    2813.905
-          5  |   386.0305   697.8552     0.55   0.583    -1015.653    1787.714
-          7  |  -1622.888   810.9442    -2.00   0.051    -3251.718    5.941095
-          8  |  -2702.989   1395.242    -1.94   0.058    -5505.415    99.43655
-          9  |  -3145.687   1653.578    -1.90   0.063    -6466.998    175.6227
-         10  |  -3465.949   1904.875    -1.82   0.075    -7292.003    360.1054
-         11  |  -4509.483   2343.797    -1.92   0.060    -9217.138    198.1714
-         12  |  -5078.989   2665.604    -1.91   0.062    -10433.01    275.0333
-         13  |  -6583.617    3264.01    -2.02   0.049    -13139.57   -27.66099
-       1000  |  -9168.023   5113.218    -1.79   0.079    -19438.22    1102.177
-      20000  |          0  (omitted)
+last_sal_m~6#|
+     treated |
+        0 1  |  -9821.099   7393.263    -1.33   0.190    -24670.91    5028.707
+        1 1  |   1306.235   1105.937     1.18   0.243    -915.1054    3527.576
+        2 1  |   1131.347   799.1995     1.42   0.163    -473.8924    2736.587
+        3 1  |    598.861   724.7832     0.83   0.413     -856.909    2054.631
+        4 1  |  -165.3149   715.6234    -0.23   0.818    -1602.687    1272.057
+        5 1  |  -324.3818   494.6664    -0.66   0.515    -1317.948    669.1849
+        7 1  |   511.4742   1021.569     0.50   0.619    -1540.407    2563.355
+        8 1  |  -648.2583   795.8628    -0.81   0.419    -2246.796    950.2791
+        9 1  |  -392.4081   1001.793    -0.39   0.697    -2404.569    1619.752
+       10 1  |  -11.95459    1046.83    -0.01   0.991    -2114.574    2090.665
+       11 1  |  -376.9161   1324.739    -0.28   0.777    -3037.733      2283.9
+       12 1  |  -133.5117    1489.59    -0.09   0.929     -3125.44    2858.417
+       13 1  |   -463.478   2013.139    -0.23   0.819    -4506.986     3580.03
+     1000 1  |  -22018.57   10741.34    -2.05   0.046    -43593.18   -443.9553
              |
 cumsum_unu~s |
-          1  |   2039.782   3117.436     0.65   0.516    -4221.773    8301.337
-          2  |   2357.233   3120.673     0.76   0.454    -3910.822    8625.288
-          3  |   4346.404   3831.721     1.13   0.262    -3349.835    12042.64
-          4  |   3837.054    5004.21     0.77   0.447    -6214.198    13888.31
-          5  |   3481.434   6600.264     0.53   0.600    -9775.586    16738.45
-          6  |   4002.723   7960.874     0.50   0.617    -11987.16    19992.61
-          7  |   1427.081   10371.26     0.14   0.891     -19404.2    22258.36
-          8  |  -6276.147   13233.44    -0.47   0.637     -32856.3    20304.01
-          9  |   15819.89    20671.8     0.77   0.448    -25700.63    57340.42
+          1  |   18060.65   16405.04     1.10   0.276    -14889.85    51011.14
+          2  |   22055.32   18170.19     1.21   0.231    -14440.57    58551.22
+          3  |   30811.37   19581.23     1.57   0.122    -8518.687    70141.42
+          4  |   45361.74   30022.13     1.51   0.137    -14939.47      105663
+          5  |   39082.92   21611.58     1.81   0.077    -4325.216    82491.06
+          6  |   54544.35   21711.85     2.51   0.015     10934.81     98153.9
+          7  |   64449.21   20138.24     3.20   0.002     24000.37    104898.1
+          8  |   60647.92   21531.06     2.82   0.007     17401.52    103894.3
+          9  |   223695.5    18256.1    12.25   0.000       187027    260363.9
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
----------------------------------------------------------------+
-           Absorbed FE | Categories  - Redundant  = Num. Coefs |
------------------------+---------------------------------------|
-               zipcode |      7676        7676           0    *|
-            year_month |       120           0         120     |
-    countyfips#c.trend |      1561           0        1561    ?|
- countyfips#c.trend_sq |      1561           0        1561    ?|
----------------------------------------------------------------+
-? = number of redundant parameters may be higher
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     zipcode |      7699        7699           0    *|
+  year_month |       120           0         120     |
+-----------------------------------------------------+
 * = FE nested within cluster; treated as redundant for DoF computation
-(note:  named style grey not found in class color, default attributes used)
 (note:  named style grey not found in class color, default attributes used)
 (note: file ../output/last_listing_sfcc_w6.png not found)
 (file ../output/last_listing_sfcc_w6.png written in PNG format)
-note: 20000bn.last_sal_mw_event_rel_months6 is probably collinear with the fixe
-> d effects (all partialled-out values are close to zero; tol = 1.0e-09)
-(MWFE estimator converged in 309 iterations)
-note: 20000.last_sal_mw_event_rel_months6 omitted because of collinearity
+(MWFE estimator converged in 5 iterations)
 
-HDFE Linear regression                            Number of obs   =    177,237
-Absorbing 4 HDFE groups                           F(  22,     49) =      10.68
+HDFE Linear regression                            Number of obs   =    177,408
+Absorbing 2 HDFE groups                           F(  22,     49) =       5.54
 Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9897
-                                                  Adj R-squared   =     0.9895
-                                                  Within R-sq.    =     0.0187
-Number of clusters (statefips) =         50       Root MSE        =  9196.2534
+                                                  R-squared       =     0.9396
+                                                  Adj R-squared   =     0.9389
+                                                  Within R-sq.    =     0.1134
+Number of clusters (statefips) =         50       Root MSE        = 22173.0089
 
                              (Std. Err. adjusted for 50 clusters in statefips)
 ------------------------------------------------------------------------------
              |               Robust
 m~e_low_tier |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-last_sal_m~6 |
-          0  |   2642.927   2084.719     1.27   0.211    -1546.472    6832.327
-          1  |   1248.329   1191.865     1.05   0.300    -1146.813     3643.47
-          2  |   1468.466   1032.435     1.42   0.161    -606.2896    3543.222
-          3  |   1220.794   706.4746     1.73   0.090      -198.92    2640.508
-          4  |    776.304   512.2568     1.52   0.136    -253.1145    1805.722
-          5  |    370.024   354.5818     1.04   0.302    -342.5348    1082.583
-          7  |  -1216.761   548.9683    -2.22   0.031    -2319.954    -113.568
-          8  |  -1745.535   1040.239    -1.68   0.100    -3835.972    344.9033
-          9  |  -1868.409   1402.087    -1.33   0.189    -4686.008    949.1911
-         10  |  -2457.361   1618.578    -1.52   0.135    -5710.015    795.2935
-         11  |  -2801.651    1831.18    -1.53   0.132    -6481.545     878.243
-         12  |  -3428.486   1886.126    -1.82   0.075    -7218.797    361.8256
-         13  |  -4608.986   2265.439    -2.03   0.047    -9161.555   -56.41643
-       1000  |   -8021.69   3722.624    -2.15   0.036    -15502.58   -540.7971
-      20000  |          0  (omitted)
+last_sal_m~6#|
+     treated |
+        0 1  |  -9765.678   6174.601    -1.58   0.120       -22174    2642.648
+        1 1  |  -1516.091   924.4841    -1.64   0.107    -3373.912    341.7293
+        2 1  |  -901.8287   584.2306    -1.54   0.129    -2075.884    272.2267
+        3 1  |  -732.7558   555.1756    -1.32   0.193    -1848.423    382.9114
+        4 1  |  -641.2481   467.7669    -1.37   0.177    -1581.261    298.7647
+        5 1  |  -525.5349   551.6871    -0.95   0.345    -1634.192    583.1219
+        7 1  |   291.8462   869.4667     0.34   0.739    -1455.413    2039.105
+        8 1  |  -614.4165   968.3882    -0.63   0.529    -2560.466    1331.632
+        9 1  |   -245.359   1126.928    -0.22   0.829    -2510.006    2019.288
+       10 1  |  -240.0946   1128.537    -0.21   0.832    -2507.974    2027.785
+       11 1  |  -55.91427   1134.268    -0.05   0.961    -2335.312    2223.483
+       12 1  |  -118.0876   1066.499    -0.11   0.912    -2261.298    2025.123
+       13 1  |  -285.2715   1366.194    -0.21   0.835    -3030.741    2460.198
+     1000 1  |  -17085.33   9425.715    -1.81   0.076    -36027.01    1856.356
              |
 cumsum_unu~s |
-          1  |    959.319   2711.653     0.35   0.725    -4489.952     6408.59
-          2  |   -915.927   3280.587    -0.28   0.781    -7508.513    5676.659
-          3  |  -1714.536   3615.368    -0.47   0.637     -8979.89    5550.818
-          4  |  -3358.031    3797.99    -0.88   0.381    -10990.38    4274.316
-          5  |  -1479.427   3830.009    -0.39   0.701    -9176.119    6217.265
-          6  |   1438.265   4693.729     0.31   0.761    -7994.137    10870.67
-          7  |   -856.043   5128.094    -0.17   0.868    -11161.33    9449.247
-          8  |  -1358.747   5368.357    -0.25   0.801    -12146.86     9429.37
+          1  |   13817.99   12861.71     1.07   0.288    -12028.59    39664.58
+          2  |   16571.65   14301.35     1.16   0.252    -12167.98    45311.29
+          3  |   23221.98   15079.76     1.54   0.130    -7081.928    53525.89
+          4  |   32619.64   21851.34     1.49   0.142    -11292.28    76531.56
+          5  |   32293.76    17388.9     1.86   0.069     -2650.54    67238.05
+          6  |   48521.99    16153.4     3.00   0.004     16060.51    80983.46
+          7  |   55777.88   16658.79     3.35   0.002     22300.79    89254.96
+          8  |   47226.44   17628.11     2.68   0.010     11801.43    82651.45
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
----------------------------------------------------------------+
-           Absorbed FE | Categories  - Redundant  = Num. Coefs |
------------------------+---------------------------------------|
-               zipcode |      1694        1694           0    *|
-            year_month |       120           0         120     |
-    countyfips#c.trend |       466           0         466    ?|
- countyfips#c.trend_sq |       466           0         466    ?|
----------------------------------------------------------------+
-? = number of redundant parameters may be higher
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     zipcode |      1696        1696           0    *|
+  year_month |       120           0         120     |
+-----------------------------------------------------+
 * = FE nested within cluster; treated as redundant for DoF computation
-(note:  named style grey not found in class color, default attributes used)
 (note:  named style grey not found in class color, default attributes used)
 (note: file ../output/last_listing_low_tier_w6.png not found)
 (file ../output/last_listing_low_tier_w6.png written in PNG format)
-note: 20000bn.last_sal_mw_event_rel_months6 is probably collinear with the fixe
-> d effects (all partialled-out values are close to zero; tol = 1.0e-09)
-(MWFE estimator converged in 255 iterations)
-note: 20000.last_sal_mw_event_rel_months6 omitted because of collinearity
+(MWFE estimator converged in 5 iterations)
 
-HDFE Linear regression                            Number of obs   =    394,384
-Absorbing 4 HDFE groups                           F(  23,     50) =      64.02
+HDFE Linear regression                            Number of obs   =    395,224
+Absorbing 2 HDFE groups                           F(  23,     50) =     226.77
 Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9833
-                                                  Adj R-squared   =     0.9830
-                                                  Within R-sq.    =     0.0053
-Number of clusters (statefips) =         51       Root MSE        = 39983.1834
+                                                  R-squared       =     0.9689
+                                                  Adj R-squared   =     0.9686
+                                                  Within R-sq.    =     0.0534
+Number of clusters (statefips) =         51       Root MSE        = 54354.2200
 
                              (Std. Err. adjusted for 51 clusters in statefips)
 ------------------------------------------------------------------------------
              |               Robust
 m~e_top_tier |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-last_sal_m~6 |
-          0  |   6295.416    4300.36     1.46   0.149    -2342.111    14932.94
-          1  |   4277.991   3275.513     1.31   0.198     -2301.07    10857.05
-          2  |   3734.689   2505.677     1.49   0.142    -1298.111    8767.489
-          3  |   1860.981   1850.054     1.01   0.319    -1854.962    5576.923
-          4  |   397.4155   1172.504     0.34   0.736    -1957.628    2752.459
-          5  |   472.4928   977.0612     0.48   0.631    -1489.992    2434.978
-          7  |  -2463.212   1143.409    -2.15   0.036    -4759.816   -166.6079
-          8  |  -4329.249   1844.529    -2.35   0.023    -8034.095   -624.4023
-          9  |   -6002.47   1821.633    -3.30   0.002    -9661.327   -2343.613
-         10  |  -6695.643   2195.152    -3.05   0.004    -11104.74    -2286.55
-         11  |  -8828.914   2606.417    -3.39   0.001    -14064.06   -3593.771
-         12  |  -10461.24   3096.312    -3.38   0.001    -16680.37   -4242.114
-         13  |  -11576.66   3558.955    -3.25   0.002    -18725.03   -4428.288
-       1000  |  -14682.61   6619.928    -2.22   0.031    -27979.13   -1386.092
-      20000  |          0  (omitted)
+last_sal_m~6#|
+     treated |
+        0 1  |  -13239.72   11414.81    -1.16   0.252    -36167.04    9687.602
+        1 1  |   264.3676   1324.836     0.20   0.843    -2396.643    2925.378
+        2 1  |   634.3655   981.2948     0.65   0.521    -1336.623    2605.354
+        3 1  |  -423.4079   914.9356    -0.46   0.646     -2261.11    1414.294
+        4 1  |  -1073.527   1035.296    -1.04   0.305    -3152.981    1005.927
+        5 1  |  -93.48473    729.573    -0.13   0.899    -1558.875    1371.906
+        7 1  |   1021.535   1431.414     0.71   0.479    -1853.544    3896.614
+        8 1  |  -598.1916   1515.747    -0.39   0.695     -3642.66    2446.277
+        9 1  |  -1358.142   1835.112    -0.74   0.463    -5044.072    2327.789
+       10 1  |  -1182.054   2443.489    -0.48   0.631    -6089.946    3725.838
+       11 1  |  -2397.336   2770.198    -0.87   0.391    -7961.442     3166.77
+       12 1  |  -2921.422   2941.426    -0.99   0.325    -8829.449    2986.605
+       13 1  |  -2139.333   3474.755    -0.62   0.541    -9118.585    4839.919
+     1000 1  |  -24105.09   13051.51    -1.85   0.071    -50319.82    2109.634
              |
 cumsum_unu~s |
-          1  |   4135.924   3863.127     1.07   0.289    -3623.394    11895.24
-          2  |   6953.164   5622.884     1.24   0.222    -4340.731    18247.06
-          3  |   10707.59   7913.025     1.35   0.182    -5186.189    26601.37
-          4  |   9916.644   10153.91     0.98   0.333    -10478.09    30311.38
-          5  |   8168.679   11467.61     0.71   0.480    -14864.68    31202.04
-          6  |   2419.341   12245.59     0.20   0.844    -22176.65    27015.33
-          7  |  -5527.993   14015.97    -0.39   0.695    -33679.89     22623.9
-          8  |  -23413.95   16571.69    -1.41   0.164    -56699.16    9871.269
-          9  |  -91417.36   21559.53    -4.24   0.000      -134721   -48113.76
+          1  |   26212.45   17366.25     1.51   0.137    -8668.691     61093.6
+          2  |   31338.89   19124.68     1.64   0.108    -7074.157    69751.95
+          3  |   43210.36   20553.54     2.10   0.041     1927.362    84493.37
+          4  |    54866.4   34254.92     1.60   0.116    -13936.63    123669.4
+          5  |   50115.73   19386.39     2.59   0.013     11177.02    89054.44
+          6  |   65635.86   18328.05     3.58   0.001     28822.89    102448.8
+          7  |   84274.63   20439.65     4.12   0.000     43220.39    125328.9
+          8  |   81793.76   20350.65     4.02   0.000     40918.28    122669.2
+          9  |     221351   17824.82    12.42   0.000     185548.8    257153.2
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
----------------------------------------------------------------+
-           Absorbed FE | Categories  - Redundant  = Num. Coefs |
------------------------+---------------------------------------|
-               zipcode |      3496        3496           0    *|
-            year_month |       120           0         120     |
-    countyfips#c.trend |       842           0         842    ?|
- countyfips#c.trend_sq |       842           0         842    ?|
----------------------------------------------------------------+
-? = number of redundant parameters may be higher
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     zipcode |      3503        3503           0    *|
+  year_month |       120           0         120     |
+-----------------------------------------------------+
 * = FE nested within cluster; treated as redundant for DoF computation
-(note:  named style grey not found in class color, default attributes used)
 (note:  named style grey not found in class color, default attributes used)
 (note: file ../output/last_listing_top_tier_w6.png not found)
 (file ../output/last_listing_top_tier_w6.png written in PNG format)
-note: 20000bn.last_sal_mw_event_rel_months6 is probably collinear with the fixe
-> d effects (all partialled-out values are close to zero; tol = 1.0e-09)
-(MWFE estimator converged in 262 iterations)
-note: 20000.last_sal_mw_event_rel_months6 omitted because of collinearity
+(MWFE estimator converged in 4 iterations)
+
+HDFE Linear regression                            Number of obs   =    803,656
+Absorbing 2 HDFE groups                           F(  23,     50) =     143.70
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9608
+                                                  Adj R-squared   =     0.9605
+                                                  Within R-sq.    =     0.0948
+Number of clusters (statefips) =         51       Root MSE        =    22.4361
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+medli~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6#|
+     treated |
+        0 1  |  -8.116583   4.711866    -1.72   0.091    -17.58064    1.347478
+        1 1  |   .0673804   .6136637     0.11   0.913    -1.165199     1.29996
+        2 1  |   .4249197   .4595524     0.92   0.360    -.4981185    1.347958
+        3 1  |   .2319973   .3712659     0.62   0.535    -.5137123    .9777069
+        4 1  |  -.0198046   .3384874    -0.06   0.954    -.6996766    .6600674
+        5 1  |   .0540948   .1890871     0.29   0.776    -.3256978    .4338874
+        7 1  |   1.206672   .6220351     1.94   0.058    -.0427222    2.456066
+        8 1  |   .5645963   .4832779     1.17   0.248     -.406096    1.535289
+        9 1  |    .451401   .5750534     0.78   0.436    -.7036277     1.60643
+       10 1  |   .6845095   .6276439     1.09   0.281    -.5761504    1.945169
+       11 1  |   .6108538   .7105435     0.86   0.394    -.8163147    2.038022
+       12 1  |   .4946891   .7467143     0.66   0.511    -1.005131    1.994509
+       13 1  |   .9599505   .9196621     1.04   0.302    -.8872453    2.807146
+     1000 1  |  -13.04893   7.008273    -1.86   0.068    -27.12546      1.0276
+             |
+cumsum_unu~s |
+          1  |   14.06127   10.06436     1.40   0.169    -6.153595    34.27614
+          2  |   16.37773   11.11491     1.47   0.147    -5.947232    38.70269
+          3  |   21.78218   11.64356     1.87   0.067    -1.604601    45.16896
+          4  |   30.65953    17.8828     1.71   0.093    -5.259126    66.57819
+          5  |    28.6632   12.60019     2.27   0.027     3.354977    53.97142
+          6  |   38.24763   12.85079     2.98   0.004     12.43605    64.05921
+          7  |   42.77688   11.64179     3.67   0.001     19.39365     66.1601
+          8  |    44.6709   14.00805     3.19   0.002     16.53491    72.80689
+          9  |   174.8253   16.42238    10.65   0.000       141.84    207.8106
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     zipcode |      6960        6960           0    *|
+  year_month |       120           0         120     |
+-----------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/last_listingpsqft_sfcc_w6.png not found)
+(file ../output/last_listingpsqft_sfcc_w6.png written in PNG format)
+(MWFE estimator converged in 5 iterations)
+
+HDFE Linear regression                            Number of obs   =    226,953
+Absorbing 2 HDFE groups                           F(  22,     49) =      10.70
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9497
+                                                  Adj R-squared   =     0.9492
+                                                  Within R-sq.    =     0.1209
+Number of clusters (statefips) =         50       Root MSE        =    17.7128
+
+                             (Std. Err. adjusted for 50 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+m~t_low_tier |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6#|
+     treated |
+        0 1  |  -8.830453   4.642564    -1.90   0.063    -18.16004    .4991294
+        1 1  |   .2707396   .7507381     0.36   0.720    -1.237925    1.779404
+        2 1  |   .4951684   .6232303     0.79   0.431    -.7572599    1.747597
+        3 1  |   .1081998   .4647212     0.23   0.817    -.8256924    1.042092
+        4 1  |  -.0452343   .3529065    -0.13   0.899    -.7544264    .6639578
+        5 1  |  -.1187913   .2403559    -0.49   0.623    -.6018047     .364222
+        7 1  |   .9796475   .8317266     1.18   0.245    -.6917697    2.651065
+        8 1  |   .5564878   .7441786     0.75   0.458    -.9389951    2.051971
+        9 1  |   .3963351   .8520086     0.47   0.644     -1.31584    2.108511
+       10 1  |   .6661472   .8639339     0.77   0.444    -1.069993    2.402287
+       11 1  |   .7643623   .9933339     0.77   0.445    -1.231817    2.760541
+       12 1  |   .5236867   .9929951     0.53   0.600    -1.471812    2.519185
+       13 1  |   .6919234   1.263425     0.55   0.586    -1.847024     3.23087
+     1000 1  |  -13.01499   6.490187    -2.01   0.050    -26.05751    .0275344
+             |
+cumsum_unu~s |
+          1  |   7.063195   7.510336     0.94   0.352     -8.02939    22.15578
+          2  |   9.309918     9.0736     1.03   0.310    -8.924163      27.544
+          3  |   16.32196    9.80152     1.67   0.102    -3.374935    36.01885
+          4  |    21.9056   14.29802     1.53   0.132    -6.827343    50.63854
+          5  |   25.70886   12.41649     2.07   0.044     .7569951    50.66073
+          6  |   38.48807   11.85752     3.25   0.002     14.65948    62.31666
+          7  |   44.14979   11.22767     3.93   0.000     21.58695    66.71263
+          8  |   41.49452   14.00169     2.96   0.005     13.35707    69.63196
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     zipcode |      2146        2146           0    *|
+  year_month |       120           0         120     |
+-----------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/last_listingpsqft_low_tier_w6.png not found)
+(file ../output/last_listingpsqft_low_tier_w6.png written in PNG format)
+(MWFE estimator converged in 5 iterations)
+
+HDFE Linear regression                            Number of obs   =    406,787
+Absorbing 2 HDFE groups                           F(  23,     50) =    1130.53
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9754
+                                                  Adj R-squared   =     0.9751
+                                                  Within R-sq.    =     0.0693
+Number of clusters (statefips) =         51       Root MSE        =    21.5349
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+m~t_top_tier |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6#|
+     treated |
+        0 1  |  -6.683373   3.665008    -1.82   0.074    -14.04476     .678012
+        1 1  |  -.0726173   .5411805    -0.13   0.894     -1.15961    1.014376
+        2 1  |   .4563269   .4853146     0.94   0.352    -.5184562     1.43111
+        3 1  |   .5115788   .4997739     1.02   0.311    -.4922466    1.515404
+        4 1  |  -.1544315   .3026212    -0.51   0.612     -.762264     .453401
+        5 1  |   .1805508   .2552119     0.71   0.483    -.3320574     .693159
+        7 1  |   1.016781   .5502322     1.85   0.071    -.0883932    2.121954
+        8 1  |     .34917   .5659889     0.62   0.540    -.7876522    1.485992
+        9 1  |   .0367958   .6589929     0.06   0.956     -1.28683    1.360422
+       10 1  |   .5316495   .8163757     0.65   0.518    -1.108089    2.171388
+       11 1  |   .1851107   .8406924     0.22   0.827     -1.50347    1.873691
+       12 1  |    .319268   .9626309     0.33   0.742    -1.614233    2.252769
+       13 1  |   1.172911   1.113373     1.05   0.297    -1.063365    3.409187
+     1000 1  |  -8.412351   3.819393    -2.20   0.032    -16.08383   -.7408739
+             |
+cumsum_unu~s |
+          1  |     6.2947    4.77017     1.32   0.193    -3.286468    15.87587
+          2  |   9.152832   5.887949     1.55   0.126    -2.673462    20.97913
+          3  |   14.73648   6.600574     2.23   0.030     1.478834    27.99412
+          4  |    18.5817   9.842604     1.89   0.065    -1.187752    38.35115
+          5  |   21.38157   6.796163     3.15   0.003     7.731077    35.03207
+          6  |   27.77923   6.835132     4.06   0.000     14.05046      41.508
+          7  |    34.2467   7.935163     4.32   0.000     18.30846    50.18495
+          8  |   35.64213   8.877126     4.02   0.000      17.8119    53.47236
+          9  |   160.1748   7.214785    22.20   0.000     145.6835    174.6661
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     zipcode |      3628        3628           0    *|
+  year_month |       120           0         120     |
+-----------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/last_listingpsqft_top_tier_w6.png not found)
+(file ../output/last_listingpsqft_top_tier_w6.png written in PNG format)
+(MWFE estimator converged in 5 iterations)
+
+HDFE Linear regression                            Number of obs   =    803,656
+Absorbing 2 HDFE groups                           F(  23,     50) =     119.74
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9672
+                                                  Adj R-squared   =     0.9669
+                                                  Within R-sq.    =     0.0671
+Number of clusters (statefips) =         51       Root MSE        =     0.0924
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+ln_housepr~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+last_sal_m~6#|
+     treated |
+        0 1  |   .0046815   .0172234     0.27   0.787    -.0299126    .0392757
+        1 1  |   .0036649   .0034067     1.08   0.287    -.0031776    .0105075
+        2 1  |   .0042212   .0025544     1.65   0.105    -.0009094    .0093519
+        3 1  |   .0027233   .0017416     1.56   0.124    -.0007747    .0062213
+        4 1  |   .0016472   .0012891     1.28   0.207     -.000942    .0042364
+        5 1  |   .0008694   .0007572     1.15   0.256    -.0006516    .0023903
+        7 1  |   .0008696   .0018937     0.46   0.648    -.0029341    .0046733
+        8 1  |  -.0025609   .0023411    -1.09   0.279    -.0072631    .0021413
+        9 1  |   -.004622   .0026849    -1.72   0.091    -.0100148    .0007707
+       10 1  |  -.0051293   .0028379    -1.81   0.077    -.0108294    .0005709
+       11 1  |  -.0055001    .003355    -1.64   0.107    -.0122389    .0012387
+       12 1  |  -.0067655   .0036726    -1.84   0.071    -.0141422    .0006112
+       13 1  |  -.0061467   .0045895    -1.34   0.187     -.015365    .0030717
+     1000 1  |  -.0419703   .0369098    -1.14   0.261    -.1161058    .0321651
+             |
+cumsum_unu~s |
+          1  |   .0303378   .0389427     0.78   0.440     -.047881    .1085566
+          2  |   .0238448   .0406475     0.59   0.560    -.0577981    .1054878
+          3  |   .0358506    .041974     0.85   0.397    -.0484568     .120158
+          4  |   .0588064   .0572616     1.03   0.309    -.0562068    .1738196
+          5  |   .0813824   .0528646     1.54   0.130    -.0247994    .1875641
+          6  |   .1397038   .0543164     2.57   0.013      .030606    .2488016
+          7  |   .1704782   .0547133     3.12   0.003     .0605834     .280373
+          8  |    .159603   .0598812     2.67   0.010     .0393281     .279878
+          9  |   .3434516   .0503038     6.83   0.000     .2424135    .4444897
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     zipcode |      6960        6960           0    *|
+  year_month |       120           0         120     |
+-----------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(note:  named style grey not found in class color, default attributes used)
+(note: file ../output/last_listingpsqft_sfccw6_county-trend.png not found)
+(file ../output/last_listingpsqft_sfccw6_county-trend.png written in PNG format
+> )
+(MWFE estimator converged in 268 iterations)
 
 HDFE Linear regression                            Number of obs   =    801,376
-Absorbing 4 HDFE groups                           F(  23,     50) =      91.48
+Absorbing 4 HDFE groups                           F(  23,     50) =      91.47
 Statistics robust to heteroskedasticity           Prob > F        =     0.0000
                                                   R-squared       =     0.9858
                                                   Adj R-squared   =     0.9856
@@ -1166,33 +1435,33 @@ Number of clusters (statefips) =         51       Root MSE        =    13.5354
              |               Robust
 medli~t_sfcc |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-last_sal_m~6 |
-          0  |   3.225205   1.721027     1.87   0.067    -.2315802    6.681991
-          1  |    2.44553   1.187014     2.06   0.045     .0613413    4.829719
-          2  |   2.327018   1.025249     2.27   0.028     .2677436    4.386292
-          3  |   1.725547   .7457966     2.31   0.025     .2275704    3.223523
-          4  |   1.031345   .4206266     2.45   0.018     .1864911    1.876198
-          5  |   .5962018   .2303367     2.59   0.013      .133557    1.058847
-          7  |  -.3721345   .4588122    -0.81   0.421    -1.293686     .549417
-          8  |   -1.00264   .8225666    -1.22   0.229    -2.654814    .6495332
-          9  |   -1.59378   1.126971    -1.41   0.163    -3.857368    .6698088
-         10  |   -1.84701   1.332289    -1.39   0.172    -4.522991    .8289699
-         11  |   -2.42452   1.682136    -1.44   0.156     -5.80319    .9541509
-         12  |  -3.109881   1.939568    -1.60   0.115    -7.005617    .7858561
-         13  |  -3.568462   2.226931    -1.60   0.115    -8.041385    .9044611
-       1000  |  -5.822611   3.522139    -1.65   0.105    -12.89703    1.251813
-      20000  |          0  (omitted)
+last_sal_m~6#|
+     treated |
+        0 1  |   3.225205   1.721028     1.87   0.067    -.2315818    6.681992
+        1 1  |    2.44553   1.187015     2.06   0.045     .0613398     4.82972
+        2 1  |   2.327018    1.02525     2.27   0.028     .2677421    4.386293
+        3 1  |   1.725547   .7457973     2.31   0.025     .2275689    3.223525
+        4 1  |   1.031345   .4206273     2.45   0.018     .1864897    1.876199
+        5 1  |   .5962018   .2303373     2.59   0.013     .1335557    1.058848
+        7 1  |  -.3721345   .4588115    -0.81   0.421    -1.293684    .5494155
+        8 1  |   -1.00264   .8225657    -1.22   0.229    -2.654812    .6495316
+        9 1  |   -1.59378    1.12697    -1.41   0.163    -3.857366    .6698073
+       10 1  |   -1.84701   1.332288    -1.39   0.172    -4.522989    .8289684
+       11 1  |   -2.42452   1.682136    -1.44   0.156    -5.803188    .9541493
+       12 1  |  -3.109881   1.939567    -1.60   0.115    -7.005615    .7858542
+       13 1  |  -3.568462    2.22693    -1.60   0.115    -8.041383    .9044592
+     1000 1  |  -5.822611   3.522138    -1.65   0.105    -12.89703    1.251811
              |
 cumsum_unu~s |
-          1  |   1.461492   2.116818     0.69   0.493    -2.790262    5.713246
-          2  |    1.07465   1.768832     0.61   0.546    -2.478154    4.627455
+          1  |   1.461492   2.116818     0.69   0.493    -2.790263    5.713247
+          2  |    1.07465   1.768833     0.61   0.546    -2.478155    4.627456
           3  |   1.540489   1.625927     0.95   0.348    -1.725281    4.806259
-          4  |   1.079346   2.225233     0.49   0.630    -3.390166    5.548859
-          5  |    2.11816   3.584648     0.59   0.557    -5.081818    9.318138
-          6  |   4.010652   4.913527     0.82   0.418    -5.858458    13.87976
-          7  |   2.860146   6.776908     0.42   0.675    -10.75167    16.47197
-          8  |   1.481885   9.239747     0.16   0.873    -17.07669    20.04046
-          9  |    54.6929   23.12811     2.36   0.022     8.238718    101.1471
+          4  |   1.079346   2.225232     0.49   0.630    -3.390163    5.548856
+          5  |    2.11816   3.584646     0.59   0.557    -5.081813    9.318133
+          6  |   4.010652   4.913525     0.82   0.418    -5.858453    13.87976
+          7  |   2.860146   6.776905     0.42   0.675    -10.75167    16.47196
+          8  |   1.481885   9.239745     0.16   0.873    -17.07669    20.04046
+          9  |    54.6929   23.12811     2.36   0.022     8.238724    101.1471
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
@@ -1207,134 +1476,10 @@ Absorbed degrees of freedom:
 ? = number of redundant parameters may be higher
 * = FE nested within cluster; treated as redundant for DoF computation
 (note:  named style grey not found in class color, default attributes used)
-(note:  named style grey not found in class color, default attributes used)
-(note: file ../output/last_listingpsqft_sfcc_w6.png not found)
-(file ../output/last_listingpsqft_sfcc_w6.png written in PNG format)
-note: 20000bn.last_sal_mw_event_rel_months6 is probably collinear with the fixe
-> d effects (all partialled-out values are close to zero; tol = 1.0e-09)
-(MWFE estimator converged in 296 iterations)
-note: 20000.last_sal_mw_event_rel_months6 omitted because of collinearity
-
-HDFE Linear regression                            Number of obs   =    226,593
-Absorbing 4 HDFE groups                           F(  22,     49) =      17.76
-Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9893
-                                                  Adj R-squared   =     0.9891
-                                                  Within R-sq.    =     0.0153
-Number of clusters (statefips) =         50       Root MSE        =     8.2082
-
-                             (Std. Err. adjusted for 50 clusters in statefips)
-------------------------------------------------------------------------------
-             |               Robust
-m~t_low_tier |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-last_sal_m~6 |
-          0  |   1.054896   1.169002     0.90   0.371      -1.2943    3.404093
-          1  |    1.70239   .8594368     1.98   0.053    -.0247126    3.429493
-          2  |   1.680247   .8648962     1.94   0.058    -.0578266    3.418321
-          3  |   1.043874   .6492978     1.61   0.114     -.260939    2.348687
-          4  |   .6120658   .4068462     1.50   0.139    -.2055221    1.429654
-          5  |    .254005   .2458919     1.03   0.307    -.2401334    .7481433
-          7  |   .0643151   .2936398     0.22   0.828    -.5257761    .6544063
-          8  |   .0260737   .5675601     0.05   0.964    -1.114481    1.166628
-          9  |  -.3716532   .8144236    -0.46   0.650    -2.008299    1.264992
-         10  |  -.4122545   .9143071    -0.45   0.654    -2.249623    1.425114
-         11  |  -.6236063     1.1838    -0.53   0.601    -3.002541    1.755328
-         12  |  -1.233945    1.25948    -0.98   0.332    -3.764965    1.297075
-         13  |  -1.469984   1.466734    -1.00   0.321    -4.417496    1.477527
-       1000  |  -2.886735   2.198849    -1.31   0.195    -7.305487    1.532017
-      20000  |          0  (omitted)
-             |
-cumsum_unu~s |
-          1  |  -.2020238   1.784986    -0.11   0.910    -3.789087     3.38504
-          2  |  -.9317014   2.602905    -0.36   0.722    -6.162436    4.299033
-          3  |   .2490117    3.14704     0.08   0.937    -6.075201    6.573225
-          4  |   1.432268   3.841926     0.37   0.711    -6.288371    9.152908
-          5  |   6.513504   4.968302     1.31   0.196    -3.470671    16.49768
-          6  |   11.16458   5.965182     1.87   0.067     -.822905    23.15206
-          7  |   11.74198   6.448122     1.82   0.075    -1.216002    24.69997
-          8  |   12.59203   8.039154     1.57   0.124    -3.563256    28.74731
-------------------------------------------------------------------------------
-
-Absorbed degrees of freedom:
----------------------------------------------------------------+
-           Absorbed FE | Categories  - Redundant  = Num. Coefs |
------------------------+---------------------------------------|
-               zipcode |      2143        2143           0    *|
-            year_month |       120           0         120     |
-    countyfips#c.trend |       566           0         566    ?|
- countyfips#c.trend_sq |       566           0         566    ?|
----------------------------------------------------------------+
-? = number of redundant parameters may be higher
-* = FE nested within cluster; treated as redundant for DoF computation
-(note:  named style grey not found in class color, default attributes used)
-(note:  named style grey not found in class color, default attributes used)
-(note: file ../output/last_listingpsqft_low_tier_w6.png not found)
-(file ../output/last_listingpsqft_low_tier_w6.png written in PNG format)
-note: 20000bn.last_sal_mw_event_rel_months6 is probably collinear with the fixe
-> d effects (all partialled-out values are close to zero; tol = 1.0e-09)
-(MWFE estimator converged in 283 iterations)
-note: 20000.last_sal_mw_event_rel_months6 omitted because of collinearity
-
-HDFE Linear regression                            Number of obs   =    405,594
-Absorbing 4 HDFE groups                           F(  23,     50) =      19.53
-Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9881
-                                                  Adj R-squared   =     0.9879
-                                                  Within R-sq.    =     0.0039
-Number of clusters (statefips) =         51       Root MSE        =    15.0208
-
-                             (Std. Err. adjusted for 51 clusters in statefips)
-------------------------------------------------------------------------------
-             |               Robust
-m~t_top_tier |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-last_sal_m~6 |
-          0  |   1.917792   1.671315     1.15   0.257    -1.439143    5.274727
-          1  |   1.432431   1.085264     1.32   0.193     -.747385    3.612247
-          2  |   1.600587    .962689     1.66   0.103    -.3330312    3.534204
-          3  |   1.377804   .9079003     1.52   0.135     -.445767    3.201376
-          4  |   .4105582   .4725702     0.87   0.389     -.538627    1.359743
-          5  |   .4216218   .3543562     1.19   0.240    -.2901236    1.133367
-          7  |  -.2859792   .4165057    -0.69   0.495    -1.122555    .5505971
-          8  |   -1.01359   .5881872    -1.72   0.091    -2.194999     .167819
-          9  |  -1.608013   .6468297    -2.49   0.016    -2.907209   -.3088176
-         10  |  -1.403375   .6590867    -2.13   0.038     -2.72719   -.0795607
-         11  |  -2.130282   .8282273    -2.57   0.013    -3.793826   -.4667385
-         12  |  -2.366888   .8730755    -2.71   0.009    -4.120511    -.613264
-         13  |  -2.145405   .9916106    -2.16   0.035    -4.137114   -.1536968
-       1000  |   -2.95015   1.833836    -1.61   0.114    -6.633518    .7332185
-      20000  |          0  (omitted)
-             |
-cumsum_unu~s |
-          1  |  -.1527054   1.566042    -0.10   0.923    -3.298194    2.992783
-          2  |   1.123049   2.532496     0.44   0.659    -3.963619    6.209717
-          3  |    3.25392   3.220155     1.01   0.317    -3.213952    9.721792
-          4  |   4.466651    3.49875     1.28   0.208    -2.560796     11.4941
-          5  |   4.589039   3.303465     1.39   0.171    -2.046165    11.22424
-          6  |   5.461401   3.634185     1.50   0.139    -1.838074    12.76088
-          7  |   3.123943    4.89716     0.64   0.526    -6.712292    12.96018
-          8  |  -1.343715   7.314977    -0.18   0.855    -16.03628    13.34885
-          9  |   29.76658   14.33559     2.08   0.043     .9726969    58.56046
-------------------------------------------------------------------------------
-
-Absorbed degrees of freedom:
----------------------------------------------------------------+
-           Absorbed FE | Categories  - Redundant  = Num. Coefs |
------------------------+---------------------------------------|
-               zipcode |      3618        3618           0    *|
-            year_month |       120           0         120     |
-    countyfips#c.trend |       940           0         940    ?|
- countyfips#c.trend_sq |       940           0         940    ?|
----------------------------------------------------------------+
-? = number of redundant parameters may be higher
-* = FE nested within cluster; treated as redundant for DoF computation
-(note:  named style grey not found in class color, default attributes used)
-(note:  named style grey not found in class color, default attributes used)
-(note: file ../output/last_listingpsqft_top_tier_w6.png not found)
-(file ../output/last_listingpsqft_top_tier_w6.png written in PNG format)
+(file ../output/last_listingpsqft_sfccw6_county-trend.png written in PNG format
+> )
 
 . 
 end of do-file
 
- make.py ended: 2020-06-19 22:29:01
+ make.py ended: 2020-06-20 13:31:23
