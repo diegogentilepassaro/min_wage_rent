@@ -9,6 +9,12 @@ program main
 	local instub  = "../../../drive/derived_large/output/" 
 	local outstub = "../output/"
 
+
+	focus_trend, instub(`insutb') ///
+		ziplist1("10029 10035") ziplist2("10021 10028 10044 10065 10075 10128")
+	
+
+
 	// nMW_rent_corr_zipcode, output(`outstub') instub(`instub') target_yr(2019) ///
 	// 			    start_yr(2010) ///
 	// 				target_vars(" medrentpricepsqft_sfcc medrentpricepsqft_2br medrentpricepsqft_mfr5plus") ///
@@ -19,13 +25,30 @@ program main
 	// 				target_vars("medlistingpricepsqft_sfcc medlistingpricepsqft_low_tier medlistingpricepsqft_top_tier") ///
 	// 				demo_vars("pop2010 urb_share2010 med_hhinc20105 black_share2010 housing_units2010")					
 
-	rent_demo_corr, instub(`instub') output(`outstub') ///
-	target_vars("medrentpricepsqft_sfcc") ///
-	demo_vars("urb_share2010 med_hhinc20105 black_share2010") ///
-	start_yr(2013)
+	// rent_demo_corr, instub(`instub') output(`outstub') ///
+	// target_vars("medrentpricepsqft_sfcc") ///
+	// demo_vars("urb_share2010 med_hhinc20105 black_share2010 college_share20105 poor_share20105 unemp_share20105 employee_share20105") ///
+	// start_yr(2013)
 
 
 end 
+
+
+program focus_trend 
+	syntax, instub(str) ziplist1(str) ziplist2(str)
+
+	use `instub'baseline_rent_panel.dta, clear 
+
+	g target_groups = 0 
+	foreach zip of varlist ziplist1 {
+		replace target_groups = 1 if zipcode==`zip'
+	}
+	foreach zip of varlist ziplist2 {
+		replace target_groups = 2 if zipcode==`zip'
+	}
+
+end
+
 
 program rent_demo_corr
 	syntax, output(str) instub(str) target_vars(str) demo_vars(str) start_yr(int)
@@ -51,15 +74,15 @@ program rent_demo_corr
 	}
 
 	
-	collapse (first) `target_vars_start' `demo_vars' countyfips (last) `target_vars_end', by(zipcode)
+	collapse (first) `target_vars_start' `demo_vars' statefips (last) `target_vars_end', by(zipcode)
 
 	foreach var of local target_vars {
 
 		g D`var' = `var'1 - `var'0 / `var'0
 
-		reghdfe D`var', absorb(countyfips) res(R`var')
-		
-		drop if missing(R`var')
+		// reghdfe D`var', absorb(statefips) res(R`var') nocons
+
+		drop if missing(D`var')
 
 		local QTdemos = ""
 		foreach demo of local demo_vars {
@@ -77,6 +100,7 @@ program rent_demo_corr
 
 
 
+		
 
 end
 
