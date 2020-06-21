@@ -15,7 +15,7 @@ program main
 		cluster(statefips)
 
 	esttab * using "`outstub'/fd_table.tex", keep(D.ln_mw) compress se replace 			///
-		stats(zs_trend zs_trend_sq zs_trend_cu r2 N, fmt(%s3 %s3 %s3 %9.3f %9.0g) 		///
+		stats(zs_trend zs_trend_sq r2 N, fmt(%s3 %s3 %9.3f %9.0g) 		///
 		labels("Zipcode-specifc linear trend" 											///
 		"Zipcode-specific linear and square trend" 								///
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
@@ -27,7 +27,7 @@ program main
 	
 	esttab reg1 reg2 reg3 using "`outstub'/fd_dynamic_table.tex", 					///
 		keep(*.ln_mw) compress se replace 												///
-		stats(p_value_F zs_trend zs_trend_sq zs_trend_cu r2 N, fmt(%9.3f %s3 %s3 %s3 %9.3f %9.0g) 		///
+		stats(p_value_F zs_trend zs_trend_sq r2 N, fmt(%9.3f %s3 %s3 %9.3f %9.0g) 		///
 		labels("P-value no pretrends" "Zipcode-specifc linear trend" 											///
 		"Zipcode-specific linear and square trend"								///
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
@@ -35,7 +35,7 @@ program main
 
 	esttab lincom1 lincom2 lincom3 using "`outstub'/fd_dynamic_lincom_table.tex", ///
 		compress se replace 															///
-        stats(zs_trend zs_trend_sq zs_trend_cu N, fmt(%s3 %s3 %s3 %9.0g) 				///
+        stats(zs_trend zs_trend_sq N, fmt(%s3 %s3 %9.0g) 				///
 		labels("Zipcode-specifc linear trend" 											///
 	    "Zipcode-specific linear and square trend" ///
 		"Observations")) 				///
