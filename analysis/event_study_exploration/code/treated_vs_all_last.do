@@ -9,18 +9,40 @@ program main
 	local outstub "../output"
 
 	local controls "i.cumsum_unused_events"
-	local CFE "countyfips year_month c.trend#i.countyfips c.trend_sq#i.countyfips"
 	local cluster_se "statefips"
+
+	local ZFE 		"zipcode 	year_month"
+	local ZFE_trend "zipcode 	year_month c.trend#i.countyfips c.trend_sq#i.countyfips"
+	local CFE 		"countyfips year_month"
+	local CFE_trend "countyfips year_month c.trend#i.countyfips c.trend_sq#i.countyfips"
 
 	foreach data in rent listing {
 		use "`instub'/baseline_`data'_panel_6.dta", clear
-		foreach depvar in psqft_sfcc { 
-			
-			create_event_plot, depvar(med`data'price`depvar') 			  	///
-				event_var(last_sal_mw_event_rel_months6) 					///
-				controls(`controls') window(6)								///
+
+		foreach depvar in psqft_sfcc {
+			create_event_plot_with_untreated, depvar(med`data'price`depvar') 	///
+				event_var(last_sal_mw_event_rel_months6) 						///
+				controls(`controls') window(6)									///
+				absorb(`ZFE') cluster(`cluster_se')
+			graph export "`outstub'/last_`data'`depvar'_w6_ZFE_with-untreated.png", replace
+
+			create_event_plot_with_untreated, depvar(med`data'price`depvar') 	///
+				event_var(last_sal_mw_event_rel_months6) 						///
+				controls(`controls') window(6)									///
+				absorb(`ZFE_trend') cluster(`cluster_se')
+			graph export "`outstub'/last_`data'`depvar'_w6_ZFE-county-trend_with-untreated.png", replace
+
+			create_event_plot_with_untreated, depvar(med`data'price`depvar') 	///
+				event_var(last_sal_mw_event_rel_months6) 						///
+				controls(`controls') window(6)									///
 				absorb(`CFE') cluster(`cluster_se')
-			graph export "`outstub'/last_`data'`depvar'_w6_cfe_with-control-units.png", replace	
+			graph export "`outstub'/last_`data'`depvar'_w6_CFE_with-untreated.png", replace
+
+			create_event_plot_with_untreated, depvar(med`data'price`depvar') 	///
+				event_var(last_sal_mw_event_rel_months6) 						///
+				controls(`controls') window(6)									///
+				absorb(`CFE_trend') cluster(`cluster_se')
+			graph export "`outstub'/last_`data'`depvar'_w6_CFE-county-trend_with-untreated.png", replace
 		}
 	}
 end

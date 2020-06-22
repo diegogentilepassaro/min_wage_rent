@@ -18,6 +18,6 @@ program create_event_plot
 		xlabel(1 "-`window'" `window_plus1' "0" `window_span' "`window'") 		///
 		xline(`window_plus1', lcol(grey) lpat(dot)) 							///
 		yline(0, lcol(grey) lpat(dot)) 											///
-		`yaxis' name(`name') title(`title') ytitle(`ytitle')
+		name(`name') title(`title') ytitle(`ytitle') `yaxis'
 end
 

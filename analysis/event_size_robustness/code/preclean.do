@@ -6,6 +6,7 @@ set maxvar 32000
 program main
 	local instub "../../../drive/derived_large/output"
 	local outstub "../temp"
+	local logfile "../output/data_file_manifest.log"
 
 	foreach data in rent {
 		foreach w in 6 {
@@ -15,17 +16,11 @@ program main
 				time(year_month) geo(zipcode) panel_end(2019m12)
 			drop months_until_panel_ends
 
-			gen treated025 = !missing(last_mw_event025_rel_months`w')
-			replace last_mw_event025_rel_months`w' = 20000 if !treated025
-
 			create_latest_event_vars, event_dummy(mw_event075) w(`w')				///
 				time(year_month) geo(zipcode) panel_end(2019m12)
 
-			gen treated075 = !missing(last_mw_event075_rel_months`w')
-			replace last_mw_event075_rel_months`w' = 20000 if !treated075
-
 			save_data "`outstub'/baseline_`data'_panel_`w'.dta",					///
-				key(zipcode year_month) replace log(none)
+				key(zipcode year_month) replace log(`logfile')
 		}
 	}
 end
@@ -50,22 +45,23 @@ program create_latest_event_vars
 		save_data "../temp/last_event`w'_by_`geo'.dta", key(`geo') replace
 	restore
 	
-	merge m:1 `geo' using "../temp/last_event`w'_by_`geo'.dta", 						///
+	merge m:1 `geo' using "../temp/last_event`w'_by_`geo'.dta", 		///
 		nogen assert(3) keep(3)
 	
 	gen last_`event_dummy'_rel_months`w' = `time' - last_`event_dummy'_`time'
 	replace last_`event_dummy'_rel_months`w' = last_`event_dummy'_rel_months`w' + `w' + 1
 	
-	replace last_`event_dummy'_rel_months`w' = 0 										///
-				if last_`event_dummy'_rel_months`w' <= 0
-	replace last_`event_dummy'_rel_months`w' = 1000 									///
-				if (last_`event_dummy'_rel_months`w' > `window_span' & 					///
-				!missing(last_`event_dummy'_rel_months`w'))
+	gen treated_`event_dummy'_`w' = !missing(last_`event_dummy'_rel_months`w')
+
+	replace last_`event_dummy'_rel_months`w' = 0						/// 0 is pre-period
+				if last_`event_dummy'_rel_months`w' <= 0 & treated_`event_dummy'_`w'
+	replace last_`event_dummy'_rel_months`w' = 1000						/// 1000 is post-period
+				if last_`event_dummy'_rel_months`w' > `window_span' & treated_`event_dummy'_`w'
+	replace last_`event_dummy'_rel_months`w' = 5000	if !treated_`event_dummy'_`w'		/// 5000 means never treated
+
+	gen unused_`event_dummy'_`w' = (mw_event == 1 & last_`event_dummy'_rel_months`w' != (`w' + 1))
+	bysort `geo' (`time'): gen c_unused_`event_dummy'_`w' = sum(unused_`event_dummy'_`w')
 	
-	gen unused_mw_event_`event_dummy'_`w' = (mw_event == 1 & 							///
-											last_`event_dummy'_rel_months`w' != (`w' + 1))
-	bysort `geo' (`time'): gen c_unused_`event_dummy'_`w' = sum(unused_mw_event_`event_dummy'_`w')
-		
 	drop `event_dummy'_`time' last_`event_dummy'_`time'    
 end
 
