@@ -210,7 +210,7 @@ program build_ytitle, rclass
 	syntax, var(str)
 
 	if "`var'" == "med_hhinc20105" {
-		return local title "Quintiles of 2010 state mean income distribution"
+		return local title "Quintiles of within state 2010 median household income"
 	}
 	if "`var'" == "renthouse_share2010" {
 		return local title "Quintiles of 2010 share of houses rent"
