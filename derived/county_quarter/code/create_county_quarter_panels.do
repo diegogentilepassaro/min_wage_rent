@@ -4,14 +4,14 @@ adopath + ../../../lib/stata/gslab_misc/ado
 adopath + ../../../lib/stata/mental_coupons/ado
 
 program main
-	local instub "../../../drive/derived_large/output"
+	local instub  "../../../drive/derived_large/output"
 	local outstub "../../../drive/derived_large/output"
 	local logfile "../output/data_file_manifest.log"
 
 	local rent_var1 		"medrentprice_sfcc"
 	local other_rent_vars	"medrentpricepsqft_sfcc"
 
-	local listing_var1 		"medlistingprice_sfcc"
+	local listing_var1 		 "medlistingprice_sfcc"
 	local other_listing_vars "medlistingpricepsqft_sfcc"
 
 
@@ -22,6 +22,7 @@ program main
 							 listing_vars(`listing_var1' `other_listing_vars')
 	
 	add_employment_wages
+	add_other_vars
 	
 	save_data "`outstub'/county_quarter_panel_all.dta", 							///
 	    key(countyfips year_quarter) replace
@@ -46,6 +47,14 @@ program add_employment_wages
 	
 	merge 1:1 year_quarter countyfips using "../temp/county_quarter_emp_wage.dta", ///
 		nogen keep(1 3) 
+end
+
+program add_other_vars
+
+	qui sum year_quarter
+	gen trend = year_quarter - r(min) + 1
+	gen trend_sq = trend^2
+	gen trend_cu = trend^3
 end
 
 program collapse_to_county_quarter
