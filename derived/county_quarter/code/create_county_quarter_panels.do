@@ -55,6 +55,8 @@ program add_other_vars
 	gen trend = year_quarter - r(min) + 1
 	gen trend_sq = trend^2
 	gen trend_cu = trend^3
+
+	egen avg_quarter_employment = rowmean(employment_month*)
 end
 
 program collapse_to_county_quarter
