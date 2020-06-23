@@ -9,8 +9,8 @@ program main
 	local outstub "../output"
 
 	local controls "i.cumsum_unused_events"
-	local FE "zipcode year_month"
-	local FE_trend "zipcode year_month c.trend#i.countyfips c.trend_sq#i.countyfips"
+	local FE 		"zipcode year_month"
+	local FE_trend 	"zipcode year_month c.trend#i.countyfips c.trend_sq#i.countyfips"
 	local cluster_se "statefips"
 
 	foreach w in 6 {

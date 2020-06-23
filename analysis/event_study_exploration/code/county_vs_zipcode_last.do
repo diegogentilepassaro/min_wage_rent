@@ -10,39 +10,48 @@ program main
 
 	local controls "i.cumsum_unused_events"
 
-	local ZFE "zipcode year_month"
-	local ZFE_trend "zipcode year_month c.trend#i.countyfips c.trend_sq#i.countyfips"
-	local CFE "countyfips year_month"
+	local ZFE 		"zipcode 	year_month"
+	local ZFE_trend "zipcode 	year_month c.trend#i.countyfips c.trend_sq#i.countyfips"
+	local CFE 		"countyfips year_month"
 	local CFE_trend "countyfips year_month c.trend#i.countyfips c.trend_sq#i.countyfips"
 	local cluster_se "statefips"
 
+	local yaxis "ylabel(-0.02(0.02)0.06) yscale(range(-0.02(0.02)0.06))"
+
 	foreach data in rent listing {
 		use "`instub'/baseline_`data'_panel_6.dta" if treated, clear
+
+		if "`data'" == "rent" {
+			local stand_yaxis "yaxis(`yaxis')"
+		}
+		else {
+			local stand_yaxis " "
+		}
 
 		foreach depvar in psqft_sfcc {
 			
 			create_event_plot, depvar(med`data'price`depvar') 				///
 				event_var(last_sal_mw_event_rel_months6) 					///
 				controls(`controls') window(6)								///
-				absorb(`ZFE') cluster(`cluster_se')
+				absorb(`ZFE') cluster(`cluster_se') `stand_yaxis'
 			graph export "`outstub'/last_`data'`depvar'_zfe_w6.png", replace
 
 			create_event_plot, depvar(med`data'price`depvar') 				///
 				event_var(last_sal_mw_event_rel_months6) 					///
 				controls(`controls') window(6)								///
-				absorb(`ZFE_trend') cluster(`cluster_se')
+				absorb(`ZFE_trend') cluster(`cluster_se') `stand_yaxis'
 			graph export "`outstub'/last_`data'`depvar'_zfe_w6_county-trend.png", replace
 
 			create_event_plot, depvar(med`data'price`depvar') 				///
 				event_var(last_sal_mw_event_rel_months6) 					///
 				controls(`controls') window(6)								///
-				absorb(`CFE') cluster(`cluster_se')
+				absorb(`CFE') cluster(`cluster_se') `stand_yaxis'
 			graph export "`outstub'/last_`data'`depvar'_cfe_w6.png", replace
 
 			create_event_plot, depvar(med`data'price`depvar') 				///
 				event_var(last_sal_mw_event_rel_months6) 					///
 				controls(`controls') window(6)								///
-				absorb(`CFE_trend') cluster(`cluster_se')
+				absorb(`CFE_trend') cluster(`cluster_se') `stand_yaxis'
 			graph export "`outstub'/last_`data'`depvar'_cfe_w6_county-trend.png", replace
 		}
 	}
