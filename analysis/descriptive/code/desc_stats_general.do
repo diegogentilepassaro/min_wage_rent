@@ -15,7 +15,7 @@ program main
 	// baseline_listing_stats, instub(`instub') target_zillow("medlistingpricepsqft_sfcc")
 	// baseline_yearmonth_stats, instub(`instub') target_zillow("medrentpricepsqft_sfcc medlistingpricepsqft_sfcc")
 
-	build_table, target_zillow("medrentpricepsqft_sfcc medlistingpricepsqft_sfcc")
+	build_table, target_zillow("medrentpricepsqft_sfcc medlistingpricepsqft_sfcc") 
 end 
 
 
@@ -298,22 +298,44 @@ program build_table
 		local tabrow = `tabrow' + 1
 	}
 
+	table_labels, target_zillow(`target_zillow')
+
 	local rownames =  `" "zipcode" "(\%)" "population" "(\%)"  "housing units" "(\%)"  "median income"  "Houses for rent (\%)" "Urban population (\%)" "College Educated (\%)" "Black population (\%)" "Hispanic population (\%)" "Pop. in poverty (\%)" "Children 0-5 (\%)" "Elders 65+ (\%)" "Unemployed (\%)" "Work in same County (\%)" "MW events" "Salient MW events" "Fed MW event" "State MW event" "County MW Event" "Local MW Event" "'
 
-	foreach var of local target_zillow {
+	foreach var of local label_zillow {
 		local rownames =  `" `rownames' `var' "' 
 	}
 
-	// mat rownames t = `rownames'
+	mat rowname t = `rownames'
 
 	local dsets_names = `" "U.S." "Full Panel" "Listing Panel" "Rent Panel" "'
-	mat colname t = `" "U.S." "Full Panel" "Listing Panel" "Rent Panel" "'
+	mat colname t = "U.S." "Full Panel" "Listing Panel" "Rent Panel" 
 
- 
+	mat list t 
+	DTOP
+	esttab matrix(t) using ../output/desc_stats.tex, replace 
+
+	
 	outtable using ../output/desc_stats.tex, mat(t) center replace nobox
 
 
 end
+
+
+program table_labels 
+	syntax, target_zillow(str)	
+
+	local label_zillow = ""
+
+	foreach var of local target_zillow {
+		if `var' == "medrentpricepsqft_sfcc" {
+			local label_zillow = `"`label_zillow' "Median Rent psqft SFCC""'
+		}
+		if `var' == "medlistingpricepsqft_sfcc" {
+			local label_zillow = `"`label_zillow' "Median Listing psqft SFCC""'
+		}
+	}
+end 
 
 
 program create_stats_final_dsets
