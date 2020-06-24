@@ -13,7 +13,7 @@ program main
 	local FE_trend 	"zipcode year_month c.trend#i.countyfips c.trend_sq#i.countyfips"
 	local cluster_se "statefips"
 
-	foreach w in 6 {
+	foreach w in 6 12 {
 		use "`instub'/baseline_rent_panel_`w'.dta", clear
 
 		foreach depvar in _sfcc _2br _mfr5plus psqft_sfcc psqft_2br psqft_mfr5plus { 
