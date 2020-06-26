@@ -9,13 +9,13 @@ program main
 	local outstub = "../output/"
 
 	// us_stats, instub(`instub')
-	// us_stats_new, instub(`instub')
+	us_stats_new, instub(`instub')
 
-	// baseline_rent_stats, instub(`instub') target_zillow("medrentpricepsqft_sfcc")
-	// baseline_listing_stats, instub(`instub') target_zillow("medlistingpricepsqft_sfcc")
-	// baseline_yearmonth_stats, instub(`instub') target_zillow("medrentpricepsqft_sfcc medlistingpricepsqft_sfcc")
+	baseline_rent_stats, instub(`instub') target_zillow("medrentpricepsqft_2br medrentpricepsqft_mfr5plus medrentpricepsqft_sfcc")
+	baseline_listing_stats, instub(`instub') target_zillow("medlistingpricepsqft_sfcc medlistingpricepsqft_low_tier medlistingpricepsqft_top_tier")
+	baseline_yearmonth_stats, instub(`instub') target_zillow("medrentpricepsqft_2br medrentpricepsqft_mfr5plus medrentpricepsqft_sfcc medlistingpricepsqft_sfcc medlistingpricepsqft_low_tier medlistingpricepsqft_top_tier")
 
-	build_table, target_zillow("medrentpricepsqft_sfcc medlistingpricepsqft_sfcc") 
+	build_table, target_zillow("medrentpricepsqft_2br medrentpricepsqft_mfr5plus medrentpricepsqft_sfcc medlistingpricepsqft_sfcc medlistingpricepsqft_low_tier medlistingpricepsqft_top_tier") 
 end 
 
 
@@ -104,34 +104,6 @@ program baseline_rent_stats
 	use `instub'/derived_large/output/baseline_rent_panel.dta, clear
 
 	create_stats_final_dsets, target_zillow(`target_zillow')
-
-
-	// keep zipcode 
-	// duplicates drop
-	// g zip2 = string(zipcode, "%05.0f")
-	// drop zipcode 
-	// rename zip2 zipcode 
-	// tempfile baseline_rent_zip 
-	// save "`baseline_rent_zip'", replace 
-
-	// use ../temp/us_stats_zipcode.dta, clear 
-
-	// merge 1:1 zipcode using `baseline_rent_zip', nogen assert(1 2 3) keep(3)
-
-	// destring zipcode, replace
-
-	// collapse (sum) pop housing_units (mean) med_hhinc housing_rent_sh (count) zipcode
-
-	// merge 1:1 _n using ../temp/us_totals, nogen assert(1 2 3)
-
-	// g pop_sh = pop/USpop
-	// g housing_units_sh = housing_units/UShousing_units
-	// g zipcode_sh = zipcode/USzipcode
-
-	// drop USpop UShousing_units USzipcode
-
-	// order zipcode zipcode_sh pop pop_sh housing_units housing_units_sh med_hhinc housing_rent_sh
-
 	save ../temp/rent_panel_stats_zipcode.dta, replace 
 end 
 
@@ -143,32 +115,7 @@ program baseline_listing_stats
 
 	create_stats_final_dsets, target_zillow(`target_zillow')
 
-	// keep zipcode 
-	// duplicates drop
-	// g zip2 = string(zipcode, "%05.0f")
-	// drop zipcode 
-	// rename zip2 zipcode 
-	// tempfile baseline_listing_zip 
-	// save "`baseline_listing_zip'", replace 
-
-	// use ../temp/us_stats_zipcode.dta, clear 
-
-	// merge 1:1 zipcode using `baseline_listing_zip', nogen assert(1 2 3) keep(3)
-
-	// destring zipcode, replace
-
-	// collapse (sum) pop housing_units (mean) med_hhinc housing_rent_sh (count) zipcode
-
-	// merge 1:1 _n using ../temp/us_totals, nogen assert(1 2 3)
-
-	// g pop_sh = pop/USpop
-	// g housing_units_sh = housing_units/UShousing_units
-	// g zipcode_sh = zipcode/USzipcode
-
-	// drop USpop UShousing_units USzipcode
-
-	// order zipcode zipcode_sh pop pop_sh housing_units housing_units_sh med_hhinc housing_rent_sh
-
+	
 	save ../temp/listing_panel_stats_zipcode.dta, replace 
 end 
 
@@ -190,7 +137,11 @@ program baseline_yearmonth_stats
 			 (mean)  `target_zillow' ///
 			 (count) `target_zillow_count' ///
 			 (first) pop2010 housing_units2010 urb_share2010 college_share2010 poor_share20105 black_share2010 hisp_share2010 child_share2010 elder_share2010 unemp_share20105 med_hhinc20105 renthouse_share2010 work_county_share20105 ///
-			 , by(zipcode) 	
+ 			, by(zipcode)
+
+	foreach var `target_zillow_count' {
+		replace `var' = . if `var'==0
+	} 
 
 	local target_zillow_N = ""
 	foreach var of local target_zillow {
@@ -250,7 +201,8 @@ program build_table
 
 	local table_len = 23 
 	foreach var of local target_zillow {
-		local table_len = `table_len' + 1
+
+		local table_len = `table_len' + 2
 	}
 
 
@@ -263,15 +215,19 @@ program build_table
 	
 	format pop2010 housing_units2010 med_hhinc %20.0fc
 
+	foreach var in pop2010 housing_units2010 {
+		replace `var' = `var'/1000000
+	}
+
 
 	forval x = 1/4 {
 		mat t[1, `x'] = zipcode[`x']
 		mat t[2, `x'] = round(zipcode_sh[`x'], .001) 
-		mat t[3, `x'] = pop2010[`x']
+		mat t[3, `x'] = round(pop2010[`x'], .001)
 		mat t[4, `x'] = round(pop_sh[`x'], .001)
-		mat t[5, `x'] = housing_units2010[`x']
+		mat t[5, `x'] = round(housing_units2010[`x'], .001)
 		mat t[6, `x'] = round(housing_units_sh[`x'], .001)
-		mat t[7, `x'] = med_hhinc20105[`x']'
+		mat t[7, `x'] = round(med_hhinc20105[`x']', 1)
 		mat t[8, `x'] = round(renthouse_share2010[`x'], .001)
 		mat t[9, `x'] = round(urb_share2010[`x'], .001)
 		mat t[10, `x'] = round(college_share2010[`x'], .001)
@@ -291,51 +247,61 @@ program build_table
 	}
 
 	local tabrow = 24
-	foreach var in `target_zillow' {
+
+	local target_zillow_both = ""
+	foreach var of local target_zillow {
+		local target_zillow_both = `"`target_zillow_both' `var' N`var'"'
+	}
+
+	di "`target_zillow_both'"
+	foreach var in `target_zillow_both' {
 		forval x = 1/4 {
 			mat t[`tabrow', `x'] = round(`var'[`x'], .001)
 		}
 		local tabrow = `tabrow' + 1
 	}
 
-	table_labels, target_zillow(`target_zillow')
-
-	local rownames =  `" "zipcode" "(\%)" "population" "(\%)"  "housing units" "(\%)"  "median income"  "Houses for rent (\%)" "Urban population (\%)" "College Educated (\%)" "Black population (\%)" "Hispanic population (\%)" "Pop. in poverty (\%)" "Children 0-5 (\%)" "Elders 65+ (\%)" "Unemployed (\%)" "Work in same County (\%)" "MW events" "Salient MW events" "Fed MW event" "State MW event" "County MW Event" "Local MW Event" "'
+	local label_zillow = ""
+	foreach var of local target_zillow_both {
+		if "`var'" == "medrentpricepsqft_sfcc" {
+			local label_zillow = `"`label_zillow' "Median Rent psqft SFCC""'
+		}
+		if "`var'" == "Nmedrentpricepsqft_sfcc" | "`var'" == "Nmedrentpricepsqft_2br" | "`var'" == "Nmedrentpricepsqft_mfr5plus" | "`var'" == "Nmedlistingpricepsqft_sfcc" | "`var'" == "Nmedlistingpricepsqft_low_tier" | "`var'" == "Nmedlistingpricepsqft_top_tier" {
+			local label_zillow = `"`label_zillow' "(N)""'
+		}
+		if "`var'" == "medrentpricepsqft_2br" {
+			local label_zillow = `"`label_zillow' "Median Rent psqft 2BR""'
+		}
+		if "`var'" == "medrentpricepsqft_mfr5plus" {
+			local label_zillow = `"`label_zillow' "Median Rent psqft MFR5PLUS""'
+		}
+		if "`var'" == "medlistingpricepsqft_sfcc" {
+			local label_zillow = `"`label_zillow' "Median Listing psqft SFCC""'
+		}
+		if "`var'" == "medlistingpricepsqft_low_tier" {
+			local label_zillow = `"`label_zillow' "Median Listing psqft 5-35th pct""'
+		}
+		if "`var'" == "medlistingpricepsqft_top_tier" {
+			local label_zillow = `"`label_zillow' "Median Listing psqft 65-95th pct""'
+		}
+	}
+	di `label_zillow'
+		
+	local rownames =  `" "zipcode" "(\%)" "population (Million)" "(\%)"  "housing units (Million)" "(\%)"  "median income"  "Houses for rent (\%)" "Urban population (\%)" "College Educated (\%)" "Black population (\%)" "Hispanic population (\%)" "Pop. in poverty (\%)" "Children 0-5 (\%)" "Elders 65+ (\%)" "Unemployed (\%)" "Work in same County (\%)" "MW events" "Salient MW events" "Fed MW event" "State MW event" "County MW Event" "Local MW Event" "'
 
 	foreach var of local label_zillow {
-		local rownames =  `" `rownames' `var' "' 
+		local rownames =  `" `rownames' "`var'" "' 
 	}
 
 	mat rowname t = `rownames'
 
-	local dsets_names = `" "U.S." "Full Panel" "Listing Panel" "Rent Panel" "'
 	mat colname t = "U.S." "Full Panel" "Listing Panel" "Rent Panel" 
 
 	mat list t 
-	DTOP
 	esttab matrix(t) using ../output/desc_stats.tex, replace 
-
-	
-	outtable using ../output/desc_stats.tex, mat(t) center replace nobox
-
-
 end
 
 
-program table_labels 
-	syntax, target_zillow(str)	
-
-	local label_zillow = ""
-
-	foreach var of local target_zillow {
-		if `var' == "medrentpricepsqft_sfcc" {
-			local label_zillow = `"`label_zillow' "Median Rent psqft SFCC""'
-		}
-		if `var' == "medlistingpricepsqft_sfcc" {
-			local label_zillow = `"`label_zillow' "Median Listing psqft SFCC""'
-		}
-	}
-end 
 
 
 program create_stats_final_dsets
