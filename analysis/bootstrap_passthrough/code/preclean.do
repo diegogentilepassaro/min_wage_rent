@@ -5,57 +5,63 @@ adopath + ../../../lib/stata/gslab_misc/ado
 set maxvar 32000 
 
 program main
-	use "../../../drive/derived_large/output/baseline_rent_panel.dta", clear
-	
-	create_latest_event_vars, event_dummy(mw_event025) window(6)                ///
-		time_var(year_month) geo_unit(zipcode) panel_end(2019m12)
-		
-	create_latest_event_vars, event_dummy(sal_mw_event) window(6)                ///
-		time_var(year_month) geo_unit(zipcode) panel_end(2019m12)
-		
-	create_latest_event_vars, event_dummy(mw_event075) window(6)                ///
-		time_var(year_month) geo_unit(zipcode) panel_end(2019m12)
-
-	save_data "../temp/baseline_rent_panel_6.dta", key(zipcode year_month)            ///
-		replace log(none)
+    local instub  "../../../drive/derived_large/output"
+    local outstub "../temp"
+    local logfile "../output/data_file_manifest.log"
+    
+    use "`instub'/baseline_rent_panel.dta", clear
+    
+    create_latest_event_vars, event_dummy(mw_event025) w(6)                    ///
+        time(year_month) geo(zipcode) panel_end(2019m12)
+    
+    create_latest_event_vars, event_dummy(sal_mw_event) w(6)                   ///
+        time(year_month) geo(zipcode) panel_end(2019m12)
+    
+    create_latest_event_vars, event_dummy(mw_event075) w(6)                    ///
+        time(year_month) geo(zipcode) panel_end(2019m12)
+    
+    save_data "`outstub'/baseline_rent_panel_6.dta", key(zipcode year_month)   ///
+        replace log(`logfile')
 end
 
 program create_latest_event_vars
-	syntax, event_dummy(str) window(int) time_var(str) ///
-	    geo_unit(str) panel_end(str)
-	
-	local window_span = `window'*2 + 1 
-
-	gen `event_dummy'_`time_var' = `time_var' if `event_dummy' == 1
-	format `event_dummy'_`time_var' %tm
-
-	cap gen months_until_panel_ends = `=tm(`panel_end')' - `time_var'
+    syntax, event_dummy(str) w(int) time(str) geo(str) panel_end(str)
     
-	preserve
-	keep if months_until_panel_ends >= (`window' + 1)
-	collapse (max) last_`event_dummy'_`time_var' = `event_dummy'_`time_var', by(`geo_unit')
-	format last_`event_dummy'_`time_var' %tm
-	keep `geo_unit' last_`event_dummy'_`time_var'
-	save_data "../temp/last_event`window'_by_`geo_unit'.dta", key(`geo_unit') replace
-	restore
-	
-	merge m:1 `geo_unit' using "../temp/last_event`window'_by_`geo_unit'.dta", ///
-	    nogen assert(3) keep(3)
-	
-	gen last_`event_dummy'_rel_months`window' = `time_var' - last_`event_dummy'_`time_var'
-	replace last_`event_dummy'_rel_months`window' = last_`event_dummy'_rel_months`window' + `window' + 1
-	replace last_`event_dummy'_rel_months`window' = 0 ///
-	    if last_`event_dummy'_rel_months`window' <= 0
-	replace last_`event_dummy'_rel_months`window' = 1000 ///
-	    if (last_`event_dummy'_rel_months`window' > `window_span' & ///
-		!missing(last_`event_dummy'_rel_months`window'))
-	
-    gen unused_mw_event`event_dummy'_`window' = ///
-	    (mw_event == 1 & last_`event_dummy'_rel_months`window' != (`window' + 1))
-	bysort zipcode (year_month): gen c_nbr_unused_`event_dummy'_`window' = ///
-	    sum(unused_mw_event`event_dummy'_`window')
-		
-	drop `event_dummy'_`time_var' last_`event_dummy'_`time_var'
+    local window_span = `w'*2 + 1 
+
+    gen `event_dummy'_`time' = `time' if `event_dummy' == 1
+    format `event_dummy'_`time' %tm
+
+    gen months_until_panel_ends = `=tm(`panel_end')' - `time'
+
+    preserve
+        keep if months_until_panel_ends >= (`w' + 1)
+        collapse (max) last_`event_dummy'_`time' = `event_dummy'_`time', by(`geo')
+
+        format last_`event_dummy'_`time' %tm
+        keep `geo' last_`event_dummy'_`time'
+
+        save_data "../temp/last_event`w'_by_`geo'.dta", key(`geo') replace
+    restore
+    
+    merge m:1 `geo' using "../temp/last_event`w'_by_`geo'.dta",                          ///
+        nogen assert(3) keep(3)
+    
+    gen last_`event_dummy'_rel_months`w' = `time' - last_`event_dummy'_`time'
+    replace last_`event_dummy'_rel_months`w' = last_`event_dummy'_rel_months`w' + `w' + 1
+    
+    gen treated_`event_dummy'_`w' = !missing(last_`event_dummy'_rel_months`w')
+
+    replace last_`event_dummy'_rel_months`w' = 0                                         /// 0 is pre-period
+                if last_`event_dummy'_rel_months`w' <= 0 & treated_`event_dummy'_`w'
+    replace last_`event_dummy'_rel_months`w' = 1000                                      /// 1000 is post-period
+                if last_`event_dummy'_rel_months`w' > `window_span' & treated_`event_dummy'_`w'
+    replace last_`event_dummy'_rel_months`w' = 5000    if !treated_`event_dummy'_`w'     /// 5000 means never treated
+
+    gen unused_`event_dummy'_`w' = (mw_event == 1 & last_`event_dummy'_rel_months`w' != (`w' + 1))
+    bysort `geo' (`time'): gen c_unused_`event_dummy'_`w' = sum(unused_`event_dummy'_`w')
+    
+    drop `event_dummy'_`time' last_`event_dummy'_`time' months_until_panel_ends
 end
 
 main

@@ -4,7 +4,7 @@ adopath + ../../../lib/stata/gslab_misc/ado
 set maxvar 32000 
 
 program main
-	local instub "../../../drive/derived_large/output"
+	local instub  "../../../drive/derived_large/output"
 	local outstub "../temp"
 
 	foreach data in rent listing {
@@ -13,8 +13,6 @@ program main
 			
 			create_latest_event_vars, event_dummy(sal_mw_event) w(`window')			///
 				time(year_quarter) geo(countyfips) panel_end(2019q4)
-				
-			drop if missing(last_sal_mw_event_rel_quarters`window')
 			
 			save_data "`outstub'/baseline_`data'_county_quarter_`window'.dta",		///
 				key(countyfips year_quarter) replace log(none)
@@ -48,11 +46,13 @@ program create_latest_event_vars
 	gen last_`event_dummy'_rel_quarters`w' = `time' - last_`event_dummy'_`time'
 	replace last_`event_dummy'_rel_quarters`w' = last_`event_dummy'_rel_quarters`w' + `w' + 1
 	
-	replace last_`event_dummy'_rel_quarters`w' = 0									///
-			if last_`event_dummy'_rel_quarters`w' <= 0
-	replace last_`event_dummy'_rel_quarters`w' = 1000								///
-			if (last_`event_dummy'_rel_quarters`w' > `window_span' &				///
-			!missing(last_`event_dummy'_rel_quarters`w'))
+	gen treated = !missing(last_`event_dummy'_rel_quarters`w')
+
+	replace last_`event_dummy'_rel_quarters`w' = 0						/// 0 is pre-period
+				if last_`event_dummy'_rel_quarters`w' <= 0 & treated
+	replace last_`event_dummy'_rel_quarters`w' = 1000						/// 1000 is post-period
+				if last_`event_dummy'_rel_quarters`w' > `window_span' & treated
+	replace last_`event_dummy'_rel_quarters`w' = 5000	if !treated			/// 5000 means never treated
 	
 	gen unused_mw_event`w' = (mw_event == 1 & last_`event_dummy'_rel_quarters`w' != (`w' + 1))
 	bysort `geo' (`time'): gen cumsum_unused_events = sum(unused_mw_event`w')

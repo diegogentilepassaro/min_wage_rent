@@ -7,7 +7,7 @@ load_packages(c('tidyverse', 'data.table', 'tidycensus', 'matrixStats', 'knitr',
 theme_set(theme_minimal())
 
 main <- function() {
-   datadir <- "../../../drive/derived_large/output/"
+   datadir <- "../../../derived/zipcode_month/temp/"
    outdir <- "../output/"
    tempdir <- "../temp/"
    
@@ -17,7 +17,7 @@ main <- function() {
 
    descriptive_table(df, outdir)
 
-   zillow_plots(df, outdir)
+   #zillow_plots(df, outdir)
 }
 
 

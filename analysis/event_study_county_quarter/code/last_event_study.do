@@ -9,53 +9,83 @@ program main
 	local instub "../temp"
 	local outstub "../output"
 
-	local FE "countyfips year_quarter"
-	local cluster_se "countyfips"
+	local FE 		"countyfips year_quarter"
+	local FE_trend 	"countyfips year_quarter c.trend#i.countyfips c.trend_sq#i.countyfips"
+	local cluster_se "statefips"
+	local controls 	"i.cumsum_unused_events"
 
 	foreach w in 2 4 {
+
+		** Rents
 		foreach depvar in _sfcc psqft_sfcc{
 			use "`instub'/baseline_rent_county_quarter_`w'.dta", clear
 
-			create_event_plot, depvar(medrentprice`depvar') 				///
-				event_var(last_sal_mw_event_rel_quarters`w') 				///
-				controls(" ") window(`w')									///
+			create_event_plot_with_untreated, depvar(medrentprice`depvar') 				///
+				event_var(last_sal_mw_event_rel_quarters`w') 							///
+				controls(`controls') window(`w')										///
 				absorb(`FE') cluster(`cluster_se')
 			graph export "`outstub'/last_rent`depvar'_w`w'.png", replace
+
+			create_event_plot_with_untreated, depvar(medrentprice`depvar') 				///
+				event_var(last_sal_mw_event_rel_quarters`w') 							///
+				controls(`controls') window(`w')										///
+				absorb(`FE_trend') cluster(`cluster_se')
+			graph export "`outstub'/last_rent`depvar'_w`w'_trend.png", replace
 			
-			create_event_plot if above == 0, depvar(medrentprice`depvar')	///
-				event_var(last_sal_mw_event_rel_quarters`w')				///
-				controls(" ") window(`w')									///
+			create_event_plot_with_untreated if above, depvar(medrentprice`depvar')		///
+				event_var(last_sal_mw_event_rel_quarters`w')							///
+				controls(`controls') window(`w')										///
 				absorb(`FE') cluster(`cluster_se')
 			graph export "`outstub'/last_rent`depvar'_w`w'_low.png", replace
 			
-			create_event_plot if above == 1, depvar(medrentprice`depvar')	///
-				event_var(last_sal_mw_event_rel_quarters`w')				///
-				controls(" ") window(`w')									///
+			create_event_plot_with_untreated if !above, depvar(medrentprice`depvar')	///
+				event_var(last_sal_mw_event_rel_quarters`w')							///
+				controls(`controls') window(`w')										///
 				absorb(`FE') cluster(`cluster_se')
 			graph export "`outstub'/last_rent`depvar'_w`w'_high.png", replace
 		}
-	}
-	
-	foreach w in 2 4 {
+
+		** Employment
+		foreach depvar in avg_week_wage avg_quarter_employment estab_count {
+			create_event_plot_with_untreated, depvar(`depvar')								///
+				event_var(last_sal_mw_event_rel_quarters`w')								///
+				controls(`controls') window(`w')											///
+				absorb(`FE') cluster(`cluster_se')
+			graph export "`outstub'/last_`depvar'_w`w'.png", replace
+				
+			create_event_plot_with_untreated, depvar(`depvar')								///
+				event_var(last_sal_mw_event_rel_quarters`w')								///
+				controls(`controls') window(`w')											///
+				absorb(`FE_trend') cluster(`cluster_se')
+			graph export "`outstub'/last_`depvar'_w`w'_trend.png", replace
+		}
+
+		* House prices
 		use "`instub'/baseline_listing_county_quarter_`w'.dta", clear
 
 		foreach depvar in _sfcc psqft_sfcc {
-		
-			create_event_plot, depvar(medlistingprice`depvar')				///
-				event_var(last_sal_mw_event_rel_quarters`w')				///
-				controls(" ") window(`w')									///
+			
+			create_event_plot_with_untreated, depvar(medlistingprice`depvar')			///
+				event_var(last_sal_mw_event_rel_quarters`w')							///
+				controls(`controls') window(`w')										///
 				absorb(`FE') cluster(`cluster_se')
 			graph export "`outstub'/last_listing`depvar'_w`w'.png", replace
 			
-			create_event_plot if above == 0, depvar(medlistingprice`depvar')	///
-				event_var(last_sal_mw_event_rel_quarters`w')					///
-				controls(" ") window(`w')										///
+			create_event_plot_with_untreated, depvar(medlistingprice`depvar')			///
+				event_var(last_sal_mw_event_rel_quarters`w')							///
+				controls(`controls') window(`w')										///
+				absorb(`FE_trend') cluster(`cluster_se')
+			graph export "`outstub'/last_listing`depvar'_w`w'_trend.png", replace
+
+			create_event_plot_with_untreated if above, depvar(medlistingprice`depvar')	///
+				event_var(last_sal_mw_event_rel_quarters`w')							///
+				controls(`controls') window(`w')										///
 				absorb(`FE') cluster(`cluster_se')
 			graph export "`outstub'/last_listing`depvar'_w`w'_low.png", replace
 			
-			create_event_plot if above == 1, depvar(medlistingprice`depvar')	///
-				event_var(last_sal_mw_event_rel_quarters`w')					///
-				controls(" ") window(`w')										///
+			create_event_plot_with_untreated if !above, depvar(medlistingprice`depvar')	///
+				event_var(last_sal_mw_event_rel_quarters`w')							///
+				controls(`controls') window(`w')										///
 				absorb(`FE') cluster(`cluster_se')
 			graph export "`outstub'/last_listing`depvar'_w`w'_high.png", replace
 
