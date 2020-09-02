@@ -349,7 +349,7 @@ program collapse_zipcodes
 	
 	if `yr' <2017 {
 		preserve 
-		import excel `instub'hud_Xwalks/ZIP_COUNTY_12`yr'.xlsx, clear first
+		import excel ../../../raw/crosswalk/ZIP_COUNTY_12`yr'.xlsx, clear first
 		cap tolower *
 		rename (zip county) (zipcode county_fips) 
 		destring zipcode, replace 
@@ -374,7 +374,7 @@ program collapse_zipcodes
 
 
 	preserve
-	import excel `instub'hud_Xwalks/ZIP_CBSA_12`yr'.xlsx, clear first
+	import excel ../../../raw/crosswalk/ZIP_CBSA_12`yr'.xlsx, clear first
 	cap tolower *
 	rename zip zipcode 
 	destring zipcode cbsa, replace
