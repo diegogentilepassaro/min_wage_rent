@@ -114,7 +114,6 @@ program baseline_yearmonth_stats
 	syntax, instub(str) target_zillow(str)
 
 	use "../../../drive/derived_large/output/zipcode_yearmonth_panel_all.dta", clear
-	
 	replace sal_mw_event =. if missing(mw_event)	
 
 	local target_zillow_count = ""
@@ -150,6 +149,7 @@ program baseline_yearmonth_stats
 				     `target_zillow'  ///
 			 (count) zipcode `target_zillow_N'
 
+	
 
 	merge 1:1 _n using ../temp/us_totals, nogen assert(1 2 3)
 
@@ -313,12 +313,15 @@ program create_stats_final_dsets
 			 (count) `target_zillow_count' ///
 			 (first) pop2010 housing_units2010 urb_share2010 college_share2010 poor_share20105 black_share2010 hisp_share2010 child_share2010 elder_share2010 unemp_share20105 med_hhinc20105 renthouse_share2010 work_county_share20105 ///
 			 , by(zipcode) 	
-
 	local target_zillow_N = ""
 	foreach var of local target_zillow {
 		local newvar "N`var'"
 		local target_zillow_N = `" `target_zillow_N' `newvar' "'
 	}
+
+	foreach var in `target_zillow_N' {
+		replace `var' = . if `var'==0
+	} 
 
 	collapse (sum)  pop2010 housing_units2010 ///
 			 (mean)  urb_share2010 college_share2010 poor_share20105 black_share2010 hisp_share2010 ///
