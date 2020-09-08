@@ -43,18 +43,19 @@ load_data <- function(file) {
 simulate_rents <- function(DF, var) {
   
   # Parameters
-  hs_week = 40
+  hs_week    = 40
   week_month = 4.35
   mw_earners = 2
   
-  sd_shock = 75
-  theta    = 0.05 # passthrough
+  sd_shock    = 75
+  theta       = 0.05 # passthrough
   theta_level = 30
   
   DF <- prepare_DF(DF, var)
   
-  size_df = dim(DF)[1]
-  max_n_events = max(DF$cumsum_events, na.rm = T)
+  size_df            <- dim(DF)[1]
+  max_n_events       <- max(DF$cumsum_events, na.rm = T)
+  numeric_yearmonths <- 596:715
 
   # Define objects
   mean_r = sapply(DF[, c(var)], mean, na.rm = T)
@@ -63,7 +64,6 @@ simulate_rents <- function(DF, var) {
   max_r  = ceiling(sapply(DF[, c(var)], max, na.rm = T))
   
   zipcodes = unique(DF[, c('zipcode')])
-  counties = unique(DF[, c('countyfips')])
   states   = unique(DF[, c('statefips')])
   year_months = unique(DF[, c('year_month')])
   
@@ -83,7 +83,7 @@ simulate_rents <- function(DF, var) {
   period_avgs = aggregate(DF[, var], by = list(DF$year_month), FUN = mean, na.rm = T)
   names(period_avgs) <- c("year_month", "timeperiod_effect")
   
-  period_avgs$timeperiod_effect = period_avgs$timeperiod_effect - mean(period_avgs$timeperiod_effect, na.rm = T)
+  period_avgs$timeperiod_effect = period_avgs$timeperiod_effect - mean(period_avgs$timeperiod_effect, na.rm = T) # Demean
   
   year_months <- merge(year_months, period_avgs, by = 'year_month')
   DF <- merge(DF, year_months, by = 'year_month')
@@ -93,17 +93,19 @@ simulate_rents <- function(DF, var) {
   
   st_panel = cbind(rep(states$statefips, times = 1, each = 120),
                    rep(states$state_effect, times = 1, each = 120),
-                   rep(596:715, times = n_states))
+                   rep(numeric_yearmonths, times = n_states))
   
   colnames(st_panel) = c("statefips", "state_trend", "year_month")
   st_panel <- as.data.frame(st_panel)
   
-  for (state in unique(st_panel$statefips)) {
-    for (period in 597:715) {
-      rate = runif(1, min = 0.001, max = 0.007)
+  for (state in unique(st_panel$statefips)) {      # Generate time series for each state
+    rate = runif(1, min = 0.001, max = 0.007)
+    
+    for (period in numeric_yearmonths) {
+      if (period == 596) next                      # Skip first
       
       prev_period = st_panel[(st_panel$statefips == state) & 
-                             (st_panel$year_month == period - 1), "state_trend"]
+                             (st_panel$year_month == period), "state_trend"]
       
       st_panel[(st_panel$statefips == state) & 
                (st_panel$year_month == period), "state_trend"] = (1 + rate)*prev_period
@@ -179,8 +181,9 @@ prepare_DF <- function(DF, var) {
 }
 
 
-simulate_housing_values <- function(DF, num_rent_vars) {
+simulate_housing_values <- function(DF, rent_var) {
 
+  ### UNDER CONSTRUCTION
   
   return(DF)
 }
