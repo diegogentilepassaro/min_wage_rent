@@ -24,10 +24,7 @@ program us_stats_new
 
 	import delim `instub'/base_large/output/zip_demo.csv, clear
 
-
 	collapse (sum) pop2010 housing_units2010 (mean) urb_share2010 college_share2010 poor_share20105 black_share2010 hisp_share2010 child_share2010 elder_share2010 unemp_share20105 med_hhinc20105 renthouse_share2010 work_county_share20105 (count) zipcode
-
-
 
 	g pop_sh = 1
 	g housing_units_sh = 1
@@ -39,11 +36,6 @@ program us_stats_new
 	keep pop2010 housing_units2010 zipcode
 	rename (pop housing_units zipcode) (USpop UShousing_units USzipcode)
 	save ../temp/us_totals.dta, replace 
-
-
-
-
-
 end
 
 
@@ -95,8 +87,6 @@ program us_stats
 	keep pop housing_units zipcode
 	rename (pop housing_units zipcode) (USpop UShousing_units USzipcode)
 	save ../temp/us_totals.dta, replace 
-
-
 end
 
 program baseline_rent_stats
@@ -124,13 +114,12 @@ program baseline_yearmonth_stats
 	syntax, instub(str) target_zillow(str)
 
 	use "../../../drive/derived_large/output/zipcode_yearmonth_panel_all.dta", clear
-	
 	replace sal_mw_event =. if missing(mw_event)	
 
 	local target_zillow_count = ""
 	foreach var of local target_zillow {
 		local newvar "N`var' = `var'"
-		local target_zillow_count = `" `target_zillow_count' `newvar' "'
+		local target_zillow_count = `"`target_zillow_count' `newvar' "'
 	}
 		
 	collapse (sum)  mw_event sal_mw_event fed_event state_event county_event local_event ///
@@ -139,16 +128,20 @@ program baseline_yearmonth_stats
 			 (first) pop2010 housing_units2010 urb_share2010 college_share2010 poor_share20105 black_share2010 hisp_share2010 child_share2010 elder_share2010 unemp_share20105 med_hhinc20105 renthouse_share2010 work_county_share20105 ///
  			, by(zipcode)
 
-	foreach var `target_zillow_count' {
-		replace `var' = . if `var'==0
-	} 
+
+
 
 	local target_zillow_N = ""
 	foreach var of local target_zillow {
 		local newvar "N`var'"
-		local target_zillow_N = `" `target_zillow_N' `newvar' "'
+		local target_zillow_N = `"`target_zillow_N' `newvar' "'
 	}
 
+	foreach var in `target_zillow_N' {
+		replace `var' = . if `var'==0
+	} 
+
+	
 	collapse (sum)  pop2010 housing_units2010 ///
 			 (mean)  urb_share2010 college_share2010 poor_share20105 black_share2010 hisp_share2010 ///
 			 	     child_share2010 elder_share2010 unemp_share20105 med_hhinc20105 renthouse_share2010 work_county_share20105 ///
@@ -156,6 +149,7 @@ program baseline_yearmonth_stats
 				     `target_zillow'  ///
 			 (count) zipcode `target_zillow_N'
 
+	
 
 	merge 1:1 _n using ../temp/us_totals, nogen assert(1 2 3)
 
@@ -319,12 +313,15 @@ program create_stats_final_dsets
 			 (count) `target_zillow_count' ///
 			 (first) pop2010 housing_units2010 urb_share2010 college_share2010 poor_share20105 black_share2010 hisp_share2010 child_share2010 elder_share2010 unemp_share20105 med_hhinc20105 renthouse_share2010 work_county_share20105 ///
 			 , by(zipcode) 	
-
 	local target_zillow_N = ""
 	foreach var of local target_zillow {
 		local newvar "N`var'"
 		local target_zillow_N = `" `target_zillow_N' `newvar' "'
 	}
+
+	foreach var in `target_zillow_N' {
+		replace `var' = . if `var'==0
+	} 
 
 	collapse (sum)  pop2010 housing_units2010 ///
 			 (mean)  urb_share2010 college_share2010 poor_share20105 black_share2010 hisp_share2010 ///

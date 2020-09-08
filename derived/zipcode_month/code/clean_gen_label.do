@@ -24,8 +24,6 @@ program clean_vars
 	drop date
 	replace year_month = mofd(year_month)
 	format  year_month %tm
-	
-
 
 	keep if !missing(year_month)
 	keep if !missing(zipcode)

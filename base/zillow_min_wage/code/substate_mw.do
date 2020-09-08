@@ -81,7 +81,7 @@ program prepare_local
 		keep if tag == 1
 		keep statefips locality
 
-		save `temp'\localities.dta, replace
+		save `temp'/localities.dta, replace
 	restore
 end
 
@@ -155,7 +155,7 @@ program export_substate_daily
 		
 	use `temp'/data.dta, clear
 	sort locality date
-	export delim using `outstub'\VZ_substate_daily.csv, replace
+	export delim using `outstub'/VZ_substate_daily.csv, replace
 end
 
 program export_substate_monthly
