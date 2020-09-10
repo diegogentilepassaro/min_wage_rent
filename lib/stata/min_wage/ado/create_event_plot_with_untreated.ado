@@ -42,6 +42,7 @@ program create_event_plot_with_untreated
 	coefplot matrix(tA[1]), vertical ci((tA[2] tA[3])) 						///
 		graphregion(color(white)) bgcolor(white)							///
 		xlabel(1 "-`window'" `window_plus1' "0" `window_span' "`window'")	///
-		xline(0, lcol(grey) lpat(dot)) 										///
+		xline(`window_plus1', lcol(grey) lpat(dot)) 						///
+		yline(0, lcol(grey) lpat(dot))                                      ///
 		name(`name') title(`title') ytitle(`ytitle') `yaxis'
 end

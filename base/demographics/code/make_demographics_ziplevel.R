@@ -32,17 +32,19 @@ main <- function() {
 
    
    table_final <- table_final[xwalk, on = 'tract_fips']
-   
+   table_final[, tot_ratio_denom := sum(tot_ratio, na.rm = T), by = zipcode]
+   table_final[, rel_wgt := tot_ratio / tot_ratio_denom]
    
    start_geo <- 'tract_fips'
    target_geo <- 'zipcode'
    wgt <- 'tot_ratio'
-   demovars <- setdiff(colnames(table_final), c(start_geo, target_geo, wgt, 'county_fips'))
+   med_demovars <- colnames(table_final)[str_detect(colnames(table_final), "^med")]
+   share_demovars <- setdiff(colnames(table_final), c(start_geo, target_geo, wgt, 'county_fips', med_demovars))
    
-   table_final <- table_final[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), by = target_geo, .SDcols = demovars]
+   table_final_zipshare <- table_final[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), by = target_geo, .SDcols = share_demovars]
    
    
-   table_final[, c('urb_share2010', 
+   table_final_zipshare[, c('urb_share2010', 
                    'white_share2010', 'black_share2010', 'hisp_share2010', 'asian_share2010', 'natam_share2010', 
                    'child_share2010', 'teen_share2010', 'youngadult_share2010', 'adult_share2010', 'elder_share2010', 
                    'hh_couple_share2010', 'hh_couple_child_share2010',
@@ -74,11 +76,15 @@ main <- function() {
                       (unemp_share20105 / unemp_share20105D), 
                       (employee_share20105 / employee_share20105D))]
    
-   denom_cols <- colnames(table_final)[str_detect(colnames(table_final), "D$")]
+   denom_cols <- colnames(table_final_zipshare)[str_detect(colnames(table_final_zipshare), "D$")]
    
-   table_final[, (denom_cols):= NULL]
+   table_final_zipshare[, (denom_cols):= NULL]
    
-   save_data(table_final,
+   table_final_med <- table_final[, lapply(.SD, function(x, w) weighted.mean(x,w, na.rm = T), w=rel_wgt), by = target_geo, .SDcols = med_demovars]
+   
+   table_final_all <- table_final_zipshare[table_final_med, on = 'zipcode']
+   
+   save_data(table_final_all,
              filename = paste0(outdir, 'zip_demo.csv'),
              key = c('zipcode'))
 }
@@ -100,6 +106,7 @@ format_tables <- function(x, datadir, data_version) {
             str_pad(TRACTA, 6, pad = "0"))),
          as.numeric(paste0(str_pad(STATEA, 2, pad = "0"),
                            str_pad(COUNTYA, 3, pad = "0"))))]
+      setnames(y, old = "CBSAA", new = "cbsa")
 
       return(y)
    }
