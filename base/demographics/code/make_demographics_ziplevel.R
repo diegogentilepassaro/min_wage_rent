@@ -84,6 +84,10 @@ main <- function() {
    
    table_final_all <- table_final_zipshare[table_final_med, on = 'zipcode']
    
+   zip_mw <- fread(paste0(outdir,'zip_mw.csv'))
+   
+   table_final_all <- zip_mw[table_final_all, on = 'zipcode']
+   
    save_data(table_final_all,
              filename = paste0(outdir, 'zip_demo.csv'),
              key = c('zipcode'))
