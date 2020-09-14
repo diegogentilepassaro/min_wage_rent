@@ -94,8 +94,6 @@ main <- function() {
 }
 
 
-
-
 format_tables <- function(x, datadir, data_version) {
    data <- fread(paste0(datadir, "nhgis", data_version, "_", x))
 

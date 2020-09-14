@@ -89,9 +89,11 @@ table_final_zipshare[, c('sh_mww_all2',
   (renthh_hunitsTOT/hh_hunitsTOT))]
 
 table_final_zipshare[, c('sh_mww_wmean', 
-                         'mww_shrenter_wmean') := list(
+                         'mww_shrenter_wmean', 
+                         'sh_mww_renter_wmean') := list(
                            (((mww_all1*sh_hh1) + (mww_all2*sh_hh2))/hhTOT),
-                           (((mww_renter_all1*sh_renthh_single) + (mww_renter_all2*sh_renthh_couple))/renthh_hunitsTOT))]
+                           (((mww_renter_all1*sh_renthh_single) + (mww_renter_all2*sh_renthh_couple))/renthh_hunitsTOT), 
+                           (((mww_renter_all1*sh_renthh_single) + (mww_renter_all2*sh_renthh_couple))/hh_hunitsTOT))]
 
 
 

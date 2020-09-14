@@ -11,8 +11,8 @@ program main
 	use "`instub'/fd_rent_panel.dta", clear
 
 	//het_desc
-	//run_dynamic_model, depvar(ln_med_rent_psqft) absorb(year_month) cluster(statefips)
-	
+	run_dynamic_model, depvar(ln_med_rent_psqft) absorb(year_month) cluster(statefips)
+	STOP 
 	//dynamic_het_model_0, depvar(ln_med_rent_psqft) absorb(year_month zipcode) cluster(statefips) het_char(rent_inc_ratio_qt) outstub(`outstub') n_qtl(4)
 	//dynamic_het_model_bygroups, depvar(ln_med_rent_psqft) absorb(year_month zipcode) cluster(statefips) het_char(rent_inc_ratio_qt) outstub(`outstub') n_qtl(4)
 	dynamic_het_cumulpost_bygroups, depvar(ln_med_rent_psqft) absorb(year_month zipcode) cluster(statefips) het_char(rent_inc_ratio_qtl) outstub(`outstub') n_qtl(4)
@@ -21,11 +21,11 @@ program main
 	local het_varlist = "med_hhinc20105_`geolevel'_qtl college_share20105_`geolevel'_qtl black_share2010_`geolevel'_qtl renthouse_share2010_`geolevel'_qtl poor_share20105_`geolevel'_qtl lo_hhinc_share20105_`geolevel'_qtl unemp_share20105_`geolevel'_qtl youngadult_share2010_`geolevel'_qtl employee_share20105_`geolevel'_qtl"
 	foreach var in `het_varlist' {
 		
-		dynamic_het_model_0, depvar(ln_med_rent_psqft) absorb(year_month zipcode) cluster(statefips) het_char(`var') outstub(`outstub')	
+		//dynamic_het_model_0, depvar(ln_med_rent_psqft) absorb(year_month zipcode) cluster(statefips) het_char(`var') outstub(`outstub')	
 		
 		//dynamic_het_model_bygroups, depvar(ln_med_rent_psqft) absorb(year_month zipcode) cluster(statefips) het_char(`var') outstub(`outstub') n_qtl(4)
 		
-		//dynamic_het_cumulpost_bygroups, depvar(ln_med_rent_psqft) absorb(year_month zipcode) cluster(statefips) het_char(`var') outstub(`outstub') n_qtl(4)
+		dynamic_het_cumulpost_bygroups, depvar(ln_med_rent_psqft) absorb(year_month zipcode) cluster(statefips) het_char(`var') outstub(`outstub') n_qtl(4)
 
 	}
 	STOPITIT
@@ -163,8 +163,8 @@ program dynamic_het_cumulpost_bygroups
 		qui eststo cumulpost`g': lincomest `lincomest_coeffs'	
 	}
 
-	//esttab cumulpost1 cumulpost2 cumulpost3 cumulpost4, ///	  
-	esttab cumulpost1 cumulpost2 cumulpost3 cumulpost4 using `outstub'/fd_het_cumulpost_`het_char'_qt`n_qtl'.tex, ///
+	//esttab cumulpost1 cumulpost2 cumulpost3 cumulpost4 using `outstub'/fd_het_cumulpost_`het_char'_qt`n_qtl'.tex, ///
+	esttab cumulpost1 cumulpost2 cumulpost3 cumulpost4, ///	  
 	  replace nonumbers mtitles("1st" "2nd" "3rd" "4rd") coef((1) "`het_char'") title("Cumulative Effect by Demographics' quartiles")
 end 
 
@@ -178,7 +178,7 @@ program run_dynamic_model
 	}
 
 	eststo clear
-	eststo reg1: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw if rent_inc_ratio_qt==5, 			///
+	eststo reg1: reghdfe D.`depvar' L(0/`w').D.ln_mw, 			///
 		absorb(`absorb') 											///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("No") trend_sq("No")
@@ -186,12 +186,12 @@ program run_dynamic_model
 	test (F5D.ln_mw = 0) (F4D.ln_mw = 0) (F3D.ln_mw = 0) (F2D.ln_mw = 0) (F1D.ln_mw = 0)
     estadd scalar p_value_F = r(p)
 	
-		
+
 	eststo lincom1: lincomest `lincomest_coeffs'
 	comment_table, trend_lin("No") trend_sq("No")
 			
 	
-	eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw  if rent_inc_ratio_qt==5, 		///
+	eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw, 		///
 		absorb(`absorb' i.zipcode) 							///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("Yes") trend_sq("No")
@@ -202,7 +202,7 @@ program run_dynamic_model
 	eststo lincom2: lincomest `lincomest_coeffs'
 	comment_table, trend_lin("Yes") trend_sq("No")
 	
-	eststo reg3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw if rent_inc_ratio_qt==5,		///
+	eststo reg3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw,		///
 		absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) 	///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("Yes") trend_sq("Yes")
