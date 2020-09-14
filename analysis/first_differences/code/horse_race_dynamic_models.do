@@ -12,8 +12,9 @@ program main
 
 	horse_race_models, depvar(ln_med_rent_psqft) w(2) ///
 	    absorb(year_month) cluster(statefips)
-	esttab * using "`outstub'/horse_race.tex", compress se replace 	///
+	esttab * using "`outstub'/horse_race.tex", compress se replace substitute(\_ _) 	///
 	    order(F2D.ln_mw FD.ln_mw D.ln_mw LD.ln_mw L2D.ln_mw LD.ln_med_rent_psqft) ///
+	    coeflabels(F2D.ln_mw "\Delta ln(MW)_{t-2}" FD.ln_mw "\Delta ln(MW)_{t-1}" D.ln_mw "\Delta ln(MW)_{t}" LD.ln_mw "\Delta ln(MW)_{t+1}" L2D.ln_mw "\Delta ln(MW)_{t+2}" LD.ln_med_rent_psqft "\Delta ln(y)_{t-1}") ///
 		stats(r2 N, fmt(%9.3f %9.0g) 		///
 		labels("R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 	///
 		mtitles("DiD" "Distributed leads and lags" "Distributed Lags" ///
@@ -23,6 +24,7 @@ program main
 	    absorb(year_month zipcode) cluster(statefips)
 	esttab * using "`outstub'/horse_race_zipcode_trend.tex", compress se replace 	///
 	    order(F2D.ln_mw FD.ln_mw D.ln_mw LD.ln_mw L2D.ln_mw LD.ln_med_rent_psqft) ///
+	    coeflabels(F2D.ln_mw "\Delta ln(MW)_{t-2}" FD.ln_mw "\Delta ln(MW)_{t-1}" D.ln_mw "\Delta ln(MW)_{t}" LD.ln_mw "\Delta ln(MW)_{t+1}" L2D.ln_mw "\Delta ln(MW)_{t+2}" LD.ln_med_rent_psqft "\Delta ln(y)_{t-1}") ///
 		stats(r2 N, fmt(%9.3f %9.0g) 		///
 		labels("R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
 		mtitles("DiD" "Distributed leads and lags" "Distributed Lags" ///
@@ -32,6 +34,7 @@ program main
 	    absorb(year_month zipcode c.trend_times2#i.zipcode) cluster(statefips)
 	esttab * using "`outstub'/horse_race_zipcode_trend_sq.tex", compress se replace 	///
 	    order(F2D.ln_mw FD.ln_mw D.ln_mw LD.ln_mw L2D.ln_mw LD.ln_med_rent_psqft) ///
+	    coeflabels(F2D.ln_mw "\Delta ln(MW)_{t-2}" FD.ln_mw "\Delta ln(MW)_{t-1}" D.ln_mw "\Delta ln(MW)_{t}" LD.ln_mw "\Delta ln(MW)_{t+1}" L2D.ln_mw "\Delta ln(MW)_{t+2}" LD.ln_med_rent_psqft "\Delta ln(y)_{t-1}") ///
 		stats(r2 N, fmt(%9.3f %9.0g) 		///
 		labels("R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
 		mtitles("DiD" "Distributed leads and lags" "Distributed Lags" ///
