@@ -23,7 +23,7 @@ program main
 		mww_shrenter_wmean
 	
 
-	local het_vars "med_hhinc20105 renthouse_share2010 college_share20105 black_share2010 poor_share20105 lo_hhinc_share20105 hi_hhinc_share20105 unemp_share20105 employee_share20105 teen_share2010 youngadult_share2010"
+	local het_vars "med_hhinc20105 renthouse_share2010 college_share20105 black_share2010 poor_share20105 lo_hhinc_share20105 hi_hhinc_share20105 unemp_share20105 employee_share20105 teen_share2010 youngadult_share2010 sh_mww_all2 sh_mww_renter_all2 mww_shrenter_all2 sh_mww_wmean mww_shrenter_wmean mww_shblack_all2 mww_shsub25_all2 mww_shsub25_all1"
 	
 
 	create_vars, 	log_vars(actual_mw medrentpricepsqft_sfcc medrentprice_sfcc) 	///
