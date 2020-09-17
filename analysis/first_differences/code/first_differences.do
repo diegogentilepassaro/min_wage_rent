@@ -41,19 +41,7 @@ program main
 		"Observations")) 				///
 		star(* 0.10 ** 0.05 *** 0.01) 													///
 		nonote coeflabel((1) "Sum of MW effects")
-		
-	/* Dynamic Model with lagged dependent variable
-	run_dynamic_model_ldv, depvar(ln_med_rent_psqft) absorb(year_month) 					///
-		cluster(statefips)
 
-	esttab reg1 reg2 reg3 using "`outstub'/fd_dynamic_table.tex", 					///
-		keep(*.ln_mw) compress se replace 												///
-		stats(p_value_F zs_trend zs_trend_sq r2 N, fmt(%9.3f %s3 %s3 %9.3f %9.0g) 		///
-		labels("P-value no pretrends" "Zipcode-specifc linear trend" 											///
-		"Zipcode-specific linear and square trend"								///
-		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
-		nonote*/
-		
 	* Heterogeneity
 	foreach var in med_hhinc20105 renthouse_share2010 college_share20105 				///
 				black_share2010 nonwhite_share2010 work_county_share20105 {
