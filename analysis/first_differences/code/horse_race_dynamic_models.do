@@ -21,10 +21,11 @@ program main
 		LD.ln_mw "$\Delta \ln(MW)_{t+1}$" L2D.ln_mw "$\Delta \ln(MW)_{t+2}$" ///
 		L3D.ln_mw "$\Delta \ln(MW)_{t+3}$" L4D.ln_mw "$\Delta \ln(MW)_{t+4}$" ///
 		L5D.ln_mw "$\Delta \ln(MW)_{t+5}$" LD.ln_med_rent_psqft "$\Delta \ln(y)_{t-1}$") ///
-		stats(N, fmt(%9.3f %9.0g) 		///
+		stats(N, fmt(%9.0g) 		///
 		labels("Observations")) star(* 0.10 ** 0.05 *** 0.01) 	///
 		mtitles("DiD" "Distributed leads and lags" "Distributed Lags" ///
-		"AB distributed leads and lags" "AB distributed lags") nonote
+		"AB distributed leads and lags" "AB distributed lags" ///
+		"MW distributed leads and lags" "MW distributed lags") nonote
 		
 	horse_race_models, depvar(ln_med_rent_psqft) w(5) ///
 	    absorb(year_month zipcode) cluster(statefips)
@@ -37,10 +38,11 @@ program main
 		LD.ln_mw "$\Delta \ln(MW)_{t+1}$" L2D.ln_mw "$\Delta \ln(MW)_{t+2}$" ///
 		L3D.ln_mw "$\Delta \ln(MW)_{t+3}$" L4D.ln_mw "$\Delta \ln(MW)_{t+4}$" ///
 		L5D.ln_mw "$\Delta \ln(MW)_{t+5}$" LD.ln_med_rent_psqft "$\Delta \ln(y)_{t-1}$") ///
-		stats(N, fmt(%9.3f %9.0g) 		///
+		stats(N, fmt(%9.0g) 		///
 		labels("Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
 		mtitles("DiD" "Distributed leads and lags" "Distributed Lags" ///
-		"AB distributed leads and lags" "AB distributed lags") nonote
+		"AB distributed leads and lags" "AB distributed lags" ///
+		"MW distributed leads and lags" "MW distributed lags") nonote
 		
 	horse_race_models, depvar(ln_med_rent_psqft) w(5) ///
 	    absorb(year_month zipcode c.trend_times2#i.zipcode) cluster(statefips)
@@ -53,7 +55,7 @@ program main
 		LD.ln_mw "$\Delta \ln(MW)_{t+1}$" L2D.ln_mw "$\Delta \ln(MW)_{t+2}$" ///
 		L3D.ln_mw "$\Delta \ln(MW)_{t+3}$" L4D.ln_mw "$\Delta \ln(MW)_{t+4}$" ///
 		L5D.ln_mw "$\Delta \ln(MW)_{t+5}$" LD.ln_med_rent_psqft "$\Delta \ln(y)_{t-1}$") ////
-		stats(N, fmt(%9.3f %9.0g) 		///
+		stats(N, fmt(%9.0g) 		///
 		labels("Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
 		mtitles("DiD" "Distributed leads and lags" "Distributed Lags" ///
 		"AB distributed leads and lags" "AB distributed lags" ///
@@ -73,10 +75,6 @@ program horse_race_models
 		vce(cluster `cluster') nocons
 		
 	eststo: qui reghdfe D.`depvar' L(0/`w').D.ln_mw, 			///
-		absorb(`absorb') 											///
-		vce(cluster `cluster') nocons
-	
-	eststo: qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw L.D.`depvar', 			///
 		absorb(`absorb') 											///
 		vce(cluster `cluster') nocons
 		
