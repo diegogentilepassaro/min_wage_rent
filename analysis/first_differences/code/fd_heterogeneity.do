@@ -12,29 +12,70 @@ program main
 
 	//het_desc
 	//run_dynamic_model, depvar(ln_med_rent_psqft) absorb(year_month) cluster(statefips)
-	
 	//dynamic_het_model_0, depvar(ln_med_rent_psqft) absorb(year_month zipcode) cluster(statefips) het_char(rent_inc_ratio_qt) outstub(`outstub') n_qtl(4)
 	//dynamic_het_model_bygroups, depvar(ln_med_rent_psqft) absorb(year_month zipcode) cluster(statefips) het_char(rent_inc_ratio_qt) outstub(`outstub') n_qtl(4)
 	//dynamic_het_cumulpost_bygroups, depvar(ln_med_rent_psqft) absorb(year_month zipcode) cluster(statefips) het_char(rent_inc_ratio_qtl) outstub(`outstub') n_qtl(4)
 	
-	local geolevel = "st"
-	local het_varlist = "med_hhinc20105_`geolevel'_qtl college_share20105_`geolevel'_qtl black_share2010_`geolevel'_qtl renthouse_share2010_`geolevel'_qtl poor_share20105_`geolevel'_qtl lo_hhinc_share20105_`geolevel'_qtl unemp_share20105_`geolevel'_qtl youngadult_share2010_`geolevel'_qtl employee_share20105_`geolevel'_qtl sh_mww_all2_`geolevel'_qtl sh_mww_renter_all2_`geolevel'_qtl mww_shrenter_all2_`geolevel'_qtl sh_mww_wmean_`geolevel'_qtl mww_shrenter_wmean_`geolevel'_qtl mww_shsub25_all2_`geolevel'_qtl mww_shsub25_all1_`geolevel'_qtl mww_shblack_all2_`geolevel'_qtl"
-	//local het_varlist = "mww_shrenter_all2_`geolevel'_qtl sh_mww_wmean_`geolevel'_qtl mww_shrenter_wmean_`geolevel'_qtl"
+	/* local het_varlist = "sh_mww_all1 sh_mww_all2 sh_mww_wmean1 sh_mww_wmean2 sh_mww_renter_all2 sh_mww_renter_wmean1 sh_mww_wmean2 mww_shrenter_all2 mww_shrenter_all1 mww_shrenter_wmean2"
 	foreach var in `het_varlist' {
-		
+		dd_het_model, depvar(ln_med_rent_psqft) absorb(year_month zipcode) cluster(statefips) het_char(`var') outstub(`outstub')
+
+	} */
+
+	local geolevel = "nat"
+	//local het_varlist = "med_hhinc20105_`geolevel'_qtl college_share20105_`geolevel'_qtl black_share2010_`geolevel'_qtl renthouse_share2010_`geolevel'_qtl poor_share20105_`geolevel'_qtl lo_hhinc_share20105_`geolevel'_qtl unemp_share20105_`geolevel'_qtl youngadult_share2010_`geolevel'_qtl employee_share20105_`geolevel'_qtl sh_mww_all2_`geolevel'_qtl sh_mww_renter_all2_`geolevel'_qtl mww_shrenter_all2_`geolevel'_qtl sh_mww_wmean_`geolevel'_qtl mww_shrenter_wmean_`geolevel'_qtl mww_shsub25_all2_`geolevel'_qtl mww_shsub25_all1_`geolevel'_qtl mww_shblack_all2_`geolevel'_qtl"
+	local het_varlist = "sh_mww_all1_`geolevel'_qtl sh_mww_all2_`geolevel'_qtl sh_mww_wmean1_`geolevel'_qtl sh_mww_wmean2_`geolevel'_qtl  sh_mww_renter_all2_`geolevel'_qtl sh_mww_renter_wmean1_`geolevel'_qtl sh_mww_wmean2_`geolevel'_qtl mww_shrenter_all2_`geolevel'_qtl mww_shrenter_all1_`geolevel'_qtl mww_shrenter_wmean2_`geolevel'_qtl"
+	foreach var in `het_varlist' {
+
+		dd_het_model_bygroups, depvar(ln_med_rent_psqft) absorb(year_month zipcode) cluster(statefips) het_char(`var') outstub(`outstub')
+
 		//dynamic_het_model_0, depvar(ln_med_rent_psqft) absorb(year_month zipcode) cluster(statefips) het_char(`var') outstub(`outstub')	
 		
 		//dynamic_het_model_bygroups, depvar(ln_med_rent_psqft) absorb(year_month zipcode) cluster(statefips) het_char(`var') outstub(`outstub') n_qtl(4)
 		
-		//dynamic_het_cumulpost_bygroups, depvar(ln_med_rent_psqft) absorb(year_month zipcode) cluster(statefips) het_char(`var') outstub(`outstub') n_qtl(4)
+		//dynamic_het_cumulpost_bygroups, depvar(ln_med_rent_psqft) absorb(year_month zipcode) cluster(statefips) w(2) het_char(`var') outstub(`outstub') n_qtl(4)
 
-	dynamic_het_cumulpost, depvar(ln_med_rent_psqft) absorb(year_month zipcode) cluster(statefips) het_char(`var') outstub(`outstub') w(5)
+		//dynamic_het_cumulpost, depvar(ln_med_rent_psqft) absorb(year_month zipcode) cluster(statefips) het_char(`var') outstub(`outstub') w(2)
 	}
 
 	
 
 end 
 
+
+program dd_het_model
+	syntax, depvar(str) absorb(str) cluster(str) het_char(str) outstub(str) 
+
+reghdfe D.`depvar' D.ln_mw,									///
+		absorb(`absorb') 								///
+		vce(cluster `cluster') nocons
+
+reghdfe D.`depvar' D.ln_mw D.c.ln_mw#c.`het_char',									///
+		absorb(`absorb') 								///
+		vce(cluster `cluster') nocons
+
+
+end 
+
+program dd_het_model_bygroups
+	syntax, depvar(str) absorb(str) cluster(str) het_char(str) outstub(str) 
+
+	eststo clear 
+	levelsof `het_char', local(het_gr)
+	
+	foreach g of local het_gr {
+		eststo: qui reghdfe D.`depvar' D.ln_mw if `het_char'==`g',									///
+				absorb(`absorb') 								///
+				vce(cluster `cluster') nocons
+	}
+
+	di "`het_char'"
+	//esttab est1 est2 est3 est4 using `outstub'/fd_het`w'_cumulpost_`het_char'_qt`n_qtl'.tex, ///
+	esttab est1 est2 est3 est4, ///	  
+	  replace nonumbers mtitles("1st" "2nd" "3rd" "4rd") coef(D1.ln_mw "`het_char'") ///
+	  title("Static Effect by Demographics' quartiles") se ///
+	  star(* 0.1 ** 0.05 *** 0.01)
+end 
 
 program het_desc
 	hist rent_inc_ratio if year_month==tm(2010m1), bc(ebblue%70)
@@ -53,7 +94,7 @@ program dynamic_het_model_0
 	coefplot, vertical xline(6) yline(0) recast(connected) ylabel(-.1(.05).1, grid) */
 
 
-	reghdfe D.`depvar' c.L(0/`w').d_ln_mw#ib(1).`het_char' L(-`w'/`w').d_ln_mw, 			///
+	reghdfe D.`depvar' c.L(-`w'/`w').d_ln_mw#ib(1).`het_char' L(-`w'/`w').d_ln_mw, 			///
 		absorb(`absorb') 											///
 		vce(cluster `cluster') nocons
 
@@ -112,7 +153,7 @@ program dynamic_het_model_0
 	    	   legend(order(1 "2nd" 3 "3rd" 5 "4th" 7 "5th") rows(1))
 
 	 	}
-	    graph export `outstub'/fd_het_`het_char'_qt`n_qtl'.png, replace	    
+	    graph export `outstub'/fd_het`w'_`het_char'_qt`n_qtl'.png, replace	    
 	    restore
 end 
 
@@ -146,7 +187,7 @@ program dynamic_het_model_bygroups
 			 (fd_het_gr4, recast(connected) msize(small) mc(green) lc(green) ciopts(recast(rcap) lc(green) lp(dash) lw(vthin)))  ///
     		 , vertical xlabel(`t_label') xline(`zero_label', lc(black)) yline(0, lc(black)) ylabel(, grid) ///
     		 xtitle("Month t relative to MW change") legend(order(`plot_legend'))
-	 graph export `outstub'/fd_hetbygr_`het_char'_qt`n_qtl'.png, replace
+	 graph export `outstub'/fd_hetbygr`w'_`het_char'_qt`n_qtl'.png, replace
 end 
 
 program dynamic_het_cumulpost 
@@ -161,7 +202,7 @@ program dynamic_het_cumulpost
 			local lincom_formula `"`lincom_formula' + c.L`t'.d_ln_mw#i`q'.`het_char'"'
 		}
 		
-		qui reghdfe D.`depvar' c.L(0/`w').d_ln_mw#ib(1).`het_char' L(0/`w').d_ln_mw, 			///
+		reghdfe D.`depvar' c.L(0/`w').d_ln_mw#ib(1).`het_char' L(0/`w').d_ln_mw, 			///
 			absorb(`absorb') 											///
 			vce(cluster `cluster') nocons
 	
@@ -188,10 +229,10 @@ program dynamic_het_cumulpost_bygroups
 	}
 
 	//esttab cumulpost1 cumulpost2 cumulpost3 cumulpost4, ///	  
-	esttab cumulpost1 cumulpost2 cumulpost3 cumulpost4 using `outstub'/fd_het_cumulpost_`het_char'_qt`n_qtl'.tex, ///
+	esttab cumulpost1 cumulpost2 cumulpost3 cumulpost4 using `outstub'/fd_het`w'_cumulpost_`het_char'_qt`n_qtl'.tex, ///
 	  replace nonumbers mtitles("1st" "2nd" "3rd" "4rd") coef((1) "`het_char'") ///
 	  title("Cumulative Effect by Demographics' quartiles") se ///
-	  star(+ 0.10 * 0.05 ** 0.01 * 0.001)
+	  star(* 0.1 ** 0.05 *** 0.01)
 end 
 
 
