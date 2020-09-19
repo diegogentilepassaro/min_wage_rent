@@ -26,17 +26,17 @@ program main
 						 beta_low(`beta_low') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k')
 	graph export `outstub'/benchmark_wmean2_w`win'_ziptrend_base.png, replace
 	
-	}	 */
+	} */
 
-	* Elasticities from Albouy et al. (2016)
-	local beta_low = 0.36
-	local gamma_low = - 0.7
-	local gamma_hi = - 0.5
+	* Elasticities from Albouy et al. (2016) table 3 col 2
+	local beta_low = 0.314
+	local gamma_low = - 0.42
+	local gamma_hi = - 0.42
 
 	foreach win in 2 5 {
-	benchmark_plot_all2, depvar(ln_med_rent_psqft) w(`win') absorb(year_month zipcode) cluster(statefips) outstub(`outstub') ///
+	/* benchmark_plot_all2, depvar(ln_med_rent_psqft) w(`win') absorb(year_month zipcode) cluster(statefips) outstub(`outstub') ///
 						 beta_low(`beta_low') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k')
-	graph export `outstub'/benchmark_all2_w`win'_ziptrend_Albouy.png, replace
+	graph export `outstub'/benchmark_all2_w`win'_ziptrend_Albouy.png, replace */
 
 	benchmark_plot_wmean, depvar(ln_med_rent_psqft) w(`win') absorb(year_month zipcode) cluster(statefips) outstub(`outstub') ///
 						 beta_low(`beta_low') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k')
@@ -81,27 +81,27 @@ program benchmark_plot_all2
 	local mw_month = r(mean) * `week_hours' * 4.35 * `mw_workers'
 	local alpha = `mw_month' / `rent_month'
 	
-	sum sh_mww_all2 if e(sample)
-	local share_mww_tot = r(mean)
+	sum mww_shrenter_all1 if e(sample)
+	local mww_share_rent1 = r(mean)
 	sum mww_shrenter_all2 if e(sample)
-	local mww_share_rent = r(mean)
-	sum sh_mww_renter_all2 if e(sample)
-	local share_mww_rent_tot = r(mean)
+	local mww_share_rent2 = r(mean)
+	sum mww_shrenter_wmean2 if e(sample)
+	local mww_share_rentm = r(mean)
 
-	compute_benchmark, beta_low(`beta_low') alpha(`alpha') s_low(`share_mww_tot') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(total)
-	local mod_tot  = r(benchmark_total)
-	compute_benchmark, beta_low(`beta_low') alpha(`alpha') s_low(`share_mww_rent_tot') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(total_rent)
-	local mod_totrent = r(benchmark_total_rent)
-	compute_benchmark, beta_low(`beta_low') alpha(`alpha') s_low(`mww_share_rent') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(rent)
-	local mod_rent = r(benchmark_rent)
+	compute_benchmark, beta_low(`beta_low') alpha(`alpha') s_low(`mww_share_rent1') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(total)
+	local mod_rent1  = r(benchmark_total)
+	compute_benchmark, beta_low(`beta_low') alpha(`alpha') s_low(`mww_share_rent2') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(total_rent)
+	local mod_rent2 = r(benchmark_total_rent)
+	compute_benchmark, beta_low(`beta_low') alpha(`alpha') s_low(`mww_share_rentm') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(rent)
+	local mod_rentm = r(benchmark_rent)
 
 	coefplot (model1, color(ebblue) ciopts(lcolor(ebblue) lp(dash) lw(vthin)) rename(D.ln_mw = "Static") keep(D.ln_mw))     ///
 			 (model2, color(ebblue) ciopts(lcolor(ebblue) lp(dash) lw(vthin)) rename((1) = "Leads and lags"))          ///
 	         (model3, color(ebblue) ciopts(lcolor(ebblue) lp(dash) lw(vthin)) rename((1) = "Lags only")), ///
  	yline(0, lc(gs11)) ylabel(-.05(0.05).1) legend(off) asequation vertical recast(bar)                           ///
  	citop barwidth(0.3) fcolor(*.5) nooffsets               													  ///
-	yline(`mod_tot', lcolor(cranberry) lp(shortdash)) yline(`mod_totrent', lcolor(orange) lp(shortdash))          ///
-	yline(`mod_rent', lcolor(mint) lp(shortdash))
+	yline(`mod_rent1', lcolor(cranberry) lp(shortdash)) yline(`mod_rent2', lcolor(orange) lp(shortdash))          ///
+	yline(`mod_rentm', lcolor(mint) lp(shortdash))
 end
 
 program benchmark_plot_wmean
@@ -141,27 +141,27 @@ program benchmark_plot_wmean
 	*******************
 	local alpha = `mw_month' / `rent_month'
 	
-	sum sh_mww_wmean2 if e(sample)
-	local share_mww_tot = r(mean)
-	sum sh_mww_renter_wmean2 if e(sample)
-	local share_mww_rent_tot = r(mean)
+	sum mww_shrenter_all1 if e(sample)
+	local mww_share_rent1 = r(mean)
+	sum mww_shrenter_all2 if e(sample)
+	local mww_share_rent2 = r(mean)
 	sum mww_shrenter_wmean2 if e(sample)
-	local mww_share_rent = r(mean)
+	local mww_share_rentm = r(mean)
 
-	compute_benchmark, beta_low(`beta_low') alpha(`alpha') s_low(`share_mww_tot') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(total)
-	local mod_tot  = r(benchmark_total)
-	compute_benchmark, beta_low(`beta_low') alpha(`alpha') s_low(`share_mww_rent_tot') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(total_rent)
-	local mod_totrent = r(benchmark_total_rent)
-	compute_benchmark, beta_low(`beta_low') alpha(`alpha') s_low(`mww_share_rent') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(rent)
-	local mod_rent = r(benchmark_rent)
+	compute_benchmark, beta_low(`beta_low') alpha(`alpha') s_low(`mww_share_rent1') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(total)
+	local mod_rent1  = r(benchmark_total)
+	compute_benchmark, beta_low(`beta_low') alpha(`alpha') s_low(`mww_share_rent2') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(total_rent)
+	local mod_rent2 = r(benchmark_total_rent)
+	compute_benchmark, beta_low(`beta_low') alpha(`alpha') s_low(`mww_share_rentm') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(rent)
+	local mod_rentm = r(benchmark_rent)
 
 	coefplot (model1, color(ebblue) ciopts(lcolor(ebblue) lp(dash) lw(vthin)) rename(D.ln_mw = "Static") keep(D.ln_mw))     ///
 			 (model2, color(ebblue) ciopts(lcolor(ebblue) lp(dash) lw(vthin)) rename((1) = "Leads and lags"))          ///
 	         (model3, color(ebblue) ciopts(lcolor(ebblue) lp(dash) lw(vthin)) rename((1) = "Lags only")), ///
- 	yline(0, lc(gs11)) ylabel(-.05(0.05).1) legend(off) asequation vertical recast(bar)                           ///
+ 	yline(0, lc(gs11)) ylabel(-.05(0.05).3) legend(off) asequation vertical recast(bar)                           ///
  	citop barwidth(0.3) fcolor(*.5) nooffsets               													  ///
-	yline(`mod_tot', lcolor(cranberry) lp(shortdash)) yline(`mod_totrent', lcolor(orange) lp(shortdash))          ///
-	yline(`mod_rent', lcolor(mint) lp(shortdash))
+	yline(`mod_rent1', lcolor(cranberry) lp(shortdash)) yline(`mod_rent2', lcolor(orange) lp(shortdash))          ///
+	yline(`mod_rentm', lcolor(mint) lp(shortdash))
 end
 
 
