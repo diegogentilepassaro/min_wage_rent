@@ -17,7 +17,7 @@ program main
 		med_hhinc20105 renthouse_share2010 white_share2010 black_share2010			///
 		college_share20105 work_county_share20105 trend_sq poor_share20105          ///
 		lo_hhinc_share20105 hi_hhinc_share20105 unemp_share20105                    ///
-		employee_share20105 teen_share2010 youngadult_share2010                     ///
+		employee_share20105 teen_share2010 youngadult_share2010 worker_foodservice20105                    ///
 		sh_mww_all1 sh_mww_all2 sh_mww_wmean1 sh_mww_wmean2 mww_shsub25_all1        ///
 		mww_shsub25_all2 mww_shblack_all1 mww_shblack_all2 sh_mww_renter_all1       ///
 		sh_mww_renter_all2 sh_mww_renter_wmean1 sh_mww_renter_wmean2                ///
