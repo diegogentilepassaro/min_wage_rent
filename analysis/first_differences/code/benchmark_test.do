@@ -17,7 +17,7 @@ program main
 	local gamma_hi = - 0.5
 	local k = 0.1
 
-	foreach win in 2 5 {
+	/* foreach win in 2 5 {
 	benchmark_plot_all2, depvar(ln_med_rent_psqft) w(`win') absorb(year_month zipcode) cluster(statefips) outstub(`outstub') ///
 						 beta_low(`beta_low') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k')
 	graph export `outstub'/benchmark_all2_w`win'_ziptrend_base.png, replace
@@ -26,17 +26,17 @@ program main
 						 beta_low(`beta_low') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k')
 	graph export `outstub'/benchmark_wmean2_w`win'_ziptrend_base.png, replace
 	
-	}
-STOP 
+	} */
+
 	* Elasticities from Albouy et al. (2016) table 3 col 2
-	local beta_low = 0.314
-	local gamma_low = - 0.42
-	local gamma_hi = - 0.42
+	local beta_low = 0.2
+	local gamma_low = - 0.8
+	local gamma_hi = - 0.6
 
 	foreach win in 2 5 {
-	/* benchmark_plot_all2, depvar(ln_med_rent_psqft) w(`win') absorb(year_month zipcode) cluster(statefips) outstub(`outstub') ///
+	benchmark_plot_all2, depvar(ln_med_rent_psqft) w(`win') absorb(year_month zipcode) cluster(statefips) outstub(`outstub') ///
 						 beta_low(`beta_low') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k')
-	graph export `outstub'/benchmark_all2_w`win'_ziptrend_Albouy.png, replace */
+	graph export `outstub'/benchmark_all2_w`win'_ziptrend_Albouy.png, replace
 
 	benchmark_plot_wmean, depvar(ln_med_rent_psqft) w(`win') absorb(year_month zipcode) cluster(statefips) outstub(`outstub') ///
 						 beta_low(`beta_low') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k')
@@ -100,7 +100,7 @@ program benchmark_plot_all2
 	         (model3, color(ebblue) ciopts(lcolor(ebblue) lp(dash) lw(vthin)) rename((1) = "Lags only")), ///
  	yline(0, lc(gs11)) ylabel(-.05(0.05).1) legend(off) asequation vertical recast(bar)                           ///
  	citop barwidth(0.3) fcolor(*.5) nooffsets               													  ///
-	yline(`mod_rent1', lcolor(cranberry) lp(shortdash)) 
+	yline(`mod_rentm', lcolor(cranberry) lp(shortdash)) 
 	/* yline(`mod_rent2', lcolor(orange) lp(shortdash))          ///
 	yline(`mod_rentm', lcolor(mint) lp(shortdash)) */
 end
@@ -161,7 +161,7 @@ program benchmark_plot_wmean
 	         (model3, color(ebblue) ciopts(lcolor(ebblue) lp(dash) lw(vthin)) rename((1) = "Lags only")), ///
  	yline(0, lc(gs11)) ylabel(-.05(0.05).1) legend(off) asequation vertical recast(bar)                           ///
  	citop barwidth(0.3) fcolor(*.5) nooffsets               													  ///
-	yline(`mod_rent1', lcolor(cranberry) lp(shortdash)) 
+	yline(`mod_rentm', lcolor(cranberry) lp(shortdash)) 
 	/* yline(`mod_rent2', lcolor(orange) lp(shortdash))          ///
 	yline(`mod_rentm', lcolor(mint) lp(shortdash)) */
 end
