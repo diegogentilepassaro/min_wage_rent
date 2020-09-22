@@ -82,9 +82,13 @@ end
 
 program baseline_rent_stats
 	syntax, instub(str) target_zillow(str)
+	
 	use `instub'/derived_large/output/baseline_rent_panel.dta, clear
 
+	real_dollar_2012, vars(`target_zillow')
+	
 	create_stats_final_dsets, target_zillow(`target_zillow')
+	
 	save ../temp/rent_panel_stats_zipcode.dta, replace 
 end 
 
@@ -105,6 +109,9 @@ program baseline_yearmonth_stats
 	syntax, instub(str) target_zillow(str)
 
 	use "../../../drive/derived_large/output/zipcode_yearmonth_panel_all.dta", clear
+	
+	real_dollar_2012, vars(`target_zillow')
+
 	replace sal_mw_event =. if missing(mw_event)	
 
 	local target_zillow_count = ""
@@ -227,30 +234,34 @@ program build_table
 	local label_zillow = ""
 	foreach var of local target_zillow_both {
 		if "`var'" == "medrentpricepsqft_sfcc" {
-			local label_zillow = `"`label_zillow' "Median Rent psqft SFCC""'
+			local label_zillow = `"`label_zillow' "Median Rent psqft SFCC (USD)""'
 		}
 		if "`var'" == "Nmedrentpricepsqft_sfcc" | "`var'" == "Nmedrentpricepsqft_2br" | "`var'" == "Nmedrentpricepsqft_mfr5plus" | "`var'" == "Nmedlistingpricepsqft_sfcc" | "`var'" == "Nmedlistingpricepsqft_low_tier" | "`var'" == "Nmedlistingpricepsqft_top_tier" {
 			local label_zillow = `"`label_zillow' "(N)""'
 		}
 		if "`var'" == "medrentpricepsqft_2br" {
-			local label_zillow = `"`label_zillow' "Median Rent psqft 2BR""'
+			local label_zillow = `"`label_zillow' "Median Rent psqft 2BR (USD)""'
 		}
 		if "`var'" == "medrentpricepsqft_mfr5plus" {
-			local label_zillow = `"`label_zillow' "Median Rent psqft MFR5PLUS""'
+			local label_zillow = `"`label_zillow' "Median Rent psqft MFR5PLUS (USD)""'
 		}
 		if "`var'" == "medlistingpricepsqft_sfcc" {
-			local label_zillow = `"`label_zillow' "Median Listing psqft SFCC""'
+			local label_zillow = `"`label_zillow' "Median Listing psqft SFCC (USD)""'
 		}
 		if "`var'" == "medlistingpricepsqft_low_tier" {
-			local label_zillow = `"`label_zillow' "Median Listing psqft 5-35th pct""'
+			local label_zillow = `"`label_zillow' "Median Listing psqft 5-35th pct (USD)""'
 		}
 		if "`var'" == "medlistingpricepsqft_top_tier" {
-			local label_zillow = `"`label_zillow' "Median Listing psqft 65-95th pct""'
+			local label_zillow = `"`label_zillow' "Median Listing psqft 65-95th pct (USD)""'
 		}
 	}
 	di `label_zillow'
 		
-	local rownames =  `" "zipcode" "(\%)" "population (Million)" "(\%)"  "housing units (Million)" "(\%)"  "median income"  "Houses for rent (\%)" "Urban population (\%)" "College Educated (\%)" "Black population (\%)" "Hispanic population (\%)" "Pop. in poverty (\%)" "Children 0-5 (\%)" "Elders 65+ (\%)" "Unemployed (\%)" "Work in same County (\%)" "State MW event (\%)" "County MW Event (\%)" "Local MW Event (\%)" "'
+	local rownames =  `" "zipcode" "(\%)" "population (Million)" "(\%)"  "housing units (Million)" "(\%)""'  
+	local rownames = `"`rownames' "median income (USD)"  "Houses for rent (\%)" "Urban population (\%)" "College Educated (\%)""' 
+	local rownames = `"`rownames' "Black population (\%)" "Hispanic population (\%)" "Pop. in poverty (\%)" "Children 0-5 (\%)""' 
+	local rownames = `"`rownames' "Elders 65+ (\%)" "Unemployed (\%)" "Work in same County (\%)" "State MW event (\%)""' 
+	local rownames = `"`rownames' "County MW Event (\%)" "Local MW Event (\%)" "'   
 
 	foreach var of local label_zillow {
 		local rownames =  `" `rownames' "`var'" "' 
@@ -312,6 +323,25 @@ program create_stats_final_dsets
 
 	order zipcode zipcode_sh pop2010 pop_sh housing_units2010 housing_units_sh med_hhinc20105 renthouse_share2010 urb_share2010 college_share2010 black_share2010 hisp_share2010 poor_share20105 child_share2010 elder_share2010 unemp_share20105 work_county_share20105 state_event_sh county_event_sh local_event_sh
 end
+
+program real_dollar_2012
+	syntax, vars(str)
+
+	preserve 
+	import delim ../../../drive/raw_data/census/cpi2012_usa.csv, clear  
+	replace cpi2012 = cpi2012 / 100
+	save ../temp/cpi2012.dta, replace 
+	restore
+
+	g year = year(dofm(year_month)) 
+	merge m:1 year using ../temp/cpi2012.dta, nogen assert(1 2 3) keep(1 3)
+
+	foreach var in `vars' {
+		replace `var' = `var'*cpi2012 
+	}
+	drop cpi2012 year
+
+end 
 
 
 
