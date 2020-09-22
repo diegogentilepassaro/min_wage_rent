@@ -108,7 +108,9 @@ program baseline_yearmonth_stats
 	replace sal_mw_event =. if missing(mw_event)	
 
 	local target_zillow_count = ""
+	local target_numobs = ""
 	foreach var of local target_zillow {
+		local target_numobs `"`target_numobs' N`var'"'
 		local newvar "N`var' = `var'"
 		local target_zillow_count = `"`target_zillow_count' `newvar' "'
 	}
@@ -119,6 +121,9 @@ program baseline_yearmonth_stats
 			 (first) pop2010 housing_units2010 urb_share2010 college_share2010 poor_share20105 black_share2010 hisp_share2010 child_share2010 elder_share2010 unemp_share20105 med_hhinc20105 renthouse_share2010 work_county_share20105 ///
  			, by(zipcode)
 
+	egen no_obs = rowtotal(`target_numobs')
+ 	drop if no_obs==0 
+ 	drop no_obs		
 
 	local target_zillow_N = ""
 	foreach var of local target_zillow {
