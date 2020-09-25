@@ -103,8 +103,9 @@ program run_static_model
 		absorb(`absorb') 												///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("No") trend_sq("No")
+	
 	distinct zipcode if e(sample)==1
-STOP
+
 	scalar static_effect = _b[D.ln_mw]
 	scalar static_effect_se = _se[D.ln_mw]
 
