@@ -20,8 +20,10 @@ program main
 	local het_vars "med_hhinc20105 renthouse_share2010 college_share20105 black_share2010"
 	local het_vars "`het_vars' nonwhite_share2010 work_county_share20105"
 
+	local wgtvars "renthouse_share2010 black_share2010 med_hhinc20105 college_share20105"
+
 	create_vars, 	log_vars(actual_mw medrentpricepsqft_sfcc medrentprice_sfcc) 	///
-					heterogeneity_vars(`het_vars')
+					heterogeneity_vars(`het_vars') weights_vars(`wgtvars')
 	
 	simplify_varnames
 
@@ -32,7 +34,7 @@ program main
 end
 
 program create_vars
-	syntax, log_vars(str) heterogeneity_vars(str)
+	syntax, log_vars(str) heterogeneity_vars(str) weights_vars(str)
 
 	foreach var in `log_vars' {
 		gen ln_`var' = ln(`var')
@@ -41,6 +43,10 @@ program create_vars
 	gen nonwhite_share2010 = 1 - white_share2010
 	
 	gen trend_times2 = 2*trend
+
+	ebalance `weights_vars', manualtargets(.347 .124 62774 .386)
+	rename _webal wgt_cbsa100
+	
 
 	foreach var in `heterogeneity_vars' {
 		*xtile `var'_nat_dec = `var', nq(10)
@@ -57,6 +63,7 @@ program create_vars
 		*drop deciles_* qtiles_*
 		drop qtiles_*
 	}
+
 end
 
 program simplify_varnames
