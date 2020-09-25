@@ -8,49 +8,90 @@ program main
 	local instub "../temp"
 	local outstub "../output"
 
-	use "`instub'/fd_rent_panel.dta", clear
+	local housetype "sfcc 2br mfr5plus"
 
-	* Static Model
-	run_static_model, depvar(ln_med_rent_psqft) absorb(year_month) 						///
-		cluster(statefips)
+	foreach type in `housetype' {
 
-	esttab * using "`outstub'/fd_table.tex", keep(D.ln_mw) compress se replace 			///
-		stats(zs_trend zs_trend_sq r2 N, fmt(%s3 %s3 %9.3f %9.0g) 		///
-		labels("Zipcode-specifc linear trend" 											///
-		"Zipcode-specific linear and square trend" 								///
-		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
-		nonote
-	
-	* Dynamic Model
-	run_dynamic_model, depvar(ln_med_rent_psqft) absorb(year_month) 					///
-		cluster(statefips)
-	
-	esttab reg1 reg2 reg3 using "`outstub'/fd_dynamic_table.tex", 					///
-		keep(*.ln_mw) compress se replace 												///
-		stats(p_value_F zs_trend zs_trend_sq r2 N, fmt(%9.3f %s3 %s3 %9.3f %9.0g) 		///
-		labels("P-value no pretrends" "Zipcode-specifc linear trend" 											///
-		"Zipcode-specific linear and square trend"								///
-		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
-		nonote
+		** Balanced panel
+		use "`instub'/fd_rent_panel.dta", clear
+		* Static Model
+		run_static_model, depvar(ln_med_rent_psqft_`type') absorb(year_month) 						///
+			cluster(statefips)
 
-	esttab lincom1 lincom2 lincom3 using "`outstub'/fd_dynamic_lincom_table.tex", ///
-		compress se replace 															///
-        stats(zs_trend zs_trend_sq N, fmt(%s3 %s3 %9.0g) 				///
-		labels("Zipcode-specifc linear trend" 											///
-	    "Zipcode-specific linear and square trend" ///
-		"Observations")) 				///
-		star(* 0.10 ** 0.05 *** 0.01) 													///
-		nonote coeflabel((1) "Sum of MW effects")
+		esttab * using "`outstub'/fd_table_`type'.tex", keep(D.ln_mw) compress se replace 			///
+			stats(zs_trend zs_trend_sq r2 N, fmt(%s3 %s3 %9.3f %9.0g) 		///
+			labels("Zipcode-specifc linear trend" 											///
+			"Zipcode-specific linear and square trend" 								///
+			"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
+			nonote
+		
+		* Dynamic Model
+		run_dynamic_model, depvar(ln_med_rent_psqft_`type') absorb(year_month) 					///
+			cluster(statefips) type(`type') sampl(bal)
+		
+		esttab reg1 reg2 reg3 using "`outstub'/fd_dynamic_table_`type'.tex", 					///
+			keep(*.ln_mw) compress se replace 												///
+			stats(p_value_F zs_trend zs_trend_sq r2 N, fmt(%9.3f %s3 %s3 %9.3f %9.0g) 		///
+			labels("P-value no pretrends" "Zipcode-specifc linear trend" 											///
+			"Zipcode-specific linear and square trend"								///
+			"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
+			nonote
 
-	* Heterogeneity
-	foreach var in med_hhinc20105 renthouse_share2010 college_share20105 				///
-				black_share2010 nonwhite_share2010 work_county_share20105 {
+		esttab lincom1 lincom2 lincom3 using "`outstub'/fd_dynamic_lincom_table_`type'.tex", ///
+			compress se replace 															///
+	        stats(zs_trend zs_trend_sq N, fmt(%s3 %s3 %9.0g) 				///
+			labels("Zipcode-specifc linear trend" 											///
+		    "Zipcode-specific linear and square trend" ///
+			"Observations")) 				///
+			star(* 0.10 ** 0.05 *** 0.01) 													///
+			nonote coeflabel((1) "Sum of MW effects")
+	 
+		* Heterogeneity
+		foreach var in med_hhinc20105 renthouse_share2010 college_share20105 				///
+					black_share2010 {
 
-		build_ytitle, var(`var')
+			build_ytitle, var(`var')
 
-		run_static_heterogeneity, depvar(ln_med_rent_psqft) absorb(year_month) 			///
-			het_var(`var'_st_qtl) cluster(statefips) ytitle(`r(title)')
-		graph export "`outstub'/fd_static_heter_`var'.png", replace
+			run_static_heterogeneity, depvar(ln_med_rent_psqft_`type') absorb(year_month) 			///
+				het_var(`var'_st_qtl) cluster(statefips) ytitle(`r(title)')
+			graph export "`outstub'/fd_static_`type'_heter_`var'.png", replace
+		}
+
+		** Unbalanced Panel 
+		use "`instub'/unbal_fd_rent_panel.dta", clear
+		
+		* Static Model
+		run_static_model, depvar(ln_med_rent_psqft_`type') absorb(year_month entry_`type'#year_month) 						///
+			cluster(statefips)
+
+		esttab * using "`outstub'/unb_fd_table_`type'.tex", keep(D.ln_mw) compress se replace 			///
+			stats(zs_trend zs_trend_sq r2 N, fmt(%s3 %s3 %9.3f %9.0g) 		///
+			labels("Zipcode-specifc linear trend" 											///
+			"Zipcode-specific linear and square trend" 								///
+			"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
+			nonote
+		
+		* Dynamic Model
+		run_dynamic_model, depvar(ln_med_rent_psqft_`type') absorb(year_month entry_`type'#year_month) 					///
+			cluster(statefips) type(`type') sampl(unbal)
+		
+		esttab reg1 reg2 reg3 using "`outstub'/unb_fd_dynamic_table_`type'.tex", 					///
+			keep(*.ln_mw) compress se replace 												///
+			stats(p_value_F zs_trend zs_trend_sq r2 N, fmt(%9.3f %s3 %s3 %9.3f %9.0g) 		///
+			labels("P-value no pretrends" "Zipcode-specifc linear trend" 											///
+			"Zipcode-specific linear and square trend"								///
+			"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
+			nonote
+
+		esttab lincom1 lincom2 lincom3 using "`outstub'/unb_fd_dynamic_lincom_table_`type'.tex", ///
+			compress se replace 															///
+	        stats(zs_trend zs_trend_sq N, fmt(%s3 %s3 %9.0g) 				///
+			labels("Zipcode-specifc linear trend" 											///
+		    "Zipcode-specific linear and square trend" ///
+			"Observations")) 				///
+			star(* 0.10 ** 0.05 *** 0.01) 													///
+			nonote coeflabel((1) "Sum of MW effects")
+
 	}
 end
 
@@ -62,7 +103,8 @@ program run_static_model
 		absorb(`absorb') 												///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("No") trend_sq("No")
-	
+	distinct zipcode if e(sample)==1
+STOP
 	scalar static_effect = _b[D.ln_mw]
 	scalar static_effect_se = _se[D.ln_mw]
 
@@ -78,7 +120,7 @@ program run_static_model
 end
 
 program run_dynamic_model
-	syntax, depvar(str) absorb(str) cluster(str) [w(int 5)]
+	syntax, depvar(str) absorb(str) cluster(str) type(str) sampl(str) [w(int 5)]
 	
 	local lincomest_coeffs "D1.ln_mw + LD.ln_mw"
 	forvalues i = 2(1)`w'{
@@ -165,7 +207,12 @@ program run_dynamic_model
 			ytitle("Effect on ln rent per sqft") 					///
 			legend(order(1 "Full dynamic model" 3 "Distributed lags model" ///
 			5 "Effects path static model" 6 "Effects path distributed lags model") size(small))
-		graph export "../output/fd_models.png", replace
+		if "`sampl'"=="bal" {
+			graph export "../output/fd_models_`type'.png", replace
+		}
+		else if "`sampl'"=="unbal" {
+			graph export "../output/unb_fd_models_`type'.png", replace	
+		}
 	restore 
 	
 	eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw  `if', 		///
