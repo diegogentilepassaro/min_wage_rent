@@ -34,13 +34,14 @@ program main
 		year_month calendar_month trend trend_sq trend_cu					 		///
 		dactual_mw actual_mw medrentpricepsqft_*							///
 		med_hhinc20105 renthouse_share2010 white_share2010 black_share2010			///
-		college_share20105 work_county_share20105 entry* using `instub'/unbal_rent_panel.dta, clear 
+		college_share20105 work_county_share20105 entry* ///
+		using `instub'/unbal_rent_panel.dta, clear 
 
 	local het_vars "med_hhinc20105 renthouse_share2010 college_share20105 black_share2010"
 	local het_vars "`het_vars' nonwhite_share2010 work_county_share20105"
 
 	create_vars, 	log_vars(actual_mw medrentpricepsqft_sfcc medrentpricepsqft_2br medrentpricepsqft_mfr5plus) 	///
-					heterogeneity_vars(no)
+					heterogeneity_vars(`het_vars')
 	
 	simplify_varnames
 
@@ -49,8 +50,6 @@ program main
 
 	save_data "`outstub'/unbal_fd_rent_panel.dta", key(zipcode year_month) replace log(`logfile')
 
-
-	
 
 
 end

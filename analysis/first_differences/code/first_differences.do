@@ -12,11 +12,11 @@ program main
 
 	foreach type in `housetype' {
 
-		** Balanced panel
+ 		** Balanced panel
 		use "`instub'/fd_rent_panel.dta", clear
 		* Static Model
 		run_static_model, depvar(ln_med_rent_psqft_`type') absorb(year_month) 						///
-			cluster(statefips)
+			cluster(statefips) type(`type')
 
 		esttab * using "`outstub'/fd_table_`type'.tex", keep(D.ln_mw) compress se replace 			///
 			stats(zs_trend zs_trend_sq r2 N, fmt(%s3 %s3 %9.3f %9.0g) 		///
@@ -61,8 +61,8 @@ program main
 		use "`instub'/unbal_fd_rent_panel.dta", clear
 		
 		* Static Model
-		run_static_model, depvar(ln_med_rent_psqft_`type') absorb(year_month entry_`type'#year_month) 						///
-			cluster(statefips)
+		run_static_model, depvar(ln_med_rent_psqft_`type') absorb(year_month entry_`type'#year_month)			///
+			type(`type') cluster(statefips)
 
 		esttab * using "`outstub'/unb_fd_table_`type'.tex", keep(D.ln_mw) compress se replace 			///
 			stats(zs_trend zs_trend_sq r2 N, fmt(%s3 %s3 %9.3f %9.0g) 		///
@@ -92,11 +92,21 @@ program main
 			star(* 0.10 ** 0.05 *** 0.01) 													///
 			nonote coeflabel((1) "Sum of MW effects")
 
+		* Heterogeneity
+		foreach var in med_hhinc20105 renthouse_share2010 college_share20105 				///
+					black_share2010 {
+
+			build_ytitle, var(`var')
+
+			run_static_heterogeneity, depvar(ln_med_rent_psqft_`type') absorb(year_month) 			///
+				het_var(`var'_st_qtl) cluster(statefips) ytitle(`r(title)')
+			graph export "`outstub'/unb_fd_static_`type'_heter_`var'.png", replace
+
 	}
 end
 
 program run_static_model
-    syntax, depvar(str) absorb(str) cluster(str)
+    syntax, depvar(str) absorb(str) cluster(str) type(str)
 
 	eststo clear
 	eststo: reghdfe D.`depvar' D.ln_mw,							///
@@ -121,7 +131,7 @@ program run_static_model
 end
 
 program run_dynamic_model
-	syntax, depvar(str) absorb(str) cluster(str) type(str) sampl(str) [w(int 5)]
+	syntax, depvar(str) absorb(str) cluster(str) type(str) sampl(str) [w(int 5) fullcenter(str)="no"]
 	
 	local lincomest_coeffs "D1.ln_mw + LD.ln_mw"
 	forvalues i = 2(1)`w'{
@@ -143,6 +153,12 @@ program run_dynamic_model
 		rename (__at __b __se) (at b_full se_full)
 		
 		keep if !missing(at)
+
+		if "`fullcenter'"=="yes" {
+			levelsof b_full if _n==`w', local(baseline)
+			replace b_full = b_full - `baseline'
+			replace se_full = 0 if _n==`w'			
+		}
 
 		gen b_full_lb = b_full - 1.96*se_full
 		gen b_full_ub = b_full + 1.96*se_full
@@ -195,12 +211,12 @@ program run_dynamic_model
 
 		// Figure
 		twoway (scatter b_full at_full, mcol(navy)) 				///
-			(rcap b_full_lb b_full_ub at_full, col(navy)) 			///
+			(rcap b_full_lb b_full_ub at_full, col(navy) lp(dash) lw(thin)) 			///
 			(scatter b_lags at_lags, mcol(maroon)) 					///
-			(rcap b_lags_lb b_lags_ub at_lags, col(maroon)) 		///
-			(line static_path at, lcol(gs4) lpat(dash)) 			///
-			(line cumsum_b_lags at, lcol(maroon)), 					///
-			yline(0, lcol(grey) lpat(dot)) 							///
+			(rcap b_lags_lb b_lags_ub at_lags, col(maroon) lp(dash) lw(thin)) 		///
+			(line static_path at, lcol(gs11) lpat(dash)) 			///
+			(line cumsum_b_lags at, lcol(maroon%60)), 					///
+			yline(0, lcol(gray) lpat(shortdash)) 							///
 			graphregion(color(white)) bgcolor(white) 				///
 			xlabel(1 "F5D.ln_mw" 2 "F4D.ln_mw" 3 "F3D.ln_mw" 4 "F2D.ln_mw" ///
 			5 "FD.ln_mw" 6 "D.ln_mw" 7 "LD.ln_mw" 8 "L2D.ln_mw" 9 "L3D.ln_mw" ///
@@ -240,7 +256,7 @@ program run_dynamic_model
 end
 
 program run_static_heterogeneity
-	syntax, depvar(str) absorb(str) cluster(str) het_var(str) ytitle(str) [qtles(int 5)]
+	syntax, depvar(str) absorb(str) cluster(str) het_var(str) ytitle(str) [qtles(int 4)]
 
     eststo clear
 	reghdfe D.`depvar' c.d_ln_mw#i.`het_var',							///
@@ -248,7 +264,7 @@ program run_static_heterogeneity
 		vce(cluster `cluster') nocons
 
 	coefplot, base graphregion(color(white)) bgcolor(white)						///
-	ylabel(1 "1" 2 "2" 3 "3" 4 "4" 5 "5")							///
+	ylabel(1 "1" 2 "2" 3 "3" 4 "4")							///
 	ytitle(`ytitle') 												///
 	xtitle("Estimated effect of ln MW on ln rents")					///
 	xline(0, lcol(grey) lpat(dot))
