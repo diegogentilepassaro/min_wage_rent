@@ -77,6 +77,7 @@ program create_vars
 			}
 			*egen `var'_st_dec = rowtotal(deciles_*)
 			egen `var'_st_qtl = rowtotal(qtiles_*)
+			replace `var'_st_qtl = . if `var'_st_qtl==0
 			
 			*drop deciles_* qtiles_*
 			drop qtiles_*
