@@ -44,6 +44,7 @@ program create_vars
 	
 	gen trend_times2 = 2*trend
 
+	* balancing procedure: add ,in the right order the target average values from analysis/descriptive/output/desc_stats.tex
 	ebalance `weights_vars', manualtargets(.347 .124 62774 .386)
 	rename _webal wgt_cbsa100
 	
