@@ -2,6 +2,10 @@ OVERVIEW
 ========================================================
 Small Area Fair Market Rent Data from the Office of Policy Development and Research. Time level: annual. Geographic detail: USPS zipcode level. 
 
+Info on methodology used to calculate safmr: 
+	1. https://www.huduser.gov/portal/datasets/fmr/fmr2016p/distribution_guidance_final.pdf
+	2. https://www.huduser.gov/portal/datasets/fmr/fmr2018/FY2018-FMR-Preamble.pdf
+
 
 SOURCE
 ========================================================
