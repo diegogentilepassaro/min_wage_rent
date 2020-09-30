@@ -18,31 +18,14 @@ program main
 	local k = 0.1
 
 	foreach win in 5 {
-	benchmark_plot_all2, depvar(ln_med_rent_psqft) w(`win') absorb(year_month zipcode) cluster(statefips) outstub(`outstub') ///
-						 beta_low(`beta_low') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k')
-	graph export `outstub'/benchmark_all2_w`win'_ziptrend_base.png, replace
+		benchmark_plot_all2, depvar(ln_med_rent_psqft) w(`win') absorb(year_month zipcode) cluster(statefips) outstub(`outstub') ///
+							 beta_low(`beta_low') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k')
+		graph export `outstub'/benchmark_all2_w`win'_ziptrend_base.png, replace
 
-	benchmark_plot_wmean, depvar(ln_med_rent_psqft) w(`win') absorb(year_month zipcode) cluster(statefips) outstub(`outstub') ///
-						 beta_low(`beta_low') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k')
-	graph export `outstub'/benchmark_wmean2_w`win'_ziptrend_base.png, replace
-	
-	}
-
-	* Elasticities from Albouy et al. (2016) table 3 col 2
-	/* local beta_low = 0.2
-	local gamma_low = - 0.8
-	local gamma_hi = - 0.6
-
-	foreach win in 2 5 {
-	benchmark_plot_all2, depvar(ln_med_rent_psqft) w(`win') absorb(year_month zipcode) cluster(statefips) outstub(`outstub') ///
-						 beta_low(`beta_low') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k')
-	graph export `outstub'/benchmark_all2_w`win'_ziptrend_Albouy.png, replace
-
-	benchmark_plot_wmean, depvar(ln_med_rent_psqft) w(`win') absorb(year_month zipcode) cluster(statefips) outstub(`outstub') ///
-						 beta_low(`beta_low') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k')
-	graph export `outstub'/benchmark_wmean2_w`win'_ziptrend_Albouy.png, replace
-	
-	} */	
+		benchmark_plot_wmean, depvar(ln_med_rent_psqft) w(`win') absorb(year_month zipcode) cluster(statefips) outstub(`outstub') ///
+							 beta_low(`beta_low') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k')
+		graph export `outstub'/benchmark_wmean2_w`win'_ziptrend_base.png, replace	
+	}	
 end 
 
 
@@ -73,14 +56,6 @@ program benchmark_plot_all2
 	eststo model3: lincomest `lincom_coeffs'
 
 	*benchmarks
-	sum medrentprice_sfcc if e(sample)
-	local rent_month = r(mean)
-	local week_hours = 40
-	local mw_workers = 2
-	sum actual_mw if e(sample)
-	local mw_month = r(mean) * `week_hours' * 4.35 * `mw_workers'
-	local alpha = `mw_month' / `rent_month'
-	
 	sum mww_shrenter_all1 if e(sample)
 	local mww_share_rent1 = r(mean)
 	sum mww_shrenter_all2 if e(sample)
@@ -162,14 +137,12 @@ program benchmark_plot_wmean
  	yline(0, lc(gs11)) ylabel(-.05(0.05).1) legend(off) asequation vertical recast(bar)                           ///
  	citop barwidth(0.3) fcolor(*.5) nooffsets               													  ///
 	yline(`mod_rentm', lcolor(cranberry) lp(shortdash)) 
-	/* yline(`mod_rent2', lcolor(orange) lp(shortdash))          ///
-	yline(`mod_rentm', lcolor(mint) lp(shortdash)) */
 end
 
 
 
 program compute_benchmark, rclass
-	syntax, beta_low(str) alpha(str) s_low(str) gamma_low(str) gamma_hi(str) k(str) name(str)
+	syntax, beta_low(str) s_low(str) gamma_low(str) gamma_hi(str) k(str) name(str)
 
 	local s_hi = 1 - `s_low'	
 
