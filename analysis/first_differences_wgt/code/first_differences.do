@@ -58,7 +58,7 @@ program run_static_model
     syntax, depvar(str) absorb(str) cluster(str)
 
 	eststo clear
-	eststo reg1: reghdfe D.`depvar' D.ln_mw,							///
+	eststo reg1: reghdfe D.`depvar' D.ln_mw [pw = wgt_cbsa100],							///
 		absorb(`absorb') 												///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("No") trend_sq("No")
@@ -66,12 +66,12 @@ program run_static_model
 	scalar static_effect = _b[D.ln_mw]
 	scalar static_effect_se = _se[D.ln_mw]
 
-	eststo: reghdfe D.`depvar' D.ln_mw,									///
+	eststo: reghdfe D.`depvar' D.ln_mw [pw = wgt_cbsa100],									///
 		absorb(`absorb' i.zipcode) 								///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("Yes") trend_sq("No")
 
-	eststo: reghdfe D.`depvar' D.ln_mw,									///
+	eststo: reghdfe D.`depvar' D.ln_mw [pw = wgt_cbsa100],									///
 		absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) 		///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("Yes") trend_sq("Yes")
@@ -86,7 +86,7 @@ program run_dynamic_model
 	}
 
 	eststo clear
-	eststo reg1: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw, 			///
+	eststo reg1: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw [pw = wgt_cbsa100], 			///
 		absorb(`absorb') 											///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("No") trend_sq("No")
@@ -117,7 +117,7 @@ program run_dynamic_model
 	eststo lincom1: lincomest `lincomest_coeffs'
 	comment_table, trend_lin("No") trend_sq("No")
 			
-	qui reghdfe D.`depvar' L(0/`w').D.ln_mw, 			///
+	qui reghdfe D.`depvar' L(0/`w').D.ln_mw [pw = wgt_cbsa100], 			///
 		absorb(`absorb') 											///
 		vce(cluster `cluster') nocons
 			
@@ -168,7 +168,7 @@ program run_dynamic_model
 		graph export "../output/fd_models.png", replace
 	restore 
 	
-	eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if', 		///
+	eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw  [pw = wgt_cbsa100] `if', 		///
 		absorb(`absorb' i.zipcode) 							///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("Yes") trend_sq("No")
@@ -179,7 +179,7 @@ program run_dynamic_model
 	eststo lincom2: lincomest `lincomest_coeffs'
 	comment_table, trend_lin("Yes") trend_sq("No")
 	
-	eststo reg3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if',		///
+	eststo reg3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw [pw = wgt_cbsa100] `if',		///
 		absorb(`absorb' i.zipcod c.trend_times2#i.zipcode) 	///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("Yes") trend_sq("Yes")
@@ -195,7 +195,7 @@ program run_static_heterogeneity
 	syntax, depvar(str) absorb(str) cluster(str) het_var(str) ytitle(str) [qtles(int 4)]
 
     eststo clear
-	reghdfe D.`depvar' c.d_ln_mw#i.`het_var',							///
+	reghdfe D.`depvar' c.d_ln_mw#i.`het_var' [pw = wgt_cbsa100],							///
 		absorb(`absorb') ///
 		vce(cluster `cluster') nocons
 
