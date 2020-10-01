@@ -15,29 +15,28 @@ program main
 		cluster(statefips)
 
 	esttab * using "`outstub'/fd_table.tex", keep(D.ln_mw) compress se replace 			///
-		stats(zs_trend zs_trend_sq r2 N, fmt(%s3 %s3 %9.3f %9.0g) 		///
+		stats(zs_trend zs_trend_sq cty_emp_wg r2 N, fmt(%s3 %s3 %s3 %9.3f %9.0g) 		///
 		labels("Zipcode-specifc linear trend" 											///
-		"Zipcode-specific linear and square trend" 								///
+		"Zipcode-specific linear and square trend" "County-level economic controls"								///
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
 		nonote
-	
 	* Dynamic Model
 	run_dynamic_model, depvar(ln_med_rent_psqft) absorb(year_month) 					///
 		cluster(statefips)
 	
-	esttab reg1 reg2 reg3 using "`outstub'/fd_dynamic_table.tex", 					///
+	esttab reg1 reg2 reg3 reg4 using "`outstub'/fd_dynamic_table.tex", 					///
 		keep(*.ln_mw) compress se replace 												///
-		stats(p_value_F zs_trend zs_trend_sq r2 N, fmt(%9.3f %s3 %s3 %9.3f %9.0g) 		///
+		stats(p_value_F zs_trend zs_trend_sq cty_emp_wg r2 N, fmt(%9.3f %s3 %s3 %s3 %9.3f %9.0g) 		///
 		labels("P-value no pretrends" "Zipcode-specifc linear trend" 											///
-		"Zipcode-specific linear and square trend"								///
+		"Zipcode-specific linear and square trend"	"County-level economic controls"							///
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
 		nonote
 
-	esttab lincom1 lincom2 lincom3 using "`outstub'/fd_dynamic_lincom_table.tex", ///
+	esttab lincom1 lincom2 lincom3 lincom4 using "`outstub'/fd_dynamic_lincom_table.tex", ///
 		compress se replace 															///
-        stats(zs_trend zs_trend_sq N, fmt(%s3 %s3 %9.0g) 				///
+        stats(zs_trend zs_trend_sq cty_emp_wg N, fmt(%s3 %s3 %s3 %9.0g) 				///
 		labels("Zipcode-specifc linear trend" 											///
-	    "Zipcode-specific linear and square trend" ///
+	    "Zipcode-specific linear and square trend" "County-level economic controls" ///
 		"Observations")) 				///
 		star(* 0.10 ** 0.05 *** 0.01) 													///
 		nonote coeflabel((1) "Sum of MW effects")
@@ -57,11 +56,15 @@ end
 program run_static_model
     syntax, depvar(str) absorb(str) cluster(str)
 
+    local econ_cont "             ln_emp_leis ln_emp_goodpr ln_emp_const ln_emp_transp ln_emp_bizserv ln_emp_eduhe ln_emp_fedgov ln_emp_info ln_emp_manu ln_emp_natres ln_emp_servpr ln_emp_stgov"
+    local econ_cont `"`econ_cont' ln_estcount_leis ln_estcount_goodpr ln_estcount_const ln_estcount_transp ln_estcount_bizserv ln_estcount_eduhe ln_estcount_fedgov ln_estcount_info ln_estcount_manu ln_estcount_natres ln_estcount_servpr ln_estcount_stgov"'
+    local econ_cont `"`econ_cont' ln_avgwwage_leis ln_avgwwage_goodpr ln_avgwwage_const ln_avgwwage_transp ln_avgwwage_bizserv ln_avgwwage_eduhe ln_avgwwage_fedgov ln_avgwwage_info ln_avgwwage_manu ln_avgwwage_natres ln_avgwwage_servpr ln_avgwwage_stgov"'
+
 	eststo clear
 	eststo reg1: reghdfe D.`depvar' D.ln_mw,							///
 		absorb(`absorb') 												///
 		vce(cluster `cluster') nocons
-	comment_table, trend_lin("No") trend_sq("No")
+	comment_table, trend_lin("No") trend_sq("No") county_cov("No")
 	
 	scalar static_effect = _b[D.ln_mw]
 	scalar static_effect_se = _se[D.ln_mw]
@@ -69,17 +72,27 @@ program run_static_model
 	eststo: reghdfe D.`depvar' D.ln_mw,									///
 		absorb(`absorb' i.zipcode) 								///
 		vce(cluster `cluster') nocons
-	comment_table, trend_lin("Yes") trend_sq("No")
+	comment_table, trend_lin("Yes") trend_sq("No") county_cov("No")
 
 	eststo: reghdfe D.`depvar' D.ln_mw,									///
 		absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) 		///
 		vce(cluster `cluster') nocons
-	comment_table, trend_lin("Yes") trend_sq("Yes")
+	comment_table, trend_lin("Yes") trend_sq("Yes") county_cov("No")
+
+	eststo: reghdfe D.`depvar' D.ln_mw D.(`econ_cont'),									///
+		absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) 		///
+		vce(cluster `cluster') nocons
+	comment_table, trend_lin("Yes") trend_sq("Yes") county_cov("Yes")
 end
 
 program run_dynamic_model
 	syntax, depvar(str) absorb(str) cluster(str) [w(int 5)]
 	
+    local econ_cont "             ln_emp_leis ln_emp_goodpr ln_emp_const ln_emp_transp ln_emp_bizserv ln_emp_eduhe ln_emp_fedgov ln_emp_info ln_emp_manu ln_emp_natres ln_emp_servpr ln_emp_stgov"
+    local econ_cont `"`econ_cont' ln_estcount_leis ln_estcount_goodpr ln_estcount_const ln_estcount_transp ln_estcount_bizserv ln_estcount_eduhe ln_estcount_fedgov ln_estcount_info ln_estcount_manu ln_estcount_natres ln_estcount_servpr ln_estcount_stgov"'
+    local econ_cont `"`econ_cont' ln_avgwwage_leis ln_avgwwage_goodpr ln_avgwwage_const ln_avgwwage_transp ln_avgwwage_bizserv ln_avgwwage_eduhe ln_avgwwage_fedgov ln_avgwwage_info ln_avgwwage_manu ln_avgwwage_natres ln_avgwwage_servpr ln_avgwwage_stgov"'
+
+
 	local lincomest_coeffs "D1.ln_mw + LD.ln_mw"
 	forvalues i = 2(1)`w'{
 		local lincomest_coeffs "`lincomest_coeffs' + L`i'D.ln_mw"
@@ -89,7 +102,7 @@ program run_dynamic_model
 	eststo reg1: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw, 			///
 		absorb(`absorb') 											///
 		vce(cluster `cluster') nocons
-	comment_table, trend_lin("No") trend_sq("No")
+	comment_table, trend_lin("No") trend_sq("No") county_cov("No")
 	
 	test (F5D.ln_mw = 0) (F4D.ln_mw = 0) (F3D.ln_mw = 0) (F2D.ln_mw = 0) (F1D.ln_mw = 0)
     estadd scalar p_value_F = r(p)
@@ -115,7 +128,7 @@ program run_dynamic_model
     restore
 		
 	eststo lincom1: lincomest `lincomest_coeffs'
-	comment_table, trend_lin("No") trend_sq("No")
+	comment_table, trend_lin("No") trend_sq("No") county_cov("No")
 			
 	qui reghdfe D.`depvar' L(0/`w').D.ln_mw, 			///
 		absorb(`absorb') 											///
@@ -171,24 +184,35 @@ program run_dynamic_model
 	eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw  `if', 		///
 		absorb(`absorb' i.zipcode) 							///
 		vce(cluster `cluster') nocons
-	comment_table, trend_lin("Yes") trend_sq("No")
+	comment_table, trend_lin("Yes") trend_sq("No") county_cov("No")
 	
 	test (F5D.ln_mw = 0) (F4D.ln_mw = 0) (F3D.ln_mw = 0) (F2D.ln_mw = 0) (F1D.ln_mw = 0)
     estadd scalar p_value_F = r(p)
 	
 	eststo lincom2: lincomest `lincomest_coeffs'
-	comment_table, trend_lin("Yes") trend_sq("No")
+	comment_table, trend_lin("Yes") trend_sq("No") county_cov("No")
 	
 	eststo reg3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if',		///
 		absorb(`absorb' i.zipcod c.trend_times2#i.zipcode) 	///
 		vce(cluster `cluster') nocons
-	comment_table, trend_lin("Yes") trend_sq("Yes")
+	comment_table, trend_lin("Yes") trend_sq("Yes") county_cov("No")
 
 	test (F5D.ln_mw = 0) (F4D.ln_mw = 0) (F3D.ln_mw = 0) (F2D.ln_mw = 0) (F1D.ln_mw = 0)
     estadd scalar p_value_F = r(p)
 	
 	eststo lincom3: lincomest `lincomest_coeffs'
-	comment_table, trend_lin("Yes") trend_sq("Yes")
+	comment_table, trend_lin("Yes") trend_sq("Yes") county_cov("No")
+
+	eststo reg4: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`econ_cont') `if',		///
+		absorb(`absorb' i.zipcod c.trend_times2#i.zipcode) 	///
+		vce(cluster `cluster') nocons
+	comment_table, trend_lin("Yes") trend_sq("Yes") county_cov("Yes")
+
+	test (F5D.ln_mw = 0) (F4D.ln_mw = 0) (F3D.ln_mw = 0) (F2D.ln_mw = 0) (F1D.ln_mw = 0)
+    estadd scalar p_value_F = r(p)
+	
+	eststo lincom4: lincomest `lincomest_coeffs'
+	comment_table, trend_lin("Yes") trend_sq("Yes") county_cov("Yes")
 end
 
 program run_static_heterogeneity
@@ -230,10 +254,11 @@ program build_ytitle, rclass
 end
 
 program comment_table
-	syntax, trend_lin(str) trend_sq(str)
+	syntax, trend_lin(str) trend_sq(str) county_cov(str)
 
 	estadd local zs_trend 		"`trend_lin'"	
 	estadd local zs_trend_sq 	"`trend_sq'"
+	estadd local cty_emp_wg     "`county_cov'"
 end
 
 main

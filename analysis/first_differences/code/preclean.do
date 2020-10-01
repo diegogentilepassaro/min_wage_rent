@@ -14,13 +14,13 @@ program main
 		year_month calendar_month trend trend_sq trend_cu					 		///
 		actual_mw medrentpricepsqft_sfcc medrentprice_sfcc 							///
 		med_hhinc20105 renthouse_share2010 white_share2010 black_share2010			///
-		college_share20105 work_county_share20105
+		college_share20105 work_county_share20105 estcount_* avgwwage_* emp_*
 	
 
 	local het_vars "med_hhinc20105 renthouse_share2010 college_share20105 black_share2010"
 	local het_vars "`het_vars' nonwhite_share2010 work_county_share20105"
 
-	create_vars, 	log_vars(actual_mw medrentpricepsqft_sfcc medrentprice_sfcc) 	///
+	create_vars, 	log_vars(actual_mw medrentpricepsqft_sfcc medrentprice_sfcc emp_* estcount_* avgwwage_*) 	///
 					heterogeneity_vars(`het_vars')
 	
 	simplify_varnames
@@ -34,7 +34,12 @@ end
 program create_vars
 	syntax, log_vars(str) heterogeneity_vars(str)
 
-	foreach var in `log_vars' {
+	local log_vars_expanded "" 
+	foreach v in `log_vars' {
+		unab this_var: `v'
+		local log_vars_expanded `"`log_vars_expanded' `this_var'"'
+	}
+	foreach var in `log_vars_expanded' {
 		gen ln_`var' = ln(`var')
 	}
 

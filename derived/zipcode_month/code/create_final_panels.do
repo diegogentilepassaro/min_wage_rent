@@ -6,16 +6,17 @@ adopath + ../../../lib/stata/mental_coupons/ado
 program main
 	local instub "../temp"
 	local indemo "../../../drive/base_large/output"
+	local inqcew "../../../base/qcew/output"
 	local outstub "../../../drive/derived_large/output"
 	local logfile "../output/data_file_manifest.log"
 
 	local add_demo = "yes"
+	local add_qcew = "yes"
 
 	if "`add_demo'" == "yes" {
 		import delim using "`indemo'/zip_demo.csv", clear
 		save_data "`instub'/zip_ready.dta", replace key(zipcode) log(`logfile')
 	} 
-
 
 	* Baseline rents
 	local rent_vars "medrentprice_mfr5plus" 
@@ -35,6 +36,9 @@ program main
 	}
 	if "`add_demo'" == "yes" {
 		merge m:1 zipcode using `instub'/zip_ready.dta, nogen assert(1 2 3) keep(1 3)	
+	}
+	if "`add_qcew'" == "yes" {
+		merge m:1 countyfips statefips year_month using `inqcew'/ind_emp_wage_countymonth.dta, nogen assert(1 2 3) keep(1 3)
 	}
 
 	save_data "`outstub'/baseline_rent_panel.dta", key(zipcode year_month) 	///
@@ -59,6 +63,9 @@ program main
 	}
 	if "`add_demo'" == "yes" {
 		merge m:1 zipcode using `instub'/zip_ready.dta, nogen assert(1 2 3) keep(1 3)	
+	}
+	if "`add_qcew'" == "yes" {
+		merge m:1 countyfips statefips year_month using `inqcew'/ind_emp_wage_countymonth.dta, nogen assert(1 2 3) keep(1 3)
 	}
 
 
