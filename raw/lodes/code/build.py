@@ -64,15 +64,16 @@ def process_files(types, states, path, years, logger, n_cores = 2, unzip = True)
     p = multiprocessing.Pool(n_cores)
     results = p.map(get_links, combos)
     log_and_print("Links created.", logger)
-    flat_results = [x for year in [str(yr) for yr in range(2002, years[0])]
-                      for y in results for x in y 
-                      if year not in x]
-    download_args = [[x, path, unzip] for x in flat_results]
+    flat_results = [x for y in results for x in y
+                    for yr in range(2002, years[0])                      
+                    if str(yr) not in x]
 
-    log_and_print("\n====\nStart downloading files.\n====", logger)
+    download_args = [[x, path, unzip] for x in flat_results]
+    log_and_print("\nStart downloading files.", logger)
+
     p = multiprocessing.Pool(n_cores)
     downloaded_files_all = p.map(download_file, download_args)
-    log_and_print("\n====\nDownload finished.\n====", logger)
+    log_and_print("\nDownload finished.", logger)
 
     return None
 
@@ -165,7 +166,7 @@ def unzip_file(fname, loc):
 
 def log_and_print(message, logger):
     print(message)
-    logger.info(message.replace("/n", ""))
+    logger.info(message.replace("\n", ""))
 
 
 
