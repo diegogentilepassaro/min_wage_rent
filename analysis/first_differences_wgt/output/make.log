@@ -1,5 +1,5 @@
 
- make.py started: 2020-10-01 11:13:38 /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/analysis/first_differences/code 
+ make.py started: 2020-10-01 11:06:26 /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/analysis/first_differences_wgt/code 
 
 
 
@@ -67,22 +67,26 @@ Notes:
 > 010"
   7.         local het_vars "`het_vars' nonwhite_share2010 work_county_share20105"
   8. 
+.         local wgtvars "renthouse_share2010 black_share2010 med_hhinc20105 college_share201
+> 05"
+  9. 
 .         create_vars,    log_vars(actual_mw medrentpricepsqft_sfcc medrentprice_sfcc)    //
 > /
->                                         heterogeneity_vars(`het_vars')
-  9.         
+>                                         heterogeneity_vars(`het_vars') weights_vars(`wgtva
+> rs')
+ 10.         
 .         simplify_varnames
- 10. 
+ 11. 
 .         xtset zipcode year_month
- 11.         gen d_ln_mw = D.ln_mw
- 12. 
+ 12.         gen d_ln_mw = D.ln_mw
+ 13. 
 .         save_data "`outstub'/fd_rent_panel.dta", key(zipcode year_month) replace log(`logf
 > ile')
- 13. end
+ 14. end
 
 . 
 . program create_vars
-  1.         syntax, log_vars(str) heterogeneity_vars(str)
+  1.         syntax, log_vars(str) heterogeneity_vars(str) weights_vars(str)
   2. 
 .         foreach var in `log_vars' {
   3.                 gen ln_`var' = ln(`var')
@@ -92,23 +96,29 @@ Notes:
   6.         
 .         gen trend_times2 = 2*trend
   7. 
+.         * balancing procedure: add ,in the right order the target average values from anal
+> ysis/descriptive/output/desc_stats.tex
+.         ebalance `weights_vars', manualtargets(.347 .124 62774 .386)
+  8.         rename _webal wgt_cbsa100
+  9.         
+. 
 .         foreach var in `heterogeneity_vars' {
-  8.                 *xtile `var'_nat_dec = `var', nq(10)
+ 10.                 *xtile `var'_nat_dec = `var', nq(10)
 .                 xtile `var'_nat_qtl = `var', nq(4)
-  9.                 levelsof statefips, local(states)
- 10. 
+ 11.                 levelsof statefips, local(states)
+ 12. 
 .                 foreach state in `states'{
- 11.                         *xtile deciles_`state'_`var' = `var' if statefips == `state', n
+ 13.                         *xtile deciles_`state'_`var' = `var' if statefips == `state', n
 > q(10)
 .                         xtile qtiles_`state'_`var' = `var' if statefips == `state', nq(4)
- 12.                 }
- 13.                 *egen `var'_st_dec = rowtotal(deciles_*)
+ 14.                 }
+ 15.                 *egen `var'_st_dec = rowtotal(deciles_*)
 .                 egen `var'_st_qtl = rowtotal(qtiles_*)
- 14.                 
+ 16.                 
 .                 *drop deciles_* qtiles_*
 .                 drop qtiles_*
- 15.         }
- 16. 
+ 17.         }
+ 18. 
 . end
 
 . 
@@ -123,6 +133,53 @@ Notes:
 . main
 (43,225 missing values generated)
 (30,956 missing values generated)
+
+
+Data Setup
+Covariate adjustment: renthouse_share2010 black_share2010 med_hhinc20105 college_share20105
+
+
+Optimizing...
+Iteration 1: Max Difference = 1047956.61
+Iteration 2: Max Difference = 385520.035
+Iteration 3: Max Difference = 141823.236
+Iteration 4: Max Difference = 52172.1942
+Iteration 5: Max Difference = 19191.4191
+Iteration 6: Max Difference = 7058.47028
+Iteration 7: Max Difference = 2595.00869
+Iteration 8: Max Difference = 952.995241
+Iteration 9: Max Difference = 348.93849
+Iteration 10: Max Difference = 126.735291
+Iteration 11: Max Difference = 45.0363877
+Iteration 12: Max Difference = 15.0980027
+Iteration 13: Max Difference = 4.3610583
+Iteration 14: Max Difference = .9061967
+Iteration 15: Max Difference = .099807537
+Iteration 16: Max Difference = .00211057
+maximum difference smaller than the tolerance level; convergence achieved
+
+
+No. of units adjusted: 156600 total of weights: 156600
+
+
+Before: without weighting
+
+             |      mean   variance   skewness 
+-------------+---------------------------------
+renthou~2010 |     .3835      .0311      .8091 
+black_s~2010 |      .166     .04012      2.117 
+med_hh~20105 |     66920   6.04e+08      .9423 
+colleg~20105 |     .4448     .02765      .4567 
+
+
+After:  _webal as the weighting variable
+
+             |      mean   variance   skewness 
+-------------+---------------------------------
+renthou~2010 |      .347     .02383      1.057 
+black_s~2010 |     .1241     .02028      2.759 
+med_hh~20105 |     62774   4.36e+08      1.027 
+colleg~20105 |      .386     .02059      .6374 
 1 2 4 5 6 8 9 10 11 12 13 15 16 17 18 20 21 22 24 25 26 27 28 29 32 34 35 36 37 39 40 41 42 
 > 44 45 47 48 49 51 53 54 56
 1 2 4 5 6 8 9 10 11 12 13 15 16 17 18 20 21 22 24 25 26 27 28 29 32 34 35 36 37 39 40 41 42 
@@ -152,7 +209,7 @@ Notes:
 File: ../temp/fd_rent_panel.dta
 Key: zipcode year_month
 ============================================================================
-  156600:37(57114):3972239627:4251456276
+  156600:38(37815):1961104301:2380621849
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -184,20 +241,21 @@ ln_med_ren~t |    113,375    .0472541    .4493362  -.8722228   1.906781
 ln_medrent~c |    125,644    7.334093    .3761665   6.388561   8.794067
 nonwhit~2010 |    156,600    .4607982    .2225559   .0598227   .9962162
 trend_times2 |    156,600         451    69.27985        332        570
-med_h~at_qtl |    156,600    2.498851     1.11838          1          4
+ wgt_cbsa100 |    156,600           1      .56017   .1560848   3.844666
 -------------+---------------------------------------------------------
+med_h~at_qtl |    156,600    2.498851     1.11838          1          4
 med_h~st_qtl |    156,600    2.467433    1.120644          1          4
 renth~at_qtl |    156,600    2.498851     1.11838          1          4
 renth~st_qtl |    156,600    2.467433    1.120644          1          4
 colle~at_qtl |    156,600    2.498851     1.11838          1          4
-colle~st_qtl |    156,600    2.467433    1.120644          1          4
 -------------+---------------------------------------------------------
+colle~st_qtl |    156,600    2.467433    1.120644          1          4
 black~at_qtl |    156,600    2.498851     1.11838          1          4
 black~st_qtl |    156,600    2.467433    1.120644          1          4
 nonwh~at_qtl |    156,600    2.498851     1.11838          1          4
 nonwh~st_qtl |    156,600    2.467433    1.120644          1          4
-work_~at_qtl |    156,600    2.498851     1.11838          1          4
 -------------+---------------------------------------------------------
+work_~at_qtl |    156,600    2.498851     1.11838          1          4
 work_~st_qtl |    156,600    2.467433    1.120644          1          4
      d_ln_mw |    155,295    .0016445    .0119584   -.290338   .2412503
 
@@ -337,8 +395,8 @@ Notes:
   1.     syntax, depvar(str) absorb(str) cluster(str)
   2. 
 .         eststo clear
-  3.         eststo reg1: reghdfe D.`depvar' D.ln_mw,                                       
->                  ///
+  3.         eststo reg1: reghdfe D.`depvar' D.ln_mw [pw = wgt_cbsa100],                    
+>                                  ///
 >                 absorb(`absorb')                                                          
 >                                       ///
 >                 vce(cluster `cluster') nocons
@@ -347,15 +405,15 @@ Notes:
 .         scalar static_effect = _b[D.ln_mw]
   6.         scalar static_effect_se = _se[D.ln_mw]
   7. 
-.         eststo: reghdfe D.`depvar' D.ln_mw,                                               
->                       ///
+.         eststo: reghdfe D.`depvar' D.ln_mw [pw = wgt_cbsa100],                            
+>                                       ///
 >                 absorb(`absorb' i.zipcode)                                                
 >               ///
 >                 vce(cluster `cluster') nocons
   8.         comment_table, trend_lin("Yes") trend_sq("No")
   9. 
-.         eststo: reghdfe D.`depvar' D.ln_mw,                                               
->                       ///
+.         eststo: reghdfe D.`depvar' D.ln_mw [pw = wgt_cbsa100],                            
+>                                       ///
 >                 absorb(`absorb' i.zipcode c.trend_times2#i.zipcode)             ///
 >                 vce(cluster `cluster') nocons
  10.         comment_table, trend_lin("Yes") trend_sq("Yes")
@@ -371,7 +429,8 @@ Notes:
   5.         }
   6. 
 .         eststo clear
-  7.         eststo reg1: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw,                    ///
+  7.         eststo reg1: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw [pw = wgt_cbsa100],        
+>                  ///
 >                 absorb(`absorb')                                                          
 >                               ///
 >                 vce(cluster `cluster') nocons
@@ -406,7 +465,8 @@ Notes:
 .         eststo lincom1: lincomest `lincomest_coeffs'
  27.         comment_table, trend_lin("No") trend_sq("No")
  28.                         
-.         qui reghdfe D.`depvar' L(0/`w').D.ln_mw,                        ///
+.         qui reghdfe D.`depvar' L(0/`w').D.ln_mw [pw = wgt_cbsa100],                     //
+> /
 >                 absorb(`absorb')                                                          
 >                               ///
 >                 vce(cluster `cluster') nocons
@@ -470,7 +530,8 @@ Notes:
  50.                 graph export "../output/fd_models.png", replace
  51.         restore 
  52.         
-.         eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if',               ///
+.         eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw  [pw = wgt_cbsa100] `if',     
+>       ///
 >                 absorb(`absorb' i.zipcode)                                                
 >       ///
 >                 vce(cluster `cluster') nocons
@@ -483,7 +544,8 @@ Notes:
 .         eststo lincom2: lincomest `lincomest_coeffs'
  57.         comment_table, trend_lin("Yes") trend_sq("No")
  58.         
-.         eststo reg3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if',               ///
+.         eststo reg3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw [pw = wgt_cbsa100] `if',      
+>       ///
 >                 absorb(`absorb' i.zipcod c.trend_times2#i.zipcode)      ///
 >                 vce(cluster `cluster') nocons
  59.         comment_table, trend_lin("Yes") trend_sq("Yes")
@@ -502,8 +564,8 @@ Notes:
 > t 4)]
   2. 
 .     eststo clear
-  3.         reghdfe D.`depvar' c.d_ln_mw#i.`het_var',                                      
->                  ///
+  3.         reghdfe D.`depvar' c.d_ln_mw#i.`het_var' [pw = wgt_cbsa100],                   
+>                                  ///
 >                 absorb(`absorb') ///
 >                 vce(cluster `cluster') nocons
   4. 
@@ -556,11 +618,11 @@ Notes:
 (MWFE estimator converged in 1 iterations)
 
 HDFE Linear regression                            Number of obs   =    112,232
-Absorbing 1 HDFE group                            F(   1,     40) =       4.13
-Statistics robust to heteroskedasticity           Prob > F        =     0.0488
-                                                  R-squared       =     0.0218
-                                                  Adj R-squared   =     0.0208
-                                                  Within R-sq.    =     0.0001
+Absorbing 1 HDFE group                            F(   1,     40) =       8.27
+Statistics robust to heteroskedasticity           Prob > F        =     0.0064
+                                                  R-squared       =     0.0223
+                                                  Adj R-squared   =     0.0212
+                                                  Within R-sq.    =     0.0002
 Number of clusters (statefips) =         41       Root MSE        =     0.0279
 
                              (Std. Err. adjusted for 41 clusters in statefips)
@@ -569,7 +631,7 @@ D.           |               Robust
 ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
        ln_mw |
-         D1. |   .0260395   .0128154     2.03   0.049     .0001386    .0519404
+         D1. |   .0378732   .0131719     2.88   0.006     .0112519    .0644945
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
@@ -587,12 +649,12 @@ added macro:
 (MWFE estimator converged in 5 iterations)
 
 HDFE Linear regression                            Number of obs   =    112,232
-Absorbing 2 HDFE groups                           F(   1,     40) =       4.56
-Statistics robust to heteroskedasticity           Prob > F        =     0.0389
-                                                  R-squared       =     0.0236
-                                                  Adj R-squared   =     0.0125
-                                                  Within R-sq.    =     0.0001
-Number of clusters (statefips) =         41       Root MSE        =     0.0281
+Absorbing 2 HDFE groups                           F(   1,     40) =       8.61
+Statistics robust to heteroskedasticity           Prob > F        =     0.0055
+                                                  R-squared       =     0.0241
+                                                  Adj R-squared   =     0.0130
+                                                  Within R-sq.    =     0.0002
+Number of clusters (statefips) =         41       Root MSE        =     0.0280
 
                              (Std. Err. adjusted for 41 clusters in statefips)
 ------------------------------------------------------------------------------
@@ -600,7 +662,7 @@ D.           |               Robust
 ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
        ln_mw |
-         D1. |   .0256987   .0120325     2.14   0.039     .0013801    .0500173
+         D1. |   .0365179   .0124445     2.93   0.006     .0113665    .0616692
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
@@ -618,15 +680,15 @@ added macro:
 
 added macro:
         e(zs_trend_sq) : "No"
-(MWFE estimator converged in 31 iterations)
+(MWFE estimator converged in 29 iterations)
 
 HDFE Linear regression                            Number of obs   =    112,232
-Absorbing 3 HDFE groups                           F(   1,     40) =       4.79
-Statistics robust to heteroskedasticity           Prob > F        =     0.0345
-                                                  R-squared       =     0.0264
-                                                  Adj R-squared   =     0.0051
-                                                  Within R-sq.    =     0.0001
-Number of clusters (statefips) =         41       Root MSE        =     0.0282
+Absorbing 3 HDFE groups                           F(   1,     40) =       8.67
+Statistics robust to heteroskedasticity           Prob > F        =     0.0054
+                                                  R-squared       =     0.0267
+                                                  Adj R-squared   =     0.0054
+                                                  Within R-sq.    =     0.0002
+Number of clusters (statefips) =         41       Root MSE        =     0.0281
 
                              (Std. Err. adjusted for 41 clusters in statefips)
 ------------------------------------------------------------------------------
@@ -634,7 +696,7 @@ D.           |               Robust
 ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
        ln_mw |
-         D1. |    .025532   .0116619     2.19   0.034     .0019624    .0491016
+         D1. |   .0352191   .0119625     2.94   0.005      .011042    .0593961
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
@@ -659,12 +721,12 @@ added macro:
 (MWFE estimator converged in 1 iterations)
 
 HDFE Linear regression                            Number of obs   =    106,446
-Absorbing 1 HDFE group                            F(  11,     40) =       5.26
-Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.0222
-                                                  Adj R-squared   =     0.0211
-                                                  Within R-sq.    =     0.0002
-Number of clusters (statefips) =         41       Root MSE        =     0.0280
+Absorbing 1 HDFE group                            F(  11,     40) =       3.79
+Statistics robust to heteroskedasticity           Prob > F        =     0.0009
+                                                  R-squared       =     0.0226
+                                                  Adj R-squared   =     0.0215
+                                                  Within R-sq.    =     0.0004
+Number of clusters (statefips) =         41       Root MSE        =     0.0279
 
                              (Std. Err. adjusted for 41 clusters in statefips)
 ------------------------------------------------------------------------------
@@ -672,17 +734,17 @@ D.           |               Robust
 ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
        ln_mw |
-        F5D. |  -.0148356   .0090279    -1.64   0.108    -.0330816    .0034104
-        F4D. |  -.0023735   .0115976    -0.20   0.839    -.0258131     .021066
-        F3D. |   .0011058   .0091637     0.12   0.905    -.0174147    .0196264
-        F2D. |   .0060276   .0115539     0.52   0.605    -.0173236    .0293788
-         FD. |  -.0002217   .0122864    -0.02   0.986    -.0250534      .02461
-         D1. |   .0270699   .0126282     2.14   0.038     .0015474    .0525925
-         LD. |   .0135805    .007154     1.90   0.065    -.0008782    .0280392
-        L2D. |  -.0070232   .0133453    -0.53   0.602     -.033995    .0199487
-        L3D. |   .0036262   .0080799     0.45   0.656    -.0127038    .0199563
-        L4D. |   .0107927   .0069339     1.56   0.127    -.0032212    .0248065
-        L5D. |    .008621   .0068652     1.26   0.216    -.0052542    .0224961
+        F5D. |  -.0071961   .0068719    -1.05   0.301    -.0210848    .0066926
+        F4D. |   .0069094   .0077621     0.89   0.379    -.0087785    .0225972
+        F3D. |   .0095056   .0092901     1.02   0.312    -.0092703    .0282816
+        F2D. |   .0008919   .0116974     0.08   0.940    -.0227495    .0245332
+         FD. |  -.0073176   .0113002    -0.65   0.521     -.030156    .0155209
+         D1. |   .0381619   .0132722     2.88   0.006     .0113378     .064986
+         LD. |   .0093025   .0067187     1.38   0.174    -.0042766    .0228816
+        L2D. |  -.0067002   .0166521    -0.40   0.690    -.0403554     .026955
+        L3D. |   .0071791   .0064774     1.11   0.274    -.0059121    .0202703
+        L4D. |   .0115839   .0092436     1.25   0.217    -.0070981     .030266
+        L5D. |   .0095719   .0079227     1.21   0.234    -.0064405    .0255844
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
@@ -704,11 +766,11 @@ added macro:
  ( 4)  F2D.ln_mw = 0
  ( 5)  FD.ln_mw = 0
 
-       F(  5,    40) =    0.78
-            Prob > F =    0.5675
+       F(  5,    40) =    1.14
+            Prob > F =    0.3554
 
 added scalar:
-          e(p_value_F) =  .56754406
+          e(p_value_F) =  .35543372
 
 Generated variables:
               storage   display    value
@@ -743,7 +805,7 @@ D1.ln_mw+LD.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw+L5D.ln_mw
 D.           |
 ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |   .0566671   .0346332     1.64   0.110    -.0133293    .1266635
+         (1) |   .0690991   .0443266     1.56   0.127    -.0204883    .1586866
 ------------------------------------------------------------------------------
 
 added macro:
@@ -789,17 +851,17 @@ __ul1           float   %9.0g                 CI1: upper limit
 (5 real changes made)
 (5 real changes made)
 (note:  named style grey not found in class color, default attributes used)
-(file /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/analysis/first_differences/cod
-> e/../output/fd_models.png written in PNG format)
+(file /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/analysis/first_differences_wgt
+> /code/../output/fd_models.png written in PNG format)
 (MWFE estimator converged in 5 iterations)
 
 HDFE Linear regression                            Number of obs   =    106,446
-Absorbing 2 HDFE groups                           F(  11,     40) =       4.82
+Absorbing 2 HDFE groups                           F(  11,     40) =       4.75
 Statistics robust to heteroskedasticity           Prob > F        =     0.0001
-                                                  R-squared       =     0.0242
-                                                  Adj R-squared   =     0.0125
-                                                  Within R-sq.    =     0.0002
-Number of clusters (statefips) =         41       Root MSE        =     0.0281
+                                                  R-squared       =     0.0246
+                                                  Adj R-squared   =     0.0129
+                                                  Within R-sq.    =     0.0003
+Number of clusters (statefips) =         41       Root MSE        =     0.0280
 
                              (Std. Err. adjusted for 41 clusters in statefips)
 ------------------------------------------------------------------------------
@@ -807,17 +869,17 @@ D.           |               Robust
 ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
        ln_mw |
-        F5D. |  -.0153073    .009146    -1.67   0.102    -.0337921    .0031774
-        F4D. |  -.0030621    .011022    -0.28   0.783    -.0253383    .0192142
-        F3D. |   .0003797   .0082879     0.05   0.964    -.0163708    .0171302
-        F2D. |   .0053139   .0120729     0.44   0.662    -.0190864    .0297142
-         FD. |   -.000798   .0126499    -0.06   0.950    -.0263643    .0247683
-         D1. |   .0265456   .0119411     2.22   0.032     .0024118    .0506795
-         LD. |   .0128094   .0073927     1.73   0.091    -.0021318    .0277506
-        L2D. |  -.0078453   .0134818    -0.58   0.564     -.035093    .0194024
-        L3D. |   .0027691   .0075088     0.37   0.714    -.0124067     .017945
-        L4D. |   .0099381   .0069494     1.43   0.160    -.0041071    .0239833
-        L5D. |   .0077819   .0073506     1.06   0.296    -.0070743    .0226381
+        F5D. |  -.0083172   .0068665    -1.21   0.233    -.0221949    .0055606
+        F4D. |   .0056755   .0072609     0.78   0.439    -.0089993    .0203504
+        F3D. |   .0082176   .0090547     0.91   0.370    -.0100826    .0265178
+        F2D. |  -.0004063   .0114659    -0.04   0.972    -.0235797    .0227671
+         FD. |  -.0086101   .0115921    -0.74   0.462    -.0320387    .0148184
+         D1. |   .0369417   .0127087     2.91   0.006     .0112565    .0626269
+         LD. |   .0078104   .0070554     1.11   0.275    -.0064492    .0220699
+        L2D. |  -.0082256   .0167123    -0.49   0.625    -.0420025    .0255512
+        L3D. |   .0056058   .0059978     0.93   0.356    -.0065162    .0177277
+        L4D. |   .0100134    .009392     1.07   0.293    -.0089686    .0289954
+        L5D. |   .0079824   .0080834     0.99   0.329    -.0083547    .0243195
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
@@ -841,11 +903,11 @@ added macro:
  ( 4)  F2D.ln_mw = 0
  ( 5)  FD.ln_mw = 0
 
-       F(  5,    40) =    0.76
-            Prob > F =    0.5814
+       F(  5,    40) =    1.12
+            Prob > F =    0.3629
 
 added scalar:
-          e(p_value_F) =  .58139317
+          e(p_value_F) =  .36287458
 Confidence interval for formula:
 D1.ln_mw+LD.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw+L5D.ln_mw
 
@@ -853,7 +915,7 @@ D1.ln_mw+LD.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw+L5D.ln_mw
 D.           |
 ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |   .0519989   .0335108     1.55   0.129     -.015729    .1197268
+         (1) |    .060128   .0437109     1.38   0.177     -.028215     .148471
 ------------------------------------------------------------------------------
 
 added macro:
@@ -864,12 +926,12 @@ added macro:
 (MWFE estimator converged in 31 iterations)
 
 HDFE Linear regression                            Number of obs   =    106,446
-Absorbing 3 HDFE groups                           F(  11,     40) =       5.13
-Statistics robust to heteroskedasticity           Prob > F        =     0.0001
-                                                  R-squared       =     0.0272
-                                                  Adj R-squared   =     0.0047
-                                                  Within R-sq.    =     0.0002
-Number of clusters (statefips) =         41       Root MSE        =     0.0283
+Absorbing 3 HDFE groups                           F(  11,     40) =       3.99
+Statistics robust to heteroskedasticity           Prob > F        =     0.0006
+                                                  R-squared       =     0.0276
+                                                  Adj R-squared   =     0.0052
+                                                  Within R-sq.    =     0.0003
+Number of clusters (statefips) =         41       Root MSE        =     0.0281
 
                              (Std. Err. adjusted for 41 clusters in statefips)
 ------------------------------------------------------------------------------
@@ -877,17 +939,17 @@ D.           |               Robust
 ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
        ln_mw |
-        F5D. |  -.0157145   .0093849    -1.67   0.102    -.0346821    .0032531
-        F4D. |  -.0038162   .0101236    -0.38   0.708    -.0242768    .0166443
-        F3D. |  -.0002136    .008309    -0.03   0.980    -.0170067    .0165795
-        F2D. |   .0047728   .0115417     0.41   0.681     -.018554    .0280995
-         FD. |  -.0014329   .0142061    -0.10   0.920    -.0301444    .0272786
-         D1. |   .0260095   .0110368     2.36   0.023     .0037032    .0483158
-         LD. |   .0117583   .0080537     1.46   0.152    -.0045188    .0280354
-        L2D. |  -.0088439   .0123523    -0.72   0.478    -.0338089    .0161212
-        L3D. |   .0019087   .0081188     0.24   0.815       -.0145    .0183175
-        L4D. |   .0091793   .0072379     1.27   0.212     -.005449    .0238075
-        L5D. |   .0073554   .0071709     1.03   0.311    -.0071374    .0218483
+        F5D. |  -.0110681   .0072215    -1.53   0.133    -.0256634    .0035272
+        F4D. |   .0027003   .0069397     0.39   0.699    -.0113253    .0167259
+        F3D. |   .0052643   .0099508     0.53   0.600    -.0148471    .0253757
+        F2D. |  -.0033961    .011316    -0.30   0.766    -.0262666    .0194745
+         FD. |  -.0116769   .0125834    -0.93   0.359     -.037109    .0137552
+         D1. |    .034038   .0117149     2.91   0.006     .0103614    .0577147
+         LD. |   .0043337   .0069075     0.63   0.534    -.0096269    .0182942
+        L2D. |   -.011739   .0157516    -0.75   0.460    -.0435741    .0200962
+        L3D. |   .0020552   .0059691     0.34   0.732    -.0100089    .0141192
+        L4D. |   .0064571   .0085766     0.75   0.456    -.0108769     .023791
+        L5D. |   .0045173   .0073672     0.61   0.543    -.0103723    .0194069
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
@@ -913,11 +975,11 @@ added macro:
  ( 4)  F2D.ln_mw = 0
  ( 5)  FD.ln_mw = 0
 
-       F(  5,    40) =    0.73
-            Prob > F =    0.6018
+       F(  5,    40) =    1.14
+            Prob > F =    0.3577
 
 added scalar:
-          e(p_value_F) =  .60176964
+          e(p_value_F) =  .35770242
 Confidence interval for formula:
 D1.ln_mw+LD.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw+L5D.ln_mw
 
@@ -925,7 +987,7 @@ D1.ln_mw+LD.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw+L5D.ln_mw
 D.           |
 ln_med_ren~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |   .0473674   .0300703     1.58   0.123    -.0134069    .1081417
+         (1) |   .0396622   .0370148     1.07   0.290    -.0351474    .1144718
 ------------------------------------------------------------------------------
 
 added macro:
@@ -940,11 +1002,11 @@ added macro:
 (MWFE estimator converged in 1 iterations)
 
 HDFE Linear regression                            Number of obs   =    112,232
-Absorbing 1 HDFE group                            F(   4,     40) =       2.55
-Statistics robust to heteroskedasticity           Prob > F        =     0.0536
-                                                  R-squared       =     0.0219
-                                                  Adj R-squared   =     0.0208
-                                                  Within R-sq.    =     0.0001
+Absorbing 1 HDFE group                            F(   4,     40) =       8.60
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.0223
+                                                  Adj R-squared   =     0.0213
+                                                  Within R-sq.    =     0.0003
 Number of clusters (statefips) =         41       Root MSE        =     0.0279
 
                                        (Std. Err. adjusted for 41 clusters in statefips)
@@ -954,10 +1016,10 @@ Number of clusters (statefips) =         41       Root MSE        =     0.0279
 -----------------------+----------------------------------------------------------------
  med_hhinc20105_st_qtl#|
              c.d_ln_mw |
-                    1  |   .0419993   .0223738     1.88   0.068    -.0032199    .0872185
-                    2  |   .0216153   .0154763     1.40   0.170    -.0096635    .0528942
-                    3  |   .0302303   .0248445     1.22   0.231    -.0199823     .080443
-                    4  |   .0112318   .0125119     0.90   0.375    -.0140557    .0365193
+                    1  |   .0546211   .0179216     3.05   0.004     .0184003    .0908419
+                    2  |   .0396019   .0128388     3.08   0.004     .0136537    .0655501
+                    3  |   .0375911   .0286553     1.31   0.197    -.0203234    .0955056
+                    4  |   .0025566   .0128988     0.20   0.844    -.0235129    .0286261
 ----------------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
@@ -967,16 +1029,16 @@ Absorbed degrees of freedom:
   year_month |       118           0         118     |
 -----------------------------------------------------+
 (note:  named style grey not found in class color, default attributes used)
-(file /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/analysis/first_differences/cod
-> e/../output/fd_static_heter_med_hhinc20105.png written in PNG format)
+(file /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/analysis/first_differences_wgt
+> /code/../output/fd_static_heter_med_hhinc20105.png written in PNG format)
 (MWFE estimator converged in 1 iterations)
 
 HDFE Linear regression                            Number of obs   =    112,232
-Absorbing 1 HDFE group                            F(   4,     40) =       4.28
-Statistics robust to heteroskedasticity           Prob > F        =     0.0056
-                                                  R-squared       =     0.0219
-                                                  Adj R-squared   =     0.0208
-                                                  Within R-sq.    =     0.0001
+Absorbing 1 HDFE group                            F(   4,     40) =       5.22
+Statistics robust to heteroskedasticity           Prob > F        =     0.0018
+                                                  R-squared       =     0.0223
+                                                  Adj R-squared   =     0.0212
+                                                  Within R-sq.    =     0.0002
 Number of clusters (statefips) =         41       Root MSE        =     0.0279
 
                                           (Std. Err. adjusted for 41 clusters in statefips)
@@ -986,10 +1048,10 @@ Number of clusters (statefips) =         41       Root MSE        =     0.0279
 --------------------------+----------------------------------------------------------------
 renthouse_share2010_st_~l#|
                 c.d_ln_mw |
-                       1  |   .0285769   .0178447     1.60   0.117    -.0074887    .0646425
-                       2  |   .0126106   .0174708     0.72   0.475    -.0226992    .0479203
-                       3  |   .0173506   .0232753     0.75   0.460    -.0296906    .0643918
-                       4  |   .0438048   .0153479     2.85   0.007     .0127857     .074824
+                       1  |   .0422803   .0132538     3.19   0.003     .0154933    .0690674
+                       2  |   .0266941   .0124288     2.15   0.038     .0015746    .0518137
+                       3  |   .0364778   .0225782     1.62   0.114    -.0091545      .08211
+                       4  |   .0461516   .0184892     2.50   0.017     .0087835    .0835197
 -------------------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
@@ -999,16 +1061,16 @@ Absorbed degrees of freedom:
   year_month |       118           0         118     |
 -----------------------------------------------------+
 (note:  named style grey not found in class color, default attributes used)
-(file /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/analysis/first_differences/cod
-> e/../output/fd_static_heter_renthouse_share2010.png written in PNG format)
+(file /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/analysis/first_differences_wgt
+> /code/../output/fd_static_heter_renthouse_share2010.png written in PNG format)
 (MWFE estimator converged in 1 iterations)
 
 HDFE Linear regression                            Number of obs   =    112,232
-Absorbing 1 HDFE group                            F(   4,     40) =       2.25
-Statistics robust to heteroskedasticity           Prob > F        =     0.0805
-                                                  R-squared       =     0.0219
-                                                  Adj R-squared   =     0.0208
-                                                  Within R-sq.    =     0.0002
+Absorbing 1 HDFE group                            F(   4,     40) =       4.87
+Statistics robust to heteroskedasticity           Prob > F        =     0.0027
+                                                  R-squared       =     0.0223
+                                                  Adj R-squared   =     0.0213
+                                                  Within R-sq.    =     0.0003
 Number of clusters (statefips) =         41       Root MSE        =     0.0279
 
                                           (Std. Err. adjusted for 41 clusters in statefips)
@@ -1018,10 +1080,10 @@ Number of clusters (statefips) =         41       Root MSE        =     0.0279
 --------------------------+----------------------------------------------------------------
 college_share20105_st_qtl#|
                 c.d_ln_mw |
-                       1  |   .0395533   .0198258     2.00   0.053    -.0005161    .0796226
-                       2  |   .0484482   .0220461     2.20   0.034     .0038912    .0930051
-                       3  |   .0252557   .0213406     1.18   0.244    -.0178753    .0683868
-                       4  |  -.0014074   .0121841    -0.12   0.909    -.0260323    .0232175
+                       1  |   .0547507   .0131548     4.16   0.000     .0281638    .0813376
+                       2  |   .0443189   .0221311     2.00   0.052    -.0004097    .0890475
+                       3  |   .0344995   .0233986     1.47   0.148    -.0127908    .0817898
+                       4  |  -.0109214   .0120981    -0.90   0.372    -.0353726    .0135298
 -------------------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
@@ -1031,16 +1093,16 @@ Absorbed degrees of freedom:
   year_month |       118           0         118     |
 -----------------------------------------------------+
 (note:  named style grey not found in class color, default attributes used)
-(file /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/analysis/first_differences/cod
-> e/../output/fd_static_heter_college_share20105.png written in PNG format)
+(file /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/analysis/first_differences_wgt
+> /code/../output/fd_static_heter_college_share20105.png written in PNG format)
 (MWFE estimator converged in 1 iterations)
 
 HDFE Linear regression                            Number of obs   =    112,232
-Absorbing 1 HDFE group                            F(   4,     40) =       1.68
-Statistics robust to heteroskedasticity           Prob > F        =     0.1747
-                                                  R-squared       =     0.0218
-                                                  Adj R-squared   =     0.0208
-                                                  Within R-sq.    =     0.0001
+Absorbing 1 HDFE group                            F(   4,     40) =      13.81
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.0223
+                                                  Adj R-squared   =     0.0212
+                                                  Within R-sq.    =     0.0003
 Number of clusters (statefips) =         41       Root MSE        =     0.0279
 
                                         (Std. Err. adjusted for 41 clusters in statefips)
@@ -1050,10 +1112,10 @@ Number of clusters (statefips) =         41       Root MSE        =     0.0279
 ------------------------+----------------------------------------------------------------
  black_share2010_st_qtl#|
               c.d_ln_mw |
-                     1  |   .0172663   .0166765     1.04   0.307    -.0164382    .0509707
-                     2  |   .0226168   .0158719     1.42   0.162    -.0094616    .0546952
-                     3  |   .0231978   .0143278     1.62   0.113    -.0057597    .0521554
-                     4  |    .042954    .016962     2.53   0.015     .0086724    .0772355
+                     1  |   .0223437    .019184     1.16   0.251    -.0164286     .061116
+                     2  |   .0284307   .0181322     1.57   0.125    -.0082158    .0650772
+                     3  |   .0438923   .0110727     3.96   0.000     .0215136     .066271
+                     4  |   .0549621   .0131221     4.19   0.000     .0284415    .0814828
 -----------------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
@@ -1063,16 +1125,16 @@ Absorbed degrees of freedom:
   year_month |       118           0         118     |
 -----------------------------------------------------+
 (note:  named style grey not found in class color, default attributes used)
-(file /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/analysis/first_differences/cod
-> e/../output/fd_static_heter_black_share2010.png written in PNG format)
+(file /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/analysis/first_differences_wgt
+> /code/../output/fd_static_heter_black_share2010.png written in PNG format)
 (MWFE estimator converged in 1 iterations)
 
 HDFE Linear regression                            Number of obs   =    112,232
-Absorbing 1 HDFE group                            F(   4,     40) =       2.55
-Statistics robust to heteroskedasticity           Prob > F        =     0.0537
-                                                  R-squared       =     0.0219
-                                                  Adj R-squared   =     0.0208
-                                                  Within R-sq.    =     0.0002
+Absorbing 1 HDFE group                            F(   4,     40) =       7.33
+Statistics robust to heteroskedasticity           Prob > F        =     0.0002
+                                                  R-squared       =     0.0223
+                                                  Adj R-squared   =     0.0212
+                                                  Within R-sq.    =     0.0003
 Number of clusters (statefips) =         41       Root MSE        =     0.0279
 
                                           (Std. Err. adjusted for 41 clusters in statefips)
@@ -1082,10 +1144,10 @@ Number of clusters (statefips) =         41       Root MSE        =     0.0279
 --------------------------+----------------------------------------------------------------
 nonwhite_share2010_st_qtl#|
                 c.d_ln_mw |
-                       1  |   .0272939   .0201742     1.35   0.184    -.0134796    .0680674
-                       2  |   .0024112   .0172733     0.14   0.890    -.0324995    .0373219
-                       3  |   .0333827    .012845     2.60   0.013     .0074219    .0593434
-                       4  |   .0402633   .0187977     2.14   0.038     .0022718    .0782549
+                       1  |   .0485287   .0199934     2.43   0.020     .0081206    .0889368
+                       2  |   .0115741   .0171294     0.68   0.503    -.0230457     .046194
+                       3  |   .0464675   .0105879     4.39   0.000     .0250684    .0678665
+                       4  |   .0410171   .0192261     2.13   0.039     .0021596    .0798745
 -------------------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
@@ -1095,16 +1157,16 @@ Absorbed degrees of freedom:
   year_month |       118           0         118     |
 -----------------------------------------------------+
 (note:  named style grey not found in class color, default attributes used)
-(file /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/analysis/first_differences/cod
-> e/../output/fd_static_heter_nonwhite_share2010.png written in PNG format)
+(file /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/analysis/first_differences_wgt
+> /code/../output/fd_static_heter_nonwhite_share2010.png written in PNG format)
 (MWFE estimator converged in 1 iterations)
 
 HDFE Linear regression                            Number of obs   =    112,232
-Absorbing 1 HDFE group                            F(   4,     40) =       7.17
-Statistics robust to heteroskedasticity           Prob > F        =     0.0002
-                                                  R-squared       =     0.0219
-                                                  Adj R-squared   =     0.0208
-                                                  Within R-sq.    =     0.0002
+Absorbing 1 HDFE group                            F(   4,     40) =      10.14
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.0223
+                                                  Adj R-squared   =     0.0213
+                                                  Within R-sq.    =     0.0003
 Number of clusters (statefips) =         41       Root MSE        =     0.0279
 
                                           (Std. Err. adjusted for 41 clusters in statefips)
@@ -1114,10 +1176,10 @@ Number of clusters (statefips) =         41       Root MSE        =     0.0279
 --------------------------+----------------------------------------------------------------
 work_county_share2~st_qtl#|
                 c.d_ln_mw |
-                       1  |    .056401   .0139257     4.05   0.000     .0282562    .0845458
-                       2  |   .0242271   .0154487     1.57   0.125    -.0069958      .05545
-                       3  |   .0042514   .0131226     0.32   0.748    -.0222703    .0307731
-                       4  |   .0238836   .0296351     0.81   0.425    -.0360111    .0837783
+                       1  |   .0654023   .0161025     4.06   0.000     .0328579    .0979467
+                       2  |   .0394273   .0114322     3.45   0.001     .0163219    .0625326
+                       3  |   .0071005    .009865     0.72   0.476    -.0128374    .0270383
+                       4  |   .0354486    .033185     1.07   0.292    -.0316208     .102518
 -------------------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
@@ -1127,10 +1189,10 @@ Absorbed degrees of freedom:
   year_month |       118           0         118     |
 -----------------------------------------------------+
 (note:  named style grey not found in class color, default attributes used)
-(file /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/analysis/first_differences/cod
-> e/../output/fd_static_heter_work_county_share20105.png written in PNG format)
+(file /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/analysis/first_differences_wgt
+> /code/../output/fd_static_heter_work_county_share20105.png written in PNG format)
 
 . 
 end of do-file
 
- make.py ended: 2020-10-01 11:19:23
+ make.py ended: 2020-10-01 11:09:43

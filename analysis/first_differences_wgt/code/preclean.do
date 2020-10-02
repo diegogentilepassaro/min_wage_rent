@@ -8,22 +8,22 @@ program main
 	local outstub "../temp"
 	local logfile "../output/data_file_manifest.log"
 
-	use "`instub'/baseline_rent_panel.dta", clear 
+
+	use "`instub'/baseline_rent_panel.dta", clear
 	keep zipcode place_code msa countyfips statefips 								///
 		year_month calendar_month trend trend_sq trend_cu					 		///
 		actual_mw medrentpricepsqft_sfcc medrentprice_sfcc 							///
 		med_hhinc20105 renthouse_share2010 white_share2010 black_share2010			///
-		college_share20105 work_county_share20105 trend_sq poor_share20105          ///
-		lo_hhinc_share20105 hi_hhinc_share20105 unemp_share20105                    ///
-		employee_share20105 teen_share2010 youngadult_share2010                     ///
+		college_share20105 work_county_share20105
 	
 
 	local het_vars "med_hhinc20105 renthouse_share2010 college_share20105 black_share2010"
-	local het_vars "`het_vars' poor_share20105 lo_hhinc_share20105 hi_hhinc_share20105 unemp_share20105" 
-	local het_vars "`het_vars' employee_share20105 teen_share2010 youngadult_share2010"
+	local het_vars "`het_vars' nonwhite_share2010 work_county_share20105"
+
+	local wgtvars "renthouse_share2010 black_share2010 med_hhinc20105 college_share20105"
 
 	create_vars, 	log_vars(actual_mw medrentpricepsqft_sfcc medrentprice_sfcc) 	///
-					heterogeneity_vars(`het_vars')
+					heterogeneity_vars(`het_vars') weights_vars(`wgtvars')
 	
 	simplify_varnames
 
@@ -34,7 +34,7 @@ program main
 end
 
 program create_vars
-	syntax, log_vars(str) heterogeneity_vars(str)
+	syntax, log_vars(str) heterogeneity_vars(str) weights_vars(str)
 
 	foreach var in `log_vars' {
 		gen ln_`var' = ln(`var')
@@ -44,17 +44,24 @@ program create_vars
 	
 	gen trend_times2 = 2*trend
 
-	foreach var in `heterogeneity_vars' {
+	* balancing procedure: add ,in the right order the target average values from analysis/descriptive/output/desc_stats.tex
+	ebalance `weights_vars', manualtargets(.347 .124 62774 .386)
+	rename _webal wgt_cbsa100
+	
 
+	foreach var in `heterogeneity_vars' {
+		*xtile `var'_nat_dec = `var', nq(10)
 		xtile `var'_nat_qtl = `var', nq(4)
 		levelsof statefips, local(states)
 
 		foreach state in `states'{
-			
+			*xtile deciles_`state'_`var' = `var' if statefips == `state', nq(10)
 			xtile qtiles_`state'_`var' = `var' if statefips == `state', nq(4)
 		}
+		*egen `var'_st_dec = rowtotal(deciles_*)
 		egen `var'_st_qtl = rowtotal(qtiles_*)
 		
+		*drop deciles_* qtiles_*
 		drop qtiles_*
 	}
 
