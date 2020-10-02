@@ -117,7 +117,7 @@ program compare_zillow_safmr_zipcode
 		   (line safmr3br year, lp(dash) lc(black)), ///
 	legend(order(1 "zillow single family/condo" 2 "safmr 3br") cols(3)) ///
 	ylabel(, grid labsize(small)) xlabel(, labsize(small)) ytitle("Rent (2012 USD)", size(medsmall)) xtitle(, size(medsmall))
-	graph export ../output/trend_zillow_safmr4br_zipcode_avg.png, replace
+	graph export ../output/trend_zillow_safmr3br_zipcode_avg.png, replace
 
 	restore
 
@@ -151,7 +151,7 @@ program compare_zillow_safmr_zipcode
 			   (line safmr3br year, lp(dash) lc(black)), ///
 		legend(order(1 "zillow single family/condo" 2 "safmr 3br") cols(3)) ///
 		ylabel(, grid labsize(small)) xlabel(, labsize(small)) ytitle("Rent (2012 USD)", size(medsmall)) xtitle(, size(medsmall))
-		graph export ../output/trend_zillow_safmr4br_zipcode_m`m'.png, replace
+		graph export ../output/trend_zillow_safmr3br_zipcode_m`m'.png, replace
 		restore	
 	}
 
