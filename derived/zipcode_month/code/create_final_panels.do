@@ -3,20 +3,17 @@ clear all
 adopath + ../../../lib/stata/gslab_misc/ado
 adopath + ../../../lib/stata/mental_coupons/ado
 
+
 program main
 	local instub "../temp"
 	local indemo "../../../drive/base_large/output"
 	local inqcew "../../../base/qcew/output"
+	local inbps "../../../base/bps/output"
 	local outstub "../../../drive/derived_large/output"
 	local logfile "../output/data_file_manifest.log"
 
-	local add_demo = "yes"
-	local add_qcew = "yes"
-
-	if "`add_demo'" == "yes" {
-		import delim using "`indemo'/zip_demo.csv", clear
-		save_data "`instub'/zip_ready.dta", replace key(zipcode) log(`logfile')
-	} 
+	import delim using "`indemo'/zip_demo.csv", clear
+	save_data "`instub'/zip_ready.dta", replace key(zipcode) log(`logfile')
 
 	* Baseline rents
 	local rent_vars "medrentprice_mfr5plus" 
@@ -34,13 +31,7 @@ program main
 		merge 1:1 zipcode year_month using "`instub'/baseline_`var'.dta", 	///
 		    nogen keep(1 3)
 	}
-	if "`add_demo'" == "yes" {
-		merge m:1 zipcode using `instub'/zip_ready.dta, nogen assert(1 2 3) keep(1 3)	
-	}
-	if "`add_qcew'" == "yes" {
-		merge m:1 countyfips statefips year_month using `inqcew'/ind_emp_wage_countymonth.dta, nogen assert(1 2 3) keep(1 3)
-	}
-
+	add_covars, demo(yes) indemo(`instub') qcew(yes) inqcew(`inqcew') bps(yes) inbps(`inbps')
 	save_data "`outstub'/baseline_rent_panel.dta", key(zipcode year_month) 	///
 		log(`logfile') replace
 
@@ -61,26 +52,32 @@ program main
 		merge 1:1 zipcode year_month using "`instub'/baseline_`var'.dta", 	///
 			nogen keep(1 3)
 	}
-	if "`add_demo'" == "yes" {
-		merge m:1 zipcode using `instub'/zip_ready.dta, nogen assert(1 2 3) keep(1 3)	
-	}
-	if "`add_qcew'" == "yes" {
-		merge m:1 countyfips statefips year_month using `inqcew'/ind_emp_wage_countymonth.dta, nogen assert(1 2 3) keep(1 3)
-	}
-
-
+	add_covars, demo(yes) indemo(`instub') qcew(yes) inqcew(`inqcew') bps(yes) inbps(`inbps')
 	save_data "`outstub'/baseline_listing_panel.dta", key(zipcode year_month) ///
 		log(`logfile') replace
 
 
 	* Baseline all
 	use "`instub'/zipcode_yearmonth_panel.dta", clear
-	if "`add_demo'" == "yes" {
-		merge m:1 zipcode using `instub'/zip_ready.dta, nogen assert(1 2 3) keep(1 3)	
-	}
+	add_covars, demo(yes) indemo(`instub') qcew(no) inqcew(`inqcew') bps(no) inbps(`inbps')
 	save_data "`outstub'/zipcode_yearmonth_panel_all.dta", key(zipcode year_month) ///
 		log(`logfile') replace
 end
+
+
+program add_covars 
+	syntax, demo(str) indemo(str) qcew(str) inqcew(str) bps(str) inbps(str)
+
+	if "`demo'" == "yes" {
+		merge m:1 zipcode using `indemo'/zip_ready.dta, nogen assert(1 2 3) keep(1 3)	
+	}
+	if "`qcew'" == "yes" {
+		merge m:1 countyfips statefips year_month using `inqcew'/ind_emp_wage_countymonth.dta, nogen assert(1 2 3) keep(1 3)
+	}
+	if "`bps'" == "yes" {
+		merge m:1 countyfips statefips year_month using `inbps'/bps_sf_cty_mon.dta, nogen assert(1 2 3) keep(1 3)
+	}
+end 
 
 program create_baseline_panel
 	syntax, instub(str) var(str) balance_date(str) start_date(str) end_date(str)
