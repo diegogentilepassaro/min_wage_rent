@@ -64,9 +64,11 @@ def process_files(types, states, path, years, logger, n_cores = 2, unzip = True)
     p = multiprocessing.Pool(n_cores)
     results = p.map(get_links, combos)
     log_and_print("Links created.", logger)
-    flat_results = [x for y in results for x in y
-                    for yr in range(2002, years[0])                      
-                    if str(yr) not in x]
+    results = [x for y in results for x in y]
+
+    flat_results = list()
+    for year in range(2002, years[0]):
+        flat_results += [x for x in results if str(year) not in x]
 
     download_args = [[x, path, unzip] for x in flat_results]
     log_and_print("\nStart downloading files.", logger)
