@@ -6,24 +6,49 @@ set maxvar 32000
 program main 
 	local instub_zillow "../../../drive/derived_large/output"
 	local instub_safmr "../../../base/alt_rents/output"
+	local instub_ahs ""
 	local logfile "../output/data_file_manifest.log"
 
 	import delim ../../../drive/raw_data/census/cpi2012_usa.csv, clear  
 	replace cpi2012 = cpi2012 /100
 	save ../temp/cpi2012.dta, replace
 
-	compare_zillow_safmr_zipcode, tseries(2br mfr5plus sfcc) inzillow(`instub_zillow') insafmr(`instub_safmr') mlist(1 6 12)
+	import delim ../../../drive/raw_data/ahs/AHS_sfcc_est_by_br.csv, clear
+	prepare_ahs_weights
+	save ../temp/ahs_wgt.dta, replace 
+
+	use `instub_safmr'/safrm.dta, clear 
+	prepare_weighted_safmr
+	save ../temp/wgt_safmr.dta, replace 
+
+	compare_zillow_safmr_zipcode, tseries(sfcc) inzillow(`instub_zillow') insafmr(`instub_safmr') mlist(1 6 12)
 
 
 end 
 
-program correlation_zillow_safmr
-	syntax, tseries(str) inzillow(str) insafmr(str) mlist(str)
-	binscatter medrentprice_sfcc safmr2br, absorb(year)
 
-	STOP 
+program prepare_weighted_safmr
+	unab safmrvars: safmr*
+	collapse (mean) `safmrvars', by(year)
+	reshape long safmr@br, i(year) j(br)
+	rename safmrbr safmr
+	merge 1:1 year br using ../temp/ahs_wgt.dta, nogen assert(1 2 3) keep(1 3)
+	collapse (mean) safmr [w = br_share], by(year)
+end 
 
-end
+program prepare_ahs_weights
+	
+	collapse (sum) estimate, by(year br)
+
+	bys year: egen tot_house = sum(estimate)
+	g br_share = estimate / tot_house
+
+	keep year br br_share
+
+	tsset br year 
+	tsfill
+	bys br: carryforward br_share, replace 
+end 
 
 program compare_zillow_safmr_zipcode
 	syntax, tseries(str) inzillow(str) insafmr(str) mlist(str)
@@ -52,27 +77,48 @@ program compare_zillow_safmr_zipcode
 	g year = yofd(dofm(year_month))
 	keep if inrange(year, 2010, 2019)
 
+	preserve
+	collapse (mean) `target_vars', by(zipcode year)
+	collapse (mean) `target_vars', by(year)
+	merge 1:1 year using ../temp/wgt_safmr.dta, nogen assert(1 2 3) keep(1 3)
+
+	merge 1:1 year using ../temp/cpi2012.dta, nogen keep(1 3)
+	foreach v in `target_vars' safmr {
+		replace `v' = `v'*cpi2012
+	}
+
+	twoway (line medrentprice_sfcc year, lc(eltblue)) ///
+		   (line safmr year, lp(dash) lc(gs10)), ///
+	legend(order(1 "zillow single family/condo" 2 "safmr")) ///
+	ylabel(500(500)2500, grid labsize(small)) xlabel(, labsize(small)) ytitle("Rent (2012 USD)", size(medsmall)) xtitle(, size(medsmall))
+	graph export ../output/trend_zillow_safmrwgt_zipcode_avg.png, replace
+	restore 
 	* Option 1: take year average 
 	preserve
 	collapse (mean) `target_vars', by(zipcode year)
 	merge 1:1 zipcode year using `insafmr'/safrm.dta	
 
-
 	unab safmrvars: safmr*
 	local target_final `"`target_vars' `safmrvars'"'
 	collapse (mean) `target_final', by(year)
-
 
 	merge 1:1 year using ../temp/cpi2012.dta, nogen keep(1 3)
 	foreach v in `target_final' {
 		replace `v' = `v'*cpi2012
 	}
 
-	twoway (line medrentprice_2br year, lc(mint)) (line medrentprice_mfr5plus year, lc(khaki)) (line medrentprice_sfcc year, lc(red)) ///
-		   (line safmr2br year, lp(dash) lc(eltblue)) (line safmr3br year, lp(dash) lc(lavender)) (line safmr4br year, lp(dash) lc(black)), ///
-	legend(order(1 "zillow 2br" 2 "zillow multi-family" 3 "zillow single family/condo" 4 "safmr 2br" 5 "safmr 3br" 6 "safmr 4br") cols(3)) ///
-	ylabel(, grid) ytitle("Rent (2012 USD)", size(medsmall)) xtitle(, size(medsmall))
+	twoway (line medrentprice_sfcc year, lc(eltblue)) ///
+		   (line safmr2br year, lp(dash) lc(gs11)) (line safmr3br year, lp(dash) lc(lavender)) (line safmr4br year, lp(dash) lc(black)), ///
+	legend(order(1 "zillow single family/condo" 2 "safmr 2br" 3 "safmr 3br" 4 "safmr 4br") cols(3)) ///
+	ylabel(, grid labsize(small)) xlabel(, labsize(small)) ytitle("Rent (2012 USD)", size(medsmall)) xtitle(, size(medsmall))
 	graph export ../output/trend_zillow_safmr_zipcode_avg.png, replace
+
+	twoway (line medrentprice_sfcc year, lc(eltblue)) ///
+		   (line safmr3br year, lp(dash) lc(black)), ///
+	legend(order(1 "zillow single family/condo" 2 "safmr 3br") cols(3)) ///
+	ylabel(, grid labsize(small)) xlabel(, labsize(small)) ytitle("Rent (2012 USD)", size(medsmall)) xtitle(, size(medsmall))
+	graph export ../output/trend_zillow_safmr4br_zipcode_avg.png, replace
+
 	restore
 
 	* Option 2: take given month 
@@ -95,16 +141,21 @@ program compare_zillow_safmr_zipcode
 			replace `v' = `v'*cpi2012
 		}
 
-		twoway (line medrentprice_2br year, lc(mint)) (line medrentprice_mfr5plus year, lc(khaki)) (line medrentprice_sfcc year, lc(red)) ///
-			   (line safmr2br year, lp(dash) lc(eltblue)) (line safmr3br year, lp(dash) lc(lavender)) (line safmr4br year, lp(dash) lc(black)), ///
-		legend(order(1 "zillow 2br" 2 "zillow multi-family" 3 "zillow single family/condo" 4 "safmr 2br" 5 "safmr 3br" 6 "safmr 4br") cols(3)) ///
-		ylabel(, grid) ytitle("Rent (2012 USD)", size(medsmall)) xtitle(, size(medsmall))
+		twoway (line medrentprice_sfcc year, lc(eltblue)) ///
+			   (line safmr2br year, lp(dash) lc(gs11)) (line safmr3br year, lp(dash) lc(lavender)) (line safmr4br year, lp(dash) lc(black)), ///
+		legend(order(1 "zillow single family/condo" 2 "safmr 2br" 3 "safmr 3br" 4 "safmr 4br") cols(3)) ///
+		ylabel(, grid labsize(small)) xlabel(, labsize(small)) ytitle("Rent (2012 USD)", size(medsmall)) xtitle(, size(medsmall))
 		graph export ../output/trend_zillow_safmr_zipcode_m`m'.png, replace
+
+		twoway (line medrentprice_sfcc year, lc(eltblue)) ///
+			   (line safmr3br year, lp(dash) lc(black)), ///
+		legend(order(1 "zillow single family/condo" 2 "safmr 3br") cols(3)) ///
+		ylabel(, grid labsize(small)) xlabel(, labsize(small)) ytitle("Rent (2012 USD)", size(medsmall)) xtitle(, size(medsmall))
+		graph export ../output/trend_zillow_safmr4br_zipcode_m`m'.png, replace
 		restore	
 	}
 
-	*binscatter correlation 
-	
+	*binscatter correlation 	
 	collapse (mean) `target_vars', by(zipcode year)
 	merge 1:1 zipcode year using `insafmr'/safrm.dta	
 
@@ -115,6 +166,15 @@ program compare_zillow_safmr_zipcode
 	ytitle("Median Rent Price (2012 USD)", size(medsmall)) xtitle("Small Area Fair Market Rent", size(medsmall)) ///
 	legend(order(1 "1br" 2 "2br" 3 "3br" 4 "4br") rows(1))
 	graph export ../output/bins_sfcc_safmr_bytype.png, replace
+
+	qui reghdfe medrentprice_sfcc safmrbr if safmr_type==3, absorb(year)
+	local estbeta = round(_b[safmrbr], .001)
+	local estse = round(_se[safmrbr], .001)
+	binscatter medrentprice_sfcc safmrbr if safmr_type==3, ///
+	absorb(year) ylabel(0(1000)4000, grid labsize(small)) xlabel(0(1000)4000, labsize(small)) ///
+	ytitle("Median Rent Price (2012 USD)", size(medsmall)) xtitle("Small Area Fair Market Rent - 3br", size(medsmall)) ///
+	mc(eltblue) lc(gs10) text(500 3000 "{&beta} = `estbeta' (`estse')")
+	graph export ../output/bins_sfcc_safmr3br.png, replace
 
 end
 
