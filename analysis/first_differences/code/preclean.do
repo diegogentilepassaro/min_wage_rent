@@ -13,13 +13,13 @@ program main
 		year_month calendar_month trend trend_sq trend_cu					 		///
 		actual_mw medrentpricepsqft_sfcc medrentprice_sfcc 							///
 		med_hhinc20105 renthouse_share2010 white_share2010 black_share2010			///
-		college_share20105 work_county_share20105 estcount_* avgwwage_* emp_* u1*
+		college_share20105 work_county_share20105 unemp_share20105 teen_share2010   ///
+		estcount_* avgwwage_* emp_* u1*
 
 	
 
 	local het_vars "med_hhinc20105 renthouse_share2010 college_share20105 black_share2010"
-	local het_vars "`het_vars' poor_share20105 lo_hhinc_share20105 hi_hhinc_share20105 unemp_share20105" 
-	local het_vars "`het_vars' employee_share20105 teen_share2010 youngadult_share2010"
+	local het_vars "`het_vars' unemp_share20105 teen_share2010" 
 
 	create_vars, 	log_vars(actual_mw medrentpricepsqft_sfcc medrentprice_sfcc emp_* estcount_* avgwwage_* u1*) 	///
 					heterogeneity_vars(`het_vars')
