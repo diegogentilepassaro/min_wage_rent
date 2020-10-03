@@ -241,7 +241,7 @@ program run_dynamic_model
 		graph export "../output/fd_models.png", replace
 	restore 
 	
-	eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw  `if', 		///
+	eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if', 		///
 		absorb(`absorb' i.zipcode) 							///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("Yes") trend_sq("No")
@@ -436,7 +436,7 @@ program run_dynamic_model_control
 end
 
 program run_static_heterogeneity
-	syntax, depvar(str) absorb(str) cluster(str) het_var(str) ytitle(str) [qtles(int 5)]
+	syntax, depvar(str) absorb(str) cluster(str) het_var(str) ytitle(str) [qtles(int 4)]
 
     eststo clear
 	reghdfe D.`depvar' c.d_ln_mw#i.`het_var',							///
@@ -444,7 +444,7 @@ program run_static_heterogeneity
 		vce(cluster `cluster') nocons
 
 	coefplot, base graphregion(color(white)) bgcolor(white)						///
-	ylabel(1 "1" 2 "2" 3 "3" 4 "4" 5 "5")							///
+	ylabel(1 "1" 2 "2" 3 "3" 4 "4")							///
 	ytitle(`ytitle') 												///
 	xtitle("Estimated effect of ln MW on ln rents")					///
 	xline(0, lcol(grey) lpat(dot))
