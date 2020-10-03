@@ -20,7 +20,7 @@ program main
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
 		nonote
 
-	/* run_static_model_control, depvar(ln_med_rent_psqft) absorb(year_month) 						///
+	run_static_model_control, depvar(ln_med_rent_psqft) absorb(year_month) 						///
 		cluster(statefips)
 	esttab * using "`outstub'/fd_table_control.tex", keep(D.ln_mw) compress se replace 			///
 		stats(employment_cov establishment_cov avg_weekly_wage_cov new_building_cov r2 N, fmt(%s3 %s3 %s3 %s3 %9.3f %9.0g) 		///
@@ -29,11 +29,11 @@ program main
 		"Industry-level quarterly weekly wage"                                          ///
 		"New housing permits and value"                                                ///
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
-		nonote	 */
+		nonote
 
 
 	* Dynamic Model
-	/* run_dynamic_model, depvar(ln_med_rent_psqft) absorb(year_month) 					///
+	run_dynamic_model, depvar(ln_med_rent_psqft) absorb(year_month) 					///
 		cluster(statefips)
 	
 	esttab reg1 reg2 reg3 using "`outstub'/fd_dynamic_table.tex", 					///
@@ -51,7 +51,7 @@ program main
 	    "Zipcode-specific linear and square trend"                                      ///
 		"Observations")) 				///
 		star(* 0.10 ** 0.05 *** 0.01) 													///
-		nonote coeflabel((1) "Sum of MW effects") */
+		nonote coeflabel((1) "Sum of MW effects")
 
 	run_dynamic_model_control, depvar(ln_med_rent_psqft) absorb(year_month) 					///
 		cluster(statefips)
