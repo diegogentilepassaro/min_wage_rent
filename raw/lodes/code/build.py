@@ -12,12 +12,11 @@ import datetime
 import requests
 import gzip
 import multiprocessing
-from multiprocessing import Pool, freeze_support 
-from bs4 import BeautifulSoup
+from multiprocessing import Pool, freeze_support
 import re
 import logging
 
-def create_directories(types, path, years):
+def create_directories(types, path, years, work_segs, work_types):
     """
     Function:
         Create a directory whose name starts with "LODES_Download_", set the newly created directory as working directory; 
@@ -25,9 +24,7 @@ def create_directories(types, path, years):
     Return: 
         Directories are created under current working directory, for storing downloaded CSV files. 
     """
-    #specify the Year of job data, Segment of the workforce, and Job Type 
-    work_segs = ["S000","SA01","SA02","SA03","SE01","SE02","SE03","SI01","SI02","SI03"]
-    work_types = ["JT00","JT01","JT02","JT03","JT04","JT05"]
+    #specify the Year of job data, Segment of the workforce, and Job Type
 
     for p in types:
         new_dir = os.path.join(path, p)
@@ -47,7 +44,8 @@ def create_directories(types, path, years):
                         os.mkdir(os.path.join(new_dir, seg, typ, str(year)))
 
 
-def process_files(types, states, path, years, logger, n_cores = 2, unzip = True):
+def process_files(types, states, years, logger, work_segs, work_types, 
+                  path, n_cores = 2, unzip = True):
     """
     function: 
         Specify the state and data type to donwload, call function get_links to get download links, 
@@ -55,22 +53,13 @@ def process_files(types, states, path, years, logger, n_cores = 2, unzip = True)
     return: 
         The downloaded and unzipped files are stored in the specified folders. 
     """
-    combos = []
-    for i in states:
-        for j in types:
-            combos.append((i, j))
     
     #Call get_links function to get download links
-    p = multiprocessing.Pool(n_cores)
-    results = p.map(get_links, combos)
+    build_links_args = [types, states, years, work_segs, work_types]
+    urls = build_links(build_links_args)
     log_and_print("Links created.", logger)
-    results = [x for y in results for x in y]
 
-    flat_results = list()
-    for year in range(2002, years[0]):
-        flat_results += [x for x in results if str(year) not in x]
-
-    download_args = [[x, path, unzip] for x in flat_results]
+    download_args = [[x, path, unzip] for x in urls]
     log_and_print("\nStart downloading files.", logger)
 
     p = multiprocessing.Pool(n_cores)
@@ -80,28 +69,32 @@ def process_files(types, states, path, years, logger, n_cores = 2, unzip = True)
     return None
 
 
-def get_links(vals):
+def build_links(args):
     """
     Function:
-        Get download links for data files of a state"s specific group of LODES data. 
-    Args:
-        vals: a tuple, where the first item is the state acronym and the second is the group name.
-            e.g., ("va", "rac") represents all RAC files for Virginia.
-    Return:
-        a list, where each item is a file"s download link of a specific state and data group. 
+        Build links to download LODES data 2017
     """
-    form = [("version","LODES7")]
-    url_main = "https://lehd.ces.census.gov/php/inc_lodesFiles.php"
-    start_url = "https://lehd.ces.census.gov"
 
-    f = dict(form + [("type",vals[1]),("state",vals[0])])
-    r = requests.post(url_main, data = f)
+    types, states, years, work_segs, work_types = args
 
-    soup = BeautifulSoup(r.text, "lxml")
-    a_link = [f"{start_url}{x['href']}" for x in soup.find("div", {"id":"lodes_file_list"}).find_all("a")]
+    url_base = "https://lehd.ces.census.gov/data/lodes/LODES7"
+    all_links = []
+    for st in states:
+        for p in types:
+            if p == "od":
+                for typ in work_types:
+                    for year in range(years[0], years[1] + 1):
+                        url = f"{url_base}/{st}/od/{st}_od_aux_{typ}_{year}.csv.gz"
+                        all_links.append(url)
+            else:
+                for seg in work_segs:
+                    for typ in work_types:
+                        for year in range(years[0], years[1] + 1):
+                            url = f"{url_base}/{st}/{p}/{st}_{p}_{seg}_{typ}_{year}.csv.gz"
+                            all_links.append(url)
+   
 
-    return a_link
-
+    return all_links
 
 def download_file(args):
     # Modified from http://stackoverflow.com/questions/16694907/how-to-download-large-file-in-python-with-requests-py
@@ -114,8 +107,8 @@ def download_file(args):
     Return:
         Downloaded CSV files in the local folders. 
     """
-    url, path, unzip = args
     pattern = "20[0-1][0-9]"
+    url, path, unzip = args
 
     fname = url.split("/")[-1]
     points = fname.split(".")[0].split("_")
@@ -191,7 +184,7 @@ if __name__ == "__main__":
     cores = 6        # Choose number of cores
 
     # start_end_year = [2002, 2017]
-    start_end_year = [2009, 2017]
+    start_end_year = [2017, 2017]
     data_types = ["od","rac","wac"]                                   # LODES data categories 
     states = ["al", "ak", "az", "ar", "ca", "co", "ct", "de", "dc",   # States acronyms
               "fl", "ga", "hi", "id", "il", "in", "ia", "ks", "ky",
@@ -200,14 +193,18 @@ if __name__ == "__main__":
               "ok", "or", "pa", "ri", "sc", "sd", "tn", "tx", "ut",
               "vt", "va", "wa", "wv", "wi", "wy", "pr"]
 
+    work_segs = ["S000","SA01","SA02","SA03","SE01","SE02","SE03","SI01","SI02","SI03"]
+    work_types = ["JT00","JT01","JT02","JT03","JT04","JT05"]
+
     current_time = datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
     log_and_print(f"Start downloading process. Time is {current_time}", logger)
 
     try:
-        create_directories(types = data_types, path = DATA_PATH, years = start_end_year)
+        create_directories(data_types, DATA_PATH, start_end_year, work_segs, work_types)
         log_and_print("\nDirectories created.", logger)
 
-        process_files(data_types, states, DATA_PATH, start_end_year, logger, n_cores = cores, unzip = False)
+        process_files(data_types, states, start_end_year, logger, work_segs, work_types, 
+                      DATA_PATH, n_cores = cores, unzip = False)
         log_and_print(f"\nDownloaded CSV files available in ROOT/drive/raw_data/lodes.", logger)
 
     except Exception as e:
