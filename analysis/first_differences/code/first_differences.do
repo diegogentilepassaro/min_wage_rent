@@ -66,7 +66,7 @@ program main
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
 		nonote
 
-	esttab lincom1 lincom2 lincom3 lincom4 lincom5 using "`outstub'/fd_dynamic_lincom_table_control.tex", ///
+ 	esttab lincom1 lincom2 lincom3 lincom4 lincom5 using "`outstub'/fd_dynamic_lincom_table_control.tex", ///
 		compress se replace 															///
 		stats(employment_cov establishment_cov avg_weekly_wage_cov new_building_cov N, fmt(%s3 %s3 %s3 %s3 %9.3f) 		///
 		labels("Industry-level monthly employment" 											///
@@ -414,17 +414,19 @@ program run_dynamic_model_control
 		g at_wage  = at + 0.1
 		g at_house = at + 0.2
 
+		local period0 = `w' + 1
+
 		twoway (scatter b_base at, mc(black))        (rcap b_base_lb b_base_ub at, lc(black) lp(dash) lw(vthin))          ///
 			   (scatter b_emp at_emp, mc(edkblue))     (rcap b_emp_lb b_emp_ub at_emp, lc(edkblue) lp(dash) lw(vthin))        ///
 			   (scatter b_est at_est, mc(lavender))     (rcap b_est_lb b_est_ub at_est, lc(lavender) lp(dash) lw(vthin))        ///
 			   (scatter b_wage at_wage, mc(dkorange))   (rcap b_wage_lb b_wage_ub at_wage, lc(dkorange) lp(dash) lw(vthin))     ///
 			   (scatter b_house at_house, mc(gs10)) (rcap b_house_lb b_house_ub at_house, lc(gs10) lp(dash) lw(vthin)), /// 
-			yline(0, lcol(grey) lpat(dot)) 							///
+			yline(0, lcol(black)) xline(`period0', lcol(black)) 							///
 			graphregion(color(white)) bgcolor(white) 				///
 			xlabel(1 "-5" 2 "-4" 3 "-3" 4 "-2" ///
 			5 "-1" 6 "0" 7 "1" 8 "2" 9 "3" ///
 			10 "4" 11 "5", labsize(vsmall)) xtitle("Leads and lags of ln MW") ///
-			ytitle("Effect on ln rent per sqft") 					///
+			ytitle("Effect on ln rent per sqft") ylabel(, grid)					///
 			legend(order(1 "baseline" 3 "employment" ///
 			5 "establishment" 7 "wage" 9 "building") size(small))
 		graph export "../output/fd_models_control.png", replace
