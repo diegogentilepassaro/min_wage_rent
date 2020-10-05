@@ -1,7 +1,7 @@
 library('stargazer')
 library('digest')
 library('dplyr')
-library('foreign')
+library('haven')
 library('data.table')
 
 save_data <- function(df, key, filename, logfile = NULL, nolog = FALSE) {
@@ -18,7 +18,7 @@ save_data <- function(df, key, filename, logfile = NULL, nolog = FALSE) {
     
   } else if (filetype == "dta") {
     
-    write.dta(df, filename)
+    write_dta(df, filename)
     print(paste0("File '", filename, "' saved successfully."))
     
   } else {
