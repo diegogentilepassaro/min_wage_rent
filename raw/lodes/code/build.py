@@ -19,12 +19,8 @@ import logging
 def create_directories(types, path, years, work_segs, work_types):
     """
     Function:
-        Create a directory whose name starts with "LODES_Download_", set the newly created directory as working directory; 
-        Create subfolders under the working directory based on the data types specified in "types". 
-    Return: 
-        Directories are created under current working directory, for storing downloaded CSV files. 
+        Create directories in `path` folder to store LODES data
     """
-    #specify the Year of job data, Segment of the workforce, and Job Type
 
     for p in types:
         new_dir = os.path.join(path, p)
@@ -48,13 +44,11 @@ def process_files(types, states, years, logger, work_segs, work_types,
                   path, n_cores = 2, unzip = True):
     """
     function: 
-        Specify the state and data type to donwload, call function get_links to get download links, 
-        and call download_file to download and unzip files.
-    return: 
-        The downloaded and unzipped files are stored in the specified folders. 
+        Build links, download LODES data, and store in previously created folders
+
+        If unzip is set equal to True, the files will be unzipped
     """
     
-    #Call get_links function to get download links
     build_links_args = [types, states, years, work_segs, work_types]
     urls = build_links(build_links_args)
     log_and_print("Links created.", logger)
@@ -71,8 +65,8 @@ def process_files(types, states, years, logger, work_segs, work_types,
 
 def build_links(args):
     """
-    Function:
-        Build links to download LODES data 2017
+    function:
+        Build links to download LODES7 data for given years
     """
 
     types, states, years, work_segs, work_types = args
@@ -97,15 +91,12 @@ def build_links(args):
     return all_links
 
 def download_file(args):
-    # Modified from http://stackoverflow.com/questions/16694907/how-to-download-large-file-in-python-with-requests-py
+    # Modified from http://stackoverflow.com/questions/16694907/how-to-download-large-
+    # file-in-python-with-requests-py
     """
     Function:
-        Download files using the download links from the function get_links, unzip the gzip files to csv files, 
-        and remove the gzip files in the folders. 
-    Args:
-        url: the download links for datasets from function get_links. 
-    Return:
-        Downloaded CSV files in the local folders. 
+        Download files using the download links from the function build_links, and optionally unzip the 
+        gzip files to csv files and remove the gzip files in the folders.
     """
     pattern = "20[0-1][0-9]"
     url, path, unzip = args
