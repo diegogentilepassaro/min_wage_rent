@@ -182,7 +182,7 @@ if __name__ == "__main__":
               "la", "me", "md", "ma", "mi", "mn", "ms", "mo", "mt",
               "ne", "nv", "nh", "nj", "nm", "ny", "nc", "nd", "oh",
               "ok", "or", "pa", "ri", "sc", "sd", "tn", "tx", "ut",
-              "vt", "va", "wa", "wv", "wi", "wy", "pr"]
+              "vt", "va", "wa", "wv", "wi", "wy"]
 
     work_segs = ["S000","SA01","SA02","SA03","SE01","SE02","SE03","SI01","SI02","SI03"]
     work_types = ["JT00","JT01","JT02","JT03","JT04","JT05"]
