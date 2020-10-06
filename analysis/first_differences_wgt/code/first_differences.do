@@ -10,11 +10,11 @@ program main
 
 	use "`instub'/fd_rent_panel.dta", clear
 
-	* Static Model
+	 * Static Model
 	run_static_model, depvar(ln_med_rent_psqft) absorb(year_month) 						///
 		cluster(statefips)
 
-	esttab * using "`outstub'/fd_table.tex", keep(D.ln_mw) compress se replace 			///
+		esttab * using "`outstub'/fd_table.tex", keep(D.ln_mw) compress se replace 			///
 		stats(zs_trend zs_trend_sq r2 N, fmt(%s3 %s3 %9.3f %9.0g) 		///
 		labels("Zipcode-specifc linear trend" 											///
 		"Zipcode-specific linear and square trend" 								///
@@ -203,29 +203,30 @@ program run_static_heterogeneity
 	ylabel(1 "1" 2 "2" 3 "3" 4 "4")							///
 	ytitle(`ytitle') 												///
 	xtitle("Estimated effect of ln MW on ln rents")					///
-	xline(0, lcol(grey) lpat(dot))
+	xline(0, lcol(black) lw(medthin))                                ///
+	mcolor(edkblue) ciopts(recast(rcap) lcolor(edkblue) lw(vthin) lp(dash))
 end
 
 program build_ytitle, rclass
 	syntax, var(str)
 
 	if "`var'" == "med_hhinc20105" {
-		return local title "Quintiles of within state 2010 median household income"
+		return local title "Quartiles of 2010 median household income"
 	}
 	if "`var'" == "renthouse_share2010" {
-		return local title "Quintiles of 2010 share of houses rent"
+		return local title "Quartiles of 2010 share of houses rent"
 	}
 	if "`var'" == "college_share20105" {
-		return local title "Quintiles of 2010 college share"
+		return local title "Quartiles of 2010 college share"
 	}
 	if "`var'" == "black_share2010" {
-		return local title "Quintiles of 2010 share of black individuals"
+		return local title "Quartiles of 2010 share of black individuals"
 	}
 	if "`var'" == "nonwhite_share2010" {
-		return local title "Quintiles of 2010 share of non-white individuals"
+		return local title "Quartiles of 2010 share of non-white individuals"
 	}
 	if "`var'" == "work_county_share20105" {
-		return local title "Quintiles of 2010 share who work in county"
+		return local title "Quartiles of 2010 share who work in county"
 	}		  
 end
 
