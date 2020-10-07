@@ -14,11 +14,12 @@ program main
 		year_month calendar_month trend trend_sq trend_cu					 		///
 		actual_mw medrentpricepsqft_sfcc medrentprice_sfcc 							///
 		med_hhinc20105 renthouse_share2010 white_share2010 black_share2010			///
-		college_share20105 work_county_share20105
+		college_share20105 work_county_share20105 walall* welall* halall*
 	
 
 	local het_vars "med_hhinc20105 renthouse_share2010 college_share20105 black_share2010"
 	local het_vars "`het_vars' nonwhite_share2010 work_county_share20105"
+	local het_vars "`het_vars' walall_njob_29young_zsh walall_njob_29young_ssh halall_njob_29young_zsh halall_njob_29young_ssh welall_njob_29young_zsh welall_njob_29young_ssh walall_29y_lowinc_zsh walall_29y_lowinc_ssh halall_29y_lowinc_zsh halall_29y_lowinc_ssh"
 
 	local wgtvars "renthouse_share2010 black_share2010 med_hhinc20105 college_share20105"
 
@@ -50,19 +51,9 @@ program create_vars
 	
 
 	foreach var in `heterogeneity_vars' {
-		*xtile `var'_nat_dec = `var', nq(10)
+		di "`var'"
 		xtile `var'_nat_qtl = `var', nq(4)
-		levelsof statefips, local(states)
-
-		foreach state in `states'{
-			*xtile deciles_`state'_`var' = `var' if statefips == `state', nq(10)
-			xtile qtiles_`state'_`var' = `var' if statefips == `state', nq(4)
-		}
-		*egen `var'_st_dec = rowtotal(deciles_*)
-		egen `var'_st_qtl = rowtotal(qtiles_*)
-		
-		*drop deciles_* qtiles_*
-		drop qtiles_*
+		egen `var'_st_qtl = xtile(`var'), by(statefips) nq(4)
 	}
 
 end

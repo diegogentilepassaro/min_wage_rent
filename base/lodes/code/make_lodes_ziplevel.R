@@ -52,19 +52,57 @@ main <- function() {
                                    xw = xwalk, 
                                    xw_tractzip = tract_zip_xwalk)
   
+  # Zipcode as residence: low income workers
+  lodes_rac_el_all <- format_lodes(pov = 'rac', 
+                                   seg = 'SE01', 
+                                   type = 'JT00', 
+                                   vintage = '2017', 
+                                   instub = datadir_lodes, 
+                                   xw = xwalk, 
+                                   xw_tractzip = tract_zip_xwalk)
   
-  lodes_list <- list(lodes_wac_all_all, lodes_rac_all_all, lodes_wac_el_all)
   
-  lodes_final <- Reduce(function(x,y) merge(x,y, all = T, by = c('zipcode', 'st')), lodes_list)
+  lodes_list <- list(lodes_wac_all_all, lodes_rac_all_all, lodes_wac_el_all, lodes_rac_el_all)
+  
+  lodes_final <- Reduce(function(x,y) merge(x,y, all = T, by = c('zipcode')), lodes_list)
+  
+  lodes_final <- make_final_vars(lodes_final)
   
   save_data(lodes_final, 
             filename = paste0(outdir, 'zip_lodes.csv'), 
-            key = c('zipcode', 'st'))
+            key = c('zipcode'))
   
   return(lodes_final)
 }
 
+make_final_vars <- function(data) {
+  data[, walall_29y_lowinc_zsh := welall_njob_29young / walall_tot]
+  data[, halall_29y_lowinc_zsh := helall_njob_29young / halall_tot]
+  
+  data[, c('w_sttot', 'h_sttot') :=lapply(.SD, function(x) sum(x, na.rm = T)), by = 'st', .SDcols = c('welall_njob_29young', 'helall_njob_29young')]
 
+  data[, walall_29y_lowinc_ssh := lapply(.SD, function(x) x / w_sttot), .SDcols = c('welall_njob_29young')]
+  data[, halall_29y_lowinc_ssh := lapply(.SD, function(x) x / h_sttot), .SDcols = c('helall_njob_29young')]
+  
+  data[, c('w_sttot', 'h_sttot') := NULL]
+  
+  vars <- c('walall_njob_29young_zsh', 
+            'walall_njob_29young_ssh', 
+            'halall_njob_29young_zsh', 
+            'halall_njob_29young_ssh', 
+            'welall_njob_29young_zsh', 
+            'welall_njob_29young_ssh', 
+            'walall_29y_lowinc_zsh', 
+            'walall_29y_lowinc_ssh', 
+            'halall_29y_lowinc_zsh', 
+            'halall_29y_lowinc_ssh')
+  
+  vars <- c('zipcode', vars)
+  
+  data <- data[, ..vars]
+  return(data)
+  
+}
 
 make_xwalk <- function(instub) {
   xwalk_files <- list.files(paste0(instub, 'lodes/'), full.names = T)
@@ -98,7 +136,7 @@ format_lodes <- function(pov, seg, type, vintage, instub, xw, xw_tractzip) {
   target_names <- c(target_names[1:(length(target_names)-2)], 'njob_lowedu')
   
   dftract <- xw[df, on = 'blockfips'][, 'blockfips':= NULL]
-  dftract <- dftract[, lapply(.SD,sum),by=c('tract_fips', 'st')]
+  dftract <- dftract[, lapply(.SD,sum, na.rm = T),by=c('tract_fips', 'st')]
   
   dfzip <- dftract[xw_tractzip, on = 'tract_fips']
   dfzip <- dfzip[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), 
@@ -110,6 +148,13 @@ format_lodes <- function(pov, seg, type, vintage, instub, xw, xw_tractzip) {
   dfzip <- make_shares(data = dfzip, 
                         vnames = paste(pr, target_names, sep = '_'))
   
+  sortvar <- names(dfzip)[grepl("tot$", names(dfzip))]
+  setorderv(dfzip, c('zipcode',sortvar))
+  dfzip <-  dfzip[dfzip[, .I[.N], zipcode]$V1]
+  
+  if ((pov!='rac') | (pov=='rac' & (seg!='S000' | type!='JT00'))) {
+    dfzip[, st := NULL]
+  }
   
   return(dfzip)
 }

@@ -10,11 +10,16 @@ program main
 	local logfile "../output/data_file_manifest.log"
 
 	local add_demo = "yes"
+	local add_lodes = "yes"
 
 	if "`add_demo'" == "yes" {
 		import delim using "`indemo'/zip_demo.csv", clear
 		save_data "`instub'/zip_ready.dta", replace key(zipcode) log(`logfile')
 	} 
+	if "`add_lodes'" == "yes" {
+		import delim using "`indemo'/zip_lodes.csv", clear 
+		save_data "`instub'/lodes_ready.dta", replace key(zipcode) log(`logfile')
+	}
 
 
 	* Baseline rents
@@ -36,10 +41,12 @@ program main
 	if "`add_demo'" == "yes" {
 		merge m:1 zipcode using `instub'/zip_ready.dta, nogen assert(1 2 3) keep(1 3)	
 	}
+	if "`add_lodes'" == "yes" {
+		merge m:1 zipcode using `instub'/lodes_ready.dta, nogen assert(1 2 3) keep(1 3)	
+	}
 
 	save_data "`outstub'/baseline_rent_panel.dta", key(zipcode year_month) 	///
 		log(`logfile') replace
-
 
 	* Baseline listings
 	local listing_vars "medlistingprice_low_tier" 

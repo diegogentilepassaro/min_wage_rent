@@ -10,7 +10,7 @@ program main
 
 	use "`instub'/fd_rent_panel.dta", clear
 
-	 * Static Model
+	/* * Static Model
 	run_static_model, depvar(ln_med_rent_psqft) absorb(year_month) 						///
 		cluster(statefips)
 
@@ -40,11 +40,13 @@ program main
 	    "Zipcode-specific linear and square trend" ///
 		"Observations")) 				///
 		star(* 0.10 ** 0.05 *** 0.01) 													///
-		nonote coeflabel((1) "Sum of MW effects")
+		nonote coeflabel((1) "Sum of MW effects") */
 
 	* Heterogeneity
 	foreach var in med_hhinc20105 renthouse_share2010 college_share20105 				///
-				black_share2010 nonwhite_share2010 work_county_share20105 {
+				black_share2010 nonwhite_share2010 work_county_share20105              ///
+				walall_29y_lowinc_ssh  halall_29y_lowinc_ssh welall_njob_29young_ssh   ///
+				halall_njob_29young_ssh walall_njob_29young_ssh {
 
 		build_ytitle, var(`var')
 
@@ -196,13 +198,13 @@ program run_static_heterogeneity
 
     eststo clear
 	reghdfe D.`depvar' c.d_ln_mw#i.`het_var' [pw = wgt_cbsa100],							///
-		absorb(`absorb') ///
+		absorb(`absorb' zipcode) ///
 		vce(cluster `cluster') nocons
 
 	coefplot, base graphregion(color(white)) bgcolor(white)						///
 	ylabel(1 "1" 2 "2" 3 "3" 4 "4")							///
 	ytitle(`ytitle') 												///
-	xtitle("Estimated effect of ln MW on ln rents")					///
+	xtitle("Estimated effect of {&Delta} ln MW on {&Delta} ln rents")					///
 	xline(0, lcol(black) lw(medthin))                                ///
 	mcolor(edkblue) ciopts(recast(rcap) lcolor(edkblue) lw(vthin) lp(dash))
 end
@@ -227,6 +229,9 @@ program build_ytitle, rclass
 	}
 	if "`var'" == "work_county_share20105" {
 		return local title "Quartiles of 2010 share who work in county"
+	} 
+	else {
+		return local title "Quartiles"
 	}		  
 end
 
