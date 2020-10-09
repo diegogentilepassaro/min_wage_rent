@@ -124,27 +124,27 @@ program run_static_model_control
     local housing_cont   "ln_u1rep_units ln_u1rep_value"
 
     eststo: reghdfe D.`depvar' D.ln_mw,									///
-		absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) 		///
+		absorb(`absorb' zipcode) 		///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("No") est_cov("No") wage_cov("No") housing_cov("No")
 
     eststo: reghdfe D.`depvar' D.ln_mw D.(`emp_cov'),									///
-		absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) 		///
+		absorb(`absorb' zipcode) 		///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("No") wage_cov("No") housing_cov("No")
 
     eststo: reghdfe D.`depvar' D.ln_mw D.(`emp_cont') D.(`establish_cont'),									///
-		absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) 		///
+		absorb(`absorb' zipcode) 		///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("No") housing_cov("No")
 
     eststo: reghdfe D.`depvar' D.ln_mw D.(`emp_cont') D.(`establish_cont') D.(`wage_cont'),									///
-		absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) 		///
+		absorb(`absorb' zipcode) 		///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("Yes") housing_cov("No")
 
     eststo: reghdfe D.`depvar' D.ln_mw D.(`emp_cont') D.(`establish_cont') D.(`wage_cont') D.(`housing_cont'),									///
-		absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) 		///
+		absorb(`absorb' zipcode) 		///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("Yes") housing_cov("Yes")
 
@@ -281,7 +281,7 @@ program run_dynamic_model_control
 
 	eststo clear
 	eststo reg1: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if',		///
-		absorb(`absorb' i.zipcod c.trend_times2#i.zipcode) 	///
+		absorb(`absorb' i.zipcode) 	///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("No") est_cov("No") wage_cov("No") housing_cov("No")
 	
@@ -305,7 +305,7 @@ program run_dynamic_model_control
 	comment_table_control, emp_cov("No") est_cov("No") wage_cov("No") housing_cov("No")
 	
 	eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`emp_cont') `if',		///
-		absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) 	///
+		absorb(`absorb' i.zipcode) 	///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("No") wage_cov("No") housing_cov("No")
 	
@@ -331,7 +331,7 @@ program run_dynamic_model_control
 	comment_table_control, emp_cov("Yes") est_cov("No") wage_cov("No") housing_cov("No")
 	
 	eststo reg3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`emp_cont') D.(`establish_cont') `if',		///
-		absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) 	///
+		absorb(`absorb' i.zipcode) 	///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("No") housing_cov("No")
 	
@@ -357,7 +357,7 @@ program run_dynamic_model_control
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("No") housing_cov("No")
 
 	eststo reg4: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`emp_cont') D.(`establish_cont') D.(`wage_cont') `if',		///
-		absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) 	///
+		absorb(`absorb' i.zipcode) 	///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("Yes") housing_cov("No")
 	
@@ -383,7 +383,7 @@ program run_dynamic_model_control
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("Yes") housing_cov("No")
 
 	eststo reg5: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`emp_cont') D.(`establish_cont') D.(`wage_cont') D.(`housing_cont') `if',		///
-		absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) 	///
+		absorb(`absorb' i.zipcode) 	///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("Yes") housing_cov("Yes")
 	
