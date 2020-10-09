@@ -27,7 +27,7 @@ program main
 		
 		* Dynamic Model
 		run_dynamic_model, depvar(ln_med_rent_psqft_`type') absorb(year_month) 					///
-			cluster(statefips) type(`type') sampl(bal)
+			cluster(statefips) type(`type') plotname(fd_models)
 		
 		esttab reg1 reg2 reg3 using "`outstub'/fd_dynamic_table_`type'.tex", 					///
 			keep(*.ln_mw) compress se replace 												///
@@ -73,7 +73,7 @@ program main
 		
 		* Dynamic Model
 		run_dynamic_model, depvar(ln_med_rent_psqft_`type') absorb(year_month entry_`type'#year_month) 					///
-			cluster(statefips) type(`type') sampl(unbal)
+			cluster(statefips) type(`type') plotname(unb_fd_models)
 		
 		esttab reg1 reg2 reg3 using "`outstub'/unb_fd_dynamic_table_`type'.tex", 					///
 			keep(*.ln_mw) compress se replace 												///
@@ -113,8 +113,6 @@ program run_static_model
 		absorb(`absorb') 												///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("No") trend_sq("No")
-	
-	distinct zipcode if e(sample)==1
 
 	scalar static_effect = _b[D.ln_mw]
 	scalar static_effect_se = _se[D.ln_mw]
@@ -131,7 +129,7 @@ program run_static_model
 end
 
 program run_dynamic_model
-	syntax, depvar(str) absorb(str) cluster(str) type(str) sampl(str) [w(int 5) fullcenter(str)="no"]
+	syntax, depvar(str) absorb(str) cluster(str) type(str) plotname(str) [w(int 5)]
 	
 	local lincomest_coeffs "D1.ln_mw + LD.ln_mw"
 	forvalues i = 2(1)`w'{
@@ -153,12 +151,6 @@ program run_dynamic_model
 		rename (__at __b __se) (at b_full se_full)
 		
 		keep if !missing(at)
-
-		if "`fullcenter'"=="yes" {
-			levelsof b_full if _n==`w', local(baseline)
-			replace b_full = b_full - `baseline'
-			replace se_full = 0 if _n==`w'			
-		}
 
 		gen b_full_lb = b_full - 1.96*se_full
 		gen b_full_ub = b_full + 1.96*se_full
@@ -224,12 +216,8 @@ program run_dynamic_model
 			ytitle("Effect on ln rent per sqft") 					///
 			legend(order(1 "Full dynamic model" 3 "Distributed lags model" ///
 			5 "Effects path static model" 6 "Effects path distributed lags model") size(small))
-		if "`sampl'"=="bal" {
-			graph export "../output/fd_models_`type'.png", replace
-		}
-		else if "`sampl'"=="unbal" {
-			graph export "../output/unb_fd_models_`type'.png", replace	
-		}
+			
+			graph export "../output/`plotname'_`type'.png", replace
 	restore 
 	
 	eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw  `if', 		///
