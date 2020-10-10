@@ -69,7 +69,7 @@ program add_covars
 	syntax, demo(str) indemo(str) qcew(str) inqcew(str) bps(str) inbps(str)
 
 	if "`demo'" == "yes" {
-		merge m:1 zipcode using `indemo'/zip_ready.dta, nogen assert(1 2 3) keep(1 3)	
+		merge m:1 zipcode using `indemo'/zip_ready.dta, nogen assert(1 2 3) keep(1 3) force
 	}
 	if "`qcew'" == "yes" {
 		merge m:1 countyfips statefips year_month using `inqcew'/ind_emp_wage_countymonth.dta, nogen assert(1 2 3) keep(1 3)
@@ -91,7 +91,7 @@ program create_baseline_panel
 		sal_mw_event mw_event025 mw_event075 							///
 		trend trend_sq trend_cu                                         ///
 		using "`instub'/zipcode_yearmonth_panel.dta", clear
-		
+
 	keep if (year_month >= `=mofd(td(`start_date'))' & 					///
 			 year_month <= `=mofd(td(`end_date'))')
 
