@@ -39,7 +39,7 @@ main <- function() {
    wgt <- 'tot_ratio'
    demovars <- setdiff(colnames(table_final), c(start_geo, target_geo, wgt, 'county_fips'))
    
-   table_final <- table_final[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), by = target_geo, .SDcols = demovars]
+   table_final <- table_final[, lapply(.SD, function(x, w) sum(as.numeric(x)*w, na.rm = T), w=tot_ratio), by = target_geo, .SDcols = demovars]
    
    
    table_final[, c('urb_share2010', 
@@ -82,8 +82,6 @@ main <- function() {
              filename = paste0(outdir, 'zip_demo.csv'),
              key = c('zipcode'))
 }
-
-
 
 
 format_tables <- function(x, datadir, data_version) {
@@ -147,7 +145,7 @@ format_tables <- function(x, datadir, data_version) {
                        'child_share2010', 'teen_share2010', 'youngadult_share2010', 'adult_share2010', 'elder_share2010', 'age_share2010D', 
                        'housing_units2010')
       
-      
+      data <- data[, ..target_vars]
    }
    
    else if (x == 'ds173_2010_tract.csv') {
@@ -170,6 +168,7 @@ format_tables <- function(x, datadir, data_version) {
       target_vars <- c('tract_fips', 'county_fips', 
                        'renthouse_share2010', 'renthouse_share2010D')
       
+      data <- data[, ..target_vars]
    }
    
    else if (x == 'ds191_20125_2012_tract.csv') {
@@ -212,7 +211,7 @@ format_tables <- function(x, datadir, data_version) {
                        'work_county_share20105D', 'worktravel_share_20105D', 'college_share20105D', 'poor_share20105D', 'hhinc_share20105D', 'unemp_share20105D', 'employee_share20105D')
       
       
-      
+      data <- data[, ..target_vars]
    }
    
    else if (x == 'ds192_20125_2012_tract.csv') {
@@ -233,9 +232,8 @@ format_tables <- function(x, datadir, data_version) {
       target_vars <- c('tract_fips', 'county_fips', 
                        'med_earn_healthsup_20105', 'med_earn_protectserv_20105', 'med_earn_foodserv_20105', 'med_earn_cleaning_20105', 'med_earn_perscare_20105', 'med_earn_prodtransp_20105')
       
-      
+      data <- data[, ..target_vars]
    }
-   data <- data[, ..target_vars]
    
 
    return(data)
