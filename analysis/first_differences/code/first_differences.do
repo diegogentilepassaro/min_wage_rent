@@ -348,7 +348,6 @@
 			keep if _n<=`winspan'
 			keep __at __b __se
 			rename (__at __b __se) (at b_house se_house)
-			
 			keep if !missing(at)
 
 			gen b_house_lb = b_house - 1.96*se_house

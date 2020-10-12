@@ -15,6 +15,13 @@ program main
 	import delim using "`indemo'/zip_demo.csv", clear
 	save_data "`instub'/zip_ready.dta", replace key(zipcode) log(none)
 
+	* Unbalanced rents
+	unbalanced_panel, instub(`instub') ///
+					  vars(_sfcc _2br _mfr5plus) ///
+					  start_date(01jan2010) end_date(01dec2019)
+  	save_data `outstub'/unbal_rent_panel.dta, key(zipcode year_month) 	///
+		log(`logfile') replace 
+
 	* Baseline rents
 	local rent_vars "medrentprice_mfr5plus" 
 	foreach name in _2br psqft_sfcc psqft_2br psqft_mfr5plus {
@@ -113,4 +120,48 @@ program create_baseline_panel
 		replace log(none)
 end
 
+program unbalanced_panel
+	syntax, instub(str) vars(str) start_date(str) end_date(str)
+
+	local varnames ""
+	foreach stub in `vars' {
+		local varnames `"`varnames' medrentpricepsqft`stub'"'
+	}
+
+	use zipcode place_code placetype statefips msa countyfips county 	///
+		year_month calendar_month `varnames' 								///
+		actual_mw dactual_mw mw_event 									///
+		local_abovestate_mw county_abovestate_mw local_mw 				///
+		county_mw state_mw fed_mw                                       ///  
+		which_mw fed_event state_event county_event local_event			///
+		sal_mw_event mw_event025 mw_event075 							///
+		trend trend_sq trend_cu                                         ///
+		using "`instub'/zipcode_yearmonth_panel.dta", clear
+
+
+	local allmissing_tot ""	
+	foreach stub in `vars' {
+		bys zipcode (year_month) : gen long obsno = _n
+		bys zipcode (year_month) : gen countnonmissing = sum(!missing(medrentpricepsqft`stub')) if !missing(medrentpricepsqft`stub')
+		bys zipcode (year_month) : gegen allmissing`stub' = min(countnonmissing)
+		g miss`stub' =  (!missing(allmissing`stub'))
+		bys zipcode (countnonmissing year_month) : gen entry`stub' = year_month[1] if miss`stub'==1
+		format entry`stub' %tm
+		drop allmissing`stub' obsno countnonmissing
+		local allmissing_tot `"`allmissing_tot' miss`stub'"'
+	}
+	gegen miss_sum = rowtotal(`allmissing_tot')
+	drop if miss_sum==0
+	drop miss_sum `allmissing_tot'
+	gsort zipcode year_month
+
+	keep if (year_month >= `=mofd(td(`start_date'))' & 					///
+			 year_month <= `=mofd(td(`end_date'))')
+	xtset zipcode year_month
+
+	add_covars, demo(yes) indemo(`instub') qcew(yes) inqcew(`inqcew') bps(yes) inbps(`inbps')
+end 
+
+
+*Execute
 main

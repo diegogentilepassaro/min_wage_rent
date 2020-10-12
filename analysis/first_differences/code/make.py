@@ -36,6 +36,7 @@ start_make_logging()
 
 run_stata(program = 'preclean.do', executable = stata)
 run_stata(program = 'first_differences.do', executable = stata)
+run_stata(program = 'horse_race_dynamic_models.do', executable = stata)
 
 end_make_logging()
 
