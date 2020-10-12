@@ -8,7 +8,7 @@ program main
 
     use `instub'/industry_county_qtr_emp_wage.dta, clear
 
-    select_sectors, ownership(`""Federal Government" "State Government" "Private""') ///
+    select_sectors, ownership(`""Federal Government" "State Government" "Local Government" "Private""') ///
     industry(`" "Goods-producing" "Natural resources and mining" "Construction" "Manufacturing" "Service-providing" "Trade, transportation, and utilities" "Information" "Financial Activities" "Professional and business services" "Education and health services" "Leisure and hospitality" "')
 
     clean_vars
@@ -75,6 +75,7 @@ program clean_vars
     replace industry = "servpr"  if industry == "Service-providing"
     replace industry = "stgov"   if industry == "State Government"
     replace industry = "transp"  if industry == "Trade, transportation, and utilities"
+    replace industry = "locgov"  if industry == "Local Government"
 
 end  
 

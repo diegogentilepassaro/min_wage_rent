@@ -16,7 +16,7 @@
 		esttab * using "`outstub'/fd_table.tex", keep(D.ln_mw) compress se replace 	///
 			stats(zs_trend zs_trend_sq cty_emp_wg r2 N, fmt(%s3 %s3 %s3 %9.3f %9.0gc) ///
 			labels("Zipcode-specifc linear trend" ///
-			"Zipcode-specific square trend"	///
+			"Zipcode-specific quadratic trend"	///
 			"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) ///
 			nonote
 
@@ -39,7 +39,7 @@
 			keep(*.ln_mw) compress se replace ///
 			stats(p_value_F zs_trend zs_trend_sq r2 N, fmt(%9.3f %s3 %s3 %9.3f %9.0gc) ///
 			labels("P-value no pretrends" "Zipcode-specifc linear trend" ///
-			"Zipcode-specific square trend" ///
+			"Zipcode-specific quadratic trend" ///
 			"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 	///
 			nonote
 
@@ -47,7 +47,7 @@
 			compress se replace ///
 	        stats(zs_trend zs_trend_sq cty_emp_wg N, fmt(%s3 %s3 %s3 %9.0gc) ///
 			labels("Zipcode-specifc linear trend" ///
-		    "Zipcode-specific square trend" ///
+		    "Zipcode-specific quadratic trend" ///
 			"Observations")) ///
 			star(* 0.10 ** 0.05 *** 0.01) ///
 			nonote coeflabel((1) "Sum of MW effects")
