@@ -13,7 +13,7 @@ program main
 	local logfile "../output/data_file_manifest.log"
 
 	import delim using "`indemo'/zip_demo.csv", clear
-	save_data "`instub'/zip_ready.dta", replace key(zipcode) log(`logfile')
+	save_data "`instub'/zip_ready.dta", replace key(zipcode) log(none)
 
 	* Baseline rents
 	local rent_vars "medrentprice_mfr5plus" 
