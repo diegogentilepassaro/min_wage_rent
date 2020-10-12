@@ -58,16 +58,16 @@ program compare_zillow_safmr_zipcode
 	}
 	
 	use zipcode place_code msa countyfips statefips ///
-		year_month `target_vars'           ///
+		year_month `target_vars' ///
 		using `inzillow'/zipcode_yearmonth_panel_all.dta
 
-		foreach s in `tseries' {
-			g rmtag = (medrentprice_`s'==.)
-			bys zipcode (year_month): g ziplen = _N
-			bys zipcode (year_month): gegen rmcount = sum(rmtag)
-			g sample_`s' = (ziplen!=rmcount)
-			drop ziplen rmtag rmcount
-		}
+	foreach s in `tseries' {
+		g rmtag = (medrentprice_`s'==.)
+		bys zipcode (year_month): g ziplen = _N
+		bys zipcode (year_month): gegen rmcount = sum(rmtag)
+		g sample_`s' = (ziplen!=rmcount)
+		drop ziplen rmtag rmcount
+	}
 
 	unab samplist: sample_*
 	gegen allmis = rowtotal(`samplist')
@@ -107,7 +107,9 @@ program compare_zillow_safmr_zipcode
 	}
 
 	twoway (line medrentprice_sfcc year, lc(eltblue)) ///
-		   (line safmr2br year, lp(dash) lc(gs11)) (line safmr3br year, lp(dash) lc(lavender)) (line safmr4br year, lp(dash) lc(black)), ///
+		   (line safmr2br year, lp(dash) lc(gs11)) ///
+		   (line safmr3br year, lp(dash) lc(lavender)) ///
+		   (line safmr4br year, lp(dash) lc(black)), ///
 		   legend(order(1 "zillow single family/condo" 2 "SAFMR 2br" 3 "SAFMR 3br" 4 "SAFMR 4br") cols(3)) ///
 		   ylabel(, grid labsize(small)) ytitle("Rent (2012 USD)", size(medsmall)) ///
 		   xlabel(, labsize(small)) xtitle(, size(medsmall))
