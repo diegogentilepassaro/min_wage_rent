@@ -166,28 +166,38 @@ program compare_zillow_safmr_zipcode
 
 	reshape long safmr@br, i(zipcode year `target_vars') j(safmr_type)
 
+	* zipcode average time series correlations
+	preserve 
+	collapse (mean) medrentprice_sfcc safmrbr, by(year safmr_type)
+	bys safmr_type: corr medrentprice_sfcc safmrbr
+	restore
+
+
 	binscatter medrentprice_sfcc safmrbr if safmr_type>0, ///
-	by(safmr_type) absorb(year) ylabel(0(1000)6000, grid labsize(small)) xlabel(0(1000)4000, labsize(small)) ///
+	by(safmr_type) absorb(zipcode) ylabel(0(1000)6000, grid labsize(small)) xlabel(0(1000)4000, labsize(small)) ///
 	ytitle("Median Rent Price (2012 USD)", size(medsmall)) xtitle("Small Area Fair Market Rent", size(medsmall)) ///
 	legend(order(1 "1br" 2 "2br" 3 "3br" 4 "4br") rows(1))
 	graph export ../output/bins_sfcc_safmr_bytype.png, replace
 
+	winsor2 medrentprice_sfcc, replace by(safmr_type year) cuts(5 95)
 
 	foreach var in medrentprice_sfcc safmrbr {
-		qui reghdfe `var' if safmr_type==3, absorb(year) res(`var'R)
+		qui reghdfe `var' if safmr_type==`nbr', absorb(zipcode) res(`var'R)
 	}
-	qui corr medrentprice_sfccR safmrbrR if safmr_type==3
+	local nbr = 3
+	qui corr medrentprice_sfccR safmrbrR if safmr_type==`nbr'
 	local rho = round(r(rho), .001)
 	di `rho'
 
-	qui reghdfe medrentprice_sfcc safmrbr if safmr_type==3, absorb(year)
+	qui reghdfe medrentprice_sfcc safmrbr if safmr_type==`nbr', absorb(zipcode)
 	local estbeta = round(_b[safmrbr], .001)
 	local estse = round(_se[safmrbr], .001)
-	binscatter medrentprice_sfcc safmrbr if safmr_type==3, ///
-	absorb(year)  ylabel(0(1000)4000, grid labsize(small)) xlabel(0(1000)4000, labsize(small)) ///
-	ytitle("Median Rent Price (2012 USD)", size(medsmall)) xtitle("Small Area Fair Market Rent - 3br", size(medsmall)) ///
-	mc(eltblue) lc(gs10) text(500 3000 "{&beta} = `estbeta' (`estse')") text(300 2800 "{&rho} = `rho'")
-	graph export ../output/bins_sfcc_safmr3br.png, replace
+	binscatter medrentprice_sfcc safmrbr if safmr_type==`nbr', ///
+	absorb(zipcode)  ///
+	ytitle("Median Rent Price (2012 USD)", size(medsmall)) xtitle("Small Area Fair Market Rent - `nbr'br", size(medsmall)) ///
+	mc(eltblue) lc(gs10) text(1600 2200 "{&beta} = `estbeta' (`estse')") text(1580 2150 "{&rho} = `rho'")
+
+	graph export ../output/bins_sfcc_safmr`nbr'br.png, replace
 
 end
 
