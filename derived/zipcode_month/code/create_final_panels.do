@@ -16,7 +16,7 @@ program main
 	save_data "`instub'/zip_ready.dta", replace key(zipcode) log(none)
 
 	* Unbalanced rents
-	unbalanced_panel, instub(`instub') ///
+	unbalanced_panel, instub(`instub') inqcew(`inqcew') inbps(`inbps') ///
 					  vars(_sfcc _2br _mfr5plus) ///
 					  start_date(01jan2010) end_date(01dec2019)
   	save_data `outstub'/unbal_rent_panel.dta, key(zipcode year_month) 	///
@@ -121,7 +121,7 @@ program create_baseline_panel
 end
 
 program unbalanced_panel
-	syntax, instub(str) vars(str) start_date(str) end_date(str)
+	syntax, instub(str) inqcew(str) inbps(str) vars(str) start_date(str) end_date(str)
 
 	local varnames ""
 	foreach stub in `vars' {
