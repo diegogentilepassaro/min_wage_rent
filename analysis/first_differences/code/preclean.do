@@ -13,16 +13,15 @@ program main
 		year_month calendar_month trend trend_sq trend_cu					 		///
 		dactual_mw actual_mw medrentpricepsqft_* 							///
 		med_hhinc20105 renthouse_share2010 white_share2010 black_share2010			///
-		college_share20105 work_county_share20105 trend_sq poor_share20105          ///
-		lo_hhinc_share20105 hi_hhinc_share20105 unemp_share20105                    ///
-		employee_share20105 teen_share2010 youngadult_share2010                     ///
+		college_share20105 work_county_share20105 unemp_share20105 teen_share2010   ///
+		estcount_* avgwwage_* emp_* u1*
+
 	
 
 	local het_vars "med_hhinc20105 renthouse_share2010 college_share20105 black_share2010"
-	local het_vars "`het_vars' poor_share20105 lo_hhinc_share20105 hi_hhinc_share20105 unemp_share20105" 
-	local het_vars "`het_vars' employee_share20105 teen_share2010 youngadult_share2010"
+	local het_vars "`het_vars' unemp_share20105 teen_share2010" 
 
-	create_vars, 	log_vars(actual_mw medrentpricepsqft_sfcc medrentpricepsqft_2br medrentpricepsqft_mfr5plus) 	///
+	create_vars, 	log_vars(actual_mw medrentpricepsqft_sfcc emp_* estcount_* avgwwage_* u1*) 	///
 					heterogeneity_vars(`het_vars')
 	
 	simplify_varnames
@@ -59,7 +58,12 @@ end
 program create_vars
 	syntax, log_vars(str) heterogeneity_vars(str)
 
-	foreach var in `log_vars' {
+	local log_vars_expanded "" 
+	foreach v in `log_vars' {
+		unab this_var: `v'
+		local log_vars_expanded `"`log_vars_expanded' `this_var'"'
+	}
+	foreach var in `log_vars_expanded' {
 		gen ln_`var' = ln(`var')
 	}
 
@@ -84,8 +88,10 @@ end
 
 program simplify_varnames
 	
-    rename 	(ln_actual_mw 	ln_medrentpricepsqft_sfcc ln_medrentpricepsqft_2br ln_medrentpricepsqft_mfr5plus) 		///
-    		(ln_mw 			ln_med_rent_psqft_sfcc ln_med_rent_psqft_2br ln_med_rent_psqft_mfr5plus)
+	cap rename ln_actual_mw                  ln_mw 
+	cap rename ln_medrentpricepsqft_sfcc     ln_med_rent_psqft_sfcc
+	cap rename ln_medrentpricepsqft_2br      ln_med_rent_psqft_2br
+	cap rename ln_medrentpricepsqft_mfr5plus ln_med_rent_psqft_mfr5plus
 
 end
 

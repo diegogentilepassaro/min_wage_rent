@@ -1,5 +1,5 @@
 
- make.py started: 2020-09-27 12:13:05 /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/derived/zipcode_month/code 
+ make.py started: 2020-10-09 08:50:12 /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/derived/zipcode_month/code 
 
 
 
@@ -215,7 +215,7 @@ There were 46 warnings (use warnings() to see them)
 > 
 > proc.time()
    user  system elapsed 
-256.888  66.816  82.636 
+256.089  59.056  81.926 
 
 
 Execute:  R CMD BATCH --no-save "./addMinWage.R" addMinWage.Rout
@@ -484,7 +484,7 @@ Warning messages:
 > 
 > proc.time()
    user  system elapsed 
-172.391  16.730 139.020 
+180.100  17.988 148.257 
 
 
 Execute:  stataSE -e do "./clean_gen_label.do"
@@ -812,92 +812,93 @@ Notes:
   [8]              "../../../lib/stata/mental_coupons/ado"
 
 . 
+. 
 . program main
   1.         local instub "../temp"
   2.         local indemo "../../../drive/base_large/output"
-  3.         local outstub "../../../drive/derived_large/output"
-  4.         local logfile "../output/data_file_manifest.log"
-  5. 
-.         local add_demo = "yes"
-  6. 
-.         if "`add_demo'" == "yes" {
-  7.                 import delim using "`indemo'/zip_demo.csv", clear
-  8.                 save_data "`instub'/zip_ready.dta", replace key(zipcode) log(`logfile')
-  9.         } 
- 10. 
-.         * Unbalanced rents
-.         unbalanced_panel, instub(`instub') ///
->                                           vars(_sfcc _2br _mfr5plus) ///
->                                           start_date(01jan2010) end_date(01dec2019)
- 11.         save_data `outstub'/unbal_rent_panel.dta, key(zipcode year_month)       ///
->                 log(`logfile') replace 
- 12. 
-.         
+  3.         local inqcew "../../../base/qcew/output"
+  4.         local inbps "../../../base/bps/output"
+  5.         local outstub "../../../drive/derived_large/output"
+  6.         local logfile "../output/data_file_manifest.log"
+  7. 
+.         import delim using "`indemo'/zip_demo.csv", clear
+  8.         save_data "`instub'/zip_ready.dta", replace key(zipcode) log(`logfile')
+  9. 
 .         * Baseline rents
 .         local rent_vars "medrentprice_mfr5plus" 
- 13.         foreach name in _2br psqft_sfcc psqft_2br psqft_mfr5plus {
- 14.                 local rent_vars "`rent_vars' medrentprice`name'"
- 15.         }
- 16. 
+ 10.         foreach name in _2br psqft_sfcc psqft_2br psqft_mfr5plus {
+ 11.                 local rent_vars "`rent_vars' medrentprice`name'"
+ 12.         }
+ 13. 
 .         foreach var in medrentprice_sfcc `rent_vars' {
- 17.                 create_baseline_panel, instub(`instub') var(`var')                     
+ 14.                 create_baseline_panel, instub(`instub') var(`var')                     
 >                  ///
 >                         balance_date(01jul2015) start_date(01jan2010) end_date(01dec2019)
- 18.         }
- 19. 
+ 15.         }
+ 16. 
 .         use "`instub'/baseline_medrentprice_sfcc.dta", clear
- 20.         foreach var in `rent_vars' {
- 21.                 merge 1:1 zipcode year_month using "`instub'/baseline_`var'.dta",      
+ 17.         foreach var in `rent_vars' {
+ 18.                 merge 1:1 zipcode year_month using "`instub'/baseline_`var'.dta",      
 >  ///
 >                     nogen keep(1 3)
- 22.         }
- 23.         if "`add_demo'" == "yes" {
- 24.                 merge m:1 zipcode using `instub'/zip_ready.dta, nogen assert(1 2 3) kee
-> p(1 3)   
- 25.         }
- 26. 
-.         save_data "`outstub'/baseline_rent_panel.dta", key(zipcode year_month)  ///
+ 19.         }
+ 20.         add_covars, demo(yes) indemo(`instub') qcew(yes) inqcew(`inqcew') bps(yes) inbp
+> s(`inbps')
+ 21.         save_data "`outstub'/baseline_rent_panel.dta", key(zipcode year_month)  ///
 >                 log(`logfile') replace
- 27. 
+ 22. 
 . 
 .         * Baseline listings
 .         local listing_vars "medlistingprice_low_tier" 
- 28.         foreach name in _top_tier psqft_sfcc psqft_low_tier psqft_top_tier {
- 29.                 local listing_vars "`listing_vars' medlistingprice`name'"
- 30.         }
- 31. 
+ 23.         foreach name in _top_tier psqft_sfcc psqft_low_tier psqft_top_tier {
+ 24.                 local listing_vars "`listing_vars' medlistingprice`name'"
+ 25.         }
+ 26. 
 .         foreach var in medlistingprice_sfcc `listing_vars' {
- 32.                 create_baseline_panel, instub(`instub') var(`var')                     
+ 27.                 create_baseline_panel, instub(`instub') var(`var')                     
 >                  ///
 >                         balance_date(01jul2015) start_date(01jan2010) end_date(01dec2019)
- 33.         }
- 34. 
+ 28.         }
+ 29. 
 .         use "`instub'/baseline_medlistingprice_sfcc.dta", clear
- 35.         foreach var in `listing_vars' {
- 36.                 merge 1:1 zipcode year_month using "`instub'/baseline_`var'.dta",      
+ 30.         foreach var in `listing_vars' {
+ 31.                 merge 1:1 zipcode year_month using "`instub'/baseline_`var'.dta",      
 >  ///
 >                         nogen keep(1 3)
- 37.         }
- 38.         if "`add_demo'" == "yes" {
- 39.                 merge m:1 zipcode using `instub'/zip_ready.dta, nogen assert(1 2 3) kee
-> p(1 3)   
- 40.         }
- 41. 
-. 
-.         save_data "`outstub'/baseline_listing_panel.dta", key(zipcode year_month) ///
+ 32.         }
+ 33.         add_covars, demo(yes) indemo(`instub') qcew(yes) inqcew(`inqcew') bps(yes) inbp
+> s(`inbps')
+ 34.         save_data "`outstub'/baseline_listing_panel.dta", key(zipcode year_month) ///
 >                 log(`logfile') replace
- 42. 
+ 35. 
 . 
 .         * Baseline all
 .         use "`instub'/zipcode_yearmonth_panel.dta", clear
- 43.         if "`add_demo'" == "yes" {
- 44.                 merge m:1 zipcode using `instub'/zip_ready.dta, nogen assert(1 2 3) kee
-> p(1 3)   
- 45.         }
- 46.         save_data "`outstub'/zipcode_yearmonth_panel_all.dta", key(zipcode year_month) 
+ 36.         add_covars, demo(yes) indemo(`instub') qcew(no) inqcew(`inqcew') bps(no) inbps(
+> `inbps')
+ 37.         save_data "`outstub'/zipcode_yearmonth_panel_all.dta", key(zipcode year_month) 
 > ///
 >                 log(`logfile') replace
- 47. end
+ 38. end
+
+. 
+. 
+. program add_covars 
+  1.         syntax, demo(str) indemo(str) qcew(str) inqcew(str) bps(str) inbps(str)
+  2. 
+.         if "`demo'" == "yes" {
+  3.                 merge m:1 zipcode using `indemo'/zip_ready.dta, nogen assert(1 2 3) kee
+> p(1 3)   
+  4.         }
+  5.         if "`qcew'" == "yes" {
+  6.                 merge m:1 countyfips statefips year_month using `inqcew'/ind_emp_wage_c
+> ountymonth.dta, nogen assert(1 2 3) keep(1 3)
+  7.         }
+  8.         if "`bps'" == "yes" {
+  9.                 merge m:1 countyfips statefips year_month using `inbps'/bps_sf_cty_mon.
+> dta, nogen assert(1 2 3) keep(1 3)
+ 10.         }
+ 11. end 
 
 . 
 . program create_baseline_panel
@@ -940,110 +941,6 @@ Notes:
 .         save_data "../temp/baseline_`var'.dta", key(zipcode year_month)         ///
 >                 replace log(none)
  14. end
-
-. 
-. program unbalanced_panel
-  1.         syntax, instub(str) vars(str) start_date(str) end_date(str)
-  2. 
-.         local varnames ""
-  3.         foreach stub in `vars' {
-  4.                 local varnames `"`varnames' medrentpricepsqft`stub'"'
-  5.         }
-  6. 
-.         use zipcode place_code placetype statefips msa countyfips county        ///
->                 year_month calendar_month `varnames'                                      
->                       ///
->                 actual_mw dactual_mw mw_event                                             
->                       ///
->                 local_abovestate_mw county_abovestate_mw local_mw                         
->       ///
->                 county_mw state_mw fed_mw                                       ///  
->                 which_mw fed_event state_event county_event local_event                 //
-> /
->                 sal_mw_event mw_event025 mw_event075                                      
->               ///
->                 trend trend_sq trend_cu                                         ///
->                 using "`instub'/zipcode_yearmonth_panel.dta", clear
-  7. 
-.         keep if (year_month >= `=mofd(td(`start_date'))' &                                
->       ///
->                          year_month <= `=mofd(td(`end_date'))')
-  8. 
-.         xtset zipcode year_month
-  9.         g id = _n
- 10.         //bys zipcode (year_month): gen byte lastobs = (_n == _N)
-.         //g miss`stub' =  (!missing(allmissing`stub'))
-. 
-.         local allmissing_tot "" 
- 11.         foreach stub in `vars' {
- 12.                 preserve
- 13.                 bys zipcode (year_month) : gen long obsno = _n
- 14.                 bys zipcode (year_month) : gen countnonmissing = sum(!missing(medrentpr
-> icepsqft`stub')) if !missing(medrentpricepsqft`stub')
- 15.                 bys zipcode (year_month) : gegen allmissing`stub' = min(countnonmissing
-> )
- 16. 
-.                 *here
-.                 drop if missing(allmissing`stub')
- 17.                 bys zipcode (year_month): drop if sum(!mi(medrentpricepsqft`stub')) == 
-> 0 
- 18.                 gen ntime = -year_month 
- 19.                 bys zipcode (ntime): drop if sum(!mi(medrentpricepsqft`stub')) == 0 
- 20.                 drop ntime  
- 21.                 bys zipcode (year_month) : gen exit`stub' = year_month[_N]
- 22.                 format exit`stub' %tm
- 23.                 g miss`stub' =  (!missing(allmissing`stub'))
- 24.                 bys zipcode (year_month) : gen entry`stub' = year_month[1] 
- 25.                 format entry`stub' %tm
- 26. 
-. 
-.                 g timetolast = exit`stub' - year_month
- 27.                 bys zipcode (year_month): g timetolast_event = timetolast if dactual_mw
-> !=0
- 28.                 foreach m in 0 5 {
- 29.                         g event_endfe`m'`stub' = timetolast_event 
- 30.                         g event_endfe`m'lag`stub' = timetolast_event 
- 31.                         forval i = 0/`m' {
- 32.                                 bys zipcode (year_month): replace event_endfe`m'`stub' 
-> = timetolast[_n + `i'] if dactual_mw[_n + `i']!=0
- 33.                                 bys zipcode (year_month): replace event_endfe`m'`stub' 
-> = timetolast[_n - `i'] if dactual_mw[_n - `i']!=0
- 34.                                 bys zipcode (year_month): replace event_endfe`m'lag`stu
-> b' = timetolast[_n - `i'] if dactual_mw[_n - `i']!=0
- 35.                                 replace event_endfe`m'`stub' = 99999 if missing(event_e
-> ndfe`m'`stub')
- 36.                                 replace event_endfe`m'lag`stub' = 99999 if missing(even
-> t_endfe`m'lag`stub')
- 37.                         }
- 38. 
-.                 } 
- 39. 
-.                 gen sample`stub' = 1
- 40.                 keep id entry`stub' exit`stub' event_endfe0`stub' event_endfe5`stub' ev
-> ent_endfe5lag`stub' sample`stub' miss`stub'
- 41.                 save ../temp/event_cohorts`stub'.dta, replace 
- 42.                 restore
- 43.                 merge 1:1 id using ../temp/event_cohorts`stub', nogen assert(1 2 3) kee
-> p(1 3)
- 44.                 replace sample`stub' = 0 if missing(sample`stub') 
- 45. 
-.                 //drop allmissing`stub' obsno countnonmissing
-.                 //local allmissing_tot `"`allmissing_tot' miss`stub'"'
-.                 //drop event_endfe0lag`stub' allmissing`stub' obsno countnonmissing timeto
-> last timetolast_event
-.                 local allmissing_tot `"`allmissing_tot' sample`stub'"'
- 46.         }
- 47.         gegen miss_sum = rowtotal(`allmissing_tot')
- 48.         drop if miss_sum==0
- 49.         drop miss_sum 
- 50.         gsort zipcode year_month
- 51. 
-. 
-. 
-.         merge m:1 zipcode using `instub'/zip_ready.dta, nogen assert(1 2 3) keep(1 3)   
- 52. 
-. 
-. end 
 
 . 
 . main
@@ -1131,349 +1028,6 @@ med~sp_20105 |     38,393    31970.77    11067.78       2499     250001
 
 (note: file ../temp/zip_ready.dta not found)
 file ../temp/zip_ready.dta saved
-(5,150,309 observations deleted)
-       panel variable:  zipcode (unbalanced)
-        time variable:  year_month, 2010m1 to 2019m12
-                delta:  1 month
-(3,675,534 missing values generated)
-(3,475,592 observations deleted)
-(199,942 observations deleted)
-(0 observations deleted)
-(190,107 missing values generated)
-(190,107 missing values generated)
-(190,107 missing values generated)
-(0 real changes made)
-(0 real changes made)
-(0 real changes made)
-(190,107 real changes made)
-(190,107 real changes made)
-(190,107 missing values generated)
-(190,107 missing values generated)
-(0 real changes made)
-(0 real changes made)
-(0 real changes made)
-(190,107 real changes made)
-(190,107 real changes made)
-(10,793 real changes made, 3,316 to missing)
-(11,138 real changes made, 3,316 to missing)
-(11,138 real changes made, 3,316 to missing)
-(6,632 real changes made)
-(3,316 real changes made)
-(13,976 real changes made, 6,632 to missing)
-(14,454 real changes made, 6,632 to missing)
-(14,454 real changes made, 6,632 to missing)
-(13,261 real changes made)
-(6,632 real changes made)
-(17,199 real changes made, 9,948 to missing)
-(17,767 real changes made, 9,948 to missing)
-(17,767 real changes made, 9,948 to missing)
-(19,597 real changes made)
-(9,948 real changes made)
-(20,449 real changes made, 13,264 to missing)
-(21,083 real changes made, 13,264 to missing)
-(21,083 real changes made, 13,264 to missing)
-(26,229 real changes made)
-(13,264 real changes made)
-(23,640 real changes made, 16,580 to missing)
-(24,399 real changes made, 16,580 to missing)
-(24,399 real changes made, 16,580 to missing)
-(32,794 real changes made)
-(16,580 real changes made)
-(note: file ../temp/event_cohorts_sfcc.dta not found)
-file ../temp/event_cohorts_sfcc.dta saved
-
-    Result                           # of obs.
-    -----------------------------------------
-    not matched                     3,675,534
-        from master                 3,675,534  
-        from using                          0  
-
-    matched                           197,978  
-    -----------------------------------------
-(3,675,534 real changes made)
-(3,780,720 missing values generated)
-(3,586,593 observations deleted)
-(194,127 observations deleted)
-(0 observations deleted)
-(88,571 missing values generated)
-(88,571 missing values generated)
-(88,571 missing values generated)
-(0 real changes made)
-(0 real changes made)
-(0 real changes made)
-(88,571 real changes made)
-(88,571 real changes made)
-(88,571 missing values generated)
-(88,571 missing values generated)
-(0 real changes made)
-(0 real changes made)
-(0 real changes made)
-(88,571 real changes made)
-(88,571 real changes made)
-(6,300 real changes made, 2,391 to missing)
-(6,550 real changes made, 2,391 to missing)
-(6,550 real changes made, 2,391 to missing)
-(4,782 real changes made)
-(2,391 real changes made)
-(8,590 real changes made, 4,782 to missing)
-(8,941 real changes made, 4,782 to missing)
-(8,941 real changes made, 4,782 to missing)
-(9,557 real changes made)
-(4,782 real changes made)
-(10,898 real changes made, 7,173 to missing)
-(11,325 real changes made, 7,173 to missing)
-(11,325 real changes made, 7,173 to missing)
-(14,043 real changes made)
-(7,173 real changes made)
-(13,209 real changes made, 9,564 to missing)
-(13,716 real changes made, 9,564 to missing)
-(13,716 real changes made, 9,564 to missing)
-(18,825 real changes made)
-(9,564 real changes made)
-(15,513 real changes made, 11,955 to missing)
-(16,107 real changes made, 11,955 to missing)
-(16,107 real changes made, 11,955 to missing)
-(23,577 real changes made)
-(11,955 real changes made)
-(note: file ../temp/event_cohorts_2br.dta not found)
-file ../temp/event_cohorts_2br.dta saved
-
-    Result                           # of obs.
-    -----------------------------------------
-    not matched                     3,780,720
-        from master                 3,780,720  
-        from using                          0  
-
-    matched                            92,792  
-    -----------------------------------------
-(3,780,720 real changes made)
-(3,726,654 missing values generated)
-(3,469,715 observations deleted)
-(256,939 observations deleted)
-(0 observations deleted)
-(139,957 missing values generated)
-(139,957 missing values generated)
-(139,957 missing values generated)
-(0 real changes made)
-(0 real changes made)
-(0 real changes made)
-(139,957 real changes made)
-(139,957 real changes made)
-(139,957 missing values generated)
-(139,957 missing values generated)
-(0 real changes made)
-(0 real changes made)
-(0 real changes made)
-(139,957 real changes made)
-(139,957 real changes made)
-(9,920 real changes made, 3,365 to missing)
-(10,134 real changes made, 3,365 to missing)
-(10,134 real changes made, 3,365 to missing)
-(6,730 real changes made)
-(3,365 real changes made)
-(13,120 real changes made, 6,730 to missing)
-(13,499 real changes made, 6,730 to missing)
-(13,499 real changes made, 6,730 to missing)
-(13,448 real changes made)
-(6,730 real changes made)
-(16,341 real changes made, 10,095 to missing)
-(16,852 real changes made, 10,095 to missing)
-(16,852 real changes made, 10,095 to missing)
-(19,743 real changes made)
-(10,095 real changes made)
-(19,559 real changes made, 13,460 to missing)
-(20,217 real changes made, 13,460 to missing)
-(20,217 real changes made, 13,460 to missing)
-(26,473 real changes made)
-(13,460 real changes made)
-(22,804 real changes made, 16,825 to missing)
-(23,582 real changes made, 16,825 to missing)
-(23,582 real changes made, 16,825 to missing)
-(33,146 real changes made)
-(16,825 real changes made)
-(note: file ../temp/event_cohorts_mfr5plus.dta not found)
-file ../temp/event_cohorts_mfr5plus.dta saved
-
-    Result                           # of obs.
-    -----------------------------------------
-    not matched                     3,726,654
-        from master                 3,726,654  
-        from using                          0  
-
-    matched                           146,858  
-    -----------------------------------------
-(3,726,654 real changes made)
-rowtotal() is not a gtools function and no by(); falling back on egen
-(3,616,608 observations deleted)
-
-    Result                           # of obs.
-    -----------------------------------------
-    not matched                           125
-        from master                       125  
-        from using                          0  
-
-    matched                           256,779  
-    -----------------------------------------
-(data now sorted by zipcode year_month)
-  variable exit_sfcc was float now int
-  variable miss_sfcc was float now byte
-  variable entry_sfcc was float now int
-  variable sample_sfcc was float now byte
-  variable exit_2br was float now int
-  variable miss_2br was float now byte
-  variable entry_2br was float now int
-  variable sample_2br was float now byte
-  variable exit_mfr5plus was float now int
-  variable miss_mfr5plus was float now byte
-  variable entry_mfr5plus was float now int
-  variable sample_mfr5plus was float now byte
-  variable mww_shrenter_all1 was str20 now str18
-  variable mww_shrenter_wmean2 was str20 now str18
-  (8,734,736 bytes saved)
-============================================================================
-File: ../../../drive/derived_large/output/unbal_rent_panel.dta
-Key: zipcode year_month
-============================================================================
-  256904:109(83291):2285458216:2294232167
-
-    Variable |        Obs        Mean    Std. Dev.       Min        Max
--------------+---------------------------------------------------------
-     zipcode |    256,904    53735.04    30378.79       1060      99705
-  year_month |    256,904    681.6926    28.88466        601        719
-  place_code |    212,605    41676.21    23018.68        100      88940
-   placetype |          0
-  countyfips |    256,215    24629.41    16664.68       1001      56021
--------------+---------------------------------------------------------
-      county |          0
-   statefips |    256,904    24.53798    16.61264          1         56
-medrentpri~r |     92,792    1.682865     .803698   .5015197   12.55461
-medrentpri~c |    197,978    1.303812    1.033133   .1091193   23.96932
-medrentpri~s |    146,858    1.736677     .849114   .3150482   12.55435
--------------+---------------------------------------------------------
-      fed_mw |    256,904        7.25           0       7.25       7.25
-    state_mw |    256,904    8.490858    1.437463       7.25         14
-   county_mw |     19,151    10.46491     2.00883       7.25      14.25
-county_abo~w |     19,151    .6145893    .4867049          0          1
-    local_mw |     23,131     10.8572    2.246618       7.25         16
--------------+---------------------------------------------------------
-local_abov~w |     23,131    .5491764    .4975866          0          1
-   actual_mw |    256,904    8.631555    1.688098       7.25         16
-    which_mw |    256,904    2.206953    .5772343          2          4
-  dactual_mw |    256,904    .0229481    .1426847          0       3.25
-    mw_event |    256,904    .0417783    .2000824          0          1
--------------+---------------------------------------------------------
- state_event |    256,904    .0334833    .1798953          0          1
-county_event |    256,904    .0026391    .0513046          0          1
- local_event |    256,904    .0056558    .0749923          0          1
-   fed_event |    256,904           0           0          0          0
-calendar_m~h |    256,904    6.658172    3.446589          1         12
--------------+---------------------------------------------------------
-         msa |    256,872    446.3597     240.165          2        860
-       trend |    256,904    247.6926    28.88466        167        285
-    trend_sq |    256,904    62185.95    13757.94      27889      81225
-    trend_cu |    256,904    1.58e+07     4978153    4657463   2.31e+07
-sal_mw_event |    256,904      .02209    .1469765          0          1
--------------+---------------------------------------------------------
- mw_event025 |    256,904    .0260486    .1592803          0          1
- mw_event075 |    256,904    .0138145    .1167207          0          1
-          id |    256,904     2116112     1225564      15685    3871952
-   exit_sfcc |    197,978         719           0        719        719
-   miss_sfcc |    197,978           1           0          1          1
--------------+---------------------------------------------------------
-  entry_sfcc |    197,978     640.697    32.56312        601        708
-event~0_sfcc |    197,978    96024.92    19530.89          0      99999
-event~5_sfcc |    197,978    62732.88    48336.13          0      99999
-event~g_sfcc |    197,978    77922.68    41465.42          0      99999
- sample_sfcc |    256,904    .7706303    .4204283          0          1
--------------+---------------------------------------------------------
-    exit_2br |     92,792         719           0        719        719
-    miss_2br |     92,792           1           0          1          1
-   entry_2br |     92,792    665.5401    31.53018        601        708
-event_~0_2br |     92,792    95451.47    20831.27          0      99999
-event_~5_2br |     92,792    60666.74    48837.08          0      99999
--------------+---------------------------------------------------------
-event_~g_2br |     92,792    75772.44    42837.23          0      99999
-  sample_2br |    256,904    .3611933    .4803474          0          1
-exit_mfr5p~s |    146,858         719           0        719        719
-miss_mfr5p~s |    146,858           1           0          1          1
-entry_mfr5~s |    146,858    659.1921    31.54038        601        708
--------------+---------------------------------------------------------
-e~0_mfr5plus |    146,858    95301.41    21155.23          0      99999
-e~5_mfr5plus |    146,858    58373.57    49280.23          0      99999
-e~g_mfr5plus |    146,858    74699.06     43463.8          0      99999
-sample_mfr~s |    256,904    .5716454    .4948413          0          1
- sh_mww_all1 |    256,779    .1138519    .0678351   .0050443   .5449704
--------------+---------------------------------------------------------
- sh_mww_all2 |    256,779     .257548    .1177055   .0248351   .7446952
-sh_mww_wme~1 |    256,779    .1867353     .079712   .0227016   .5683547
-sh_mww_wme~2 |    256,779    .1635045    .0763035   .0206438   .5578098
-mww_shsub2~1 |    256,221    .2284375    .1581682          0          1
-mww_shsub2~2 |    256,221    .4566544    .1909958          0          1
--------------+---------------------------------------------------------
-mww_shblac~1 |    256,378     .166772    .1292903          0          1
-mww_shblac~2 |    256,378    .3406532    .1834121          0          1
-mww_sub25_~1 |    256,378    .0157682    .0364883          0   .7309877
-mww_sub25_~2 |    256,378    .0292949    .0526726          0    .999929
-sh_mww_re~l1 |    256,779    .0985973    .0650921          0   .5449704
--------------+---------------------------------------------------------
-sh_mww_re~l2 |    256,779    .1692269    .1081652   .0072235   .7586449
-sh_mww_re~n1 |    256,779    .1256605    .0768692   .0058428   .5635779
-sh_mww_re~n2 |    256,779    .1227029    .0746306   .0058505   .5587065
-mww_shren~l1 |          0
-mww_shren~l2 |    256,779    .3802908    .1371184   .0574713   .8083438
--------------+---------------------------------------------------------
-mww_shren~n1 |    256,779    .2894893    .1040435   .0538339   .7670022
-mww_shren~n2 |          0
-     pop2010 |    256,779    34064.87    15436.16   12.82041   112592.4
-urb_sha~2010 |    256,779    .9684113    .0771609          0          1
-white_s~2010 |    256,779    .5716164    .2306947   .0037838   .9748839
--------------+---------------------------------------------------------
-black_s~2010 |    256,779    .1471986    .1873994   .0009378   .9753076
-hisp_sh~2010 |    256,779    .1792822    .1724978    .007213   .9766675
-asian_s~2010 |    256,779    .0701576    .0874115   .0005501   .7048439
-natam_s~2010 |    256,779    .0018346    .0066467          0   .2737691
-child_s~2010 |    256,779    .1900064    .0525963   .0021894   .3898023
--------------+---------------------------------------------------------
-teen_sh~2010 |    256,779    .1420202    .0572793   .0043567   .8476887
-youngad~2010 |    256,779    .1556705    .0564202   .0082302   .5039286
-adult_s~2010 |    256,779     .393084    .0493083   .0453192    .567749
-elder_s~2010 |    256,779    .1192189    .0601629   .0093771   .7976654
-housing~2010 |    256,779    14469.91    5885.771   14.88297   47225.96
--------------+---------------------------------------------------------
-hh_couple_s~ |    256,779    .5215963    .1283312   .0815891   .8560923
-h~child_sh~0 |    256,779    .4393113     .104886   .0094021   .7735026
-renthou~2010 |    256,779    .4031524    .1763123   .0608285   .9884645
-work_c~20105 |    256,779     .759293    .1975878   .1248519    .998565
-worktravel.. |    256,779    .1079331    .0523328   .0054477   .5213547
--------------+---------------------------------------------------------
-worktravel.. |    256,779     .815509    .0616326   .3838384   .9513167
-worktravel.. |    256,779    .0765579    .0564261   .0028562   .4009309
-colleg~20105 |    256,779    .4480818    .1688647   .0580171   .9082218
-poor_s~20105 |    256,779    .1381756    .0867051   .0109871   .6753151
-lo_hhi~20105 |    256,779    .3880466    .1478722    .044164   .9019868
--------------+---------------------------------------------------------
-hi_hhi~20105 |    256,779    .2700161    .1461867   .0150394   .7898433
-unemp_~20105 |    256,779    .0904172    .0383215   .0116481   .3669472
-employ~20105 |    256,779    .8980982    .0450873   .5827379   .9899218
-work~ce20105 |    256,779    951.7273    636.2493          0   8905.441
-tot_ratio_~m |    256,779    72.07901    78.11403   .0000152   1557.576
--------------+---------------------------------------------------------
-     rel_wgt |    256,779     .865051    .1004599   .0039012          1
-worker_foo.. |    256,779     .057854    .0260739          0   .2173945
-med_hh~20105 |    256,779     65814.8    25327.83   12404.68   214212.3
-med_earn_h~5 |    253,312    27076.49    15270.02       2499     250001
-m~tectserv~5 |    253,862    46855.18    20632.36       2499     250001
--------------+---------------------------------------------------------
-med_earn_f~5 |    256,425    16353.12    7204.388       2499   240574.1
-med_earn_c~5 |    254,750    22414.37    10898.62       2499   246364.8
-med_~e_20105 |    256,529    19327.79    9701.388       2499     250001
-med~sp_20105 |    256,596    33492.92    11294.93       2499   193485.7
-
-
-
-
-(note: file ../../../drive/derived_large/output/unbal_rent_panel.dta not found)
-file ../../../drive/derived_large/output/unbal_rent_panel.dta saved
 (5,150,309 observations deleted)
 (3,841,231 observations deleted)
 (30,976 observations deleted)
@@ -2023,6 +1577,24 @@ file ../temp/baseline_medrentpricepsqft_mfr5plus.dta saved
     not matched                             0
     matched                           156,600  
     -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                         4,266
+        from master                     4,266  
+        from using                          0  
+
+    matched                           152,334  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                        20,207
+        from master                    20,207  
+        from using                          0  
+
+    matched                           136,393  
+    -----------------------------------------
 (data now sorted by zipcode year_month)
   variable mww_shrenter_all1 was str20 now str18
   variable mww_shrenter_wmean2 was str20 now str18
@@ -2031,7 +1603,7 @@ file ../temp/baseline_medrentpricepsqft_mfr5plus.dta saved
 File: ../../../drive/derived_large/output/baseline_rent_panel.dta
 Key: zipcode year_month
 ============================================================================
-  156600:90(63338):3566171284:3488468217
+  156600:132(119472):2987230399:1470540089
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -2142,6 +1714,57 @@ med_earn_f~5 |    156,480    16558.06    7029.657   4436.876   136515.3
 med_earn_c~5 |    155,040     22797.4    11990.55       2499   246364.8
 med_~e_20105 |    156,600    19792.87    10529.06       2499     250001
 med~sp_20105 |    156,480    34127.94    11516.45   15005.94   193485.7
+-------------+---------------------------------------------------------
+estcount_b~v |    152,334    9998.143    9478.137         60      56304
+avgwwage_b~v |    152,334    1252.921    434.7633        226       4727
+ emp_bizserv |    152,334    134293.3    143883.8        329     642234
+estcount_c~t |    152,334    3240.371    2963.656         35      16939
+avgwwage_c~t |    152,334    1101.648    300.1755          0       2608
+-------------+---------------------------------------------------------
+   emp_const |    152,334    33963.15    34828.46          0     173773
+estcount_e~e |    152,334    8227.496    21233.92         48     245645
+avgwwage_e~e |    152,334    941.4689    149.2949        415       1975
+   emp_eduhe |    152,334    115827.1    123161.7        481     835039
+estcount_f~v |    152,334    114.6271    78.41068          3        456
+-------------+---------------------------------------------------------
+avgwwage_f~v |    152,334    1433.109    237.1039        654       2724
+  emp_fedgov |    152,334    13996.39    16476.49         42     215436
+estcount_g~r |    152,334    5036.921    4952.914         68      30126
+avgwwage_g~r |    152,334    1224.162    338.4809          0       4214
+  emp_goodpr |    152,334    86332.35    101028.4          0     500610
+-------------+---------------------------------------------------------
+estcount_i~o |    152,334    920.6698    1382.296          4      13212
+avgwwage_i~o |    152,334    1504.754    620.2263          0       7381
+    emp_info |    152,334    21043.15    35144.92          0     240358
+estcount_l~s |    152,334    4278.093    4708.605         27      39222
+avgwwage_l~s |    152,334    446.7107    134.2103        203       1131
+-------------+---------------------------------------------------------
+    emp_leis |    152,334    93087.95    93948.61        279     551791
+estcount_m~u |    152,334    1585.444    1953.882         10      13469
+avgwwage_m~u |    152,334    1272.906    396.7543          0       4970
+    emp_manu |    152,334    47068.67    62218.62          0     376653
+estcount_n~s |    151,809    211.8363    322.4826          1       1859
+-------------+---------------------------------------------------------
+avgwwage_n~s |    151,809    1133.199    862.1232          0       8606
+  emp_natres |    151,809    5209.704     14256.1          0      97846
+estcount_s~r |    152,334    44916.23    55840.58        321     473025
+avgwwage_s~r |    152,334     1000.91    364.5153        375       3353
+  emp_servpr |    152,334    595541.6    612777.8       2751    3452495
+-------------+---------------------------------------------------------
+estcount_s~v |    152,127    140.9399    411.3288          1       5969
+avgwwage_s~v |    152,127     1014.47    299.4505          0       2572
+   emp_stgov |    152,127    15709.17    16292.85          0     114555
+estcount_t~p |    152,334    9406.654    9421.556         84      59438
+avgwwage_t~p |    152,334    861.6196    200.9441        356       3194
+-------------+---------------------------------------------------------
+  emp_transp |    152,334    143879.2    144973.2        629     872187
+    u1_bldgs |    136,332    273.6464    358.5711      -1622       2687
+    u1_units |    136,332    273.6464    358.5711      -1622       2687
+    u1_value |    136,332    6.74e+07    8.85e+07  -1.35e+08   6.43e+08
+ u1rep_bldgs |    136,332    261.2207    357.1151       -478       3758
+-------------+---------------------------------------------------------
+ u1rep_units |    136,332    261.2207    357.1151       -478       3758
+ u1rep_value |    136,332    6.48e+07    8.80e+07  -1.32e+08   8.74e+08
 
 
 
@@ -2694,6 +2317,24 @@ file ../temp/baseline_medlistingpricepsqft_top_tier.dta saved
 
     matched                           922,920  
     -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                        25,788
+        from master                    25,788  
+        from using                          0  
+
+    matched                           898,092  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       343,427
+        from master                   343,427  
+        from using                          0  
+
+    matched                           580,453  
+    -----------------------------------------
 (data now sorted by zipcode year_month)
   variable mww_shrenter_wmean2 was str20 now str18
   (1,847,760 bytes saved)
@@ -2701,7 +2342,7 @@ file ../temp/baseline_medlistingpricepsqft_top_tier.dta saved
 File: ../../../drive/derived_large/output/baseline_listing_panel.dta
 Key: zipcode year_month
 ============================================================================
-  923880:90(56046):4139789264:1793613893
+  923880:132(46644):1102596416:3813202826
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -2812,6 +2453,57 @@ med_earn_f~5 |    921,480    13954.64    5764.861       2499   136515.3
 med_earn_c~5 |    918,840    22010.93    10566.81       2499   246364.8
 med_~e_20105 |    919,440    17433.12    8164.185       2499     250001
 med~sp_20105 |    921,960    33625.26    9930.205       2499   193485.7
+-------------+---------------------------------------------------------
+estcount_b~v |    898,092    5383.988    8997.349          3      56304
+avgwwage_b~v |    898,092    1089.464    394.4624          0      26956
+ emp_bizserv |    898,092    69796.47      121425          0     642234
+estcount_c~t |    898,092    2022.289    2841.602          6      16939
+avgwwage_c~t |    898,092    1018.332    267.8003          0       3754
+-------------+---------------------------------------------------------
+   emp_const |    898,092    19001.93    29361.34          0     173773
+estcount_e~e |    898,092    7139.496    28330.07          1     245645
+avgwwage_e~e |    898,092    864.9671    157.9041          0       2315
+   emp_eduhe |    898,092    69597.87    123927.6          0     835039
+estcount_f~v |    898,020    78.93414    82.67637          1        456
+-------------+---------------------------------------------------------
+avgwwage_f~v |    898,020    1319.158    259.0238          0       3704
+  emp_fedgov |    898,020    7478.456    12870.41          0     215436
+estcount_g~r |    898,092    3236.467    4991.438         11      30126
+avgwwage_g~r |    898,092    1126.962     313.154          0       4214
+  emp_goodpr |    898,092    55827.53    94478.21          0     500610
+-------------+---------------------------------------------------------
+estcount_i~o |    897,753    566.3879    1541.496          1      13212
+avgwwage_i~o |    897,753    1249.443    578.1605          0      16227
+    emp_info |    897,753    12077.29     32772.5          0     240358
+estcount_l~s |    898,092    2606.993    5166.447          3      39222
+avgwwage_l~s |    898,092     379.691    117.8648          0       1533
+-------------+---------------------------------------------------------
+    emp_leis |    898,092    49649.31    87463.67          0     551791
+estcount_m~u |    897,996    1072.084    2134.776          1      13469
+avgwwage_m~u |    897,996    1171.649    379.9078          0       6535
+    emp_manu |    897,996    33805.74    63578.24          0     376653
+estcount_n~s |    896,232    142.5043    241.2358          1       1859
+-------------+---------------------------------------------------------
+avgwwage_n~s |    896,232    945.4274     656.676          0      10760
+  emp_natres |    896,232    2978.428    9513.771          0      97846
+estcount_s~r |    898,092    28941.03    67166.89         36     473025
+avgwwage_s~r |    898,092    847.7894    256.3785          0       3594
+  emp_servpr |    898,092    330578.1      580590          0    3452495
+-------------+---------------------------------------------------------
+estcount_s~v |    893,541    126.9759    431.1563          1       5969
+avgwwage_s~v |    893,541    951.8092    334.6626          0       2572
+   emp_stgov |    893,541    10130.73    16276.46          0     114555
+estcount_t~p |    898,092    5498.549    9526.282         10      59438
+avgwwage_t~p |    898,092    773.5964    178.4153        294       3194
+-------------+---------------------------------------------------------
+  emp_transp |    898,092    84791.26    145682.8         16     872187
+    u1_bldgs |    580,158    173.7206    263.8203      -1622       2687
+    u1_units |    580,158    173.7206    263.8203      -1622       2687
+    u1_value |    580,158    4.53e+07    6.73e+07  -1.94e+08   6.43e+08
+ u1rep_bldgs |    580,158    163.8696    262.2988       -478       3758
+-------------+---------------------------------------------------------
+ u1rep_units |    580,158    163.8696    262.2988       -478       3758
+ u1rep_value |    580,158    4.29e+07    6.64e+07  -2.01e+08   8.74e+08
 
 
 
@@ -3024,4 +2716,4 @@ file ../../../drive/derived_large/output/zipcode_yearmonth_panel_all.dta saved
 . 
 end of do-file
 
- make.py ended: 2020-09-27 13:12:45
+ make.py ended: 2020-10-09 09:07:06
