@@ -58,7 +58,7 @@ program run_static_heterogeneity
 	ylabel(1 "1" 2 "2" 3 "3" 4 "4") ///
 	ytitle(`ytitle') ///
 	xtitle("Estimated effect of ln MW on ln rents")	///
-	xline(0, lcol(grey) lpat(dot))
+	xline(0, lcol(black)) mcolor(edkblue) ciopts(recast(rcap) lc(edkblue) lp(dash) lw(vthin))
 end
 
 

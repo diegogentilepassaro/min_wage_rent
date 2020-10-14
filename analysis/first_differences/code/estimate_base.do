@@ -26,7 +26,7 @@ program main
 		"Zipcode-specific quadratic trend"	///
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) ///
 		nonote nomtitles 
-STOP 
+
 	run_static_model_control, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
 		cluster(statefips)
 	esttab * using "`outstub'/fd_table_control.tex", keep(D.ln_mw) compress se replace substitute(\_ _) ///
@@ -42,7 +42,6 @@ STOP
 	* Dynamic Model
 	run_dynamic_model, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
 		cluster(statefips)
-
 	esttab reg1 reg2 reg3 using "`outstub'/fd_dynamic_table.tex", ///
 		keep(*.ln_mw) compress se replace substitute(\_ _) ///
 		coeflabels(`estlabels_dyn') ///

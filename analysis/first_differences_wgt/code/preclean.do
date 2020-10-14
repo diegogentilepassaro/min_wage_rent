@@ -72,8 +72,15 @@ end
 program make_weights
 	syntax, weights_vars(str)
 	* balancing procedure: add ,in the right order the target average values from analysis/descriptive/output/desc_stats.tex
+	preserve
+	keep if year_month==tm(2019m12)
 	ebalance `weights_vars', manualtargets(.347 .124 62774 .386)
 	rename _webal wgt_cbsa100
+	keep zipcode wgt_cbsa100
+	tempfile cbsa_weights
+	save "`cbsa_weights'", replace 
+	restore
+	merge m:1 zipcode using `cbsa_weights', nogen assert(1 2 3) keep(1 3)
 end 
 
 main
