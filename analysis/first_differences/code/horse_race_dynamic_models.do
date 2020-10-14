@@ -8,53 +8,41 @@ program main
 	local instub "../temp"
 	local outstub "../output"
 
-	use "`instub'/fd_rent_panel.dta", clear
+	use "`instub'/unbal_fd_rent_panel.dta", clear
 
-	horse_race_models, depvar(ln_med_rent_psqft) w(5) ///
-	    absorb(year_month) cluster(statefips)
+	make_results_labels
+	local estlabels "`r(estlabels)'"
+
+	horse_race_models, depvar(ln_med_rent_psqft_sfcc) w(5) ///
+	    absorb(year_month entry_sfcc#year_month) cluster(statefips)
 	esttab * using "`outstub'/horse_race.tex", compress se replace substitute(\_ _) 	///
 	    order(F5D.ln_mw F4D.ln_mw F3D.ln_mw F2D.ln_mw FD.ln_mw D.ln_mw ///
-		LD.ln_mw L2D.ln_mw L3D.ln_mw L4D.ln_mw L5D.ln_mw LD.ln_med_rent_psqft) ///
-        coeflabels(F5D.ln_mw "$\Delta \ln(MW)_{t-5}$" F4D.ln_mw "$\Delta \ln(MW)_{t-4}$" ///
-		F3D.ln_mw "$\Delta \ln(MW)_{t-3}$" F2D.ln_mw "$\Delta \ln(MW)_{t-2}$" ///
-		FD.ln_mw "$\Delta \ln(MW)_{t-1}$" D.ln_mw "$\Delta \ln(MW)_{t}$" ///
-		LD.ln_mw "$\Delta \ln(MW)_{t+1}$" L2D.ln_mw "$\Delta \ln(MW)_{t+2}$" ///
-		L3D.ln_mw "$\Delta \ln(MW)_{t+3}$" L4D.ln_mw "$\Delta \ln(MW)_{t+4}$" ///
-		L5D.ln_mw "$\Delta \ln(MW)_{t+5}$" LD.ln_med_rent_psqft "$\Delta \ln(y)_{t-1}$") ///
+		LD.ln_mw L2D.ln_mw L3D.ln_mw L4D.ln_mw L5D.ln_mw LD.ln_med_rent_psqft_sfcc) ///
+        coeflabels(`estlabels') ///
 		stats(N, fmt(%9.0g) 		///
 		labels("Observations")) star(* 0.10 ** 0.05 *** 0.01) 	///
 		mtitles("DiD" "Distributed leads and lags" "Distributed Lags" ///
 		"AB distributed leads and lags" "AB distributed lags" ///
 		"MW distributed leads and lags" "MW distributed lags") nonote
 		
-	horse_race_models, depvar(ln_med_rent_psqft) w(5) ///
-	    absorb(year_month zipcode) cluster(statefips)
+	horse_race_models, depvar(ln_med_rent_psqft_sfcc) w(5) ///
+	    absorb(year_month entry_sfcc#year_month zipcode) cluster(statefips)
 	esttab * using "`outstub'/horse_race_zipcode_trend.tex", compress se replace 	///
 	    order(F5D.ln_mw F4D.ln_mw F3D.ln_mw F2D.ln_mw FD.ln_mw D.ln_mw ///
-		LD.ln_mw L2D.ln_mw L3D.ln_mw L4D.ln_mw L5D.ln_mw LD.ln_med_rent_psqft) ///	 
-		coeflabels(F5D.ln_mw "$\Delta \ln(MW)_{t-5}$" F4D.ln_mw "$\Delta \ln(MW)_{t-4}$" ///
-		F3D.ln_mw "$\Delta \ln(MW)_{t-3}$" F2D.ln_mw "$\Delta \ln(MW)_{t-2}$" ///
-		FD.ln_mw "$\Delta \ln(MW)_{t-1}$" D.ln_mw "$\Delta \ln(MW)_{t}$" ///
-		LD.ln_mw "$\Delta \ln(MW)_{t+1}$" L2D.ln_mw "$\Delta \ln(MW)_{t+2}$" ///
-		L3D.ln_mw "$\Delta \ln(MW)_{t+3}$" L4D.ln_mw "$\Delta \ln(MW)_{t+4}$" ///
-		L5D.ln_mw "$\Delta \ln(MW)_{t+5}$" LD.ln_med_rent_psqft "$\Delta \ln(y)_{t-1}$") ///
+		LD.ln_mw L2D.ln_mw L3D.ln_mw L4D.ln_mw L5D.ln_mw LD.ln_med_rent_psqft_sfcc) ///	 
+		coeflabels(`estlabels') ///
 		stats(N, fmt(%9.0g) 		///
 		labels("Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
 		mtitles("DiD" "Distributed leads and lags" "Distributed Lags" ///
 		"AB distributed leads and lags" "AB distributed lags" ///
 		"MW distributed leads and lags" "MW distributed lags") nonote
 		
-	horse_race_models, depvar(ln_med_rent_psqft) w(5) ///
-	    absorb(year_month zipcode c.trend_times2#i.zipcode) cluster(statefips)
+	horse_race_models, depvar(ln_med_rent_psqft_sfcc) w(5) ///
+	    absorb(year_month entry_sfcc#year_month zipcode c.trend_times2#i.zipcode) cluster(statefips)
 	esttab * using "`outstub'/horse_race_zipcode_trend_sq.tex", compress se replace 	///
 	    order(F5D.ln_mw F4D.ln_mw F3D.ln_mw F2D.ln_mw FD.ln_mw D.ln_mw ///
-		LD.ln_mw L2D.ln_mw L3D.ln_mw L4D.ln_mw L5D.ln_mw LD.ln_med_rent_psqft) ///    
-        coeflabels(F5D.ln_mw "$\Delta \ln(MW)_{t-5}$" F4D.ln_mw "$\Delta \ln(MW)_{t-4}$" ///
-		F3D.ln_mw "$\Delta \ln(MW)_{t-3}$" F2D.ln_mw "$\Delta \ln(MW)_{t-2}$" ///
-		FD.ln_mw "$\Delta \ln(MW)_{t-1}$" D.ln_mw "$\Delta \ln(MW)_{t}$" ///
-		LD.ln_mw "$\Delta \ln(MW)_{t+1}$" L2D.ln_mw "$\Delta \ln(MW)_{t+2}$" ///
-		L3D.ln_mw "$\Delta \ln(MW)_{t+3}$" L4D.ln_mw "$\Delta \ln(MW)_{t+4}$" ///
-		L5D.ln_mw "$\Delta \ln(MW)_{t+5}$" LD.ln_med_rent_psqft "$\Delta \ln(y)_{t-1}$") ////
+		LD.ln_mw L2D.ln_mw L3D.ln_mw L4D.ln_mw L5D.ln_mw LD.ln_med_rent_psqft_sfcc) ///    
+        coeflabels(`estlabels') ////
 		stats(N, fmt(%9.0g) 		///
 		labels("Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
 		mtitles("DiD" "Distributed leads and lags" "Distributed Lags" ///
@@ -95,5 +83,18 @@ program horse_race_models
 		cluster (`cluster') nocons
 end
 
+program make_results_labels, rclass
+		
+		local estlabels `"            F5D.ln_mw "$\Delta \ln(MW)_{t-5}$" F4D.ln_mw "$\Delta \ln(MW)_{t-4}$""'
+		local estlabels `"`estlabels' F3D.ln_mw "$\Delta \ln(MW)_{t-3}$" F2D.ln_mw "$\Delta \ln(MW)_{t-2}$""'
+		local estlabels `"`estlabels' FD.ln_mw "$\Delta \ln(MW)_{t-1}$" D.ln_mw "$\Delta \ln(MW)_{t}$""'
+		local estlabels `"`estlabels' LD.ln_mw "$\Delta \ln(MW)_{t+1}$" L2D.ln_mw "$\Delta \ln(MW)_{t+2}$""'
+		local estlabels `"`estlabels' L3D.ln_mw "$\Delta \ln(MW)_{t+3}$" L4D.ln_mw "$\Delta \ln(MW)_{t+4}$""'
+		local estlabels `"`estlabels' L5D.ln_mw "$\Delta \ln(MW)_{t+5}$" LD.ln_med_rent_psqft_sfcc "$\Delta \ln(y)_{t-1}$""'
+
+		return local estlabels "`estlabels'"		
+	
+
+end 
 
 main

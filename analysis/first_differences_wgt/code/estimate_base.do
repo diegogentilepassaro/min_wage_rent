@@ -10,24 +10,19 @@ program main
 
 	use "`instub'/fd_rent_panel.dta", clear
 
-	make_results_labels
-	local estlabels_dyn "`r(estlabels_dyn)'"
-	local estlabels_static "`r(estlabels_static)'"
-
 	* Static Model
 	run_static_model, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
 		cluster(statefips)
-	esttab * using "`outstub'/fd_table.tex", keep(D.ln_mw) compress se replace 	///
+	esttab * using "`outstub'/fd_table_wgt.tex", keep(D.ln_mw) compress se replace 	///
 		stats(zs_trend zs_trend_sq cty_emp_wg r2 N, fmt(%s3 %s3 %s3 %9.3f %9.0gc) ///
-		coeflabels(`estlabels_static') ///
 		labels("Zipcode-specifc linear trend" ///
 		"Zipcode-specific quadratic trend"	///
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) ///
-		nonote nomtitles 
+		nonote nomtitles
 
 	run_static_model_control, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
 		cluster(statefips)
-	esttab * using "`outstub'/fd_table_control.tex", keep(D.ln_mw) compress se replace ///
+	esttab * using "`outstub'/fd_table_control_wgt.tex", keep(D.ln_mw) compress se replace ///
 		stats(ctrl_emp ctrl_estab ctrl_wage ctrl_building r2 N, fmt(%s3 %s3 %s3 %s3 %9.3f %9.0gc) ///
 		labels("Industry-level monthly employment" 	///
 		"Industry-level quarterly establishment count"	///
@@ -40,16 +35,15 @@ program main
 	run_dynamic_model, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
 		cluster(statefips)
 
-	esttab reg1 reg2 reg3 using "`outstub'/fd_dynamic_table.tex", ///
+	esttab reg1 reg2 reg3 using "`outstub'/fd_dynamic_table_wgt.tex", ///
 		keep(*.ln_mw) compress se replace ///
 		stats(p_value_F zs_trend zs_trend_sq r2 N, fmt(%9.3f %s3 %s3 %9.3f %9.0gc) ///
-		coeflabels(`estlabels_dyn') ///
 		labels("P-value no pretrends" "Zipcode-specifc linear trend" ///
 		"Zipcode-specific quadratic trend" ///
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 	///
 		nonote nomtitles
 
-	esttab lincom1 lincom2 lincom3 using "`outstub'/fd_dynamic_lincom_table.tex", ///
+	esttab lincom1 lincom2 lincom3 using "`outstub'/fd_dynamic_lincom_table_wgt.tex", ///
 		compress se replace ///
 		stats(zs_trend zs_trend_sq cty_emp_wg N, fmt(%s3 %s3 %s3 %9.0gc) ///
 		labels("Zipcode-specifc linear trend" ///
@@ -61,10 +55,9 @@ program main
 	run_dynamic_model_control, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
 		cluster(statefips)
 	
-	esttab reg1 reg2 reg3 reg4 reg5 using "`outstub'/fd_dynamic_table_control.tex", ///
+	esttab reg1 reg2 reg3 reg4 reg5 using "`outstub'/fd_dynamic_table_control_wgt.tex", ///
 		keep(*.ln_mw) compress se replace ///
 		stats(p_value_F ctrl_emp ctrl_estab ctrl_wage ctrl_building r2 N, fmt(%9.3f %s3 %s3 %s3 %s3 %9.3f %9.0gc) ///
-		coeflabels(`estlabels_dyn') ///	
 		labels("P-value no pretrends" "Industry-level monthly employment" ///
 		"Industry-level quarterly establishment count" ///
 		"Industry-level quarterly weekly wage" ///
@@ -72,7 +65,7 @@ program main
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) ///
 		nonote nomtitles
 
- 	esttab lincom1 lincom2 lincom3 lincom4 lincom5 using "`outstub'/fd_dynamic_lincom_table_control.tex", ///
+ 	esttab lincom1 lincom2 lincom3 lincom4 lincom5 using "`outstub'/fd_dynamic_lincom_table_control_wgt.tex", ///
 		compress se replace ///
 		stats(ctrl_emp ctrl_estab ctrl_wage ctrl_building N, fmt(%s3 %s3 %s3 %s3 %9.0gc) ///
 		labels("Industry-level monthly employment" ///
@@ -89,7 +82,7 @@ program run_static_model
 	syntax, depvar(str) absorb(str) cluster(str)
 
 	eststo clear
-	eststo reg1: reghdfe D.`depvar' D.ln_mw, ///
+	eststo reg1: reghdfe D.`depvar' D.ln_mw [pw = wgt_cbsa100], ///
 		absorb(`absorb') ///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("No") trend_sq("No")
@@ -97,12 +90,12 @@ program run_static_model
 	scalar static_effect = _b[D.ln_mw]
 	scalar static_effect_se = _se[D.ln_mw]
 
-	eststo: reghdfe D.`depvar' D.ln_mw,	///
+	eststo: reghdfe D.`depvar' D.ln_mw [pw = wgt_cbsa100],	///
 		absorb(`absorb' i.zipcode) ///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("Yes") trend_sq("No")
 
-	eststo: reghdfe D.`depvar' D.ln_mw, ///
+	eststo: reghdfe D.`depvar' D.ln_mw [pw = wgt_cbsa100], ///
 		absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) ///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("Yes") trend_sq("Yes")
@@ -119,27 +112,27 @@ program run_static_model_control
 	local wage_cont "`r(wage_cont)'"
 	local housing_cont "`r(housing_cont)'"
 
-	eststo: reghdfe D.`depvar' D.ln_mw,	///
+	eststo: reghdfe D.`depvar' D.ln_mw [pw = wgt_cbsa100],	///
 		absorb(`absorb' zipcode) ///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("No") est_cov("No") wage_cov("No") housing_cov("No")
 
-	eststo: reghdfe D.`depvar' D.ln_mw D.(`emp_cont'), ///
+	eststo: reghdfe D.`depvar' D.ln_mw D.(`emp_cont') [pw = wgt_cbsa100], ///
 		absorb(`absorb' zipcode) ///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("No") wage_cov("No") housing_cov("No")
 
-	eststo: reghdfe D.`depvar' D.ln_mw D.(`emp_cont') D.(`establish_cont'), ///
+	eststo: reghdfe D.`depvar' D.ln_mw D.(`emp_cont') D.(`establish_cont') [pw = wgt_cbsa100], ///
 		absorb(`absorb' zipcode) 		///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("No") housing_cov("No")
 
-	eststo: reghdfe D.`depvar' D.ln_mw D.(`emp_cont') D.(`establish_cont') D.(`wage_cont'), ///
+	eststo: reghdfe D.`depvar' D.ln_mw D.(`emp_cont') D.(`establish_cont') D.(`wage_cont') [pw = wgt_cbsa100], ///
 		absorb(`absorb' zipcode) 		///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("Yes") housing_cov("No")
 
-	eststo: reghdfe D.`depvar' D.ln_mw D.(`emp_cont') D.(`establish_cont') D.(`wage_cont') `housing_cont', ///
+	eststo: reghdfe D.`depvar' D.ln_mw D.(`emp_cont') D.(`establish_cont') D.(`wage_cont') `housing_cont' [pw = wgt_cbsa100], ///
 		absorb(`absorb' zipcode) ///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("Yes") housing_cov("Yes")
@@ -155,7 +148,7 @@ program run_dynamic_model
 	}
 
 	eststo clear
-	eststo reg1: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw, ///
+	eststo reg1: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw [pw = wgt_cbsa100], ///
 		absorb(`absorb') ///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("No") trend_sq("No")
@@ -186,7 +179,7 @@ program run_dynamic_model
 	eststo lincom1: lincomest `lincomest_coeffs'
 	comment_table, trend_lin("No") trend_sq("No")
 				
-	qui reghdfe D.`depvar' L(0/`w').D.ln_mw, ///
+	qui reghdfe D.`depvar' L(0/`w').D.ln_mw [pw = wgt_cbsa100], ///
 		absorb(`absorb') ///
 		vce(cluster `cluster') nocons
 				
@@ -237,7 +230,7 @@ program run_dynamic_model
 		graph export "../output/fd_models.png", replace
 	restore 
 
-	eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if', ///
+	eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if' [pw = wgt_cbsa100], ///
 		absorb(`absorb' i.zipcode) ///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("Yes") trend_sq("No")
@@ -248,7 +241,7 @@ program run_dynamic_model
 	eststo lincom2: lincomest `lincomest_coeffs'
 	comment_table, trend_lin("Yes") trend_sq("No")
 
-	eststo reg3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if', ///
+	eststo reg3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if' [pw = wgt_cbsa100], ///
 		absorb(`absorb' i.zipcod c.trend_times2#i.zipcode) ///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("Yes") trend_sq("Yes")
@@ -276,7 +269,7 @@ program run_dynamic_model_control
 	}
 
 	eststo clear
-	eststo reg1: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if', ///
+	eststo reg1: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if' [pw = wgt_cbsa100], ///
 		absorb(`absorb' i.zipcode) ///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("No") est_cov("No") wage_cov("No") housing_cov("No")
@@ -289,7 +282,7 @@ program run_dynamic_model_control
 	eststo lincom1: lincomest `lincomest_coeffs'
 	comment_table_control, emp_cov("No") est_cov("No") wage_cov("No") housing_cov("No")
 
-	eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`emp_cont') `if', ///
+	eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`emp_cont') `if' [pw = wgt_cbsa100], ///
 		absorb(`absorb' i.zipcode) 	///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("No") wage_cov("No") housing_cov("No")
@@ -302,7 +295,7 @@ program run_dynamic_model_control
 	eststo lincom2: lincomest `lincomest_coeffs'
 	comment_table_control, emp_cov("Yes") est_cov("No") wage_cov("No") housing_cov("No")
 
-	eststo reg3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`emp_cont') D.(`establish_cont') `if',		///
+	eststo reg3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`emp_cont') D.(`establish_cont') `if' [pw = wgt_cbsa100],		///
 		absorb(`absorb' i.zipcode) 	///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("No") housing_cov("No")
@@ -315,7 +308,7 @@ program run_dynamic_model_control
 	eststo lincom3: lincomest `lincomest_coeffs'
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("No") housing_cov("No")
 
-	eststo reg4: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`emp_cont') D.(`establish_cont') D.(`wage_cont') `if',		///
+	eststo reg4: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`emp_cont') D.(`establish_cont') D.(`wage_cont') `if' [pw = wgt_cbsa100],		///
 		absorb(`absorb' i.zipcode) 	///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("Yes") housing_cov("No")
@@ -328,7 +321,7 @@ program run_dynamic_model_control
 	eststo lincom4: lincomest `lincomest_coeffs'
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("Yes") housing_cov("No")
 
-	eststo reg5: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`emp_cont') D.(`establish_cont') D.(`wage_cont') `housing_cont' `if',		///
+	eststo reg5: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`emp_cont') D.(`establish_cont') D.(`wage_cont') `housing_cont' `if' [pw = wgt_cbsa100],		///
 		absorb(`absorb' i.zipcode) 	///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("Yes") housing_cov("Yes")
@@ -438,22 +431,6 @@ program store_dynamic_coeffs
 	
 		save "../temp/plot_coeffs_`model'.dta", replace
 	restore
-end 
-
-program make_results_labels, rclass
-		
-		local estlabels_dyn `"            F5D.ln_mw "$\Delta \ln(MW)_{t-5}$" F4D.ln_mw "$\Delta \ln(MW)_{t-4}$""'
-		local estlabels_dyn `"`estlabels' F3D.ln_mw "$\Delta \ln(MW)_{t-3}$" F2D.ln_mw "$\Delta \ln(MW)_{t-2}$""'
-		local estlabels_dyn `"`estlabels' FD.ln_mw "$\Delta \ln(MW)_{t-1}$" D.ln_mw "$\Delta \ln(MW)_{t}$""'
-		local estlabels_dyn `"`estlabels' LD.ln_mw "$\Delta \ln(MW)_{t+1}$" L2D.ln_mw "$\Delta \ln(MW)_{t+2}$""'
-		local estlabels_dyn `"`estlabels' L3D.ln_mw "$\Delta \ln(MW)_{t+3}$" L4D.ln_mw "$\Delta \ln(MW)_{t+4}$""'
-		local estlabels_dyn `"`estlabels' L5D.ln_mw "$\Delta \ln(MW)_{t+5}$""'
-
-		return local estlabels_dyn "`estlabels_dyn'"	
-
-		return local estlabels_static `"D.ln_mw "$\Delta \ln(MW)_{t}$"'	
-	
-
 end 
 
 main
