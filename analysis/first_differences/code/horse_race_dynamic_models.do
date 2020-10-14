@@ -8,13 +8,13 @@ program main
 	local instub "../temp"
 	local outstub "../output"
 
-	use "`instub'/unbal_fd_rent_panel.dta", clear
+	use "`instub'/fd_rent_panel.dta", clear
 
 	make_results_labels
 	local estlabels "`r(estlabels)'"
 
 	horse_race_models, depvar(ln_med_rent_psqft_sfcc) w(5) ///
-	    absorb(year_month entry_sfcc#year_month) cluster(statefips)
+	    absorb(year_month) cluster(statefips)
 	esttab * using "`outstub'/horse_race.tex", compress se replace substitute(\_ _) 	///
 	    order(F5D.ln_mw F4D.ln_mw F3D.ln_mw F2D.ln_mw FD.ln_mw D.ln_mw ///
 		LD.ln_mw L2D.ln_mw L3D.ln_mw L4D.ln_mw L5D.ln_mw LD.ln_med_rent_psqft_sfcc) ///
@@ -26,7 +26,7 @@ program main
 		"MW distributed leads and lags" "MW distributed lags") nonote
 		
 	horse_race_models, depvar(ln_med_rent_psqft_sfcc) w(5) ///
-	    absorb(year_month entry_sfcc#year_month zipcode) cluster(statefips)
+	    absorb(year_month zipcode) cluster(statefips)
 	esttab * using "`outstub'/horse_race_zipcode_trend.tex", compress se replace 	///
 	    order(F5D.ln_mw F4D.ln_mw F3D.ln_mw F2D.ln_mw FD.ln_mw D.ln_mw ///
 		LD.ln_mw L2D.ln_mw L3D.ln_mw L4D.ln_mw L5D.ln_mw LD.ln_med_rent_psqft_sfcc) ///	 
@@ -38,7 +38,7 @@ program main
 		"MW distributed leads and lags" "MW distributed lags") nonote
 		
 	horse_race_models, depvar(ln_med_rent_psqft_sfcc) w(5) ///
-	    absorb(year_month entry_sfcc#year_month zipcode c.trend_times2#i.zipcode) cluster(statefips)
+	    absorb(year_month zipcode c.trend_times2#i.zipcode) cluster(statefips)
 	esttab * using "`outstub'/horse_race_zipcode_trend_sq.tex", compress se replace 	///
 	    order(F5D.ln_mw F4D.ln_mw F3D.ln_mw F2D.ln_mw FD.ln_mw D.ln_mw ///
 		LD.ln_mw L2D.ln_mw L3D.ln_mw L4D.ln_mw L5D.ln_mw LD.ln_med_rent_psqft_sfcc) ///    

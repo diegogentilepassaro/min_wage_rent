@@ -14,20 +14,23 @@ program main
 	local estlabels_dyn "`r(estlabels_dyn)'"
 	local estlabels_static "`r(estlabels_static)'"
 
+
+
 	* Static Model
 	run_static_model, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
 		cluster(statefips)
-	esttab * using "`outstub'/fd_table.tex", keep(D.ln_mw) compress se replace 	///
-		stats(zs_trend zs_trend_sq cty_emp_wg r2 N, fmt(%s3 %s3 %s3 %9.3f %9.0gc) ///
+	esttab * using "`outstub'/fd_table.tex", keep(D.ln_mw) compress se replace substitute(\_ _) 	///
 		coeflabels(`estlabels_static') ///
+		stats(zs_trend zs_trend_sq r2 N, fmt(%s3 %s3 %9.3f %9.0gc) ///
 		labels("Zipcode-specifc linear trend" ///
 		"Zipcode-specific quadratic trend"	///
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) ///
 		nonote nomtitles 
-
+STOP 
 	run_static_model_control, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
 		cluster(statefips)
-	esttab * using "`outstub'/fd_table_control.tex", keep(D.ln_mw) compress se replace ///
+	esttab * using "`outstub'/fd_table_control.tex", keep(D.ln_mw) compress se replace substitute(\_ _) ///
+		coeflabels(`estlabels_static') ///
 		stats(ctrl_emp ctrl_estab ctrl_wage ctrl_building r2 N, fmt(%s3 %s3 %s3 %s3 %9.3f %9.0gc) ///
 		labels("Industry-level monthly employment" 	///
 		"Industry-level quarterly establishment count"	///
@@ -41,9 +44,9 @@ program main
 		cluster(statefips)
 
 	esttab reg1 reg2 reg3 using "`outstub'/fd_dynamic_table.tex", ///
-		keep(*.ln_mw) compress se replace ///
-		stats(p_value_F zs_trend zs_trend_sq r2 N, fmt(%9.3f %s3 %s3 %9.3f %9.0gc) ///
+		keep(*.ln_mw) compress se replace substitute(\_ _) ///
 		coeflabels(`estlabels_dyn') ///
+		stats(p_value_F zs_trend zs_trend_sq r2 N, fmt(%9.3f %s3 %s3 %9.3f %9.0gc) ///
 		labels("P-value no pretrends" "Zipcode-specifc linear trend" ///
 		"Zipcode-specific quadratic trend" ///
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 	///
@@ -62,9 +65,9 @@ program main
 		cluster(statefips)
 	
 	esttab reg1 reg2 reg3 reg4 reg5 using "`outstub'/fd_dynamic_table_control.tex", ///
-		keep(*.ln_mw) compress se replace ///
-		stats(p_value_F ctrl_emp ctrl_estab ctrl_wage ctrl_building r2 N, fmt(%9.3f %s3 %s3 %s3 %s3 %9.3f %9.0gc) ///
+		keep(*.ln_mw) compress se replace substitute(\_ _) ///
 		coeflabels(`estlabels_dyn') ///	
+		stats(p_value_F ctrl_emp ctrl_estab ctrl_wage ctrl_building r2 N, fmt(%9.3f %s3 %s3 %s3 %s3 %9.3f %9.0gc) ///
 		labels("P-value no pretrends" "Industry-level monthly employment" ///
 		"Industry-level quarterly establishment count" ///
 		"Industry-level quarterly weekly wage" ///
@@ -443,15 +446,16 @@ end
 program make_results_labels, rclass
 		
 		local estlabels_dyn `"            F5D.ln_mw "$\Delta \ln(MW)_{t-5}$" F4D.ln_mw "$\Delta \ln(MW)_{t-4}$""'
-		local estlabels_dyn `"`estlabels' F3D.ln_mw "$\Delta \ln(MW)_{t-3}$" F2D.ln_mw "$\Delta \ln(MW)_{t-2}$""'
-		local estlabels_dyn `"`estlabels' FD.ln_mw "$\Delta \ln(MW)_{t-1}$" D.ln_mw "$\Delta \ln(MW)_{t}$""'
-		local estlabels_dyn `"`estlabels' LD.ln_mw "$\Delta \ln(MW)_{t+1}$" L2D.ln_mw "$\Delta \ln(MW)_{t+2}$""'
-		local estlabels_dyn `"`estlabels' L3D.ln_mw "$\Delta \ln(MW)_{t+3}$" L4D.ln_mw "$\Delta \ln(MW)_{t+4}$""'
-		local estlabels_dyn `"`estlabels' L5D.ln_mw "$\Delta \ln(MW)_{t+5}$""'
+		local estlabels_dyn `"`estlabels_dyn' F3D.ln_mw "$\Delta \ln(MW)_{t-3}$" F2D.ln_mw "$\Delta \ln(MW)_{t-2}$""'
+		local estlabels_dyn `"`estlabels_dyn' FD.ln_mw "$\Delta \ln(MW)_{t-1}$" D.ln_mw "$\Delta \ln(MW)_{t}$""'
+		local estlabels_dyn `"`estlabels_dyn' LD.ln_mw "$\Delta \ln(MW)_{t+1}$" L2D.ln_mw "$\Delta \ln(MW)_{t+2}$""'
+		local estlabels_dyn `"`estlabels_dyn' L3D.ln_mw "$\Delta \ln(MW)_{t+3}$" L4D.ln_mw "$\Delta \ln(MW)_{t+4}$""'
+		local estlabels_dyn `"`estlabels_dyn' L5D.ln_mw "$\Delta \ln(MW)_{t+5}$""'
 
 		return local estlabels_dyn "`estlabels_dyn'"	
 
-		return local estlabels_static `"D.ln_mw "$\Delta \ln(MW)_{t}$"'	
+		local estlabels_static `"D.ln_mw "$\Delta \ln(MW)_{t}$""'
+		return local estlabels_static "`estlabels_static'"
 	
 
 end 

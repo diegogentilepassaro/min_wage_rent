@@ -12,7 +12,7 @@ program main
 		year_month calendar_month trend trend_sq trend_cu					 		///
 		dactual_mw actual_mw medrentpricepsqft_sfcc							        ///
 		med_hhinc20105 renthouse_share2010 white_share2010 black_share2010			///
-		college_share20105 work_county_share20105 entry* sample_*                   ///
+		college_share20105 work_county_share20105 entry*                   ///
 		estcount_* avgwwage_* emp_* u1*                                             ///
 		using `instub'/unbal_rent_panel.dta, clear 
 
