@@ -157,7 +157,6 @@ format_tables <- function(x, datadir, data_version) {
                        'child_share2010', 'teen_share2010', 'youngadult_share2010', 'adult_share2010', 'elder_share2010', 'age_share2010D', 
                        'housing_units2010')
       
-      
    }
    
    else if (x == 'ds173_2010_tract.csv') {
@@ -226,7 +225,6 @@ format_tables <- function(x, datadir, data_version) {
                        'worker_foodservice20105', 'worker_foodservice20105D')
       
       
-      
    }
    
    else if (x == 'ds192_20125_2012_tract.csv') {
@@ -246,7 +244,6 @@ format_tables <- function(x, datadir, data_version) {
       
       target_vars <- c('tract_fips', 'county_fips', 
                        'med_earn_healthsup_20105', 'med_earn_protectserv_20105', 'med_earn_foodserv_20105', 'med_earn_cleaning_20105', 'med_earn_perscare_20105', 'med_earn_prodtransp_20105')
-      
       
    }
    
