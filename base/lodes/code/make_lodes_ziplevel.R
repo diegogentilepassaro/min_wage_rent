@@ -69,7 +69,7 @@ main <- function() {
   lodes_final <- make_final_vars(lodes_final)
   
   save_data(lodes_final, 
-            filename = paste0(outdir, 'zip_lodes.csv'), 
+            filename = paste0(outdir, 'zip_lodes.dta'), 
             key = c('zipcode'))
   
   return(lodes_final)

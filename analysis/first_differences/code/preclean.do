@@ -12,15 +12,17 @@ program main
 	use "`instub'/baseline_rent_panel.dta", clear 
 	keep zipcode place_code msa countyfips statefips 								///
 		year_month calendar_month trend trend_sq trend_cu					 		///
-		dactual_mw actual_mw medrentpricepsqft_* 							///
+		dactual_mw actual_mw medrentpricepsqft_* 							        ///
 		med_hhinc20105 renthouse_share2010 white_share2010 black_share2010			///
 		college_share20105 work_county_share20105 unemp_share20105 teen_share2010   ///
-		estcount_* avgwwage_* emp_* u1*
+		estcount_* avgwwage_* emp_* u1*                                             ///
+		walall_njob_29young_ssh halall_njob_29young_ssh walall_29y_lowinc_ssh halall_29y_lowinc_ssh
 
 	
 
 	local het_vars "med_hhinc20105 renthouse_share2010 college_share20105 black_share2010"
-	local het_vars "`het_vars' unemp_share20105 teen_share2010" 
+	local het_vars "`het_vars' unemp_share20105 teen_share2010"
+	local het_vars "`het_vars' walall_njob_29young_ssh halall_njob_29young_ssh walall_29y_lowinc_ssh halall_29y_lowinc_ssh" 
 
 	create_vars, 	log_vars(actual_mw medrentpricepsqft_sfcc emp_* estcount_* avgwwage_* u1*) 	///
 					heterogeneity_vars(`het_vars')

@@ -9,6 +9,7 @@ program main
 	local indemo "../../../drive/base_large/output"
 	local inqcew "../../../base/qcew/output"
 	local inbps "../../../base/bps/output"
+	local inlodes "../../../drive/base_large/output"
 	local outstub "../../../drive/derived_large/output"
 	local logfile "../output/data_file_manifest.log"
 
@@ -16,9 +17,8 @@ program main
 	save_data "`instub'/zip_ready.dta", replace key(zipcode) log(none)
 
 	* Unbalanced rents
-	unbalanced_panel, instub(`instub') inqcew(`inqcew') inbps(`inbps') ///
-					  vars(_sfcc _2br _mfr5plus) ///
-					  start_date(01jan2010) end_date(01dec2019)
+	unbalanced_panel, instub(`instub') inqcew(`inqcew') inbps(`inbps') inlodes(`inlodes') ///
+					  vars(_sfcc _2br _mfr5plus) start_date(01jan2010) end_date(01dec2019)
   	save_data `outstub'/unbal_rent_panel.dta, key(zipcode year_month) 	///
 		log(`logfile') replace 
 
@@ -38,11 +38,11 @@ program main
 		merge 1:1 zipcode year_month using "`instub'/baseline_`var'.dta", 	///
 		    nogen keep(1 3)
 	}
-	add_covars, demo(yes) indemo(`instub') qcew(yes) inqcew(`inqcew') bps(yes) inbps(`inbps')
+	add_covars, demo(yes) indemo(`instub') qcew(yes) inqcew(`inqcew') bps(yes) inbps(`inbps') lodes(yes) inlodes(`inlodes')
 	save_data "`outstub'/baseline_rent_panel.dta", key(zipcode year_month) 	///
 		log(`logfile') replace
 
-	* Baseline listings
+	/* * Baseline listings
 	local listing_vars "medlistingprice_low_tier" 
 	foreach name in _top_tier psqft_sfcc psqft_low_tier psqft_top_tier {
 		local listing_vars "`listing_vars' medlistingprice`name'"
@@ -65,14 +65,14 @@ program main
 
 	* Baseline all
 	use "`instub'/zipcode_yearmonth_panel.dta", clear
-	add_covars, demo(yes) indemo(`instub') qcew(no) inqcew(`inqcew') bps(no) inbps(`inbps')
+	add_covars, demo(yes) indemo(`instub') qcew(no) inqcew(`inqcew') bps(no) inbps(`inbps') lodes(no) inlodes(`inlodes')
 	save_data "`outstub'/zipcode_yearmonth_panel_all.dta", key(zipcode year_month) ///
-		log(`logfile') replace
+		log(`logfile') replace */
 end
 
 
 program add_covars 
-	syntax, demo(str) indemo(str) qcew(str) inqcew(str) bps(str) inbps(str)
+	syntax, demo(str) indemo(str) qcew(str) inqcew(str) bps(str) inbps(str) lodes(str) inlodes(str)
 
 	if "`demo'" == "yes" {
 		merge m:1 zipcode using `indemo'/zip_ready.dta, nogen assert(1 2 3) keep(1 3) force
@@ -82,6 +82,9 @@ program add_covars
 	}
 	if "`bps'" == "yes" {
 		merge m:1 countyfips statefips year_month using `inbps'/bps_sf_cty_mon.dta, nogen assert(1 2 3) keep(1 3)
+	}
+	if "`lodes'" == "yes" {
+		merge m:1 zipcode using `inlodes'/zip_lodes.dta, nogen assert(1 2 3) keep(1 3)
 	}
 end 
 
@@ -120,7 +123,7 @@ program create_baseline_panel
 end
 
 program unbalanced_panel
-	syntax, instub(str) inqcew(str) inbps(str) vars(str) start_date(str) end_date(str)
+	syntax, instub(str) inqcew(str) inbps(str) inlodes(str) vars(str) start_date(str) end_date(str)
 
 	local varnames ""
 	foreach stub in `vars' {
@@ -158,7 +161,7 @@ program unbalanced_panel
 			 year_month <= `=mofd(td(`end_date'))')
 	xtset zipcode year_month
 
-	add_covars, demo(yes) indemo(`instub') qcew(yes) inqcew(`inqcew') bps(yes) inbps(`inbps')
+	add_covars, demo(yes) indemo(`instub') qcew(yes) inqcew(`inqcew') bps(yes) inbps(`inbps') lodes(yes) inlodes(`inlodes')
 end 
 
 

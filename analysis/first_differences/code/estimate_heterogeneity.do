@@ -10,9 +10,11 @@ program main
 
 	use "`instub'/fd_rent_panel.dta", clear
 
-	local hetvars "med_hhinc20105 renthouse_share2010 college_share20105 black_share2010"
-	* Heterogeneity
-	foreach var in `hetvars' {
+	local demovars "med_hhinc20105 renthouse_share2010 college_share20105 black_share2010"
+	local workvars "walall_njob_29young_ssh halall_njob_29young_ssh walall_29y_lowinc_ssh halall_29y_lowinc_ssh"
+	
+	* Heterogeneity plot - demographics and workers' type
+	foreach var in `demovars' `workvars' {
 
 		build_ytitle, var(`var')
 
@@ -21,15 +23,25 @@ program main
 		graph export "`outstub'/fd_static_heter_`var'.png", replace
 
 	}
-	
 
-	make_table_titles, hetlist(`hetvars')
+	*table - demographics 
+	make_table_titles, hetlist(`demovars')
 	local het_titles "`r(title_list)'"
-
-	di `het_titles'
-
-	make_dd_static_heterogeneity, depvar(ln_med_rent_psqft_sfcc) absorb(year_month zipcode) cluster(statefips) hetlist(`hetvars')
+	make_dd_static_heterogeneity, depvar(ln_med_rent_psqft_sfcc) absorb(year_month zipcode) cluster(statefips) hetlist(`demovars')
 	esttab * using "`outstub'/fd_table_het.tex", compress se replace 	///
+		mtitles(`het_titles') substitute(\_ _)  ///
+		coeflabels(1.qtl#c.d_ln_mw "$\Delta \ln(MW) \times 1^{st} qtl$" ///
+				   2.qtl#c.d_ln_mw "$\Delta \ln(MW) \times 2^{nd} qtl$" ///
+				   3.qtl#c.d_ln_mw "$\Delta \ln(MW) \times 3^{rd} qtl$" ///
+				   4.qtl#c.d_ln_mw "$\Delta \ln(MW) \times 4^{th} qtl$") /// 
+		stats(r2 N, fmt(%9.3f %9.0gc) labels("R-squared" "Observations")) ///
+		star(* 0.10 ** 0.05 *** 0.01)  nonote
+
+	*table - workers' type 
+	make_table_titles, hetlist(`workvars')
+	local het_titles "`r(title_list)'"
+	make_dd_static_heterogeneity, depvar(ln_med_rent_psqft_sfcc) absorb(year_month zipcode) cluster(statefips) hetlist(`workvars')
+	esttab * using "`outstub'/fd_table_workers.tex", compress se replace 	///
 		mtitles(`het_titles') substitute(\_ _)  ///
 		coeflabels(1.qtl#c.d_ln_mw "$\Delta \ln(MW) \times 1^{st} qtl$" ///
 				   2.qtl#c.d_ln_mw "$\Delta \ln(MW) \times 2^{nd} qtl$" ///
@@ -44,23 +56,37 @@ program build_ytitle, rclass
 	syntax, var(str)
 
 	if "`var'" == "med_hhinc20105" {
-		return local title "Quintiles of within state 2010 median household income"
+		return local title "Quartiles of 2010 median household income"
 	}
 	if "`var'" == "renthouse_share2010" {
-		return local title "Quintiles of 2010 share of houses rent"
+		return local title "Quartiles of 2010 share of houses rent"
 	}
 	if "`var'" == "college_share20105" {
-		return local title "Quintiles of 2010 college share"
+		return local title "Quartiles of 2010 college share"
 	}
 	if "`var'" == "black_share2010" {
-		return local title "Quintiles of 2010 share of black individuals"
+		return local title "Quartiles of 2010 share of black individuals"
 	}
 	if "`var'" == "nonwhite_share2010" {
-		return local title "Quintiles of 2010 share of non-white individuals"
+		return local title "Quartiles of 2010 share of non-white individuals"
 	}
 	if "`var'" == "work_county_share20105" {
-		return local title "Quintiles of 2010 share who work in county"
+		return local title "Quartiles of 2010 share who work in county"
 	}
+	if "`var'" == "walall_njob_29young_ssh" {
+		return local title "Workers 29 yrs or younger - workplace state-level share"
+	}
+	if "`var'" == "halall_njob_29young_ssh" {
+		return local title "Workers 29 yrs or younger - residence state-level share"
+	}
+	if "`var'" == "walall_29y_lowinc_ssh" {
+		return local title "Low income workers 29 yrs or younger - workplace state-level share"
+	}
+	if "`var'" == "halall_29y_lowinc_ssh" {
+		return local title "Low income workers 29 yrs or younger - residence state-level share"
+	}
+
+
 end
 
 program plot_dd_static_heterogeneity
@@ -73,8 +99,8 @@ program plot_dd_static_heterogeneity
 
 	coefplot, base graphregion(color(white)) bgcolor(white) ///
 	ylabel(1 "1" 2 "2" 3 "3" 4 "4") ///
-	ytitle(`ytitle') ///
-	xtitle("Estimated effect of ln MW on ln rents")	///
+	ytitle(`ytitle', size(small)) ///
+	xtitle("Estimated effect of ln MW on ln rents", size(small))	///
 	xline(0, lcol(black)) mc(edkblue) ciopts(recast(rcap) lc(edkblue) lp(dash) lw(vthin))
 end
 
@@ -119,6 +145,19 @@ program make_table_titles, rclass
 		if "`var'" == "work_county_share20105" {
 			local title_list `"`title_list' "Work in county (\%)""'
 		}
+		if "`var'" == "walall_njob_29young_ssh" {
+			local title_list `"`title_list' "\shortstack{Young worker,  \\ workplace}""'		
+		}
+		if "`var'" == "halall_njob_29young_ssh" {
+			local title_list `"`title_list' "\shortstack{Young worker,  \\ residence}""'		
+		}
+		if "`var'" == "walall_29y_lowinc_ssh" {
+			local title_list `"`title_list' "\shortstack{Young low-income worker,  \\ workplace}""'		
+		}
+		if "`var'" == "halall_29y_lowinc_ssh" {
+			local title_list `"`title_list' "\shortstack{Young low-income worker,  \\ residence}""'		
+		}
+
 	}
 
 	return local title_list "`title_list'" 

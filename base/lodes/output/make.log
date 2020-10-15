@@ -1,5 +1,5 @@
 
- make.py started: 2020-10-07 09:35:37 /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/base/lodes/code 
+ make.py started: 2020-10-15 08:31:08 /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/base/lodes/code 
 
 
 
@@ -150,19 +150,57 @@ The following objects are masked from ‘package:base’:
 +                                    xw = xwalk, 
 +                                    xw_tractzip = tract_zip_xwalk)
 +   
++   # Zipcode as residence: low income workers
++   lodes_rac_el_all <- format_lodes(pov = 'rac', 
++                                    seg = 'SE01', 
++                                    type = 'JT00', 
++                                    vintage = '2017', 
++                                    instub = datadir_lodes, 
++                                    xw = xwalk, 
++                                    xw_tractzip = tract_zip_xwalk)
 +   
-+   lodes_list <- list(lodes_wac_all_all, lodes_rac_all_all, lodes_wac_el_all)
++   
++   lodes_list <- list(lodes_wac_all_all, lodes_rac_all_all, lodes_wac_el_all, lodes_rac_el_all)
 +   
 +   lodes_final <- Reduce(function(x,y) merge(x,y, all = T, by = c('zipcode')), lodes_list)
 +   
++   lodes_final <- make_final_vars(lodes_final)
++   
 +   save_data(lodes_final, 
-+             filename = paste0(outdir, 'zip_lodes.csv'), 
++             filename = paste0(outdir, 'zip_lodes.dta'), 
 +             key = c('zipcode'))
 +   
 +   return(lodes_final)
 + }
 > 
-> 
+> make_final_vars <- function(data) {
++   data[, walall_29y_lowinc_zsh := welall_njob_29young / walall_tot]
++   data[, halall_29y_lowinc_zsh := helall_njob_29young / halall_tot]
++   
++   data[, c('w_sttot', 'h_sttot') :=lapply(.SD, function(x) sum(x, na.rm = T)), by = 'st', .SDcols = c('welall_njob_29young', 'helall_njob_29young')]
++ 
++   data[, walall_29y_lowinc_ssh := lapply(.SD, function(x) x / w_sttot), .SDcols = c('welall_njob_29young')]
++   data[, halall_29y_lowinc_ssh := lapply(.SD, function(x) x / h_sttot), .SDcols = c('helall_njob_29young')]
++   
++   data[, c('w_sttot', 'h_sttot') := NULL]
++   
++   vars <- c('walall_njob_29young_zsh', 
++             'walall_njob_29young_ssh', 
++             'halall_njob_29young_zsh', 
++             'halall_njob_29young_ssh', 
++             'welall_njob_29young_zsh', 
++             'welall_njob_29young_ssh', 
++             'walall_29y_lowinc_zsh', 
++             'walall_29y_lowinc_ssh', 
++             'halall_29y_lowinc_zsh', 
++             'halall_29y_lowinc_ssh')
++   
++   vars <- c('zipcode', vars)
++   
++   data <- data[, ..vars]
++   return(data)
++   
++ }
 > 
 > make_xwalk <- function(instub) {
 +   xwalk_files <- list.files(paste0(instub, 'lodes/'), full.names = T)
@@ -211,6 +249,10 @@ The following objects are masked from ‘package:base’:
 +   sortvar <- names(dfzip)[grepl("tot$", names(dfzip))]
 +   setorderv(dfzip, c('zipcode',sortvar))
 +   dfzip <-  dfzip[dfzip[, .I[.N], zipcode]$V1]
++   
++   if ((pov!='rac') | (pov=='rac' & (seg!='S000' | type!='JT00'))) {
++     dfzip[, st := NULL]
++   }
 +   
 +   return(dfzip)
 + }
@@ -262,12 +304,60 @@ The following objects are masked from ‘package:base’:
 > 
 > 
 > #Execute
-> df <- main()
-[1] "File '../../../drive/base_large/output/zip_lodes.csv' saved successfully."
+> main()
+[1] "File '../../../drive/base_large/output/zip_lodes.dta' saved successfully."
+       zipcode walall_njob_29young_zsh walall_njob_29young_ssh
+    1:     501               0.2751284        0.00000002487566
+    2:     544               0.2751284        0.00000002487566
+    3:     601                     NaN                     NaN
+    4:     602                     NaN                     NaN
+    5:     603                     NaN                     NaN
+   ---                                                        
+38889:   99925                     NaN                     NaN
+38890:   99926                     NaN                     NaN
+38891:   99927                     NaN                     NaN
+38892:   99928                     NaN                     NaN
+38893:   99929                     NaN                     NaN
+       halall_njob_29young_zsh halall_njob_29young_ssh welall_njob_29young_zsh
+    1:               0.2329579        0.00000002715921                   0.555
+    2:               0.2329579        0.00000002715921                   0.555
+    3:                     NaN                     NaN                     NaN
+    4:                     NaN                     NaN                     NaN
+    5:                     NaN                     NaN                     NaN
+   ---                                                                        
+38889:               0.3333333        0.00034106412005                     NaN
+38890:               0.0000000        0.00000000000000                     NaN
+38891:               0.3636364        0.00045475216007                     NaN
+38892:               0.2222222        0.00000152091023                     NaN
+38893:               0.0000000        0.00000000000000                     NaN
+       welall_njob_29young_ssh walall_29y_lowinc_zsh walall_29y_lowinc_ssh
+    1:        0.00000006943779              0.162876       0.0000001739612
+    2:        0.00000006943779              0.162876       0.0000001739612
+    3:                     NaN                   NaN                   NaN
+    4:                     NaN                   NaN                   NaN
+    5:                     NaN                   NaN                   NaN
+   ---                                                                    
+38889:                     NaN                   NaN                   NaN
+38890:                     NaN                   NaN                   NaN
+38891:                     NaN                   NaN                   NaN
+38892:                     NaN                   NaN                   NaN
+38893:                     NaN                   NaN                   NaN
+       halall_29y_lowinc_zsh halall_29y_lowinc_ssh
+    1:            0.09602845       0.0000001288607
+    2:            0.09602845       0.0000001288607
+    3:                   NaN                   NaN
+    4:                   NaN                   NaN
+    5:                   NaN                   NaN
+   ---                                            
+38889:            0.00000000       0.0000000000000
+38890:            0.00000000       0.0000000000000
+38891:            0.27272727       0.0027624309392
+38892:            0.11111111       0.0000061592663
+38893:            0.00000000       0.0000000000000
 There were 50 or more warnings (use warnings() to see the first 50)
 > 
 > proc.time()
    user  system elapsed 
-325.619  23.388 100.160 
+369.022  24.882 104.912 
 
- make.py ended: 2020-10-07 09:37:17
+ make.py ended: 2020-10-15 08:32:53
