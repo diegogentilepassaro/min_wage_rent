@@ -21,9 +21,9 @@ program main
         coeflabels(`estlabels') ///
 		stats(N, fmt(%9.0g) 		///
 		labels("Observations")) star(* 0.10 ** 0.05 *** 0.01) 	///
-		mtitles("DiD" "Distributed leads and lags" "Distributed Lags" ///
-		"AB distributed leads and lags" "AB distributed lags" ///
-		"MW distributed leads and lags" "MW distributed lags") nonote
+		mtitles("DiD" "\shortstack{Distributed \\ leads and lags}" "\shortstack{Distributed \\ Lags}" ///
+		"\shortstack{AB Distributed \\ leads and lags}" "\shortstack{AB Distributed \\ Lags}" ///
+		"\shortstack{MW Distributed \\ leads and lags}" "\shortstack{MW Distributed \\ Lags}") nonote
 		
 	horse_race_models, depvar(ln_med_rent_psqft_sfcc) w(5) ///
 	    absorb(year_month zipcode) cluster(statefips)
@@ -33,9 +33,9 @@ program main
 		coeflabels(`estlabels') ///
 		stats(N, fmt(%9.0g) 		///
 		labels("Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
-		mtitles("DiD" "Distributed leads and lags" "Distributed Lags" ///
-		"AB distributed leads and lags" "AB distributed lags" ///
-		"MW distributed leads and lags" "MW distributed lags") nonote
+		mtitles("DiD" "\shortstack{Distributed \\ leads and lags}" "\shortstack{Distributed \\ Lags}" ///
+		"\shortstack{AB Distributed \\ leads and lags}" "\shortstack{AB Distributed \\ Lags}" ///
+		"\shortstack{MW Distributed \\ leads and lags}" "\shortstack{MW Distributed \\ Lags}") nonote
 		
 	horse_race_models, depvar(ln_med_rent_psqft_sfcc) w(5) ///
 	    absorb(year_month zipcode c.trend_times2#i.zipcode) cluster(statefips)
@@ -45,9 +45,9 @@ program main
         coeflabels(`estlabels') ////
 		stats(N, fmt(%9.0g) 		///
 		labels("Observations")) star(* 0.10 ** 0.05 *** 0.01) 						///
-		mtitles("DiD" "Distributed leads and lags" "Distributed Lags" ///
-		"AB distributed leads and lags" "AB distributed lags" ///
-		"MW distributed leads and lags" "MW distributed lags") nonote
+		mtitles("DiD" "\shortstack{Distributed \\ leads and lags}" "\shortstack{Distributed \\ Lags}" ///
+		"\shortstack{AB Distributed \\ leads and lags}" "\shortstack{AB Distributed \\ Lags}" ///
+		"\shortstack{MW Distributed \\ leads and lags}" "\shortstack{MW Distributed \\ Lags}") nonote
 end
 
 program horse_race_models

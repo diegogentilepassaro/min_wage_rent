@@ -14,8 +14,6 @@ program main
 	local estlabels_dyn "`r(estlabels_dyn)'"
 	local estlabels_static "`r(estlabels_static)'"
 
-
-
 	* Static Model
 	run_static_model, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
 		cluster(statefips)
@@ -27,17 +25,17 @@ program main
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) ///
 		nonote nomtitles 
 
-	run_static_model_control, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
+	/* run_static_model_control, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
 		cluster(statefips)
 	esttab * using "`outstub'/fd_table_control.tex", keep(D.ln_mw) compress se replace substitute(\_ _) ///
 		coeflabels(`estlabels_static') ///
 		stats(ctrl_emp ctrl_estab ctrl_wage ctrl_building r2 N, fmt(%s3 %s3 %s3 %s3 %9.3f %9.0gc) ///
-		labels("Industry-level monthly employment" 	///
-		"Industry-level quarterly establishment count"	///
-		"Industry-level quarterly weekly wage" ///
-		"New housing permits and value" ///
+		labels("county-month industry-level employment" 	///
+		"county-quarter Industry-level establ. count"	///
+		"county-quarter Industry-level weekly wage" ///
+		"county-month new house permits and value" ///
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) ///
-		nonote nomtitles
+		nonote nomtitles */
 
 	* Dynamic Model
 	run_dynamic_model, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
@@ -50,7 +48,7 @@ program main
 		"Zipcode-specific quadratic trend" ///
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 	///
 		nonote nomtitles
-
+STOP 
 	esttab lincom1 lincom2 lincom3 using "`outstub'/fd_dynamic_lincom_table.tex", ///
 		compress se replace ///
 		stats(zs_trend zs_trend_sq cty_emp_wg N, fmt(%s3 %s3 %s3 %9.0gc) ///
@@ -67,20 +65,20 @@ program main
 		keep(*.ln_mw) compress se replace substitute(\_ _) ///
 		coeflabels(`estlabels_dyn') ///	
 		stats(p_value_F ctrl_emp ctrl_estab ctrl_wage ctrl_building r2 N, fmt(%9.3f %s3 %s3 %s3 %s3 %9.3f %9.0gc) ///
-		labels("P-value no pretrends" "Industry-level monthly employment" ///
-		"Industry-level quarterly establishment count" ///
-		"Industry-level quarterly weekly wage" ///
-		"New housing permits and value" ///
+		labels("P-value no pretrends" "county-month industry-level employment" 	///
+		"county-quarter industry-level establ. count"	///
+		"county-quarter industry-level weekly wage" ///
+		"county-month new house permits and value" ///
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) ///
 		nonote nomtitles
 
  	esttab lincom1 lincom2 lincom3 lincom4 lincom5 using "`outstub'/fd_dynamic_lincom_table_control.tex", ///
 		compress se replace ///
 		stats(ctrl_emp ctrl_estab ctrl_wage ctrl_building N, fmt(%s3 %s3 %s3 %s3 %9.0gc) ///
-		labels("Industry-level monthly employment" ///
-		"Industry-level quarterly establishment count" ///
-		"Industry-level quarterly weekly wage" ///
-		"New housing permits and value" ///
+		labels("county-month industry-level employment" 	///
+		"county-quarter industry-level establ. count"	///
+		"county-quarter industry-level weekly wage" ///
+		"county-month new house permits and value" ///
 		"Observations")) ///
 		star(* 0.10 ** 0.05 *** 0.01) ///
 		nonote coeflabel((1) "Sum of MW effects") nomtitles
@@ -164,6 +162,17 @@ program run_dynamic_model
 		
 	test (F5D.ln_mw = 0) (F4D.ln_mw = 0) (F3D.ln_mw = 0) (F2D.ln_mw = 0) (F1D.ln_mw = 0)
 	estadd scalar p_value_F = r(p)
+			
+	eststo lincom1: lincomest `lincomest_coeffs'
+	comment_table, trend_lin("No") trend_sq("No")
+
+	eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if', ///
+		absorb(`absorb' i.zipcode) ///
+		vce(cluster `cluster') nocons
+	comment_table, trend_lin("Yes") trend_sq("No")
+
+	test (F5D.ln_mw = 0) (F4D.ln_mw = 0) (F3D.ln_mw = 0) (F2D.ln_mw = 0) (F1D.ln_mw = 0)
+	estadd scalar p_value_F = r(p)
 
 	preserve
 		coefplot, vertical base gen
@@ -172,24 +181,24 @@ program run_dynamic_model
 		
 		keep if !missing(at)
 
-		gen b_full_lb = b_full - 1.96*se_full
-		gen b_full_ub = b_full + 1.96*se_full
+		gen b_full_lb = b_full - 1.645*se_full
+		gen b_full_ub = b_full + 1.645*se_full
 			
 		gen static_path = 0 if at <= `w' 
 		replace static_path = scalar(static_effect) if at > `w'
 		gen static_path_lb = 0 if at <= `w'
-		replace static_path_lb = scalar(static_effect) - 1.96*scalar(static_effect_se) if at > `w'
+		replace static_path_lb = scalar(static_effect) - 1.645*scalar(static_effect_se) if at > `w'
 		gen static_path_ub = 0 if at <= `w'
-		replace static_path_ub = scalar(static_effect) + 1.96*scalar(static_effect_se) if at > `w'
+		replace static_path_ub = scalar(static_effect) + 1.645*scalar(static_effect_se) if at > `w'
 			
 		save "../temp/plot_coeffs.dta", replace
 	restore
-			
-	eststo lincom1: lincomest `lincomest_coeffs'
-	comment_table, trend_lin("No") trend_sq("No")
+
+	eststo lincom2: lincomest `lincomest_coeffs'
+	comment_table, trend_lin("Yes") trend_sq("No")
 				
 	qui reghdfe D.`depvar' L(0/`w').D.ln_mw, ///
-		absorb(`absorb') ///
+		absorb(`absorb' zipcode) ///
 		vce(cluster `cluster') nocons
 				
 	preserve
@@ -200,8 +209,8 @@ program run_dynamic_model
 
 		keep if !missing(at)
 
-		gen b_lags_lb = b_lags - 1.96*se_lags
-		gen b_lags_ub = b_lags + 1.96*se_lags
+		gen b_lags_lb = b_lags - 1.645*se_lags
+		gen b_lags_ub = b_lags + 1.645*se_lags
 			
 		gen cumsum_b_lags = b_lags[1]
 		replace cumsum_b_lags = cumsum_b_lags[_n-1] + b_lags[_n] if _n > 1
@@ -211,7 +220,7 @@ program run_dynamic_model
 		merge 1:1 at using "../temp/plot_coeffs.dta", nogen
 		replace cumsum_b_lags = 0 if at <= `w'
 		sort at
-			
+		save "../temp/plot_coeffs_base.dta", replace
 		// To prevent lines from overlapping perfectly
 		gen at_full = at - 0.09
 		gen at_lags = at + 0.09
@@ -222,33 +231,21 @@ program run_dynamic_model
 		replace static_path = static_path + 0.00007 if _n <= `w'
 
 		// Figure
+		make_plot_xlabels, w(`w')
+		local xlab "`r(xlab)'"
 		twoway (scatter b_full at_full, mcol(navy)) ///
-			(rcap b_full_lb b_full_ub at_full, col(navy)) ///
+			(rcap b_full_lb b_full_ub at_full, col(navy) lp(dash) lw(vthin)) ///
 			(scatter b_lags at_lags, mcol(maroon)) ///
-			(rcap b_lags_lb b_lags_ub at_lags, col(maroon)) ///
+			(rcap b_lags_lb b_lags_ub at_lags, col(maroon) lp(dash) lw(vthin)) ///
 			(line static_path at, lcol(gs4) lpat(dash)) ///
 			(line cumsum_b_lags at, lcol(maroon)), ///
-			yline(0, lcol(grey) lpat(dot)) ///
-			graphregion(color(white)) bgcolor(white) ///
-			xlabel(1 "F5D.ln_mw" 2 "F4D.ln_mw" 3 "F3D.ln_mw" 4 "F2D.ln_mw" ///
-			5 "FD.ln_mw" 6 "D.ln_mw" 7 "LD.ln_mw" 8 "L2D.ln_mw" 9 "L3D.ln_mw" ///
-			10 "L4D.ln_mw" 11 "L5D.ln_mw", labsize(vsmall)) xtitle("Leads and lags of ln MW") ///
-			ytitle("Effect on ln rent per sqft") ///
+			yline(0, lcol(black)) ///
+			xlabel(`xlab', labsize(small)) xtitle("Leads and lags of ln MW") ///
+			ylabel(-0.06(0.02).08, grid labsize(small)) ytitle("Effect on ln rent per sqft") ///			
 			legend(order(1 "Full dynamic model" 3 "Distributed lags model" ///
 			5 "Effects path static model" 6 "Effects path distributed lags model") size(small))
 		graph export "../output/fd_models.png", replace
 	restore 
-
-	eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if', ///
-		absorb(`absorb' i.zipcode) ///
-		vce(cluster `cluster') nocons
-	comment_table, trend_lin("Yes") trend_sq("No")
-
-	test (F5D.ln_mw = 0) (F4D.ln_mw = 0) (F3D.ln_mw = 0) (F2D.ln_mw = 0) (F1D.ln_mw = 0)
-	estadd scalar p_value_F = r(p)
-
-	eststo lincom2: lincomest `lincomest_coeffs'
-	comment_table, trend_lin("Yes") trend_sq("No")
 
 	eststo reg3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if', ///
 		absorb(`absorb' i.zipcod c.trend_times2#i.zipcode) ///
@@ -346,8 +343,8 @@ program run_dynamic_model_control
 		rename (__at __b __se) (at b_house se_house)
 		keep if !missing(at)
 
-		gen b_house_lb = b_house - 1.96*se_house
-		gen b_house_ub = b_house + 1.96*se_house
+		gen b_house_lb = b_house - 1.645*se_house
+		gen b_house_ub = b_house + 1.645*se_house
 
 		merge 1:1 at using "../temp/plot_coeffs_base.dta", nogen
 		merge 1:1 at using "../temp/plot_coeffs_emp.dta", nogen
@@ -373,9 +370,9 @@ program run_dynamic_model_control
 			xlabel(1 "-5" 2 "-4" 3 "-3" 4 "-2" ///
 			5 "-1" 6 "0" 7 "1" 8 "2" 9 "3" ///
 			10 "4" 11 "5", labsize(vsmall)) xtitle("Leads and lags of ln MW") ///
-			ytitle("Effect on ln rent per sqft") ylabel(, grid)	///
+			ytitle("Effect on ln rent per sqft") ylabel(-0.06(0.02).08, grid)	///
 			legend(order(1 "baseline" 3 "employment" ///
-			5 "establishment" 7 "wage" 9 "building") size(small))
+			5 "establishment" 7 "wage" 9 "building") size(small) rows(1))
 		graph export "../output/fd_models_control.png", replace
 	restore
 
@@ -435,8 +432,8 @@ program store_dynamic_coeffs
 	
 		keep if !missing(at)
 
-		gen b_`model'_lb = b_`model' - 1.96*se_`model'
-		gen b_`model'_ub = b_`model' + 1.96*se_`model'
+		gen b_`model'_lb = b_`model' - 1.645*se_`model'
+		gen b_`model'_ub = b_`model' + 1.645*se_`model'
 	
 		save "../temp/plot_coeffs_`model'.dta", replace
 	restore
@@ -457,6 +454,24 @@ program make_results_labels, rclass
 		return local estlabels_static "`estlabels_static'"
 	
 
+end 
+
+program make_plot_xlabels, rclass 
+	syntax, w(int)
+
+	local xlab ""
+	forval lead = 1/`w' {
+		local leadlab = `lead' - `w' - 1
+		local xlab `"`xlab' `lead' "`leadlab'""'
+	}
+	local zero = `w' + 1
+	local xlab `"`xlab' `zero' "0""'
+	forval lag = 1/`w' {
+		local coeflag = `zero' + `lag'
+		local xlab `"`xlab' `coeflag' "`lag'""'
+	}
+
+	return local xlab `xlab'
 end 
 
 main

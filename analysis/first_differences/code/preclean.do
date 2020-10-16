@@ -40,6 +40,10 @@ program create_vars
 		unab this_var: `v'
 		local log_vars_expanded `"`log_vars_expanded' `this_var'"'
 	}
+	unab bpsvars: u1*
+	foreach var in `bpsvars' {
+		replace `var' = 1 + `var'
+	}
 	foreach var in `log_vars_expanded' {
 		gen ln_`var' = ln(`var')
 	}
