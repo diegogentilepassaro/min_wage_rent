@@ -98,7 +98,7 @@ program plot_dd_static_heterogeneity
 		vce(cluster `cluster') nocons
 
 	coefplot, base graphregion(color(white)) bgcolor(white) ///
-	ylabel(1 "1" 2 "2" 3 "3" 4 "4") ///
+	ylabel(1 "1" 2 "2" 3 "3" 4 "4") levels(90) ///
 	ytitle(`ytitle', size(small)) ///
 	xtitle("Estimated effect of ln MW on ln rents", size(small))	///
 	xline(0, lcol(black)) mc(edkblue) ciopts(recast(rcap) lc(edkblue) lp(dash) lw(vthin))
