@@ -245,7 +245,7 @@ program run_dynamic_model
 			ylabel(-0.06(0.02).08, grid) ytitle("Effect on ln rent per sqft") ///			
 			legend(order(1 "Full dynamic model" 3 "Distributed lags model" ///
 			5 "Effects path static model" 6 "Effects path distributed lags model") size(small))
-		graph export "../output/fd_models.png", replace
+		graph export "../output/fd_models_wgt.png", replace
 
 		replace at_full = at - 0.09 if _n <= `w'
 		rename (b_full b_full_lb b_full_ub cumsum_b_lags) (b_full_wgt b_full_lb_wgt b_full_ub_wgt cumsum_b_lags_wgt)
@@ -387,7 +387,7 @@ program run_dynamic_model_control
 			ytitle("Effect on ln rent per sqft") ylabel(-0.06(0.02).08, grid)	///
 			legend(order(1 "baseline" 3 "employment" ///
 			5 "establishment" 7 "wage" 9 "building") size(small) rows(1))
-		graph export "../output/fd_models_control.png", replace
+		graph export "../output/fd_models_control_wgt.png", replace
 	restore
 
 	eststo lincom5: lincomest `lincomest_coeffs'
