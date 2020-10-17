@@ -27,7 +27,7 @@ program main
 		
 	horse_race_models, depvar(ln_med_rent_psqft_sfcc) w(5) ///
 	    absorb(year_month zipcode) cluster(statefips)
-	esttab * using "`outstub'/horse_race_zipcode_trend.tex", compress se replace 	///
+	esttab * using "`outstub'/horse_race_zipcode_trend.tex", compress se replace substitute(\_ _)	///
 	    order(F5D.ln_mw F4D.ln_mw F3D.ln_mw F2D.ln_mw FD.ln_mw D.ln_mw ///
 		LD.ln_mw L2D.ln_mw L3D.ln_mw L4D.ln_mw L5D.ln_mw LD.ln_med_rent_psqft_sfcc) ///	 
 		coeflabels(`estlabels') ///
@@ -39,7 +39,7 @@ program main
 		
 	horse_race_models, depvar(ln_med_rent_psqft_sfcc) w(5) ///
 	    absorb(year_month zipcode c.trend_times2#i.zipcode) cluster(statefips)
-	esttab * using "`outstub'/horse_race_zipcode_trend_sq.tex", compress se replace 	///
+	esttab * using "`outstub'/horse_race_zipcode_trend_sq.tex", compress se replace substitute(\_ _)	///
 	    order(F5D.ln_mw F4D.ln_mw F3D.ln_mw F2D.ln_mw FD.ln_mw D.ln_mw ///
 		LD.ln_mw L2D.ln_mw L3D.ln_mw L4D.ln_mw L5D.ln_mw LD.ln_med_rent_psqft_sfcc) ///    
         coeflabels(`estlabels') ////
