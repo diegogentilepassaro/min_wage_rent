@@ -25,7 +25,7 @@ program main
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) ///
 		nonote nomtitles 
 
-	/* run_static_model_control, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
+	run_static_model_control, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
 		cluster(statefips)
 	esttab * using "`outstub'/fd_table_control.tex", keep(D.ln_mw) compress se replace substitute(\_ _) ///
 		coeflabels(`estlabels_static') ///
@@ -35,7 +35,7 @@ program main
 		"county-quarter Industry-level weekly wage" ///
 		"county-month new house permits and value" ///
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) ///
-		nonote nomtitles */
+		nonote nomtitles
 
 	* Dynamic Model
 	run_dynamic_model, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
@@ -48,7 +48,7 @@ program main
 		"Zipcode-specific quadratic trend" ///
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 	///
 		nonote nomtitles
-STOP 
+
 	esttab lincom1 lincom2 lincom3 using "`outstub'/fd_dynamic_lincom_table.tex", ///
 		compress se replace ///
 		stats(zs_trend zs_trend_sq cty_emp_wg N, fmt(%s3 %s3 %s3 %9.0gc) ///
