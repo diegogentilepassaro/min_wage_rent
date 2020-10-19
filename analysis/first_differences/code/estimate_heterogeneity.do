@@ -10,7 +10,7 @@ program main
 
 	use "`instub'/fd_rent_panel.dta", clear
 
-	local demovars "med_hhinc20105 renthouse_share2010 college_share20105 black_share2010"
+	local demovars "med_hhinc20105 unemp_share20105 college_share20105 black_share2010"
 	local workvars "walall_njob_29young_ssh halall_njob_29young_ssh walall_29y_lowinc_ssh halall_29y_lowinc_ssh"
 	
 	* Heterogeneity plot - demographics and workers' type
@@ -73,6 +73,9 @@ program build_ytitle, rclass
 	if "`var'" == "work_county_share20105" {
 		return local title "Quartiles of 2010 share who work in county"
 	}
+	if "`var'" == "unemp_share20105" {
+		return local title "Quartiles of 2010 unemployment rate"
+	}
 	if "`var'" == "walall_njob_29young_ssh" {
 		return local title "Workers 29 yrs or younger - workplace state-level share"
 	}
@@ -100,7 +103,7 @@ program plot_dd_static_heterogeneity
 	coefplot, base graphregion(color(white)) bgcolor(white) ///
 	ylabel(1 "1" 2 "2" 3 "3" 4 "4") levels(90) ///
 	ytitle(`ytitle', size(small)) ///
-	xtitle("Estimated effect of ln MW on ln rents", size(small))	///
+	xtitle("Estimated effect of ln MW on ln rents", size(small)) xlabel(-.05(.02).1)	///
 	xline(0, lcol(black)) mc(edkblue) ciopts(recast(rcap) lc(edkblue) lp(dash) lw(vthin))
 end
 
@@ -145,6 +148,9 @@ program make_table_titles, rclass
 		if "`var'" == "work_county_share20105" {
 			local title_list `"`title_list' "Work in county (\%)""'
 		}
+		if "`var'" == "unemp_share20105" {
+			local title_list `"`title_list' "Unemp. rate (\%)""'
+	}
 		if "`var'" == "walall_njob_29young_ssh" {
 			local title_list `"`title_list' "\shortstack{Young worker,  \\ workplace}""'		
 		}
