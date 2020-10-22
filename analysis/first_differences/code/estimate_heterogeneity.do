@@ -16,7 +16,7 @@ program main
 
 		build_ytitle, var(`var')
 
-		run_static_heterogeneity, depvar(ln_med_rent_psqft) absorb(year_month) ///
+		plot_static_heterogeneity, depvar(ln_med_rent_psqft) absorb(year_month) ///
 			het_var(`var'_st_qtl) cluster(statefips) ytitle(`r(title)')
 		graph export "`outstub'/fd_static_heter_`var'.png", replace
 	}
@@ -46,7 +46,7 @@ program build_ytitle, rclass
 	}
 end
 
-program run_static_heterogeneity
+program plot_static_heterogeneity
 	syntax, depvar(str) absorb(str) cluster(str) het_var(str) ytitle(str) [qtles(int 4)]
 
 	eststo clear

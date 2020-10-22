@@ -25,15 +25,15 @@ program main
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) ///
 		nonote nomtitles 
 		
-	run_static_model_control, depvar(ln_med_rent_psqft_sfcc) absorb(year_month entry_sfcc#year_month) ///
+	run_static_model_controls, depvar(ln_med_rent_psqft_sfcc) absorb(year_month entry_sfcc#year_month) ///
 		cluster(statefips)
 	esttab * using "`outstub'/fd_table_control_unbal.tex", keep(D.ln_mw) compress se replace substitute(\_ _) ///
 		coeflabels(`estlabels_static') ///
 		stats(ctrl_emp ctrl_estab ctrl_wage ctrl_building r2 N, fmt(%s3 %s3 %s3 %s3 %9.3f %9.0gc) ///
-		labels("county-month industry-level employment" 	///
-		"county-quarter industry-level establ. count"	///
-		"county-quarter industry-level weekly wage" ///
-		"county-month new house permits and value" ///
+		labels("County-month industry-level employment" 	///
+		"County-quarter industry-level establ. count"	///
+		"County-quarter industry-level weekly wage" ///
+		"County-month new house permits and value" ///
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) ///
 		nonote nomtitles
 
@@ -59,27 +59,27 @@ program main
 		star(* 0.10 ** 0.05 *** 0.01) ///
 		nonote coeflabel((1) "Sum of MW effects") nomtitles
 
-	run_dynamic_model_control, depvar(ln_med_rent_psqft_sfcc) absorb(year_month entry_sfcc#year_month) ///
+	run_dynamic_model_controls, depvar(ln_med_rent_psqft_sfcc) absorb(year_month entry_sfcc#year_month) ///
 		cluster(statefips)
 	
 	esttab reg1 reg2 reg3 reg4 reg5 using "`outstub'/fd_dynamic_table_control_unbal.tex", ///
 		keep(*.ln_mw) compress se replace substitute(\_ _) ///
 		coeflabels(`estlabels_dyn') ///	
 		stats(p_value_F ctrl_emp ctrl_estab ctrl_wage ctrl_building r2 N, fmt(%9.3f %s3 %s3 %s3 %s3 %9.3f %9.0gc) ///
-		labels("P-value no pretrends" "county-month industry-level employment" 	///
-		"county-quarter industry-level establ. count"	///
-		"county-quarter industry-level weekly wage" ///
-		"county-month new house permits and value" ///
+		labels("P-value no pretrends" "County-month industry-level employment" 	///
+		"County-quarter industry-level establ. count"	///
+		"County-quarter industry-level weekly wage" ///
+		"County-month new house permits and value" ///
 		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) ///
 		nonote nomtitles
 
  	esttab lincom1 lincom2 lincom3 lincom4 lincom5 using "`outstub'/fd_dynamic_lincom_table_control_unbal.tex", ///
 		compress se replace ///
 		stats(ctrl_emp ctrl_estab ctrl_wage ctrl_building N, fmt(%s3 %s3 %s3 %s3 %9.0gc) ///
-		labels("county-month industry-level employment" 	///
-		"county-quarter industry-level establ. count"	///
-		"county-quarter industry-level weekly wage" ///
-		"county-month new house permits and value" ///
+		labels("County-month industry-level employment" 	///
+		"County-quarter industry-level establ. count"	///
+		"County-quarter industry-level weekly wage" ///
+		"County-month new house permits and value" ///
 		"Observations")) ///
 		star(* 0.10 ** 0.05 *** 0.01) ///
 		nonote coeflabel((1) "Sum of MW effects") nomtitles
@@ -109,7 +109,7 @@ program run_static_model
 	comment_table, trend_lin("Yes") trend_sq("Yes")
 end
 
-program run_static_model_control
+program run_static_model_controls
 	syntax, depvar(str) absorb(str) cluster(str)
 
 	eststo clear
@@ -272,7 +272,7 @@ program run_dynamic_model
 	comment_table, trend_lin("Yes") trend_sq("Yes") 
 end
 
-program run_dynamic_model_control
+program run_dynamic_model_controls
 	syntax, depvar(str) absorb(str) cluster(str) [w(int 5)]
 	
 	eststo clear
