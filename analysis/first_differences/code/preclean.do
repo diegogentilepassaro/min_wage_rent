@@ -30,29 +30,6 @@ program main
 	gen d_ln_mw = D.ln_mw
 
 	save_data "`outstub'/fd_rent_panel.dta", key(zipcode year_month) replace log(`logfile')
-
-	use zipcode place_code msa countyfips statefips 								///
-		year_month calendar_month trend trend_sq trend_cu					 		///
-		dactual_mw actual_mw medrentpricepsqft_*							///
-		med_hhinc20105 renthouse_share2010 white_share2010 black_share2010			///
-		college_share20105 work_county_share20105 entry* ///
-		using `instub'/unbal_rent_panel.dta, clear 
-
-	local het_vars "med_hhinc20105 renthouse_share2010 college_share20105 black_share2010"
-	local het_vars "`het_vars' nonwhite_share2010 work_county_share20105"
-
-	create_vars, 	log_vars(actual_mw medrentpricepsqft_sfcc medrentpricepsqft_2br medrentpricepsqft_mfr5plus) 	///
-					heterogeneity_vars(`het_vars')
-	
-	simplify_varnames
-
-	xtset zipcode year_month
-	gen d_ln_mw = D.ln_mw
-
-	save_data "`outstub'/unbal_fd_rent_panel.dta", key(zipcode year_month) replace log(`logfile')
-
-
-
 end
 
 program create_vars
@@ -62,6 +39,10 @@ program create_vars
 	foreach v in `log_vars' {
 		unab this_var: `v'
 		local log_vars_expanded `"`log_vars_expanded' `this_var'"'
+	}
+	unab bpsvars: u1*
+	foreach var in `bpsvars' {
+		replace `var' = 1 + `var'
 	}
 	foreach var in `log_vars_expanded' {
 		gen ln_`var' = ln(`var')
@@ -73,16 +54,9 @@ program create_vars
 
 	foreach var in `heterogeneity_vars' {
 
-		xtile `var'_nat_qtl = `var', nq(4)
-		levelsof statefips, local(states)
+		gquantiles `var'_nat_qtl = `var', xtile nq(4)
 
-		foreach state in `states'{
-			
-			xtile qtiles_`state'_`var' = `var' if statefips == `state', nq(4)
-		}
-		egen `var'_st_qtl = rowtotal(qtiles_*)
-		
-		drop qtiles_*
+		gquantiles `var'_st_qtl  = `var', xtile nq(4) by(statefips)
 	}
 end
 
