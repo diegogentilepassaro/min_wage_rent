@@ -72,7 +72,7 @@ program plot_dynamic_placebo
 
 		local period0 = `w' + 1
 
-		twoway (connected b_placebo1 at_placebo1, mc(edkblue) lc(edkblue) lw(thin)) (rcap b_placebo1_lb b_placebo1_ub at_placebo1, lc(edkblue) lp(dash) lw(vthin)), /// 
+		twoway (connected b_placebo1 at, mc(edkblue) lc(edkblue) lw(thin)) (rcap b_placebo1_lb b_placebo1_ub at, lc(edkblue) lp(dash) lw(vthin)), /// 
 			graphregion(color(white)) bgcolor(white) ///
 			xlabel(1 "-5" 2 "-4" 3 "-3" 4 "-2" ///
 			5 "-1" 6 "0" 7 "1" 8 "2" 9 "3" ///
