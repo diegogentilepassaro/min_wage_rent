@@ -90,7 +90,7 @@ program run_static_model
 	syntax, depvar(str) absorb(str) cluster(str)
 
 	eststo clear
-	eststo reg1: reghdfe D.`depvar' D.ln_mw , ///
+	eststo reg1: reghdfe D.`depvar' D.ln_mw, ///
 		absorb(`absorb') ///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("No") trend_sq("No")
@@ -98,12 +98,12 @@ program run_static_model
 	scalar static_effect = _b[D.ln_mw]
 	scalar static_effect_se = _se[D.ln_mw]
 
-	eststo: reghdfe D.`depvar' D.ln_mw ,	///
+	eststo: reghdfe D.`depvar' D.ln_mw,	///
 		absorb(`absorb' i.zipcode) ///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("Yes") trend_sq("No")
 
-	eststo: reghdfe D.`depvar' D.ln_mw , ///
+	eststo: reghdfe D.`depvar' D.ln_mw, ///
 		absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) ///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("Yes") trend_sq("Yes")
@@ -198,7 +198,7 @@ program run_dynamic_model
 	eststo lincom2: lincomest `lincomest_coeffs'
 	comment_table, trend_lin("Yes") trend_sq("No")
 				
-	qui reghdfe D.`depvar' L(0/`w').D.ln_mw , ///
+	qui reghdfe D.`depvar' L(0/`w').D.ln_mw, ///
 		absorb(`absorb' zipcode) ///
 		vce(cluster `cluster') nocons
 				
@@ -238,12 +238,12 @@ program run_dynamic_model
 			(rcap b_full_lb b_full_ub at_full, col(navy) lp(dash) lw(vthin)), ///
 			yline(0, lcol(black)) ///
 			xlabel(`xlab', labsize(small)) xtitle("Leads and lags of ln MW") ///
-			ylabel(-0.3(0.1).5, grid labsize(small) angle(90)) ytitle("Effect on ln rent per sqft") ///			
+			ylabel(-0.3(0.1).5, grid labsize(small) angle(90)) ytitle("Effect on ln number of listings") ///			
 			legend(off)
 		graph export "../output/fd_models_nlist.png", replace
 	restore 
 
-	eststo reg3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if' , ///
+	eststo reg3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if', ///
 		absorb(`absorb' i.zipcod c.trend_times2#i.zipcode) ///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("Yes") trend_sq("Yes")
@@ -271,7 +271,7 @@ program run_dynamic_model_controls
 	}
 
 	eststo clear
-	eststo reg1: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if' , ///
+	eststo reg1: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if', ///
 		absorb(`absorb' i.zipcode) ///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("No") est_cov("No") wage_cov("No") housing_cov("No")
@@ -284,7 +284,7 @@ program run_dynamic_model_controls
 	eststo lincom1: lincomest `lincomest_coeffs'
 	comment_table_control, emp_cov("No") est_cov("No") wage_cov("No") housing_cov("No")
 
-	eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`emp_cont') `if' , ///
+	eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`emp_cont') `if', ///
 		absorb(`absorb' i.zipcode) 	///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("No") wage_cov("No") housing_cov("No")
@@ -297,7 +297,7 @@ program run_dynamic_model_controls
 	eststo lincom2: lincomest `lincomest_coeffs'
 	comment_table_control, emp_cov("Yes") est_cov("No") wage_cov("No") housing_cov("No")
 
-	eststo reg3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`emp_cont') D.(`establish_cont') `if' ,		///
+	eststo reg3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`emp_cont') D.(`establish_cont') `if',		///
 		absorb(`absorb' i.zipcode) 	///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("No") housing_cov("No")
@@ -310,7 +310,7 @@ program run_dynamic_model_controls
 	eststo lincom3: lincomest `lincomest_coeffs'
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("No") housing_cov("No")
 
-	eststo reg4: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`emp_cont') D.(`establish_cont') D.(`wage_cont') `if' ,		///
+	eststo reg4: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`emp_cont') D.(`establish_cont') D.(`wage_cont') `if',		///
 		absorb(`absorb' i.zipcode) 	///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("Yes") housing_cov("No")
@@ -323,7 +323,7 @@ program run_dynamic_model_controls
 	eststo lincom4: lincomest `lincomest_coeffs'
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("Yes") housing_cov("No")
 
-	eststo reg5: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`emp_cont') D.(`establish_cont') D.(`wage_cont') `housing_cont' `if' ,		///
+	eststo reg5: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`emp_cont') D.(`establish_cont') D.(`wage_cont') `housing_cont' `if',		///
 		absorb(`absorb' i.zipcode) 	///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("Yes") housing_cov("Yes")
@@ -366,7 +366,7 @@ program run_dynamic_model_controls
 			xlabel(1 "-5" 2 "-4" 3 "-3" 4 "-2" ///
 			5 "-1" 6 "0" 7 "1" 8 "2" 9 "3" ///
 			10 "4" 11 "5", labsize(vsmall)) xtitle("Leads and lags of ln MW") ///
-			ytitle("Effect on ln rent per sqft") ylabel(-0.3(0.05).5, grid labsize(small) angle(90))	///
+			ytitle("Effect on ln number of listings") ylabel(-0.3(0.05).5, grid labsize(small) angle(90))	///
 			legend(order(1 "baseline" 3 "employment" ///
 			5 "establishment" 7 "wage" 9 "building") size(small) rows(1))
 		graph export "../output/fd_models_control_nlist.png", replace
