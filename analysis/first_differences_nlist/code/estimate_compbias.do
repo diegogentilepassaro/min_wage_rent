@@ -15,74 +15,21 @@ program main
 	local estlabels_static "`r(estlabels_static)'"
 
 	* Static Model
-	run_static_model, depvar(ln_n_listings_sfcc) absorb(year_month) ///
-		cluster(statefips)
-
-	esttab * using "`outstub'/fd_table_nlist.tex", keep(D.ln_mw) compress se replace substitute(\_ _) 	///
-		coeflabels(`estlabels_static') ///
-		stats(zs_trend zs_trend_sq r2 N, fmt(%s3 %s3 %9.3f %9.0gc) ///
-		labels("Zipcode-specifc linear trend" ///
-		"Zipcode-specific quadratic trend"	///
-		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) ///
-		nonote nomtitles 
-	run_static_model_controls, depvar(ln_n_listings_sfcc) absorb(year_month) ///
-		cluster(statefips)
-	esttab * using "`outstub'/fd_table_control_nlist.tex", keep(D.ln_mw) compress se replace substitute(\_ _) ///
-		coeflabels(`estlabels_static') ///
-		stats(ctrl_emp ctrl_estab ctrl_wage ctrl_building r2 N, fmt(%s3 %s3 %s3 %s3 %9.3f %9.0gc) ///
-		labels("County-month industry-level employment" 	///
-		"County-quarter industry-level establ. count"	///
-		"County-quarter industry-level weekly wage" ///
-		"County-month new house permits and value" ///
-		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) ///
-		nonote nomtitles
-	* Dynamic Model
-	run_dynamic_model, depvar(ln_n_listings_sfcc) absorb(year_month) ///
-		cluster(statefips)
-
-	esttab reg1 reg2 reg3 using "`outstub'/fd_dynamic_table_nlist.tex", ///
-		keep(*.ln_mw) compress se replace substitute(\_ _) ///
-		coeflabels(`estlabels_dyn') ///
-		stats(p_value_F zs_trend zs_trend_sq r2 N, fmt(%9.3f %s3 %s3 %9.3f %9.0gc) ///
-		labels("P-value no pretrends" "Zipcode-specifc linear trend" ///
-		"Zipcode-specific quadratic trend" ///
-		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) 	///
-		nonote nomtitles
-
-	esttab lincom1 lincom2 lincom3 using "`outstub'/fd_dynamic_lincom_table_nlist.tex", ///
-		compress se replace ///
-		stats(zs_trend zs_trend_sq cty_emp_wg N, fmt(%s3 %s3 %s3 %9.0gc) ///
-		labels("Zipcode-specifc linear trend" ///
-		"Zipcode-specific quadratic trend" ///
-		"Observations")) ///
-		star(* 0.10 ** 0.05 *** 0.01) ///
-		nonote coeflabel((1) "Sum of MW effects") nomtitles
+	run_static_placebo, depvar(ln_med_rent_psqft_sfcc) placebovar(ln_n_listings_sfcc) covars(ln_med_list_psqft_sfcc) ///
+						absorb(year_month i.zipcode) cluster(statefips)		
+						
+	esttab * using "`outstub'/fd_table_placebo.tex", keep(D.ln_mw) compress se replace substitute(\_ _) 	///
+			coeflabels(`estlabels_static') ///
+			stats(r2 N, fmt(%9.3f %9.0gc) ///
+			labels("R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) ///
+			mgroups("$\Delta y_{it}=\Delta$ ln(Median rent)" "$\Delta y_{it}=\Delta$ ln(No. listings)", pattern(1 0 1 0) ///
+			prefix(\multicolumn{@span}{c}{) suffix(}) span erepeat(\cmidrule(lr){@span})) ///
+			nonote nomtitles 
 
 
-	run_dynamic_model_controls, depvar(ln_n_listings_sfcc) absorb(year_month) ///
-		cluster(statefips)
-	
-	esttab reg1 reg2 reg3 reg4 reg5 using "`outstub'/fd_dynamic_table_control_nlist.tex", ///
-		keep(*.ln_mw) compress se replace substitute(\_ _) ///
-		coeflabels(`estlabels_dyn') ///	
-		stats(p_value_F ctrl_emp ctrl_estab ctrl_wage ctrl_building r2 N, fmt(%9.3f %s3 %s3 %s3 %s3 %9.3f %9.0gc) ///
-		labels("P-value no pretrends" "County-month industry-level employment" 	///
-		"County-quarter industry-level establ. count"	///
-		"County-quarter industry-level weekly wage" ///
-		"County-month new house permits and value" ///
-		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) ///
-		nonote nomtitles
+	plot_dynamic_placebo, depvar(ln_med_rent_psqft_sfcc) placebovar(ln_n_listings_sfcc) covars(ln_med_list_psqft_sfcc) ///
+						absorb(year_month i.zipcode) cluster(statefips)
 
- 	esttab lincom1 lincom2 lincom3 lincom4 lincom5 using "`outstub'/fd_dynamic_lincom_table_control_nlist.tex", ///
-		compress se replace ///
-		stats(ctrl_emp ctrl_estab ctrl_wage ctrl_building N, fmt(%s3 %s3 %s3 %s3 %9.0gc) ///
-		labels("County-month industry-level employment" 	///
-		"County-quarter industry-level establ. count"	///
-		"County-quarter industry-level weekly wage" ///
-		"County-month new house permits and value" ///
-		"Observations")) ///
-		star(* 0.10 ** 0.05 *** 0.01) ///
-		nonote coeflabel((1) "Sum of MW effects") nomtitles
 
 end
 
@@ -120,27 +67,27 @@ program run_static_model_controls
 	local wage_cont "`r(wage_cont)'"
 	local housing_cont "`r(housing_cont)'"
 
-	eststo: reghdfe D.`depvar' D.ln_mw ,	///
+	eststo: reghdfe D.`depvar' D.ln_mw D.ln_med_list_psqft_sfcc,	///
 		absorb(`absorb' zipcode) ///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("No") est_cov("No") wage_cov("No") housing_cov("No")
 
-	eststo: reghdfe D.`depvar' D.ln_mw D.(`emp_cont') , ///
+	eststo: reghdfe D.`depvar' D.ln_mw D.(`emp_cont') D.ln_med_list_psqft_sfcc, ///
 		absorb(`absorb' zipcode) ///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("No") wage_cov("No") housing_cov("No")
 
-	eststo: reghdfe D.`depvar' D.ln_mw D.(`emp_cont') D.(`establish_cont') , ///
+	eststo: reghdfe D.`depvar' D.ln_mw D.(`emp_cont') D.(`establish_cont') D.ln_med_list_psqft_sfcc, ///
 		absorb(`absorb' zipcode) 		///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("No") housing_cov("No")
 
-	eststo: reghdfe D.`depvar' D.ln_mw D.(`emp_cont') D.(`establish_cont') D.(`wage_cont') , ///
+	eststo: reghdfe D.`depvar' D.ln_mw D.(`emp_cont') D.(`establish_cont') D.(`wage_cont') D.ln_med_list_psqft_sfcc, ///
 		absorb(`absorb' zipcode) 		///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("Yes") housing_cov("No")
 
-	eststo: reghdfe D.`depvar' D.ln_mw D.(`emp_cont') D.(`establish_cont') D.(`wage_cont') `housing_cont' , ///
+	eststo: reghdfe D.`depvar' D.ln_mw D.(`emp_cont') D.(`establish_cont') D.(`wage_cont') `housing_cont' D.ln_med_list_psqft_sfcc, ///
 		absorb(`absorb' zipcode) ///
 		vce(cluster `cluster') nocons
 	comment_table_control, emp_cov("Yes") est_cov("Yes") wage_cov("Yes") housing_cov("Yes")
@@ -156,7 +103,7 @@ program run_dynamic_model
 	}
 
 	eststo clear
-	eststo reg1: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw , ///
+	eststo reg1: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.ln_med_list_psqft_sfcc, ///
 		absorb(`absorb') ///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("No") trend_sq("No")
@@ -167,7 +114,7 @@ program run_dynamic_model
 	eststo lincom1: lincomest `lincomest_coeffs'
 	comment_table, trend_lin("No") trend_sq("No")
 
-	eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if' , ///
+	eststo reg2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if' D.ln_med_list_psqft_sfcc, ///
 		absorb(`absorb' i.zipcode) ///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("Yes") trend_sq("No")
@@ -198,7 +145,7 @@ program run_dynamic_model
 	eststo lincom2: lincomest `lincomest_coeffs'
 	comment_table, trend_lin("Yes") trend_sq("No")
 				
-	qui reghdfe D.`depvar' L(0/`w').D.ln_mw, ///
+	qui reghdfe D.`depvar' L(0/`w').D.ln_mw D.ln_med_list_psqft_sfcc, ///
 		absorb(`absorb' zipcode) ///
 		vce(cluster `cluster') nocons
 				
@@ -243,7 +190,7 @@ program run_dynamic_model
 		graph export "../output/fd_models_nlist.png", replace
 	restore 
 
-	eststo reg3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if', ///
+	eststo reg3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if' D.ln_med_list_psqft_sfcc, ///
 		absorb(`absorb' i.zipcod c.trend_times2#i.zipcode) ///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("Yes") trend_sq("Yes")
@@ -377,7 +324,90 @@ program run_dynamic_model_controls
 end
 
 
+program run_static_placebo
+	syntax, depvar(str) placebovar(str) absorb(str) cluster(str) [covars(str)]
 
+	eststo clear
+	eststo: reghdfe D.`depvar' D.ln_mw, ///
+		absorb(`absorb') ///
+		vce(cluster `cluster') nocons
+
+	eststo: reghdfe D.`depvar' D.ln_mw D.(`placebovar'), ///
+		absorb(`absorb') ///
+		vce(cluster `cluster') nocons	
+	
+	eststo: reghdfe D.`placebovar' D.ln_mw,	///
+		absorb(`absorb') ///
+		vce(cluster `cluster') nocons
+
+	eststo: reghdfe D.`placebovar' D.ln_mw D.(`covars'), ///
+		absorb(`absorb') ///
+		vce(cluster `cluster') nocons
+end
+
+program plot_dynamic_placebo 
+	syntax, depvar(str) placebovar(str) absorb(str) cluster(str) [covars(str) w(int 5)]
+
+	eststo clear
+	eststo: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`placebovar'), ///
+		absorb(`absorb') ///
+		vce(cluster `cluster') nocons
+	store_dynamic_coeffs, model(base) w(`w')
+
+	eststo: reghdfe D.`placebovar' L(-`w'/`w').D.ln_mw, ///
+		absorb(`absorb') ///
+		vce(cluster `cluster') nocons
+	store_dynamic_coeffs, model(placebo0) w(`w')
+
+	eststo: reghdfe D.`placebovar' L(-`w'/`w').D.ln_mw D.(`covars'), ///
+		absorb(`absorb') ///
+		vce(cluster `cluster') nocons
+
+
+	preserve
+		coefplot, vertical base gen
+		local winspan = 2*`w' + 1
+		keep if _n<=`winspan'
+		keep __at __b __se
+		rename (__at __b __se) (at b_placebo1 se_placebo1)
+		keep if !missing(at)
+
+		gen b_placebo1_lb = b_placebo1 - 1.645*se_placebo1
+		gen b_placebo1_ub = b_placebo1 + 1.645*se_placebo1
+
+		merge 1:1 at using "../temp/plot_coeffs_base.dta", nogen		
+		merge 1:1 at using "../temp/plot_coeffs_placebo0.dta", nogen
+
+		sort at 
+
+		g at_placebo0   = at - 0.1
+		g at_placebo1 = at + 0.1
+
+		local period0 = `w' + 1
+
+		twoway (connected b_base at, mc(edkblue) lc(edkblue) lw(thin))        (rcap b_base_lb b_base_ub at, lc(edkblue) lp(dash) lw(vthin)), ///
+			graphregion(color(white)) bgcolor(white) ///
+			xlabel(1 "-5" 2 "-4" 3 "-3" 4 "-2" ///
+			5 "-1" 6 "0" 7 "1" 8 "2" 9 "3" ///
+			10 "4" 11 "5", labsize(vsmall)) xtitle("Leads and lags of ln MW") ///
+			ytitle("Effect on ln rent") ///
+			ylabel(-0.06(0.02).08, grid labsize(small) angle(90)) ///
+			yline(0, lcol(black)) legend(off)
+		graph export "../output/fd_model_nlistcontrol.png", replace
+
+		twoway (connected b_placebo0 at_placebo0, mc(gs10) lc(gs10) lw(thin)) (rcap b_placebo0_lb b_placebo0_ub at_placebo0, lc(gs10) lp(dash) lw(vthin)) ///
+			(connected b_placebo1 at_placebo1, mc(edkblue) lc(edkblue) lw(thin)) (rcap b_placebo1_lb b_placebo1_ub at_placebo1, lc(edkblue) lp(dash) lw(vthin)), /// 
+			graphregion(color(white)) bgcolor(white) ///
+			xlabel(1 "-5" 2 "-4" 3 "-3" 4 "-2" ///
+			5 "-1" 6 "0" 7 "1" 8 "2" 9 "3" ///
+			10 "4" 11 "5", labsize(vsmall)) xtitle("Leads and lags of ln MW") ///
+			ytitle("Effect on ln No. listings") ylabel(-0.3(0.1).5, grid labsize(small) angle(90))	///
+			yline(0, lcol(black)) ///
+			legend(order(1 "No Covariates" 3 "{&Delta}X{subscript: it} = {&Delta} ln median listing price"))
+		graph export "../output/fd_placebo_comparison.png", replace
+	restore
+
+end 
 
 program define_controls, rclass
 	
