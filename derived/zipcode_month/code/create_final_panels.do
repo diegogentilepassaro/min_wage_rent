@@ -99,6 +99,8 @@ program create_baseline_panel
 		which_mw fed_event state_event county_event local_event			///
 		sal_mw_event mw_event025 mw_event075 							///
 		trend trend_sq trend_cu                                         ///
+		medlistingpricepsqft_sfcc monthlylistings_nsa_sfcc              ///
+		newmonthlylistings_nsa_sfcc 									///
 		using "`instub'/zipcode_yearmonth_panel.dta", clear
 
 	keep if (year_month >= `=mofd(td(`start_date'))' & 					///
@@ -138,6 +140,8 @@ program unbalanced_panel
 		which_mw fed_event state_event county_event local_event			///
 		sal_mw_event mw_event025 mw_event075 							///
 		trend trend_sq trend_cu                                         ///
+		medlistingpricepsqft_sfcc monthlylistings_nsa_sfcc              ///
+		newmonthlylistings_nsa_sfcc										///
 		using "`instub'/zipcode_yearmonth_panel.dta", clear
 
 
