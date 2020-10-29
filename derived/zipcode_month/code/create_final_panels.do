@@ -9,6 +9,7 @@ program main
 	local indemo "../../../drive/base_large/output"
 	local inqcew "../../../base/qcew/output"
 	local inbps "../../../base/bps/output"
+	local inlodes "../../../drive/base_large/output"
 	local outstub "../../../drive/derived_large/output"
 	local logfile "../output/data_file_manifest.log"
 

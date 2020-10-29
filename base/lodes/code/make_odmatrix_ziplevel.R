@@ -3,12 +3,12 @@ source("../../../lib/R/load_packages.R")
 source("../../../lib/R/save_data.R")
 
 options(scipen=999)
-load_packages(c('tidyverse', 'data.table', 'bit64', 'purrr', 'readxl', 'parallel', 'usmap'))
+load_packages(c('tidyverse', 'data.table', 'bit64', 'purrr', 'readxl', 'parallel'))
 
 main <- function() {
   datadir_lodes <- '../../../drive/raw_data/lodes/od/JT00/2017/'
   datadir_xwalk <- '../../../raw/crosswalk/'
-  outdir <- '../../../drive/base_large/output/'
+  outdir        <- '../../../drive/base_large/output/'
   
   #prepare crosswalks 
   xwalk_list <- make_xwalk(datadir_xwalk)
