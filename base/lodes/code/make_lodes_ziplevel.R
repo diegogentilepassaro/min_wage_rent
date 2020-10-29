@@ -8,7 +8,7 @@ load_packages(c('tidyverse', 'data.table', 'bit64', 'purrr', 'readxl'))
 main <- function() {
   datadir_lodes <- '../../../drive/raw_data/lodes/'
   datadir_xwalk <- '../../../raw/crosswalk/'
-  outdir <- '../../../drive/base_large/output/'
+  outdir        <- '../../../drive/base_large/output/'
   
   xwalk <- make_xwalk(datadir_xwalk)
   
@@ -68,40 +68,10 @@ main <- function() {
   
   lodes_final <- make_final_vars(lodes_final)
   
-  save_data(lodes_final, 
-            filename = paste0(outdir, 'zip_lodes.dta'), 
-            key = c('zipcode'))
+  save_data(lodes_final, key = c('zipcode'),
+            filename = paste0(outdir, 'zip_lodes.dta'))
   
   return(lodes_final)
-}
-
-make_final_vars <- function(data) {
-  data[, walall_29y_lowinc_zsh := welall_njob_29young / walall_tot]
-  data[, halall_29y_lowinc_zsh := helall_njob_29young / halall_tot]
-  
-  data[, c('w_sttot', 'h_sttot') :=lapply(.SD, function(x) sum(x, na.rm = T)), by = 'st', .SDcols = c('welall_njob_29young', 'helall_njob_29young')]
-
-  data[, walall_29y_lowinc_ssh := lapply(.SD, function(x) x / w_sttot), .SDcols = c('welall_njob_29young')]
-  data[, halall_29y_lowinc_ssh := lapply(.SD, function(x) x / h_sttot), .SDcols = c('helall_njob_29young')]
-  
-  data[, c('w_sttot', 'h_sttot') := NULL]
-  
-  vars <- c('walall_njob_29young_zsh', 
-            'walall_njob_29young_ssh', 
-            'halall_njob_29young_zsh', 
-            'halall_njob_29young_ssh', 
-            'welall_njob_29young_zsh', 
-            'welall_njob_29young_ssh', 
-            'walall_29y_lowinc_zsh', 
-            'walall_29y_lowinc_ssh', 
-            'halall_29y_lowinc_zsh', 
-            'halall_29y_lowinc_ssh')
-  
-  vars <- c('zipcode', vars)
-  
-  data <- data[, ..vars]
-  return(data)
-  
 }
 
 make_xwalk <- function(instub) {
@@ -204,6 +174,36 @@ set_prefix <- function(p, s, t) {
   return(prefix) 
 }
 
+make_final_vars <- function(data) {
+  data[, walall_29y_lowinc_zsh := welall_njob_29young / walall_tot]
+  data[, halall_29y_lowinc_zsh := helall_njob_29young / halall_tot]
+  
+  data[, c('w_sttot', 'h_sttot') := lapply(.SD, function(x) sum(x, na.rm = T)), 
+        by = 'st', .SDcols = c('welall_njob_29young', 'helall_njob_29young')]
+
+  data[, walall_29y_lowinc_ssh := lapply(.SD, function(x) x / w_sttot), 
+        .SDcols = c('welall_njob_29young')]
+  data[, halall_29y_lowinc_ssh := lapply(.SD, function(x) x / h_sttot), 
+        .SDcols = c('helall_njob_29young')]
+  
+  data[, c('w_sttot', 'h_sttot') := NULL]
+  
+  vars <- c('walall_njob_29young_zsh', 
+            'walall_njob_29young_ssh', 
+            'halall_njob_29young_zsh', 
+            'halall_njob_29young_ssh', 
+            'welall_njob_29young_zsh', 
+            'welall_njob_29young_ssh', 
+            'walall_29y_lowinc_zsh', 
+            'walall_29y_lowinc_ssh', 
+            'halall_29y_lowinc_zsh', 
+            'halall_29y_lowinc_ssh')
+  
+  vars <- c('zipcode', vars)
+  
+  data <- data[, ..vars]
+  return(data)
+}
 
 #Execute
 main()
