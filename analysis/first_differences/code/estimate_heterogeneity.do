@@ -10,11 +10,12 @@ program main
 
 	use "`instub'/fd_rent_panel.dta", clear
 
-	local demovars "med_hhinc20105 unemp_share20105 college_share20105 black_share2010"
-	local workvars "walall_njob_29young_ssh halall_njob_29young_ssh walall_29y_lowinc_ssh halall_29y_lowinc_ssh"
+	local demovars       "med_hhinc20105 unemp_share20105 college_share20105 black_share2010"
+	local demovars_extra "teen_share2010 urb_share2010 youngadult_share2010 worktravel_10_share20105 worker_foodservice20105"
+	local workvars       "walall_29y_lowinc_ssh halall_29y_lowinc_ssh"
 	
 	* Heterogeneity plot - demographics and workers' type
-	foreach var in `demovars' `workvars' {
+	foreach var in `demovars' `workvars' `demovars_extra'{
 
 		build_ytitle, var(`var')
 
@@ -76,6 +77,31 @@ program build_ytitle, rclass
 	if "`var'" == "unemp_share20105" {
 		return local title "Quartiles of 2010 unemployment rate"
 	}
+	if "`var'" == "teen_share2010" {
+		return local title "Quartiles of 2010 share of 15-24 years old residents"
+	}
+	if "`var'" == "urb_share2010" {
+		return local title "Quartiles of 2010 share of urban population"
+	}
+	if "`var'" == "youngadult_share2010" {
+		return local title "Quartiles of 2010 share of 25-34 years old residents"
+	}
+	if "`var'" == "worktravel_10_share20105" {
+		return local title "Quartiles of 2010 share of workers commuting in 10 minutes"
+	}
+	if "`var'" == "worker_foodservice20105" {
+		return local title "Quartiles of 2010 share of food and service industry workers"
+	}
+	if "`var'" == "sh_mww_wmean2" {
+		return local title "Quartiles of 2010 share of MW workers (ACS)"
+	}
+	if "`var'" == "sh_mww_renter_wmean2" {
+		return local title "Quartiles of 2010 share of MW workers and renters (ACS)"
+	}
+	if "`var'" == "mww_shrenter_wmean2" {
+		return local title "Quartiles of 2010 share of renters that are MW workers (ACS)"
+	}
+
 	if "`var'" == "walall_njob_29young_ssh" {
 		return local title "Workers 29 yrs or younger - workplace state-level share"
 	}
@@ -150,7 +176,7 @@ program make_table_titles, rclass
 		}
 		if "`var'" == "unemp_share20105" {
 			local title_list `"`title_list' "Unemp. rate (\%)""'
-	}
+		}
 		if "`var'" == "walall_njob_29young_ssh" {
 			local title_list `"`title_list' "\shortstack{Young worker,  \\ workplace}""'		
 		}
