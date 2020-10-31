@@ -57,13 +57,16 @@ program create_vars
 		gquantiles `var'_st_qtl  = `var', xtile nq(4) by(statefips)
 	}
 
-	foreach var in  exp_mw_totjob exp_mw_job_young exp_mw_job_lowinc {
+	foreach var in  exp_mw_totjob exp_mw_job_young exp_mw_job_lowinc ln_exp_mw_totjob {
 		g D`var' = D.`var'
 		order D`var', after(`var')
 	}
 	bys zipcode (year_month): gegen temp = max(dactual_mw)
 	bys zipcode (year_month): g ziptreated = (temp!=0)
 	drop temp 
+	g treat = (dactual_mw>0)
+	replace treat = 2 if dactual_mw==0 & Dexp_mw_totjob!=0
+	//replace treat = treat + 1
 end
 
 program simplify_varnames
