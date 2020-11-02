@@ -66,7 +66,6 @@ program create_vars
 	drop temp 
 	g treat = (dactual_mw>0)
 	replace treat = 2 if dactual_mw==0 & Dexp_mw_totjob!=0
-	//replace treat = treat + 1
 end
 
 program simplify_varnames

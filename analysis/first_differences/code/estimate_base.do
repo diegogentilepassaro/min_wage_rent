@@ -220,7 +220,7 @@ program run_dynamic_model
 		merge 1:1 at using "../temp/plot_coeffs.dta", nogen
 		replace cumsum_b_lags = 0 if at <= `w'
 		sort at
-		save "../temp/plot_coeffs_base.dta", replace
+		save "../temp/plot_coeffs.dta", replace
 		// To prevent lines from overlapping perfectly
 		gen at_full = at - 0.09
 		gen at_lags = at + 0.09

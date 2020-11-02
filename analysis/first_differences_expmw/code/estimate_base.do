@@ -42,7 +42,7 @@ program main
 	run_dynamic_expgroup, depvar(ln_med_rent_psqft_sfcc) treatvar(Dln_exp_mw_totjob) absorb(year_month) ///
 		cluster(statefips)
 
-	/* run_dynamic_exptot, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_exp_mw_totjob) absorb(year_month) ///
+	run_dynamic_exptot, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_exp_mw_totjob) absorb(year_month) ///
 		cluster(statefips)
 	esttab reg1 reg2 reg3 using "`outstub'/fd_dynamic_table_expmw.tex", ///
 		keep(*.ln_exp_mw_totjob) compress se replace substitute(\_ _) ///
@@ -60,7 +60,7 @@ program main
 		"Zipcode-specific quadratic trend" ///
 		"Observations")) ///
 		star(* 0.10 ** 0.05 *** 0.01) ///
-		nonote coeflabel((1) "Sum of MW effects") nomtitles */
+		nonote coeflabel((1) "Sum of MW effects") nomtitles
 
 end
 
@@ -73,9 +73,9 @@ program run_static_exptot
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("No") trend_sq("No")
 		
-	//scalar static_effect = _b[`treatvar']
-	//scalar static_effect_se = _se[`treatvar']
-
+	scalar static_effect = _b[D.`treatvar']
+	scalar static_effect_se = _se[D.`treatvar']
+		
 	eststo: reghdfe D.`depvar' D.`treatvar',	///
 		absorb(`absorb' i.zipcode) ///
 		vce(cluster `cluster') nocons
@@ -95,9 +95,7 @@ program run_static_expgroup
 		absorb(`absorb' treat) ///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("No") trend_sq("No")
-		
-	//scalar static_effect = _b[`treatvar']
-	//scalar static_effect_se = _se[`treatvar']
+
 
 	eststo: reghdfe D.`depvar' c.`treatvar'#i.treat,	///
 		absorb(`absorb' i.zipcode treat) ///
@@ -197,18 +195,18 @@ program run_dynamic_exptot
 		// Figure
 		make_plot_xlabels, w(`w')
 		local xlab "`r(xlab)'"
-		twoway (scatter b_full at_full, mcol(navy)) ///
-			(rcap b_full_lb b_full_ub at_full, col(navy) lp(dash) lw(vthin)) ///
-			(scatter b_lags at_lags, mcol(maroon)) ///
-			(rcap b_lags_lb b_lags_ub at_lags, col(maroon) lp(dash) lw(vthin)) ///
-			(line static_path at, lcol(gs4) lpat(dash)) ///
-			(line cumsum_b_lags at, lcol(maroon)), ///
-			yline(0, lcol(black)) ///
-			xlabel(`xlab', labsize(small)) xtitle("Leads and lags of ln MW") ///
-			ylabel(-0.2(0.05).4, grid labsize(small)) ytitle("Effect on ln rent per sqft") ///			
-			legend(order(1 "Full dynamic model" 3 "Distributed lags model" ///
-			5 "Effects path static model" 6 "Effects path distributed lags model") size(small))
-		graph export "../output/fd_models.png", replace
+		replace at_full = at - 0.09 if _n <= `w'
+		rename (b_full b_full_lb b_full_ub cumsum_b_lags) (b_full_expmw b_full_lb_expmw b_full_ub_expmw cumsum_b_lags_expmw)
+		merge 1:1 at using "../../first_differences/temp/plot_coeffs.dta", nogen
+		twoway (scatter b_full at, mcol(gs10)) (rcap b_full_lb b_full_ub at, lcol(gs10) lp(dash) lw(thin)) ///
+			   (scatter b_full_expmw at_full, mcol(edkblue)) (rcap b_full_lb_expmw b_full_ub_expmw at_full, col(edkblue) lp(dash) lw(thin)) ///
+			   (line cumsum_b_lags at, lc(gs10)) (line cumsum_b_lags_expmw at, lc(edkblue)), ///
+			   yline(0, lcol(black)) ///
+			   xlabel(`xlab', labsize(small)) xtitle("Leads and lags") ///
+			   ylabel(-0.06(0.02).08, grid labsize(small)) ytitle("Effect on {&Delta}ln(rent/SqFt)") ///
+			   legend(order(1 "Baseline dynamic model" 3 "Exp. MW dynamic model" ///
+			   		        5 "Baseline cumulative distributed lags model" 6 "Exp. MW cumulative distributed lags model") size(vsmall))
+		graph export "../output/fd_model_comparison_expmw.png", replace
 	restore 
 
 	eststo reg3: reghdfe D.`depvar' L(-`w'/`w').D.`treatvar' `if', ///
@@ -245,17 +243,11 @@ program run_dynamic_expgroup
 		local dyntreat_ind `"`dyntreat_ind' L`t'Dln_exp_mw_ind"'		
 	}
 
-
-	/* local lincomest_coeffs "D1.`treatvar' + LD.`treatvar'"
-	forvalues i = 2(1)`w'{
-		local lincomest_coeffs "`lincomest_coeffs' + L`i'D.`treatvar'"
-	} */
-
 	eststo clear
 	eststo reg1: reghdfe D.`depvar' `dyntreat_dir' `dyntreat_ind' , ///
 		absorb(`absorb' zipcode treat) ///
 		vce(cluster `cluster') nocons
-STOP 
+
 				
 	preserve
 		coefplot, vertical base gen
