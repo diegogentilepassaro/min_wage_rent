@@ -61,11 +61,8 @@ program create_vars
 		g D`var' = D.`var'
 		order D`var', after(`var')
 	}
-	bys zipcode (year_month): gegen temp = max(dactual_mw)
-	bys zipcode (year_month): g ziptreated = (temp!=0)
-	drop temp 
-	g treat = (dactual_mw>0)
-	replace treat = 2 if dactual_mw==0 & Dexp_mw_totjob!=0
+	g treat_dir = (dactual_mw>0)
+	bys zipcode (year_month): gegen ziptreated_dir = max(treat_dir)
 end
 
 program simplify_varnames
