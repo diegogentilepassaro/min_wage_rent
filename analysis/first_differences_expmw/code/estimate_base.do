@@ -16,17 +16,6 @@ program main
 	local estlablels_static_groups "`r(estlablels_static_groups)'"
 
 	* Static Model - Experienced
-	run_static_expgroup, depvar(ln_med_rent_psqft_sfcc) treatvar(Dln_exp_mw_totjob) absorb(year_month) ///
-		cluster(statefips)
-
-	esttab * using "`outstub'/fd_table_expmw_groups.tex", compress se replace substitute(\_ _) 	///
-		coeflabels(`estlablels_static_groups') ///
-		stats(zs_trend zs_trend_sq r2 N, fmt(%s3 %s3 %9.3f %9.0gc) ///
-		labels("Zipcode-specifc linear trend" ///
-		"Zipcode-specific quadratic trend"	///
-		"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) ///
-		nonote nomtitles 
-	
 	run_static_exptot, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_exp_mw_totjob) absorb(year_month) ///
 		cluster(statefips)
 	esttab * using "`outstub'/fd_table_expmw.tex", keep(D.ln_exp_mw_totjob) compress se replace substitute(\_ _) 	///
@@ -38,10 +27,6 @@ program main
 		nonote nomtitles
 
 	* Dynamic Model
-
-	run_dynamic_expgroup, depvar(ln_med_rent_psqft_sfcc) treatvar(Dln_exp_mw_totjob) absorb(year_month) ///
-		cluster(statefips)
-
 	run_dynamic_exptot, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_exp_mw_totjob) absorb(year_month) ///
 		cluster(statefips)
 	esttab reg1 reg2 reg3 using "`outstub'/fd_dynamic_table_expmw.tex", ///

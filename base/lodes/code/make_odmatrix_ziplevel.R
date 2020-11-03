@@ -27,7 +27,7 @@ main <- function() {
   aux_all <- rbindlist(lapply(files_aux, function(x) fread(x)))
   aux_all[, h_statefips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0),1 , 2))]
   
-  system.time(odzip <- lapply(state_list, make_odmatrix_state))
+  odzip <- lapply(state_list, make_odmatrix_state)
     
 }
 
@@ -91,14 +91,18 @@ make_odmatrix_state <- function(x, datadir = datadir_lodes, out = outdir, aux = 
   this_state_zip <- split(this_state_zip, by = 'w_zipcode')
   this_state_zip <- rbindlist(lapply(this_state_zip, tract_to_zip_home))
   
-  setorderv(this_state_zip, c('h_zipcode', 'w_zipcode', 'tot_job', 'job_young', 'job_lowinc'))
+  this_state_zip <- this_state_zip[order(h_zipcode, - totjob)]
+  this_state_zip[, 'h_totjob' := sum(totjob, na.rm = T), by = 'h_zipcode']
+  this_state_zip[, 'totjob_cum' := cumsum(totjob), by = 'h_zipcode'] 
+  this_state_zip[, 'totjob_cumsh' := totjob_cum / h_totjob]
+  this_state_zip <- this_state_zip[totjob_cumsh<=.9, ][, c('h_totjob', 'totjob_cum', 'totjob_cumsh'):=NULL] #keep only destination zipcode that make up to 90 percent of total workforce
   
   this_fips <- str_pad(this_fips, 2, pad = 0)
   save_data(this_state_zip, filename = paste0(out, 'odzip_', this_fips, '.csv'), key = c('h_zipcode', 'w_zipcode'))
 }
 
 
-main 
+main() 
 
 
 

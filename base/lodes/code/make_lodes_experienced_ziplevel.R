@@ -28,7 +28,7 @@ main <- function(){
   
   target_period <- unique(zipmw_us[['yearmonth']])
   
-  #compute for, for each state, share of treated and experienced MW (mclapply?)
+  #compute for, for each state, share of treated and experienced MW
   state_fips <- fips(c(tolower(state.abb), 'dc'))
   
   exp_mw <- mclapply(state_fips, 
@@ -38,21 +38,21 @@ main <- function(){
                                   .SDcols = c('totjob', 'job_young', 'job_lowinc'), 
                                   by = 'h_zipcode']
                        setorderv(this_state, cols = c('h_zipcode', 'w_zipcode'))
-                       #share of treated and experienced MW for every date (mclapply)
+                       #share of treated and experienced MW for every date
                        p <- lapply(p, function(y, this_st = this_state, zip2 = zip) {
-                         this_date_mw <- zip2[yearmonth==y,][, 'w_zipcode' := zipcode]
-                         this_state_date <- this_date_mw[, .(w_zipcode, actual_mw, treated_mw, yearmonth)][this_st, on = 'w_zipcode']
+                         this_date_mw <- zip2[yearmonth==y,][, 'w_zipcode' := zipcode] #select the given date
+                         this_state_date <- this_date_mw[, .(w_zipcode, actual_mw, treated_mw, yearmonth)][this_st, on = 'w_zipcode'] #merge od matrix and MW
                          this_state_date[treated_mw==1, c('sh_treated_totjob', 'sh_treated_job_young', 'sh_treated_job_lowinc') := lapply(.SD, sum, na.rm = T)
                                          , .SDcols = c('totjob', 'job_young', 'job_lowinc'), by = 'h_zipcode'][
                                            , c('sh_treated_totjob', 'sh_treated_job_young', 'sh_treated_job_lowinc') := lapply(.SD, max, na.rm = T)
                                            , .SDcols = c('sh_treated_totjob', 'sh_treated_job_young', 'sh_treated_job_lowinc'), by = 'h_zipcode'][
                                              , c('sh_treated_totjob', 'sh_treated_job_young', 'sh_treated_job_lowinc') := replace(.SD, .SD==-Inf, 0)
-                                             , .SDcols = c('sh_treated_totjob', 'sh_treated_job_young', 'sh_treated_job_lowinc')]
+                                             , .SDcols = c('sh_treated_totjob', 'sh_treated_job_young', 'sh_treated_job_lowinc')] #compute share of treated numerator for each zip
                          this_state_date[, c('sh_treated_totjob', 'sh_treated_job_young', 'sh_treated_job_lowinc') := 
                                            .((sh_treated_totjob / h_totjob), (sh_treated_job_young / h_job_young), (sh_treated_job_lowinc / h_job_lowinc))]
                          
                          this_state_date[, c('sh_totjob', 'sh_job_young', 'sh_job_lowinc') := 
-                                           .((totjob / h_totjob), (job_young / h_job_young), (job_lowinc / h_job_lowinc))]
+                                           .((totjob / h_totjob), (job_young / h_job_young), (job_lowinc / h_job_lowinc))] #compute share of job for each destination
                          
                          this_state_date <- this_state_date[, .(sh_treated_totjob = first(sh_treated_totjob), 
                                                                 sh_treated_job_young = first(sh_treated_job_young), 
@@ -60,7 +60,7 @@ main <- function(){
                                                                 exp_mw_totjob = sum(actual_mw*sh_totjob, na.rm = T), 
                                                                 exp_mw_job_young = sum(actual_mw*sh_job_young, na.rm = T), 
                                                                 exp_mw_job_lowinc = sum(actual_mw*sh_job_lowinc, na.rm = T)), by = c('h_zipcode', 'yearmonth')]
-                         this_state_date <- this_state_date[!is.na(yearmonth),]
+                         this_state_date <- this_state_date[!is.na(yearmonth),] #remove missings
                          return(this_state_date)
                        })
                        p <- rbindlist(p)
