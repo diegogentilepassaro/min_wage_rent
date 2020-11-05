@@ -41,7 +41,7 @@ main <- function() {
                   paste0(c("Urban", "College", "African-American", "Hispanic", "Elder",
                            "Poor", "Unemployed"), " Share (2010)"),
                   "Mean HH income (2010)", "Rent House Share (2010)", 
-                  "Work in same county share (2010) (%)", "Unique zipcodes", 
+                  "Work in same county share (2010)", "Unique zipcodes", 
                   paste0("Share of ", c("state ", "county ", " local"), "events"), 
                   paste0(c("Mean ", "Std. Dev. ", "Unique zipcodes "), "SFCC rent variable"))
   rownames(stats) <- row_labels
@@ -130,7 +130,6 @@ build_basic_stats <- function(df) {
               renthouse_share2010 = mean(renthouse_share2010, na.rm = T),
               work_county_share20105 = mean(work_county_share20105, na.rm = T),
               zip_count           = n_distinct(zipcode))
-  
   
   return(stats)
 }
