@@ -138,6 +138,13 @@ program unbalanced_panel
 		trend trend_sq trend_cu                                         ///
 		using "`instub'/zipcode_yearmonth_panel.dta", clear
 
+	gen date = dofm(year_month)
+	format date %d
+		
+	gen year  = year(date)
+	gen month = month(date)
+
+	drop date
 
 	local allmissing_tot ""	
 	foreach stub in `vars' {
