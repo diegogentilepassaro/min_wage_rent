@@ -72,7 +72,7 @@ program run_static_exptot
 	comment_table, trend_lin("Yes") trend_sq("Yes")
 end
 
-program run_static_expgroup
+/* program run_static_expgroup
 	syntax, depvar(str) treatvar(str) absorb(str) cluster(str)
 
 	eststo clear
@@ -91,7 +91,7 @@ program run_static_expgroup
 		absorb(`absorb' i.zipcode c.trend_times2#i.zipcode treat) ///
 		vce(cluster `cluster') nocons
 	comment_table, trend_lin("Yes") trend_sq("Yes")
-end
+end */
 
 
 program run_dynamic_exptot
@@ -206,7 +206,7 @@ program run_dynamic_exptot
 	comment_table, trend_lin("Yes") trend_sq("Yes") 
 end
 
-program run_dynamic_expgroup
+/* program run_dynamic_expgroup
 	syntax, depvar(str) treatvar(str) absorb(str) cluster(str) [w(int 5)]
 
 	tab treat, g(treat_dummy)
@@ -269,7 +269,7 @@ program run_dynamic_expgroup
 			legend(order(1 "Direct" 3 "Indirect") size(small))
 		graph export "../output/fd_models_expgroup.png", replace
 	restore 
-end
+end */
 
 
 program define_controls, rclass

@@ -49,7 +49,7 @@ make_xwalk <- function(instub) { #crosswalk function
   return(list(xwalk, tract_zip_xwalk))
 }
 
-make_odmatrix_state <- function(x, datadir = datadir_lodes, out = outdir, aux = aux_all, xwalk = tract_zip_xwalk) {
+make_odmatrix_state <- function(x, datadir = datadir_lodes, out = outdir, aux = aux_all, xwalk = tract_zip_xwalk, dest_threshold = .9) {
   #for each state (lapply): 
   this_state <- fread(paste0(datadir, x, '_od_main_JT00_2017.csv.gz'))
   this_fips <- as.numeric(substr(str_pad(this_state$h_geocode[1], 15, pad = 0),1 , 2))
@@ -95,7 +95,7 @@ make_odmatrix_state <- function(x, datadir = datadir_lodes, out = outdir, aux = 
   this_state_zip[, 'h_totjob' := sum(totjob, na.rm = T), by = 'h_zipcode']
   this_state_zip[, 'totjob_cum' := cumsum(totjob), by = 'h_zipcode'] 
   this_state_zip[, 'totjob_cumsh' := totjob_cum / h_totjob]
-  this_state_zip <- this_state_zip[totjob_cumsh<=.9, ][, c('h_totjob', 'totjob_cum', 'totjob_cumsh'):=NULL] #keep only destination zipcode that make up to 90 percent of total workforce
+  this_state_zip <- this_state_zip[totjob_cumsh<=dest_threshold, ][, c('h_totjob', 'totjob_cum', 'totjob_cumsh'):=NULL] #keep only destination zipcode that make up to 90 percent of total workforce
   
   this_fips <- str_pad(this_fips, 2, pad = 0)
   save_data(this_state_zip, filename = paste0(out, 'odzip_', this_fips, '.csv'), key = c('h_zipcode', 'w_zipcode'))
