@@ -138,11 +138,13 @@ target_varname <- function(x) {
    x <- str_replace_all(x, "Price", "price")
    x <- str_replace_all(x, "PerSqft", "psqft")
    x <- str_replace_all(x, "PctOf", "pct")
+   x <- str_replace_all(x, "Reductions", "reductions")
    x <- str_replace_all(x, "Reduction", "reduction")
    x <- str_replace_all(x, "Rental", "rent")
    x <- str_replace_all(x, "Homes", "homes")
    x <- str_replace_all(x, "Homes", "homes")
-
+   x <- str_replace_all(x, "With", "")
+   
    return(x)
 }
 
