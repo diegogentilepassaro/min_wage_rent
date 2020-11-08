@@ -202,25 +202,31 @@ plot_mw_changes_city <- function(target_var,
   mw_map <- inner_join(msa_map, zctaplace, by = c('region' = 'zcta'))
   mw_map <- mw_map[mw_map$place_code==mwarea,]
   mw_map <- st_union(mw_map)
-  
-  #define color quintiles breaks
-  # nq <- 6
-  # b <- quantile(zcta_sample_map$pct_ch, probs = seq(0,1, length.out = (nq + 1)), na.rm = T)
-  # labels <- c()
-  # for (idx in 1:length(b)){
-  #   labels <- c(labels, paste0('(',round(b[idx]*100, 0), ', ', round(b[idx+1]*100, 0), ')'))
-  # }
-  # labels <- labels[1:length(labels)-1]
-  # 
-  # pal <- seecol(c(pal_petrol), n =nq, hex = T)
-  # 
-  mw_levels <- unique(df_target$pct_ch)
-  mw_levels <- mw_levels[order(mw_levels)]
-  # pal <- c(seecol(rev(pal_peach), n = length(mw_levels) - 1, hex = T), seecol(pal_grau, n = 1, hex = T))
-  pal <- seecol(pal_peach, hex = T)[1:length(mw_levels)]
-  pal <- unname(pal)
-  labels <- round(mw_levels, digits = 3)
-  zcta_sample_map$pct_ch_cat <- factor(zcta_sample_map$pct_ch, levels = mw_levels, labels = labels)
+
+  if (target_var == 'actual_mw') {
+    mw_levels <- unique(df_target$pct_ch)
+    mw_levels <- mw_levels[order(mw_levels)]
+    pal <- seecol(pal_peach, hex = T)[1:length(mw_levels)]
+    pal <- unname(pal)
+    labels <- round(mw_levels*100, digits = 3)
+    zcta_sample_map$pct_ch_cat <- factor(zcta_sample_map$pct_ch, levels = mw_levels, labels = labels)
+  } else if (target_var== 'exp_mw_totjob') {
+    nq <- 3
+    b <- quantile(zcta_sample_map$pct_ch, probs = seq(0,1, length.out = (nq + 1)), na.rm = T)
+    labels <- c()
+    for (idx in 1:length(b)){
+      labels <- c(labels, paste0('(',round(b[idx]*100, 2), ', ', round(b[idx+1]*100, 2), ')'))
+    }
+    labels <- labels[1:length(labels)-1]
+    
+    pal <- seecol(c(pal_peach), hex = T)[c(T, F)]
+    pal <- unname(pal)
+    
+    zcta_sample_map$pct_ch_cat <- cut(zcta_sample_map$pct_ch, 
+                                          breaks = b, 
+                                          labels = labels, 
+                                          include.lowest = T)
+  }
   
   plot <- ggplot() + 
     geom_sf(data = msa_map, color = 'black', fill = 'transparent', size = 1.5) +  
@@ -400,6 +406,19 @@ plot_mw_changes_city(target_var = 'actual_mw',
                  zctaplace = zcta_place_xwalk,
                  out = outdir)
 dev.off()
+png(filename = paste0(outdir, 'Los_Angeles_msa_expmw.png'), width = 7680, height = 7680)
+plot_mw_changes_city(target_var = 'exp_mw_totjob', 
+                     target_msa = "Los Angeles",
+                     nmon = 6,
+                     plotname = "Los Angeles MSA",
+                     df_data = df,
+                     mwarea = 44000,
+                     mwdate = '2019-07-01',
+                     zctamsa = zcta_msa_xwalk,
+                     zipzcta = zip_zcta_xwalk,
+                     zctaplace = zcta_place_xwalk,
+                     out = outdir)
+dev.off()
 # Seattle MSA
 png(filename = paste0(outdir, 'Seattle_msa.png'), width = 7680, height = 7680)
 plot_changes_city(target_var = 'medrentpricepsqft_sfcc',
@@ -426,6 +445,19 @@ plot_mw_changes_city(target_var = 'actual_mw',
                   zipzcta = zip_zcta_xwalk,
                   zctaplace = zcta_place_xwalk,
                   out = outdir)
+dev.off()
+png(filename = paste0(outdir, 'Seattle_msa_expmw.png'), width = 7680, height = 7680)
+plot_mw_changes_city(target_var = 'exp_mw_totjob',
+                     target_msa = "Seattle",
+                     nmon = 6,
+                     plotname = "Seattle MSA",
+                     df_data = df,
+                     mwarea = 63000,
+                     mwdate = '2019-01-01',
+                     zctamsa = zcta_msa_xwalk,
+                     zipzcta = zip_zcta_xwalk,
+                     zctaplace = zcta_place_xwalk,
+                     out = outdir)
 dev.off()
 
 # Chicago MSA (cook county increase MW in July 2019)
@@ -471,6 +503,19 @@ plot_mw_changes_city(target_var = 'actual_mw',
                   zctaplace = zcta_place_xwalk,
                   out = outdir)
 dev.off()
+png(filename = paste0(outdir, 'San_Francisco_msa_expmw.png'), width = 7680, height = 7680)
+plot_mw_changes_city(target_var = 'exp_mw_totjob',
+                     target_msa = "San Francisco",
+                     nmon = 6,
+                     plotname = "San Francisco MSA",
+                     df_data = df,
+                     mwarea = 67000,
+                     mwdate = '2019-07-01',
+                     zctamsa = zcta_msa_xwalk,
+                     zipzcta = zip_zcta_xwalk,
+                     zctaplace = zcta_place_xwalk,
+                     out = outdir)
+dev.off()
 #San Diego
 png(filename = paste0(outdir, 'San_Diego_msa.png'), width = 7680, height = 7680)
 plot_changes_city(target_var = 'medrentpricepsqft_sfcc',
@@ -497,6 +542,19 @@ plot_mw_changes_city(target_var = 'actual_mw',
                   zipzcta = zip_zcta_xwalk,
                   zctaplace = zcta_place_xwalk,
                   out = outdir)
+dev.off()
+png(filename = paste0(outdir, 'San_Diego_msa_expmw.png'), width = 7680, height = 7680)
+plot_mw_changes_city(target_var = 'exp_mw_totjob',
+                     target_msa = "San Diego",
+                     mwarea = 66000,
+                     nmon = 6,
+                     plotname = "San Diego MSA",
+                     df_data = df,
+                     mwdate = '2019-01-01',
+                     zctamsa = zcta_msa_xwalk,
+                     zipzcta = zip_zcta_xwalk,
+                     zctaplace = zcta_place_xwalk,
+                     out = outdir)
 dev.off()
 
 
