@@ -43,10 +43,10 @@ main <- function() {
                   "Mean HH income (2010)", "Rent House Share (2010)", 
                   "Work in same county share (2010)", "Unique zipcodes", 
                   paste0("Share of ", c("state ", "county ", " local"), "events"), 
-                  paste0(c("Mean ", "Std. Dev. ", "Unique zipcodes "), "SFCC rent variable"))
+                  paste0(c("Mean ", "Unique zipcodes "), "SFCC psqft rent"))
   rownames(stats) <- row_labels
   
-  stargazer(stats, summary = F, 
+  stargazer(stats, summary = F, digits = 2,
             float = F, out = file.path(outstub, "stats_sample.tex"))
   
   # Statistics of estimating panel
@@ -59,7 +59,7 @@ main <- function() {
   var_labels = c(paste0("Median rent price per sqft.", c(" 2BR", " MFR5plus", "SFCC")), "Median rent price SFCC",
                  paste0(c("Establishment count", "Average wage", "Employment"), " Services"))
   
-  stargazer(df_est,
+  stargazer(df_est, digits = 2,
             omit.summary.stat = c("p25", "p75"), covariate.labels = var_labels,
             #add.lines = list(c("Unique zipcodes", format(length(panel_zipcodes), big.mark = ","), "", "", "", "")),
             float = F, out = file.path(outstub, "stats_est_panel.tex"))
@@ -149,9 +149,6 @@ add_basic_rents_and_format <- function(stats, df_rents_panel, df_rents_all, rent
   stats$mean_sfcc_psqft <- c(NA, NA, mean(pull(df_rents_all, rent_var), na.rm = T), 
                                      mean(pull(df_rents_panel, rent_var), na.rm = T))
   
-  stats$sd_sfcc_psqft <- c(NA, NA, sd(pull(df_rents_all, rent_var), na.rm = T), 
-                                   sd(pull(df_rents_panel, rent_var), na.rm = T))
-  
   stats$non_na_zipcod <- c(NA, NA, 
                            n_distinct(df_rents_all[!is.na(pull(df_rents_all, rent_var)), "zipcode"], na.rm = T), 
                            n_distinct(df_rents_panel[!is.na(pull(df_rents_panel, rent_var)), "zipcode"], na.rm = T))
@@ -161,7 +158,7 @@ add_basic_rents_and_format <- function(stats, df_rents_panel, df_rents_all, rent
                      "elder_share2010", "poor_share20105", "unemp_share20105", 
                      "med_hhinc20105", "renthouse_share2010", "work_county_share20105", 
                      "zip_count", "state_event_sh", "county_event_sh", "local_event_sh", 
-                     "mean_sfcc_psqft", "sd_sfcc_psqft", "non_na_zipcod")
+                     "mean_sfcc_psqft", "non_na_zipcod")
   
   stats <- t(stats[, desired_order])
   colnames(stats) <- c("U.S.", "Top 100 CBSA", "Full Panel", "Est. Panel")
