@@ -46,7 +46,8 @@ make_xwalks <- function() {
 }
 
 plot_sample <- function(df_data, 
-                        zipzcta, 
+                        zipzcta,
+                        zctamsa,
                         out) {
   
   #removing alaska and hawaii for visual clarity (we have though 26 zipcodes there)
@@ -55,18 +56,28 @@ plot_sample <- function(df_data,
   setnames(sample_zcta, old = 'zcta', new = 'region')
   
   data(zip.map)
-  zcta_map <- sfheaders::sf_polygon(zip.map, x = 'long', y = 'lat', polygon_id = 'id', keep = T)
+  zcta_map <- sfheaders::sf_multipolygon(zip.map, x = 'long', y = 'lat', multipolygon_id = 'id', polygon_id = 'piece', keep = T)
   zcta_sample_map <- inner_join(zcta_map, sample_zcta, on = 'region')
   st_crs(zcta_sample_map) <-4326
+  
+  msa_map <- left_join(zcta_map, zctamsa, by = c('region' = 'zcta')) %>%
+    filter(msaname!='99999') %>%
+    filter(stab!='AK' & stab!='HI') %>%
+    group_by(msa) %>%
+    summarise(geometry = st_union(geometry))
+  st_crs(msa_map) <- 4326
+  
+  
   
   us_boundary <- map_data('state')
   us_boundary <- sfheaders::sf_multipolygon(map_data('state'), x = 'long', y = 'lat', multipolygon_id = 'group')
   st_crs(us_boundary) <-4326
   
-  plot<- ggplot(us_boundary) + 
-    geom_sf(fill= NA) + 
-    theme_void() + 
+  plot<- ggplot() + 
+    geom_sf(data = us_boundary, fill= NA) +
+    geom_sf(data = msa_map, color = 'transparent', fill = '#9CC6CF') +
     geom_sf(data = zcta_sample_map, color = 'transparent', fill = '#035F72') + 
+    theme_void() + 
     theme(aspect.ratio = 0.6)  
   return(plot)
 }
@@ -113,7 +124,7 @@ plot_changes_city <- function(target_var,
   mw_map <- mw_map[mw_map$place_code==mwarea,]
   mw_map <- st_union(mw_map)
   
-  #define color quintiles breaks
+  #define color quantiles breaks
   nq <- 6
   b <- quantile(zcta_sample_map$pct_rentch, probs = seq(0,1, length.out = (nq + 1)), na.rm = T)
   labels <- c()
@@ -375,7 +386,7 @@ zip_county <- xwalks[['zip_county']]
 
 
 png(filename = paste0(outdir, 'sample_map.png'), width = 7680, height = 7680)
-plot_sample(df_data = df, zipzcta = zip_zcta_xwalk, out = outdir)
+plot_sample(df_data = df, zipzcta = zip_zcta_xwalk, out = outdir, zctamsa = zcta_msa_xwalk)
 dev.off()
 
 
