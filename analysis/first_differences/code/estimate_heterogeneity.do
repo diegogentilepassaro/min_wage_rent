@@ -12,7 +12,7 @@ program main
 
 	local demovars       "med_hhinc20105 unemp_share20105 college_share20105 black_share2010"
 	local demovars_extra "teen_share2010 urb_share2010 youngadult_share2010 worktravel_10_share20105 worker_foodservice20105"
-	local workvars       "walall_29y_lowinc_ssh halall_29y_lowinc_ssh"
+	local workvars       "walall_29y_lowinc_ssh halall_29y_lowinc_ssh walall_29y_lowinc_zsh halall_29y_lowinc_zsh"
 	
 	* Heterogeneity plot - demographics and workers' type
 	foreach var in `demovars' `workvars' `demovars_extra'{
@@ -113,6 +113,12 @@ program build_ytitle, rclass
 	}
 	if "`var'" == "halall_29y_lowinc_ssh" {
 		return local title "Low income workers 29 yrs or younger - residence state-level share"
+	}
+	if "`var'" == "walall_29y_lowinc_zsh" {
+		return local title "Low income workers 29 yrs or younger - workplace zipcode-level share"
+	}
+	if "`var'" == "halall_29y_lowinc_zsh" {
+		return local title "Low income workers 29 yrs or younger - residence zipcode-level share"
 	}
 
 
