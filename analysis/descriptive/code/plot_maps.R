@@ -79,7 +79,7 @@ plot_sample <- function(df_data,
     geom_sf(data = us_boundary, fill= NA, size = 1.5) +
     theme_void() + 
     theme(aspect.ratio = 0.6) + 
-    scale_fill_manual(values = c('msafill' = '#9CC6CF','samplefill' = '#035F72'), 
+    scale_fill_manual(values = c('msafill' = unname(seecol(pal_seeblau, hex = T)[1]),'samplefill' = unname(seecol(pal_petrol, hex = T)[5])), 
                        label = c('CBSAs', 'Sample'), 
                        name = '', 
                        guide = guide_legend(direction = "horizontal",
@@ -92,7 +92,62 @@ plot_sample <- function(df_data,
           legend.text = element_text(size = 80))
   return(plot)
 }
-
+plot_demo <- function(target_demo,
+                      legend_name,
+                      zctamsa, 
+                      out) {
+  census_api_key('6e4bf831630a20872606ce3949acd975473a1d87')
+  #censusvar <- load_variables(year = 2010, dataset = 'sf1') #to navigate census variables
+  census_target <- c(pop = 'P001001', urbpop = 'P002002', housing_units = 'H001001', house_urban = 'H002002')
+  df_census <- get_decennial(geography = 'zcta', year = 2010, state = NULL, geometry = F,
+                             variables = census_target, output = 'wide') %>%
+    rename('zcta' = 'GEOID') %>%
+    select(- 'NAME') %>%
+    setDT()
+  
+  data(zip.map)
+  zcta_map <- sfheaders::sf_multipolygon(zip.map, x = 'long', y = 'lat', multipolygon_id = 'id', polygon_id = 'piece', keep = T) %>%
+    select(- 'id', - 'order', -'group', -'AFFGEOID10', -'ZCTA5CE10', -'GEOID10', -'hole') %>%
+    rename('zcta' = 'region') %>%
+    left_join(zctamsa, by = 'zcta') %>%
+    left_join(df_census, by = 'zcta') %>%
+    mutate('ALAND10' = ALAND10 * 0.00000038610) %>% #convrt to square miles
+    mutate(popden      = Winsorize(pop / ALAND10), 
+           urbpopden   = Winsorize(urbpop / ALAND10), 
+           houseden    = Winsorize(housing_units / ALAND10), 
+           urbhouseden = Winsorize(house_urban / ALAND10)) %>%
+    filter(stab!='AK' & stab!='HI') %>%
+    filter(msaname != '99999') #keep only zcta in metropolitan areas 
+  
+  st_crs(zcta_map) <- 4326
+  us_boundary <- map_data('state')
+  us_boundary <- sfheaders::sf_multipolygon(map_data('state'), x = 'long', y = 'lat', multipolygon_id = 'group')
+  st_crs(us_boundary) <-4326
+  
+  plot <- ggplot() + 
+    geom_sf(data = zcta_map, color = 'transparent', aes(fill = get(target_demo))) + 
+    geom_sf(data = us_boundary, fill= NA, size = 1.5) +
+    theme_void() + 
+    theme(aspect.ratio = 0.6) + 
+    scale_fill_gradient(
+      low = seecol(pal_seeblau, hex = T)[1], 
+      high = seecol(pal_petrol, hex = T)[5],
+      name = legend_name, 
+      aesthetics = 'fill',
+      guide = guide_colorbar(direction = "horizontal",
+                             barheight = unit(2, units = "cm"),
+                             barwidth = unit(50, units = "cm"),
+                             draw.ulim = T,
+                             draw.llim = T,
+                             title.position = 'top',
+                             title.hjust = 0.5,
+                             label.hjust = 0.5), 
+      na.value = 'gray') + 
+    theme(legend.position = "bottom", 
+          legend.title = element_text(size = 80),
+          legend.text = element_text(size = 80))
+  return(plot)
+}
 
 
 
@@ -429,8 +484,15 @@ zcta_msa_xwalk <- xwalks[['zcta_msa_xwalk']]
 zip_county <- xwalks[['zip_county']]
 
 
-png(filename = paste0(outdir, 'sample_map.png'), width = 7680, height = 7680)
+png(filename = paste0(outdir, 'sample_map.png'), width = 7680, height = 5680)
 plot_sample(df_data = df, zipzcta = zip_zcta_xwalk, out = outdir, zctamsa = zcta_msa_xwalk)
+dev.off()
+
+png(filename = paste0(outdir, 'popurban_density_map.png'), width = 7680, height = 5680)
+plot_demo(out = outdir, zctamsa = zcta_msa_xwalk, target_demo = 'urbpopden', legend_name = 'Urban Population Density (per Sq. Miles)')
+dev.off()
+png(filename = paste0(outdir, 'houseurban_density_map.png'), width = 7680, height = 5680)
+plot_demo(out = outdir, zctamsa = zcta_msa_xwalk, target_demo = 'urbhouseden', legend_name = 'Urban Housing Density (per Sq. Miles)')
 dev.off()
 
 
