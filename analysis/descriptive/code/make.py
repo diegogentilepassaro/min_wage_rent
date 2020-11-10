@@ -18,8 +18,8 @@ from gslab_make.dir_mod import *
 # SET DEFAULT OPTIONS
 set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
-#clear_dirs('../temp/')
-#clear_dirs('../output/')
+clear_dirs('../temp/')
+clear_dirs('../output/')
 
 envir_vars = os.getenv('PATH')
 if envir_vars is None:
@@ -34,9 +34,9 @@ elif "Stata15" in envir_vars:
 
 start_make_logging()
 
-#run_rbatch(program = "zillow_descriptive.R")
-#run_stata(program = 'desc_stats_general.do', executable = stata)
-#run_stata(program = 'wage_rent_motivation.do', executable = stata)
+run_rbatch(program = "zillow_descriptive.R")
+run_stata(program = 'desc_stats_general.do', executable = stata)
+run_stata(program = 'wage_rent_motivation.do', executable = stata)
 run_rbatch(program = "plot_maps.R")
 
 
