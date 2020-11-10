@@ -194,23 +194,6 @@ plot_changes_city <- function(target_var,
   mw_map <- mw_map[mw_map$place_code==mwarea,]
   mw_map <- st_union(mw_map)
   
-  #define color quantiles breaks
-  # nq <- 6
-  # b <- quantile(zcta_sample_map$pct_rentch, probs = seq(0,1, length.out = (nq + 1)), na.rm = T)
-  # labels <- c()
-  # for (idx in 1:length(b)){
-  #   labels <- c(labels, paste0('(',round(b[idx]*100, 0), ', ', round(b[idx+1]*100, 0), ')'))
-  # }
-  # labels <- labels[1:length(labels)-1]
-  # 
-  # pal <- seecol(c(pal_petrol), n =nq, hex = T)
-  # pal <- unname(pal)
-  # 
-  # zcta_sample_map$pct_rentch_qtl <- cut(zcta_sample_map$pct_rentch, 
-  #                                       breaks = b, 
-  #                                       labels = labels, 
-  #                                       include.lowest = T)
-  
   #define color palette over fixed interval
   minVal = min(df_target$pct_rentch, na.rm = T)
   maxVal = max(df_target$pct_rentch, na.rm = T)
@@ -242,35 +225,7 @@ plot_changes_city <- function(target_var,
           plot.subtitle = element_text(size = 140),
           legend.title = element_text(size = 120),
           legend.text = element_text(size = 80))
-  
-  # plot <- ggplot() + 
-  #   geom_sf(data = msa_map, color = 'black', fill = 'transparent', size = 1.5) +  
-  #   geom_sf(data = zcta_sample_map, aes(fill=pct_rentch_qtl), color="white", size = 1.5) +
-  #   #geom_sf(data = mw_map, color = 'darkred', fill = 'transparent', size = 5) +
-  #   theme_void() +
-  #   theme(panel.grid.major = element_line(colour = 'transparent')) +
-  #   scale_color_manual(
-  #     values = pal,
-  #     name = "6-Months Rent Change (%)", 
-  #     aesthetics = 'fill',
-  #     guide = guide_legend(
-  #       direction = "horizontal",
-  #       keyheight = unit(2, units = "cm"),
-  #       keywidth = unit(70 / length(labels), units = "cm"),
-  #       title.position = 'top',
-  #       title.hjust = 0.5,
-  #       label.hjust = 1,
-  #       nrow = 1,
-  #       byrow = T,
-  #       reverse = F,
-  #       label.position = "bottom"
-  #     ), na.value = 'gray') +
-  #   labs(title=plotname, subtitle = paste0('MW change date: ', mwdate)) + 
-  #   theme(legend.position = "bottom", 
-  #         plot.title = element_text(size=180),
-  #         plot.subtitle = element_text(size = 140), 
-  #         legend.title = element_text(size = 120), 
-  #         legend.text = element_text(size = 80))
+
   return(plot)
 }
 
@@ -316,37 +271,12 @@ plot_mw_changes_city <- function(target_var,
   mw_map <- mw_map[mw_map$place_code==mwarea,]
   mw_map <- st_union(mw_map)
 
-  # if (target_var == 'actual_mw') {
-  #   mw_levels <- unique(df_target$pct_ch)
-  #   mw_levels <- mw_levels[order(mw_levels)]
-  #   pal <- seecol(pal_peach, hex = T)[1:length(mw_levels)]
-  #   pal <- unname(pal)
-  #   labels <- round(mw_levels*100, digits = 3)
-  #   zcta_sample_map$pct_ch_cat <- factor(zcta_sample_map$pct_ch, levels = mw_levels, labels = labels)
-  # } else if (target_var== 'exp_mw_totjob') {
-  #   nq <- 3
-  #   b <- quantile(zcta_sample_map$pct_ch, probs = seq(0,1, length.out = (nq + 1)), na.rm = T)
-  #   labels <- c()
-  #   for (idx in 1:length(b)){
-  #     labels <- c(labels, paste0('(',round(b[idx]*100, 2), ', ', round(b[idx+1]*100, 2), ')'))
-  #   }
-  #   labels <- labels[1:length(labels)-1]
-    
-  #   pal <- seecol(c(pal_peach), hex = T)[c(T, F)]
-  #   pal <- unname(pal)
-    
-  #   zcta_sample_map$pct_ch_cat <- cut(zcta_sample_map$pct_mwch, 
-  #                                         breaks = b, 
-  #                                         labels = labels, 
-  #                                         include.lowest = T)
-  # }
   minVal = min(df_target$pct_mwch, na.rm = T)
   maxVal = max(df_target$pct_mwch, na.rm = T)
 
   plot <- ggplot() + 
     geom_sf(data = msa_map, color = 'black', fill = 'transparent', size = 1.5) +  
     geom_sf(data = zcta_sample_map, aes(fill=pct_mwch), color="white", size =1.5) +
-    #geom_sf(data = mw_map, color = 'darkred', fill = 'transparent') +
     theme_void() +
     theme(panel.grid.major = element_line(colour = 'transparent')) +
     scale_fill_gradient(
@@ -357,7 +287,7 @@ plot_mw_changes_city <- function(target_var,
       aesthetics = 'fill',
       guide = guide_colorbar(direction = "horizontal",
                              barheight = unit(2, units = "cm"),
-                             barwidth = unit(50, units = "cm"),
+                             barwidth = unit(70, units = "cm"),
                              draw.ulim = T,
                              draw.llim = T,
                              title.position = 'top',
@@ -370,103 +300,9 @@ plot_mw_changes_city <- function(target_var,
           plot.subtitle = element_text(size = 140),
           legend.title = element_text(size = 120),
           legend.text = element_text(size = 80))
+  
   return(plot)
 }
-
-plot_changes_chicago <- function(target_var,
-                                 target_counties, 
-                                 mwarea, 
-                                 target_msa,
-                                 plotname, 
-                                 df_data, 
-                                 nmon, 
-                                 mwdate,
-                                 zipcounty, 
-                                 zipzcta,
-                                 zctaplace,
-                                 out) {
-  nmonths <- nmon
-  nmonths2 <- nmonths + 1 # keep t-1 for computing percentage change
-  
-  #identify main variable to plot: % change in rents after last MW change
-  df_target <- df_data[msa %like% target_msa, 
-                       c('zipcode', 'countyfips', 'year_month', 'msa', 'place_code',
-                         'medrentpricepsqft_sfcc', 'actual_mw', 'dactual_mw', 
-                         'exp_mw_totjob')]
-  df_target <- df_target[, Fyear_month := shift(year_month, type = 'lead'), by = zipcode]
-  df_target <- df_target[Fyear_month >= as.Date(mwdate), ]
-  df_target <- df_target[df_target[, .I[1:nmonths2], zipcode]$V1]
-  df_target[, pct_rentch := (get(target_var)[.N] - get(target_var)[1])/get(target_var)[1], by = 'zipcode']
-  df_target <- df_target[, last(.SD), by = zipcode]
-  df_target <- df_target[!is.na(pct_rentch),]
-  df_target[, 'region' := zipcode]
-  
-  #select all counties for baseline map
-  zip_county_target <- zipcounty[county %in% target_counties, ]
-  zcta_county_target <- zip_county_target[zipzcta[, .(zipcode, zcta)], on = 'zipcode', nomatch = 0]
-  zcta_county_target <- zcta_county_target[!duplicated(zcta_county_target[, .(zcta, county)]), .(zcta, county)]
-  
-  data(zip.map)
-  zcta_map <- sfheaders::sf_multipolygon(zip.map, x = 'long', y = 'lat', multipolygon_id = 'id', polygon_id = 'piece', keep = T)
-  zcta_sample_map <- inner_join(zcta_map, df_target, on = 'region')
-  
-  zcta_base_map <- inner_join(zcta_map, zcta_county_target, by = c('region' = 'zcta'))
-  
-  zcta_cty <- zcta_base_map[zcta_base_map$county == mwarea, ]
-  zcta_cty <- st_union(zcta_cty)
-  
-  #define color quintiles breaks
-  nq <- 6
-  b <- quantile(zcta_sample_map$pct_rentch, probs = seq(0,1, length.out = (nq + 1)), na.rm = T)
-  labels <- c()
-  for (idx in 1:length(b)){
-    labels <- c(labels, paste0('(',round(b[idx]*100, 0), ', ', round(b[idx+1]*100, 0), ')'))
-  }
-  labels <- labels[1:length(labels)-1]
-  
-  pal <- seecol(c(pal_petrol), n =nq, hex = T)
-  pal <- unname(pal)
-  
-  zcta_sample_map$pct_rentch_qtl <- cut(zcta_sample_map$pct_rentch, 
-                                        breaks = b, 
-                                        labels = labels, 
-                                        include.lowest = T)
-  
-  plot<- ggplot() + 
-    geom_sf(data = zcta_base_map, color = 'black', fill = 'transparent', size = 1.5) +  
-    geom_sf(data = zcta_sample_map, aes(fill=pct_rentch_qtl), color="white") +
-    geom_sf(data = zcta_cty, color = 'darkred', fill = 'transparent', size = 5) +
-    theme_void() +
-    theme(panel.grid.major = element_line(colour = 'transparent')) +
-    scale_color_manual(
-      values = pal,
-      name = "Rent Change (%)", 
-      aesthetics = 'fill',
-      guide = guide_legend(
-        direction = "horizontal",
-        keyheight = unit(2, units = "cm"),
-        keywidth = unit(70 / length(labels), units = "cm"),
-        title.position = 'top',
-        # I shift the labels around, the should be placed 
-        # exactly at the right end of each legend key
-        title.hjust = 0.5,
-        label.hjust = 1,
-        nrow = 1,
-        byrow = T,
-        # also the guide needs to be reversed
-        reverse = F,
-        label.position = "bottom"
-      ), na.value = 'gray') +
-    labs(title=plotname, subtitle = paste0('MW change date: ', mwdate)) + 
-    theme(legend.position = "bottom", 
-          plot.title = element_text(size=180),
-          plot.subtitle = element_text(size = 140), 
-          legend.title = element_text(size = 120), 
-          legend.text = element_text(size = 80))
-  #dev.off()   
-  return(plot)
-}
-
   
 df <- read.dta13(paste0(datadir, 'unbal_rent_panel.dta'))
 df <- setDT(df)
@@ -536,6 +372,7 @@ plot_mw_changes_city(target_var = 'exp_mw_totjob',
                      zctaplace = zcta_place_xwalk,
                      out = outdir)
 dev.off()
+
 # Seattle MSA
 png(filename = paste0(outdir, 'Seattle_msa.png'), width = 7680, height = 7680)
 plot_changes_city(target_var = 'medrentpricepsqft_sfcc',
@@ -578,19 +415,46 @@ plot_mw_changes_city(target_var = 'exp_mw_totjob',
 dev.off()
 
 # Chicago MSA (cook county increase MW in July 2019)
-chi_counties <- c('17031', '17037', '17043', '17063', '17091', '17089', '17903', '17111', '17197')
 png(filename = paste0(outdir, 'Chicago_msa.png'), width = 7680, height = 7680)
-plot_changes_chicago(target_counties = chi_counties,
-           target_msa = "Chicago",
-           mwarea = '17031',
-           nmon = 6,
-           plotname = "Chicago MSA",
-           df_data = df,
-           mwdate = '2019-07-01',
-           zipcounty = zip_county,
-           zipzcta = zip_zcta_xwalk,
-           zctaplace = zcta_place_xwalk,
-           out = outdir)
+plot_changes_city(target_var = 'medrentpricepsqft_sfcc',
+                  target_msa = "Chicago",
+                  nmon = 6,
+                  plotname = "Chicago MSA",
+                  df_data = df,
+                  mwarea = 14000,
+                  mwdate = '2019-07-01',
+                  zctamsa = zcta_msa_xwalk,
+                  zipzcta = zip_zcta_xwalk,
+                  zctaplace = zcta_place_xwalk,
+                  out = outdir)
+dev.off()
+
+
+png(filename = paste0(outdir, 'Chicago_msa_mw.png'), width = 7680, height = 7680)
+plot_mw_changes_city(target_var = 'actual_mw',
+                     target_msa = "Chicago",
+                     nmon = 6,
+                     plotname = "Chicago MSA",
+                     df_data = df,
+                     mwarea = 14000,
+                     mwdate = '2019-07-01',
+                     zctamsa = zcta_msa_xwalk,
+                     zipzcta = zip_zcta_xwalk,
+                     zctaplace = zcta_place_xwalk,
+                     out = outdir)
+dev.off()
+png(filename = paste0(outdir, 'Chicago_msa_expmw.png'), width = 7680, height = 7680)
+plot_mw_changes_city(target_var = 'exp_mw_totjob',
+                     target_msa = "Chicago",
+                     nmon = 6,
+                     plotname = "Chicago MSA",
+                     df_data = df,
+                     mwarea = 14000,
+                     mwdate = '2019-07-01',
+                     zctamsa = zcta_msa_xwalk,
+                     zipzcta = zip_zcta_xwalk,
+                     zctaplace = zcta_place_xwalk,
+                     out = outdir)
 dev.off()
 
 # SF msa
@@ -633,6 +497,7 @@ plot_mw_changes_city(target_var = 'exp_mw_totjob',
                      zctaplace = zcta_place_xwalk,
                      out = outdir)
 dev.off()
+
 #San Diego
 png(filename = paste0(outdir, 'San_Diego_msa.png'), width = 7680, height = 7680)
 plot_changes_city(target_var = 'medrentpricepsqft_sfcc',
