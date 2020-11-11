@@ -55,9 +55,8 @@ end
 program make_results_labels, rclass
 	syntax, w(int)
 
-	
 	local estlabels `"D.ln_mw "$\Delta \ln \underline{w}_{i,t}$""'
-	local estlabels `"FD.ln_mw "$\Delta \ln \underline{w}_{i,t-1}$" `estlabels' LD.ln_mw "$\ln \underline{w}_{i,t+1}$""'
+	local estlabels `"FD.ln_mw "$\Delta \ln \underline{w}_{i,t-1}$" `estlabels' LD.ln_mw "$\Delta \ln \underline{w}_{i,t+1}$""'
 	forvalues i = 2(1)`w'{
 		local estlabels `"F`i'D.ln_mw "$\Delta \ln \underline{w}_{i,t-`i'}$" `estlabels' L`i'D.ln_mw "$\Delta \ln \underline{w}_{i,t+`i'}$""'
 	}

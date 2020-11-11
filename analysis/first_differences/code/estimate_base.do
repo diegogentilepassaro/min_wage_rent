@@ -36,15 +36,11 @@ program main
 	esttab reg_1 reg_2 reg_3 reg_4 reg_5 using "`outstub'/fd_dynamic_table.tex", ///
 		keep(*.ln_mw) compress se replace substitute(\_ _) ///
 		coeflabels(`estlabels_dyn') ///
-		stats(p_value_F ctrl_wage ctrl_emp ctrl_estab r2 N, fmt(%9.3f %s3 %s3 %s3 %9.3f %9.0gc) ///
-		labels("P-value no pretrends" "Wage controls" "Employment controls" /// 
-			"Establishment-count controls" "R-squared" "Observations")) ///
-		star(* 0.10 ** 0.05 *** 0.01) nonote nomtitles
-
-	esttab lincom1 lincom2 lincom3 lincom4 lincom5 using "`outstub'/fd_dynamic_lincom_table.tex", ///
-		compress se replace coeflabel((1) "Sum of MW effects") ///
-		stats(ctrl_wage ctrl_emp ctrl_estab N, fmt(%s3 %s3 %s3 %9.0gc) ///
-		labels("Wage controls" "Employment controls" "Establishment-count controls" "Observations")) ///
+		stats(cumsum_b cumsum_V p_value_F ctrl_wage ctrl_emp ctrl_estab r2 N, ///
+			fmt(%9.3f %s5 %9.3f %s3 %s3 %s3 %9.3f %9.0gc) ///
+		labels("Cumulative effect" "Cumulative effect s.e." "P-value no pretrends" ///
+			"Wage controls" "Employment controls" "Establishment-count controls"  ///
+			"R-squared" "Observations")) ///
 		star(* 0.10 ** 0.05 *** 0.01) nonote nomtitles
 end
 
@@ -82,25 +78,23 @@ program run_static_model_trend
 	syntax, depvar(str) absorb(str) cluster(str)
 
 	eststo clear
-	eststo reg1: reghdfe D.`depvar' D.ln_mw, ///
-		absorb(`absorb') ///
-		vce(cluster `cluster') nocons
+	eststo: reghdfe D.`depvar' D.ln_mw, ///
+		vce(cluster `cluster') nocons absorb(`absorb') 
 	comment_table, trend_lin("No") trend_sq("No")
 
 	eststo: reghdfe D.`depvar' D.ln_mw,	///
-		absorb(`absorb' i.zipcode) ///
-		vce(cluster `cluster') nocons
+		vce(cluster `cluster') nocons absorb(`absorb' i.zipcode) 
 	comment_table, trend_lin("Yes") trend_sq("No")
 
 	eststo: reghdfe D.`depvar' D.ln_mw, ///
-		absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) ///
-		vce(cluster `cluster') nocons
+		vce(cluster `cluster') nocons absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) 
 	comment_table, trend_lin("Yes") trend_sq("Yes")
 end
 
 program run_dynamic_model
 	syntax, depvar(str) absorb(str) cluster(str) [w(int 5) t_plot(real 1.645) offset(real 0.09)]
 
+	eststo clear
 	define_controls estcount avgwwage
 	local emp_ctrls "`r(emp_ctrls)'"
 	local estcount_ctrls "`r(estcount_ctrls)'"
@@ -120,8 +114,7 @@ program run_dynamic_model
 	test `pretrend_test'
 	estadd scalar p_value_F = r(p)
 
-	eststo lincom1: lincomest `lincomest_coeffs'
-	comment_table_control, emp("No") estab("No") wage("No") housing("No")
+	add_cumsum, coefficients(`lincomest_coeffs') i(1)
 
 	eststo reg_2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`avgwwage_ctrls') `if', ///
 		absorb(`absorb') vce(cluster `cluster') nocons
@@ -130,8 +123,7 @@ program run_dynamic_model
 	test `pretrend_test'
 	estadd scalar p_value_F = r(p)
 
-	eststo lincom2: lincomest `lincomest_coeffs'
-	comment_table_control, emp("No") estab("No") wage("Yes") housing("No")
+	add_cumsum, coefficients(`lincomest_coeffs') i(2)
 
 	eststo reg_3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`emp_ctrls') `if', ///
 		absorb(`absorb') vce(cluster `cluster') nocons
@@ -140,8 +132,7 @@ program run_dynamic_model
 	test `pretrend_test'
 	estadd scalar p_value_F = r(p)
 
-	eststo lincom3: lincomest `lincomest_coeffs'
-	comment_table_control, emp("No") estab("No") wage("Yes") housing("No")
+	add_cumsum, coefficients(`lincomest_coeffs') i(3)
 
 	eststo reg_4: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if' D.(`estcount_ctrls'), ///
 		absorb(`absorb') vce(cluster `cluster') nocons
@@ -150,8 +141,7 @@ program run_dynamic_model
 	test `pretrend_test'
 	estadd scalar p_value_F = r(p)
 
-	eststo lincom4: lincomest `lincomest_coeffs'
-	comment_table_control, emp("No") estab("Yes") wage("No") housing("No")
+	add_cumsum, coefficients(`lincomest_coeffs') i(4)
 
 	eststo reg_5: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw ///
 		D.(`avgwwage_ctrls') D.(`emp_ctrls') D.(`estcount_ctrls') `if', ///
@@ -161,8 +151,7 @@ program run_dynamic_model
 	test `pretrend_test'
 	estadd scalar p_value_F = r(p)
 
-	eststo lincom5: lincomest `lincomest_coeffs'
-	comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing("No")
+	add_cumsum, coefficients(`lincomest_coeffs') i(5)
 end
 
 program define_controls, rclass
@@ -185,6 +174,18 @@ program comment_table_control
 	estadd local ctrl_building "`housing'"
 end
 
+program add_cumsum
+	syntax, coefficients(str) i(int)
+	lincomest `coefficients'
+	mat b = e(b)
+	mat V = e(V)
+	local se_digits = round(V[1,1]^.5, 0.001)
+
+	estadd scalar cumsum_b = b[1,1]: reg_`i'
+	estadd local cumsum_V = "(0`se_digits')":  reg_`i'
+	*estadd scalar cumsum_V = V[1,1]^.5: reg_`i'
+end
+
 program comment_table
 	syntax, trend_lin(str) trend_sq(str)
 
@@ -194,7 +195,6 @@ end
 
 program make_results_labels, rclass
 	syntax, w(int)
-
 	
 	local estlabels `"D.ln_mw "$\Delta \ln \underline{w}_{i,t}$""'
 	local estlabels `"FD.ln_mw "$\Delta \ln \underline{w}_{i,t-1}$" `estlabels' LD.ln_mw "$\ln \underline{w}_{i,t+1}$""'

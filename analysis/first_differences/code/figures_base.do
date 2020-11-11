@@ -99,7 +99,7 @@ program build_coeff_plot
 end
 
 program build_coeff_plot_controls
-	syntax, depvar(str) absorb(str) cluster(str) [w(int 5) t_plot(real 1.645) offset(real 0.18)]
+	syntax, depvar(str) absorb(str) cluster(str) [w(int 5) t_plot(real 1.645) offset(real 0.17)]
 
 	eststo clear
 
@@ -143,7 +143,7 @@ program build_coeff_plot_controls
 	make_plot_xlabels, w(`w')
 
 	twoway (scatter b_base at, mcol(navy))          (rcap b_base_lb b_base_ub at, lc(navy) lw(vthin)) ///
-		   (scatter b_emp at_emp, mc(edkblue))      (rcap b_emp_lb b_emp_ub at_emp, lc(edkblue) lw(vthin)) ///
+		   (scatter b_emp at_emp, mc(maroon))       (rcap b_emp_lb b_emp_ub at_emp, lc(maroon) lw(vthin)) ///
 		   (scatter b_estab at_estab, mc(lavender)) (rcap b_estab_lb b_estab_ub at_est, lc(lavender) lw(vthin)) ///
 		   (scatter b_wage at_wage, mc(dkorange))   (rcap b_wage_lb b_wage_ub at_wage, lc(dkorange) lw(vthin)) ///
 		   (scatter b_all at_all, mc(gs10))         (rcap b_all_lb b_all_ub at_all, lc(gs10) lw(vthin)), /// 
@@ -151,8 +151,8 @@ program build_coeff_plot_controls
 		graphregion(color(white)) bgcolor(white) ///
 		xlabel(`r(xlab)', labsize(vsmall)) xtitle("Leads and lags of difference in log MW") ///
 		ytitle("Dynamic coefficients") ylabel(-0.06(0.02).06, grid)	///
-		legend(order(1 "baseline" 3 "employment" ///
-			5 "establishment" 7 "wage" 9 "building") size(small) rows(1))
+		legend(order(1 "Baseline" 3 "Employment" ///
+			5 "Establishment" 7 "Wage" 9 "Building") size(small) rows(1))
 end
 
 program define_controls, rclass

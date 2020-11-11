@@ -1,5 +1,5 @@
 
- make.py started: 2020-11-10 19:56:55 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\first_differences\code 
+ make.py started: 2020-11-11 10:32:12 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\first_differences\code 
 
 
 
@@ -444,23 +444,16 @@ Notes:
 > able.tex", ///
 >                 keep(*.ln_mw) compress se replace substitute(\_ _) ///
 >                 coeflabels(`estlabels_dyn') ///
->                 stats(p_value_F ctrl_wage ctrl_emp ctrl_estab r2 N, fmt(%9.3f
->  %s3 %s3 %s3 %9.3f %9.0gc) ///
->                 labels("P-value no pretrends" "Wage controls" "Employment con
-> trols" /// 
->                         "Establishment-count controls" "R-squared" "Observati
-> ons")) ///
+>                 stats(cumsum_b cumsum_V p_value_F ctrl_wage ctrl_emp ctrl_est
+> ab r2 N, ///
+>                         fmt(%9.3f %s5 %9.3f %s3 %s3 %s3 %9.3f %9.0gc) ///
+>                 labels("Cumulative effect" "Cumulative effect s.e." "P-value 
+> no pretrends" ///
+>                         "Wage controls" "Employment controls" "Establishment-
+> count controls"  ///
+>                         "R-squared" "Observations")) ///
 >                 star(* 0.10 ** 0.05 *** 0.01) nonote nomtitles
- 13. 
-.         esttab lincom1 lincom2 lincom3 lincom4 lincom5 using "`outstub'/fd_dy
-> namic_lincom_table.tex", ///
->                 compress se replace coeflabel((1) "Sum of MW effects") ///
->                 stats(ctrl_wage ctrl_emp ctrl_estab N, fmt(%s3 %s3 %s3 %9.0gc
-> ) ///
->                 labels("Wage controls" "Employment controls" "Establishment-c
-> ount controls" "Observations")) ///
->                 star(* 0.10 ** 0.05 *** 0.01) nonote nomtitles
- 14. end
+ 13. end
 
 . 
 . program run_static_model
@@ -508,19 +501,17 @@ Notes:
   1.         syntax, depvar(str) absorb(str) cluster(str)
   2. 
 .         eststo clear
-  3.         eststo reg1: reghdfe D.`depvar' D.ln_mw, ///
->                 absorb(`absorb') ///
->                 vce(cluster `cluster') nocons
+  3.         eststo: reghdfe D.`depvar' D.ln_mw, ///
+>                 vce(cluster `cluster') nocons absorb(`absorb') 
   4.         comment_table, trend_lin("No") trend_sq("No")
   5. 
 .         eststo: reghdfe D.`depvar' D.ln_mw,     ///
->                 absorb(`absorb' i.zipcode) ///
->                 vce(cluster `cluster') nocons
+>                 vce(cluster `cluster') nocons absorb(`absorb' i.zipcode) 
   6.         comment_table, trend_lin("Yes") trend_sq("No")
   7. 
 .         eststo: reghdfe D.`depvar' D.ln_mw, ///
->                 absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) ///
->                 vce(cluster `cluster') nocons
+>                 vce(cluster `cluster') nocons absorb(`absorb' i.zipcode c.tre
+> nd_times2#i.zipcode) 
   8.         comment_table, trend_lin("Yes") trend_sq("Yes")
   9. end
 
@@ -529,30 +520,29 @@ Notes:
   1.         syntax, depvar(str) absorb(str) cluster(str) [w(int 5) t_plot(real
 >  1.645) offset(real 0.09)]
   2. 
-.         define_controls estcount avgwwage
-  3.         local emp_ctrls "`r(emp_ctrls)'"
-  4.         local estcount_ctrls "`r(estcount_ctrls)'"
-  5.         local avgwwage_ctrls "`r(avgwwage_ctrls)'"
-  6. 
-.         local lincomest_coeffs "D1.ln_mw + LD.ln_mw"
-  7.         local pretrend_test "(F1D.ln_mw = 0)"
-  8.         forvalues i = 2(1)`w'{
-  9.                 local lincomest_coeffs "`lincomest_coeffs' + L`i'D.ln_mw"
- 10.             local pretrend_test " `pretrend_test' (F`i'D.ln_mw = 0)"
- 11.         }
- 12. 
 .         eststo clear
- 13.         eststo reg_1: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw, absorb(`abso
+  3.         define_controls estcount avgwwage
+  4.         local emp_ctrls "`r(emp_ctrls)'"
+  5.         local estcount_ctrls "`r(estcount_ctrls)'"
+  6.         local avgwwage_ctrls "`r(avgwwage_ctrls)'"
+  7. 
+.         local lincomest_coeffs "D1.ln_mw + LD.ln_mw"
+  8.         local pretrend_test "(F1D.ln_mw = 0)"
+  9.         forvalues i = 2(1)`w'{
+ 10.                 local lincomest_coeffs "`lincomest_coeffs' + L`i'D.ln_mw"
+ 11.             local pretrend_test " `pretrend_test' (F`i'D.ln_mw = 0)"
+ 12.         }
+ 13. 
+.         eststo clear
+ 14.         eststo reg_1: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw, absorb(`abso
 > rb') vce(cluster `cluster') nocons
- 14.         comment_table_control, emp("No") estab("No") wage("No") housing("N
+ 15.         comment_table_control, emp("No") estab("No") wage("No") housing("N
 > o")
- 15.         
+ 16.         
 .         test `pretrend_test'
- 16.         estadd scalar p_value_F = r(p)
- 17. 
-.         eststo lincom1: lincomest `lincomest_coeffs'
- 18.         comment_table_control, emp("No") estab("No") wage("No") housing("N
-> o")
+ 17.         estadd scalar p_value_F = r(p)
+ 18. 
+.         add_cumsum, coefficients(`lincomest_coeffs') i(1)
  19. 
 .         eststo reg_2: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`avgwwage_ctr
 > ls') `if', ///
@@ -563,50 +553,42 @@ Notes:
 .         test `pretrend_test'
  22.         estadd scalar p_value_F = r(p)
  23. 
-.         eststo lincom2: lincomest `lincomest_coeffs'
- 24.         comment_table_control, emp("No") estab("No") wage("Yes") housing("
-> No")
- 25. 
+.         add_cumsum, coefficients(`lincomest_coeffs') i(2)
+ 24. 
 .         eststo reg_3: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`emp_ctrls') 
 > `if', ///
 >                 absorb(`absorb') vce(cluster `cluster') nocons
- 26.         comment_table_control, emp("Yes") estab("No") wage("No") housing("
+ 25.         comment_table_control, emp("Yes") estab("No") wage("No") housing("
 > No")
- 27. 
+ 26. 
 .         test `pretrend_test'
- 28.         estadd scalar p_value_F = r(p)
+ 27.         estadd scalar p_value_F = r(p)
+ 28. 
+.         add_cumsum, coefficients(`lincomest_coeffs') i(3)
  29. 
-.         eststo lincom3: lincomest `lincomest_coeffs'
- 30.         comment_table_control, emp("No") estab("No") wage("Yes") housing("
-> No")
- 31. 
 .         eststo reg_4: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw `if' D.(`estcoun
 > t_ctrls'), ///
 >                 absorb(`absorb') vce(cluster `cluster') nocons
- 32.         comment_table_control, emp("No") estab("Yes") wage("No") housing("
+ 30.         comment_table_control, emp("No") estab("Yes") wage("No") housing("
 > No")
- 33. 
+ 31. 
 .         test `pretrend_test'
- 34.         estadd scalar p_value_F = r(p)
- 35. 
-.         eststo lincom4: lincomest `lincomest_coeffs'
- 36.         comment_table_control, emp("No") estab("Yes") wage("No") housing("
-> No")
- 37. 
+ 32.         estadd scalar p_value_F = r(p)
+ 33. 
+.         add_cumsum, coefficients(`lincomest_coeffs') i(4)
+ 34. 
 .         eststo reg_5: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw ///
 >                 D.(`avgwwage_ctrls') D.(`emp_ctrls') D.(`estcount_ctrls') `if
 > ', ///
 >                 absorb(`absorb') vce(cluster `cluster') nocons
- 38.         comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing
+ 35.         comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing
 > ("No")
- 39. 
+ 36. 
 .         test `pretrend_test'
- 40.         estadd scalar p_value_F = r(p)
- 41. 
-.         eststo lincom5: lincomest `lincomest_coeffs'
- 42.         comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing
-> ("No")
- 43. end
+ 37.         estadd scalar p_value_F = r(p)
+ 38. 
+.         add_cumsum, coefficients(`lincomest_coeffs') i(5)
+ 39. end
 
 . 
 . program define_controls, rclass
@@ -632,6 +614,19 @@ Notes:
   6. end
 
 . 
+. program add_cumsum
+  1.         syntax, coefficients(str) i(int)
+  2.         lincomest `coefficients'
+  3.         mat b = e(b)
+  4.         mat V = e(V)
+  5.         local se_digits = round(V[1,1]^.5, 0.001)
+  6. 
+.         estadd scalar cumsum_b = b[1,1]: reg_`i'
+  7.         estadd local cumsum_V = "(0`se_digits')":  reg_`i'
+  8.         *estadd scalar cumsum_V = V[1,1]^.5: reg_`i'
+. end
+
+. 
 . program comment_table
   1.         syntax, trend_lin(str) trend_sq(str)
   2. 
@@ -642,8 +637,7 @@ Notes:
 . 
 . program make_results_labels, rclass
   1.         syntax, w(int)
-  2. 
-.         
+  2.         
 .         local estlabels `"D.ln_mw "$\Delta \ln \underline{w}_{i,t}$""'
   3.         local estlabels `"FD.ln_mw "$\Delta \ln \underline{w}_{i,t-1}$" `e
 > stlabels' LD.ln_mw "$\ln \underline{w}_{i,t+1}$""'
@@ -934,6 +928,7 @@ Absorbed degrees of freedom:
 -------------+---------------------------------------|
   year_month |       118           0         118     |
 -----------------------------------------------------+
+(est1 stored)
 
 added macro:
            e(zs_trend) : "No"
@@ -1080,18 +1075,6 @@ ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
          (1) |   .0565908   .0346648     1.63   0.110    -.0134693    .1266508
 ------------------------------------------------------------------------------
-
-added macro:
-           e(ctrl_emp) : "No"
-
-added macro:
-         e(ctrl_estab) : "No"
-
-added macro:
-          e(ctrl_wage) : "No"
-
-added macro:
-      e(ctrl_building) : "No"
 (MWFE estimator converged in 1 iterations)
 
 HDFE Linear regression                            Number of obs   =    104,360
@@ -1169,18 +1152,6 @@ ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
          (1) |   .0554491     .03447     1.61   0.116    -.0142174    .1251155
 ------------------------------------------------------------------------------
-
-added macro:
-           e(ctrl_emp) : "No"
-
-added macro:
-         e(ctrl_estab) : "No"
-
-added macro:
-          e(ctrl_wage) : "Yes"
-
-added macro:
-      e(ctrl_building) : "No"
 (MWFE estimator converged in 1 iterations)
 
 HDFE Linear regression                            Number of obs   =    104,360
@@ -1258,18 +1229,6 @@ ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
          (1) |    .056165   .0343391     1.64   0.110     -.013237    .1255669
 ------------------------------------------------------------------------------
-
-added macro:
-           e(ctrl_emp) : "No"
-
-added macro:
-         e(ctrl_estab) : "No"
-
-added macro:
-          e(ctrl_wage) : "Yes"
-
-added macro:
-      e(ctrl_building) : "No"
 (MWFE estimator converged in 1 iterations)
 
 HDFE Linear regression                            Number of obs   =    106,160
@@ -1347,18 +1306,6 @@ ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
          (1) |   .0563428   .0343176     1.64   0.108    -.0130156    .1257012
 ------------------------------------------------------------------------------
-
-added macro:
-           e(ctrl_emp) : "No"
-
-added macro:
-         e(ctrl_estab) : "Yes"
-
-added macro:
-          e(ctrl_wage) : "No"
-
-added macro:
-      e(ctrl_building) : "No"
 (MWFE estimator converged in 1 iterations)
 
 HDFE Linear regression                            Number of obs   =    104,360
@@ -1454,22 +1401,8 @@ ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
          (1) |   .0555546   .0341506     1.63   0.112    -.0134664    .1245755
 ------------------------------------------------------------------------------
-
-added macro:
-           e(ctrl_emp) : "Yes"
-
-added macro:
-         e(ctrl_estab) : "Yes"
-
-added macro:
-          e(ctrl_wage) : "Yes"
-
-added macro:
-      e(ctrl_building) : "No"
 (note: file ../output/fd_dynamic_table.tex not found)
 (output written to ../output/fd_dynamic_table.tex)
-(note: file ../output/fd_dynamic_lincom_table.tex not found)
-(output written to ../output/fd_dynamic_lincom_table.tex)
 
 . 
 end of do-file
@@ -1638,7 +1571,7 @@ Notes:
 . 
 . program build_coeff_plot_controls
   1.         syntax, depvar(str) absorb(str) cluster(str) [w(int 5) t_plot(real
->  1.645) offset(real 0.18)]
+>  1.645) offset(real 0.17)]
   2. 
 .         eststo clear
   3. 
@@ -1687,8 +1620,8 @@ Notes:
  32. 
 .         twoway (scatter b_base at, mcol(navy))          (rcap b_base_lb b_bas
 > e_ub at, lc(navy) lw(vthin)) ///
->                    (scatter b_emp at_emp, mc(edkblue))      (rcap b_emp_lb b_
-> emp_ub at_emp, lc(edkblue) lw(vthin)) ///
+>                    (scatter b_emp at_emp, mc(maroon))       (rcap b_emp_lb b_
+> emp_ub at_emp, lc(maroon) lw(vthin)) ///
 >                    (scatter b_estab at_estab, mc(lavender)) (rcap b_estab_lb 
 > b_estab_ub at_est, lc(lavender) lw(vthin)) ///
 >                    (scatter b_wage at_wage, mc(dkorange))   (rcap b_wage_lb b
@@ -1701,8 +1634,8 @@ Notes:
 > difference in log MW") ///
 >                 ytitle("Dynamic coefficients") ylabel(-0.06(0.02).06, grid)  
 >    ///
->                 legend(order(1 "baseline" 3 "employment" ///
->                         5 "establishment" 7 "wage" 9 "building") size(small) 
+>                 legend(order(1 "Baseline" 3 "Employment" ///
+>                         5 "Establishment" 7 "Wage" 9 "Building") size(small) 
 > rows(1))
  33. end
 
@@ -2553,7 +2486,7 @@ Notes:
 >                 LD.ln_mw L2D.ln_mw L3D.ln_mw L4D.ln_mw L5D.ln_mw LD.ln_med_re
 > nt_psqft_sfcc) ///
 >                 coeflabels(`estlabels') ///
->                 stats(N, fmt(%9.0g)             ///
+>                 stats(N, fmt(%9.0gc)            ///
 >                 labels("Observations")) star(* 0.10 ** 0.05 *** 0.01)   ///
 >                 mtitles("DiD" "\shortstack{Distributed \\ leads and lags}" "\
 > shortstack{Distributed \\ Lags}" ///
@@ -2568,53 +2501,39 @@ Notes:
   1.     syntax, depvar(str) w(int) absorb(str) cluster(str) 
   2.         
 .     eststo clear
-  3.         eststo: qui reghdfe D.`depvar' D.ln_mw,                           
->                       ///
->                 absorb(`absorb')                                             
->                                                    ///
->                 vce(cluster `cluster') nocons
+  3.         eststo: qui reghdfe D.`depvar' D.ln_mw, ///
+>                 absorb(`absorb') vce(cluster `cluster') nocons
   4.                 
-.         eststo: qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw,                  
->    ///
->                 absorb(`absorb')                                             
->                                            ///
->                 vce(cluster `cluster') nocons
+.         eststo: qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw, ///
+>                 absorb(`absorb') vce(cluster `cluster') nocons
   5.                 
-.         eststo: qui reghdfe D.`depvar' L(0/`w').D.ln_mw,                     
->    ///
->                 absorb(`absorb')                                             
->                                            ///
->                 vce(cluster `cluster') nocons
+.         eststo: qui reghdfe D.`depvar' L(0/`w').D.ln_mw, ///
+>                 absorb(`absorb') vce(cluster `cluster') nocons
   6.                 
 .         eststo: qui ivreghdfe D.`depvar' L(-`w'/`w').D.ln_mw (L.D.`depvar' = 
-> L2.D.`depvar'),                    ///
->                 absorb(`absorb') ///
->                 cluster (`cluster') nocons
+> L2.D.`depvar'), ///
+>                 absorb(`absorb') cluster (`cluster') nocons
   7. 
 .         eststo: qui ivreghdfe D.`depvar' L(0/`w').D.ln_mw (L.D.`depvar' = L2.
-> D.`depvar'),                       ///
->                 absorb(`absorb') ///
->                 cluster (`cluster') nocons
+> D.`depvar'), ///
+>                 absorb(`absorb') cluster (`cluster') nocons
   8.                 
 .         eststo: qui ivreghdfe D.`depvar' L(-`w'/`w').D.ln_mw (L.D.`depvar' = 
-> L6.D.ln_mw),                       ///
->                 absorb(`absorb') ///
->                 cluster (`cluster') nocons
+> L6.D.ln_mw), ///
+>                 absorb(`absorb') cluster (`cluster') nocons
   9.                 
 .         eststo: qui ivreghdfe D.`depvar' L(0/`w').D.ln_mw (L.D.`depvar' = L6.
-> D.ln_mw),                  ///
->                 absorb(`absorb') ///
->                 cluster (`cluster') nocons
+> D.ln_mw), ///
+>                 absorb(`absorb') cluster (`cluster') nocons
  10. end
 
 . 
 . program make_results_labels, rclass
   1.         syntax, w(int)
   2. 
-.         
 .         local estlabels `"D.ln_mw "$\Delta \ln \underline{w}_{i,t}$""'
   3.         local estlabels `"FD.ln_mw "$\Delta \ln \underline{w}_{i,t-1}$" `e
-> stlabels' LD.ln_mw "$\ln \underline{w}_{i,t+1}$""'
+> stlabels' LD.ln_mw "$\Delta \ln \underline{w}_{i,t+1}$""'
   4.         forvalues i = 2(1)`w'{
   5.                 local estlabels `"F`i'D.ln_mw "$\Delta \ln \underline{w}_{
 > i,t-`i'}$" `estlabels' L`i'D.ln_mw "$\Delta \ln \underline{w}_{i,t+`i'}$""'
@@ -2640,4 +2559,4 @@ Notes:
 . 
 end of do-file
 
- make.py ended: 2020-11-10 19:58:25
+ make.py ended: 2020-11-11 10:33:45
