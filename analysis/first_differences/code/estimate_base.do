@@ -41,7 +41,7 @@ program main
 			"Establishment-count controls" "R-squared" "Observations")) ///
 		star(* 0.10 ** 0.05 *** 0.01) nonote nomtitles
 
-	esttab lincom1 lincom2 lincom3 using "`outstub'/fd_dynamic_lincom_table.tex", ///
+	esttab lincom1 lincom2 lincom3 lincom4 lincom5 using "`outstub'/fd_dynamic_lincom_table.tex", ///
 		compress se replace coeflabel((1) "Sum of MW effects") ///
 		stats(ctrl_wage ctrl_emp ctrl_estab N, fmt(%s3 %s3 %s3 %9.0gc) ///
 		labels("Wage controls" "Employment controls" "Establishment-count controls" "Observations")) ///
@@ -196,15 +196,15 @@ program make_results_labels, rclass
 	syntax, w(int)
 
 	
-	local estlabels `"D.ln_mw "$\Delta \ln \underline{w}_t""'
-	local estlabels `"FD.ln_mw "$\Delta \ln \underline{w}_{t-1}$" `estlabels' LD.ln_mw "$\ln \underline{w}_{t+1}$""'
+	local estlabels `"D.ln_mw "$\Delta \ln \underline{w}_{i,t}$""'
+	local estlabels `"FD.ln_mw "$\Delta \ln \underline{w}_{i,t-1}$" `estlabels' LD.ln_mw "$\ln \underline{w}_{i,t+1}$""'
 	forvalues i = 2(1)`w'{
-		local estlabels `"F`i'D.ln_mw "$\Delta \ln \underline{w}_{t-`i'}$" `estlabels' L`i'D.ln_mw "$\ln \underline{w}_{t+`i'}$""'
+		local estlabels `"F`i'D.ln_mw "$\Delta \ln \underline{w}_{i,t-`i'}$" `estlabels' L`i'D.ln_mw "$\Delta \ln \underline{w}_{i,t+`i'}$""'
 	}
 
 	return local estlabels_dyn "`estlabels'"	
 
-	local estlabels_static `"D.ln_mw "$\Delta \ln \underline{w}_t$""'
+	local estlabels_static `"D.ln_mw "$\Delta \ln \underline{w}_{it}$""'
 	return local estlabels_static "`estlabels_static'"
 end 
 

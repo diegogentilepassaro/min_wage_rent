@@ -1,5 +1,5 @@
 
- make.py started: 2020-11-10 17:22:29 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\first_differences\code 
+ make.py started: 2020-11-10 19:56:55 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\first_differences\code 
 
 
 
@@ -452,8 +452,8 @@ Notes:
 > ons")) ///
 >                 star(* 0.10 ** 0.05 *** 0.01) nonote nomtitles
  13. 
-.         esttab lincom1 lincom2 lincom3 using "`outstub'/fd_dynamic_lincom_tab
-> le.tex", ///
+.         esttab lincom1 lincom2 lincom3 lincom4 lincom5 using "`outstub'/fd_dy
+> namic_lincom_table.tex", ///
 >                 compress se replace coeflabel((1) "Sum of MW effects") ///
 >                 stats(ctrl_wage ctrl_emp ctrl_estab N, fmt(%s3 %s3 %s3 %9.0gc
 > ) ///
@@ -644,17 +644,17 @@ Notes:
   1.         syntax, w(int)
   2. 
 .         
-.         local estlabels `"D.ln_mw "$\Delta \ln \underline{w}_t""'
-  3.         local estlabels `"FD.ln_mw "$\Delta \ln \underline{w}_{t-1}$" `est
-> labels' LD.ln_mw "$\ln \underline{w}_{t+1}$""'
+.         local estlabels `"D.ln_mw "$\Delta \ln \underline{w}_{i,t}$""'
+  3.         local estlabels `"FD.ln_mw "$\Delta \ln \underline{w}_{i,t-1}$" `e
+> stlabels' LD.ln_mw "$\ln \underline{w}_{i,t+1}$""'
   4.         forvalues i = 2(1)`w'{
   5.                 local estlabels `"F`i'D.ln_mw "$\Delta \ln \underline{w}_{
-> t-`i'}$" `estlabels' L`i'D.ln_mw "$\ln \underline{w}_{t+`i'}$""'
+> i,t-`i'}$" `estlabels' L`i'D.ln_mw "$\Delta \ln \underline{w}_{i,t+`i'}$""'
   6.         }
   7. 
 .         return local estlabels_dyn "`estlabels'"        
   8. 
-.         local estlabels_static `"D.ln_mw "$\Delta \ln \underline{w}_t$""'
+.         local estlabels_static `"D.ln_mw "$\Delta \ln \underline{w}_{it}$""'
   9.         return local estlabels_static "`estlabels_static'"
  10. end 
 
@@ -1474,4 +1474,1170 @@ added macro:
 . 
 end of do-file
 
- make.py ended: 2020-11-10 17:23:00
+
+Execute:  StataMP-64 /e do "./figures_base.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./figures_base.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. adopath + ../../../lib/stata/min_wage/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+  [8]              "../../../lib/stata/min_wage/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.         local instub "../temp"
+  2.         local outstub "../output"
+  3. 
+.         use "`instub'/fd_rent_panel.dta", clear
+  4. 
+.         build_coeff_plot, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) /
+> //
+>                 cluster(statefips)
+  5.         graph export "`outstub'/fd_models.png", replace
+  6.         graph export "`outstub'/fd_models.eps", replace
+  7. 
+.         use "`instub'/fd_rent_panel.dta", clear
+  8. 
+.         build_coeff_plot_controls, depvar(ln_med_rent_psqft_sfcc) absorb(year
+> _month) ///
+>                 cluster(statefips)
+  9.         graph export "../output/fd_models_control.png", replace
+ 10.         graph export "../output/fd_models_control.eps", replace
+ 11. end
+
+. 
+. program build_coeff_plot
+  1.         syntax, depvar(str) absorb(str) cluster(str) [w(int 5) t_plot(real
+>  1.645) offset(real 0.09)]
+  2. 
+.         eststo clear
+  3.         reghdfe D.`depvar' D.ln_mw,     absorb(`absorb') vce(cluster `clus
+> ter') nocons
+  4. 
+.         scalar static_effect = _b[D.ln_mw]
+  5.         scalar static_effect_se = _se[D.ln_mw]
+  6. 
+.         define_controls estcount avgwwage
+  7.         local emp_ctrls "`r(emp_ctrls)'"
+  8.         local estcount_ctrls "`r(estcount_ctrls)'"
+  9.         local avgwwage_ctrls "`r(avgwwage_ctrls)'"
+ 10. 
+.         qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw, absorb(`absorb') vce(clus
+> ter `cluster') nocons
+ 11.         
+.         preserve
+ 12.                 coefplot, vertical base gen
+ 13.                 keep __at __b __se
+ 14.                 rename (__at __b __se) (at b_full se_full)
+ 15.                 
+.                 keep if !missing(at)
+ 16. 
+.                 gen b_full_lb = b_full - `t_plot'*se_full
+ 17.                 gen b_full_ub = b_full + `t_plot'*se_full
+ 18. 
+.                 gen static_path = . 
+ 19.                 replace static_path = scalar(static_effect) if at > `w'
+ 20. 
+.                 save "../temp/plot_coeffs.dta", replace
+ 21.         restore
+ 22. 
+.         qui reghdfe D.`depvar' L(0/`w').D.ln_mw, absorb(`absorb') vce(cluster
+>  `cluster') nocons
+ 23.         
+.         coefplot, vertical base gen
+ 24.         keep __at __b __se
+ 25.         rename (__at __b __se) (at b_lags se_lags)
+ 26.         tset at
+ 27. 
+.         keep if !missing(at)
+ 28. 
+.         gen b_lags_lb = b_lags - 1.645*se_lags
+ 29.         gen b_lags_ub = b_lags + 1.645*se_lags
+ 30. 
+.         gen cumsum_b_lags = b_lags[1]
+ 31.         replace cumsum_b_lags = cumsum_b_lags[_n-1] + b_lags[_n] if _n > 1
+ 32. 
+.         replace at = at + `w'
+ 33.                 
+.         merge 1:1 at using "../temp/plot_coeffs.dta", nogen
+ 34.         sort at
+ 35. 
+.         gen at_full = at - `offset'                  // To prevent lines from
+>  overlapping perfectly
+ 36.         gen at_lags = at + `offset'
+ 37.         replace at_full = at if _n <= `w'
+ 38.         replace at_lags = at if _n <= `w'
+ 39.         replace cumsum_b_lags = . if at < `w' - 1
+ 40. 
+.         // Figure
+.         make_plot_xlabels, w(`w')
+ 41. 
+.         twoway  (scatter b_full at_full, mcol(navy)) ///
+>                                 (rcap b_full_lb b_full_ub at_full, col(navy) 
+> lw(vthin)) ///
+>                         (scatter b_lags at_lags, mcol(maroon)) ///
+>                                 (rcap b_lags_lb b_lags_ub at_lags, col(maroon
+> ) lw(vthin)) ///
+>                         (line static_path at, lcol(gs4) lpat(dash)) ///
+>                         (line cumsum_b_lags at, lcol(maroon) lpat(dash)), ///
+>                 yline(0, lcol(black)) ///
+>                 xlabel(`r(xlab)', labsize(small)) xtitle("Leads and lags of d
+> ifference in log MW") ///
+>                 ylabel(-0.06(0.02).08, grid labsize(small)) ytitle("Coefficie
+> nt") ///
+>                 legend(order(1 "Full dynamic model" 3 "Distributed lags model
+> " ///
+>                         5 "Effects path static model" 6 "Effects path distrib
+> uted lags model") size(small)) ///
+>                 graphregion(color(white)) bgcolor(white)
+ 42. end
+
+. 
+. program build_coeff_plot_controls
+  1.         syntax, depvar(str) absorb(str) cluster(str) [w(int 5) t_plot(real
+>  1.645) offset(real 0.18)]
+  2. 
+.         eststo clear
+  3. 
+.         define_controls estcount avgwwage
+  4.         local emp_ctrls "`r(emp_ctrls)'"
+  5.         local estab_ctrls "`r(estcount_ctrls)'"
+  6.         local wage_ctrls "`r(avgwwage_ctrls)'"
+  7. 
+.         reghdfe D.`depvar' L(-`w'/`w').D.ln_mw, absorb(`absorb') vce(cluster 
+> `cluster') nocons
+  8.         store_dynamic_coeffs, model(base) w(`w') t_plot(`t_plot')
+  9. 
+.         foreach name in emp estab wage {
+ 10.                 reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(``name'_ctrls'),
+>  absorb(`absorb') vce(cluster `cluster') nocons
+ 11.                 store_dynamic_coeffs, model(`name') w(`w') t_plot(`t_plot'
+> )
+ 12.         }
+ 13.                         
+.         reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`emp_ctrls') D.(`estab_ctrl
+> s') D.(`wage_ctrls'), ///
+>                 absorb(`absorb') vce(cluster `cluster') nocons
+ 14. 
+.         coefplot, vertical base gen
+ 15.         local winspan = 2*`w' + 1
+ 16.         keep if _n <= `winspan'
+ 17.         keep __at __b __se
+ 18.         rename (__at __b __se) (at b_all se_all)
+ 19.         keep if !missing(at)
+ 20. 
+.         gen b_all_lb = b_all - `t_plot'*se_all
+ 21.         gen b_all_ub = b_all + `t_plot'*se_all
+ 22. 
+.         merge 1:1 at using "../temp/plot_coeffs_base.dta", nogen
+ 23.         merge 1:1 at using "../temp/plot_coeffs_emp.dta", nogen
+ 24.         merge 1:1 at using "../temp/plot_coeffs_estab.dta", nogen
+ 25.         merge 1:1 at using "../temp/plot_coeffs_wage.dta", nogen
+ 26. 
+.         sort at
+ 27.         g at_emp   = at - 2*`offset'
+ 28.         g at_estab = at - `offset'
+ 29.         g at_wage  = at + `offset'
+ 30.         g at_all = at + 2*`offset'
+ 31. 
+.         make_plot_xlabels, w(`w')
+ 32. 
+.         twoway (scatter b_base at, mcol(navy))          (rcap b_base_lb b_bas
+> e_ub at, lc(navy) lw(vthin)) ///
+>                    (scatter b_emp at_emp, mc(edkblue))      (rcap b_emp_lb b_
+> emp_ub at_emp, lc(edkblue) lw(vthin)) ///
+>                    (scatter b_estab at_estab, mc(lavender)) (rcap b_estab_lb 
+> b_estab_ub at_est, lc(lavender) lw(vthin)) ///
+>                    (scatter b_wage at_wage, mc(dkorange))   (rcap b_wage_lb b
+> _wage_ub at_wage, lc(dkorange) lw(vthin)) ///
+>                    (scatter b_all at_all, mc(gs10))         (rcap b_all_lb b_
+> all_ub at_all, lc(gs10) lw(vthin)), /// 
+>                 yline(0, lcol(black)) ///
+>                 graphregion(color(white)) bgcolor(white) ///
+>                 xlabel(`r(xlab)', labsize(vsmall)) xtitle("Leads and lags of 
+> difference in log MW") ///
+>                 ytitle("Dynamic coefficients") ylabel(-0.06(0.02).06, grid)  
+>    ///
+>                 legend(order(1 "baseline" 3 "employment" ///
+>                         5 "establishment" 7 "wage" 9 "building") size(small) 
+> rows(1))
+ 33. end
+
+. 
+. program define_controls, rclass
+  1.         foreach ctrl_type in emp estcount avgwwage {
+  2.                 local var_list "ln_`ctrl_type'_bizserv ln_`ctrl_type'_info
+>  ln_`ctrl_type'_manu"
+  3.                 return local `ctrl_type'_ctrls `var_list'
+  4.         }
+  5. 
+.         local housing_cont   "ln_u1rep_units ln_u1rep_value"
+  6.         return local housing_cont "`housing_cont'"
+  7. end
+
+. 
+. program store_dynamic_coeffs
+  1.         syntax, model(str) w(int) t_plot(real)
+  2.         preserve
+  3.                 coefplot, vertical base gen
+  4.                 local wspan = 2*`w' + 1
+  5.                 keep if _n <= `wspan'
+  6.                 keep __at __b __se
+  7.                 rename (__at __b __se) (at b_`model' se_`model')
+  8.         
+.                 keep if !missing(at)
+  9. 
+.                 gen b_`model'_lb = b_`model' - `t_plot'*se_`model'
+ 10.                 gen b_`model'_ub = b_`model' + `t_plot'*se_`model'
+ 11.         
+.                 save "../temp/plot_coeffs_`model'.dta", replace
+ 12.         restore
+ 13. end 
+
+. 
+. program make_plot_xlabels, rclass 
+  1.         syntax, w(int)
+  2. 
+.         local xlab ""
+  3.         forval lead = 1/`w' {
+  4.                 local leadlab = `lead' - `w' - 1
+  5.                 local xlab `"`xlab' `lead' "`leadlab'""'
+  6.         }
+  7.         local zero = `w' + 1
+  8.         local xlab `"`xlab' `zero' "0""'
+  9.         forval lag = 1/`w' {
+ 10.                 local coeflag = `zero' + `lag'
+ 11.                 local xlab `"`xlab' `coeflag' "`lag'""'
+ 12.         }
+ 13. 
+.         return local xlab `xlab'
+ 14. end
+
+. 
+. main
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    112,232
+Absorbing 1 HDFE group                            F(   1,     40) =       4.07
+Statistics robust to heteroskedasticity           Prob > F        =     0.0504
+                                                  R-squared       =     0.0218
+                                                  Adj R-squared   =     0.0208
+                                                  Within R-sq.    =     0.0001
+Number of clusters (statefips) =         41       Root MSE        =     0.0279
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+D.           |               Robust
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+         D1. |   .0259256   .0128533     2.02   0.050    -.0000519    .0519031
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       118           0         118     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(156,589 observations deleted)
+(11 missing values generated)
+(6 real changes made)
+(note: file ../temp/plot_coeffs.dta not found)
+file ../temp/plot_coeffs.dta saved
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+        time variable:  at, 1 to 6
+                delta:  1 unit
+(156,594 observations deleted)
+(5 real changes made)
+(6 real changes made)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             5
+        from master                         0  
+        from using                          5  
+
+    matched                                 6  
+    -----------------------------------------
+(5 real changes made)
+(5 real changes made)
+(0 real changes made)
+(note: file ../output/fd_models.png not found)
+(file ../output/fd_models.png written in PNG format)
+(note: file ../output/fd_models.eps not found)
+(file ../output/fd_models.eps written in EPS format)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    106,446
+Absorbing 1 HDFE group                            F(  11,     40) =       5.24
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.0222
+                                                  Adj R-squared   =     0.0211
+                                                  Within R-sq.    =     0.0002
+Number of clusters (statefips) =         41       Root MSE        =     0.0280
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+D.           |               Robust
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F5D. |  -.0145811   .0091019    -1.60   0.117    -.0329768    .0038145
+        F4D. |  -.0023173   .0116215    -0.20   0.843    -.0258053    .0211707
+        F3D. |   .0013676   .0093121     0.15   0.884    -.0174528     .020188
+        F2D. |   .0060834   .0115399     0.53   0.601    -.0172396    .0294063
+         FD. |  -.0002799    .012286    -0.02   0.982    -.0251108    .0245511
+         D1. |   .0269594   .0126674     2.13   0.040     .0013576    .0525611
+         LD. |   .0135887   .0071476     1.90   0.065    -.0008571    .0280345
+        L2D. |  -.0070198   .0133432    -0.53   0.602    -.0339874    .0199478
+        L3D. |   .0036445    .008078     0.45   0.654    -.0126817    .0199707
+        L4D. |   .0108004   .0069303     1.56   0.127    -.0032063    .0248071
+        L5D. |   .0086176   .0068622     1.26   0.216    -.0052515    .0224867
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       109           0         109     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(156,589 observations deleted)
+(0 observations deleted)
+(note: file ../temp/plot_coeffs_base.dta not found)
+file ../temp/plot_coeffs_base.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    104,360
+Absorbing 1 HDFE group                            F(  14,     40) =       5.27
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.0223
+                                                  Adj R-squared   =     0.0212
+                                                  Within R-sq.    =     0.0002
+Number of clusters (statefips) =         41       Root MSE        =     0.0280
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+D.           |               Robust
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F5D. |  -.0122814   .0078729    -1.56   0.127    -.0281931    .0036303
+        F4D. |   .0008054   .0099487     0.08   0.936    -.0193018    .0209125
+        F3D. |   .0004982   .0096725     0.05   0.959    -.0190507    .0200471
+        F2D. |   .0054708   .0118511     0.46   0.647    -.0184812    .0294227
+         FD. |  -.0023112   .0125998    -0.18   0.855    -.0277764    .0231539
+         D1. |   .0240152   .0124899     1.92   0.062    -.0012279    .0492582
+         LD. |   .0130225   .0071899     1.81   0.078    -.0015089    .0275539
+        L2D. |  -.0059622   .0135606    -0.44   0.663    -.0333692    .0214448
+        L3D. |   .0043557    .007689     0.57   0.574    -.0111843    .0198956
+        L4D. |   .0110387   .0065554     1.68   0.100    -.0022103    .0242878
+        L5D. |   .0096951   .0065587     1.48   0.147    -.0035605    .0229507
+             |
+ln_emp_biz~v |
+         D1. |   .0049956   .0042594     1.17   0.248    -.0036131    .0136042
+             |
+ ln_emp_info |
+         D1. |   .0018291    .004371     0.42   0.678     -.007005    .0106632
+             |
+ ln_emp_manu |
+         D1. |   .0075698   .0050703     1.49   0.143    -.0026777    .0178172
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       109           0         109     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(156,589 observations deleted)
+(0 observations deleted)
+(note: file ../temp/plot_coeffs_emp.dta not found)
+file ../temp/plot_coeffs_emp.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    106,160
+Absorbing 1 HDFE group                            F(  14,     40) =       4.85
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.0223
+                                                  Adj R-squared   =     0.0211
+                                                  Within R-sq.    =     0.0003
+Number of clusters (statefips) =         41       Root MSE        =     0.0280
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+D.           |               Robust
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F5D. |  -.0143433   .0090425    -1.59   0.121    -.0326188    .0039322
+        F4D. |  -.0021253   .0115783    -0.18   0.855    -.0255258    .0212753
+        F3D. |   .0006826   .0092121     0.07   0.941    -.0179356    .0193009
+        F2D. |   .0060257   .0115098     0.52   0.603    -.0172364    .0292877
+         FD. |  -.0000542   .0122029    -0.00   0.996    -.0247172    .0246088
+         D1. |   .0267861   .0127241     2.11   0.042     .0010697    .0525024
+         LD. |   .0135581   .0071916     1.89   0.067    -.0009767     .028093
+        L2D. |  -.0068158   .0133094    -0.51   0.611    -.0337151    .0200835
+        L3D. |   .0032213    .007891     0.41   0.685     -.012727    .0191696
+        L4D. |    .010769   .0068372     1.58   0.123    -.0030495    .0245875
+        L5D. |   .0088242   .0067201     1.31   0.197    -.0047576    .0224061
+             |
+ln_estcou~rv |
+         D1. |   .0153538   .0148478     1.03   0.307    -.0146547    .0453623
+             |
+ln_estcoun~o |
+         D1. |   .0040949   .0057607     0.71   0.481    -.0075479    .0157377
+             |
+ln_estcoun~u |
+         D1. |   .0028747   .0123455     0.23   0.817    -.0220766     .027826
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       109           0         109     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(156,589 observations deleted)
+(0 observations deleted)
+(note: file ../temp/plot_coeffs_estab.dta not found)
+file ../temp/plot_coeffs_estab.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    104,360
+Absorbing 1 HDFE group                            F(  14,     40) =       5.05
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.0223
+                                                  Adj R-squared   =     0.0212
+                                                  Within R-sq.    =     0.0002
+Number of clusters (statefips) =         41       Root MSE        =     0.0280
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+D.           |               Robust
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F5D. |  -.0122848   .0078685    -1.56   0.126    -.0281875     .003618
+        F4D. |   .0006883   .0099823     0.07   0.945    -.0194867    .0208633
+        F3D. |   .0005659   .0096595     0.06   0.954    -.0189568    .0200885
+        F2D. |   .0053731   .0119433     0.45   0.655    -.0187653    .0295115
+         FD. |   -.002135    .012511    -0.17   0.865    -.0274207    .0231507
+         D1. |   .0242641   .0124208     1.95   0.058    -.0008392    .0493674
+         LD. |   .0127678   .0071936     1.77   0.084     -.001771    .0273066
+        L2D. |  -.0060796   .0135541    -0.45   0.656    -.0334734    .0213143
+        L3D. |   .0039779   .0078387     0.51   0.615    -.0118646    .0198204
+        L4D. |   .0110026   .0065847     1.67   0.103    -.0023055    .0243107
+        L5D. |   .0095162   .0065985     1.44   0.157    -.0038199    .0228523
+             |
+ln_avgwwa~rv |
+         D1. |   .0016105   .0024319     0.66   0.512    -.0033045    .0065255
+             |
+ln_avgwwag~o |
+         D1. |   .0010798   .0016575     0.65   0.518    -.0022702    .0044298
+             |
+ln_avgwwag~u |
+         D1. |  -.0006913   .0018277    -0.38   0.707    -.0043853    .0030027
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       109           0         109     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(156,589 observations deleted)
+(0 observations deleted)
+(note: file ../temp/plot_coeffs_wage.dta not found)
+file ../temp/plot_coeffs_wage.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    104,360
+Absorbing 1 HDFE group                            F(  20,     40) =       8.07
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.0224
+                                                  Adj R-squared   =     0.0212
+                                                  Within R-sq.    =     0.0003
+Number of clusters (statefips) =         41       Root MSE        =     0.0280
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+D.           |               Robust
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F5D. |  -.0121885   .0078732    -1.55   0.129    -.0281009    .0037238
+        F4D. |   .0008067   .0099403     0.08   0.936    -.0192834    .0208968
+        F3D. |  -.0000717   .0095264    -0.01   0.994    -.0193252    .0191818
+        F2D. |   .0056496   .0118967     0.47   0.637    -.0183944    .0296937
+         FD. |  -.0022859   .0125924    -0.18   0.857    -.0277362    .0231643
+         D1. |   .0244731   .0126776     1.93   0.061    -.0011493    .0500955
+         LD. |   .0127134   .0072065     1.76   0.085    -.0018515    .0272783
+        L2D. |  -.0059761   .0135605    -0.44   0.662    -.0333828    .0214306
+        L3D. |   .0033979   .0076718     0.44   0.660    -.0121074    .0189032
+        L4D. |   .0112781   .0064898     1.74   0.090    -.0018383    .0243945
+        L5D. |   .0096681    .006551     1.48   0.148    -.0035719    .0229081
+             |
+ln_emp_biz~v |
+         D1. |   .0042007   .0044061     0.95   0.346    -.0047042    .0131057
+             |
+ ln_emp_info |
+         D1. |   .0017311   .0042867     0.40   0.688    -.0069326    .0103948
+             |
+ ln_emp_manu |
+         D1. |   .0073803   .0046637     1.58   0.121    -.0020455     .016806
+             |
+ln_estcou~rv |
+         D1. |   .0155637   .0143904     1.08   0.286    -.0135204    .0446478
+             |
+ln_estcoun~o |
+         D1. |     .00363   .0056371     0.64   0.523    -.0077629    .0150229
+             |
+ln_estcoun~u |
+         D1. |   .0040292    .012035     0.33   0.740    -.0202945     .028353
+             |
+ln_avgwwa~rv |
+         D1. |   .0016383   .0024607     0.67   0.509    -.0033351    .0066116
+             |
+ln_avgwwag~o |
+         D1. |   .0011458   .0016166     0.71   0.483    -.0021214     .004413
+             |
+ln_avgwwag~u |
+         D1. |  -.0008275   .0018009    -0.46   0.648    -.0044672    .0028123
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       109           0         109     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(156,589 observations deleted)
+(0 observations deleted)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                11  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                11  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                11  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                11  
+    -----------------------------------------
+(note: file ../output/fd_models_control.png not found)
+(file ../output/fd_models_control.png written in PNG format)
+(note: file ../output/fd_models_control.eps not found)
+(file ../output/fd_models_control.eps written in EPS format)
+
+. 
+end of do-file
+
+
+Execute:  StataMP-64 /e do "./estimate_heterogeneity.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./estimate_heterogeneity.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. adopath + ../../../lib/stata/min_wage/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+  [8]              "../../../lib/stata/min_wage/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.         local instub "../temp"
+  2.         local outstub "../output"
+  3. 
+.         use "`instub'/fd_rent_panel.dta", clear
+  4. 
+.         * Heterogeneity
+.         foreach var in med_hhinc20105 renthouse_share2010 college_share20105 
+> ///
+>                                 black_share2010 {  // nonwhite_share2010 work
+> _county_share20105
+  5. 
+.                 build_ytitle, var(`var')
+  6. 
+.                 plot_static_heterogeneity, depvar(ln_med_rent_psqft) absorb(y
+> ear_month) ///
+>                         het_var(`var'_st_qtl) cluster(statefips) ytitle(`r(ti
+> tle)')
+  7.                 graph export "`outstub'/fd_static_heter_`var'.png", replac
+> e
+  8.                 graph export "`outstub'/fd_static_heter_`var'.eps", replac
+> e
+  9.         }
+ 10. 
+. end
+
+. 
+. program plot_static_heterogeneity
+  1.         syntax, depvar(str) absorb(str) cluster(str) het_var(str) ytitle(s
+> tr) [qtles(int 4)]
+  2. 
+.         eststo clear
+  3.         reghdfe D.`depvar' c.d_ln_mw#i.`het_var', ///
+>                 absorb(`absorb') ///
+>                 vce(cluster `cluster') nocons
+  4. 
+.         coefplot, base graphregion(color(white)) bgcolor(white) ///
+>                 ylabel(1 "First quartile" 2 "Second quartile" 3 "Third quarti
+> le" 4 "Fourth quartile") ///
+>                 ytitle(`ytitle') xtitle("Elasticity of rents to the MW")     
+>    ///
+>                 xline(0, lcol(black)) mcolor(edkblue) ciopts(recast(rcap) lc(
+> edkblue) lw(vthin))
+  5. end
+
+. 
+. program build_ytitle, rclass
+  1.         syntax, var(str)
+  2. 
+.         if "`var'" == "med_hhinc20105" {
+  3.                 return local title "Quintiles of within state 2010 median 
+> household income"
+  4.         }
+  5.         if "`var'" == "renthouse_share2010" {
+  6.                 return local title "Quintiles of 2010 share of houses rent
+> "
+  7.         }
+  8.         if "`var'" == "college_share20105" {
+  9.                 return local title "Quintiles of 2010 college share"
+ 10.         }
+ 11.         if "`var'" == "black_share2010" {
+ 12.                 return local title "Quintiles of 2010 share of black indiv
+> iduals"
+ 13.         }
+ 14.         if "`var'" == "nonwhite_share2010" {
+ 15.                 return local title "Quintiles of 2010 share of non-white i
+> ndividuals"
+ 16.         }
+ 17.         if "`var'" == "work_county_share20105" {
+ 18.                 return local title "Quintiles of 2010 share who work in co
+> unty"
+ 19.         }
+ 20. end
+
+. 
+. 
+. 
+. *Execute 
+. main 
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    112,232
+Absorbing 1 HDFE group                            F(   4,     40) =       2.57
+Statistics robust to heteroskedasticity           Prob > F        =     0.0522
+                                                  R-squared       =     0.0219
+                                                  Adj R-squared   =     0.0208
+                                                  Within R-sq.    =     0.0001
+Number of clusters (statefips) =         41       Root MSE        =     0.0279
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+D.           |               Robust
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+med_h~st_qtl#|
+   c.d_ln_mw |
+          1  |   .0419786   .0223804     1.88   0.068    -.0032539    .0872112
+          2  |    .021595   .0154718     1.40   0.170    -.0096747    .0528646
+          3  |   .0298557   .0250437     1.19   0.240    -.0207596    .0804709
+          4  |    .011213   .0125117     0.90   0.376     -.014074       .0365
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       118           0         118     |
+-----------------------------------------------------+
+(note: file ../output/fd_static_heter_med_hhinc20105.png not found)
+(file ../output/fd_static_heter_med_hhinc20105.png written in PNG format)
+(note: file ../output/fd_static_heter_med_hhinc20105.eps not found)
+(file ../output/fd_static_heter_med_hhinc20105.eps written in EPS format)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    112,232
+Absorbing 1 HDFE group                            F(   4,     40) =       4.35
+Statistics robust to heteroskedasticity           Prob > F        =     0.0051
+                                                  R-squared       =     0.0219
+                                                  Adj R-squared   =     0.0208
+                                                  Within R-sq.    =     0.0001
+Number of clusters (statefips) =         41       Root MSE        =     0.0279
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+D.           |               Robust
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+renth~st_qtl#|
+   c.d_ln_mw |
+          1  |   .0285549   .0178416     1.60   0.117    -.0075043    .0646141
+          2  |   .0125877   .0174773     0.72   0.476    -.0227352    .0479106
+          3  |   .0169259   .0234719     0.72   0.475    -.0305125    .0643644
+          4  |   .0437843   .0153533     2.85   0.007     .0127542    .0748144
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       118           0         118     |
+-----------------------------------------------------+
+(note: file ../output/fd_static_heter_renthouse_share2010.png not found)
+(file ../output/fd_static_heter_renthouse_share2010.png written in PNG format)
+(note: file ../output/fd_static_heter_renthouse_share2010.eps not found)
+(file ../output/fd_static_heter_renthouse_share2010.eps written in EPS format)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    112,232
+Absorbing 1 HDFE group                            F(   4,     40) =       2.28
+Statistics robust to heteroskedasticity           Prob > F        =     0.0779
+                                                  R-squared       =     0.0219
+                                                  Adj R-squared   =     0.0208
+                                                  Within R-sq.    =     0.0002
+Number of clusters (statefips) =         41       Root MSE        =     0.0279
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+D.           |               Robust
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+colle~st_qtl#|
+   c.d_ln_mw |
+          1  |   .0395319   .0198208     1.99   0.053    -.0005274    .0795912
+          2  |   .0484266   .0220598     2.20   0.034      .003842    .0930112
+          3  |   .0248931   .0215439     1.16   0.255    -.0186487    .0684348
+          4  |  -.0014252    .012176    -0.12   0.907    -.0260337    .0231834
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       118           0         118     |
+-----------------------------------------------------+
+(note: file ../output/fd_static_heter_college_share20105.png not found)
+(file ../output/fd_static_heter_college_share20105.png written in PNG format)
+(note: file ../output/fd_static_heter_college_share20105.eps not found)
+(file ../output/fd_static_heter_college_share20105.eps written in EPS format)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    112,232
+Absorbing 1 HDFE group                            F(   4,     40) =       1.67
+Statistics robust to heteroskedasticity           Prob > F        =     0.1750
+                                                  R-squared       =     0.0218
+                                                  Adj R-squared   =     0.0208
+                                                  Within R-sq.    =     0.0001
+Number of clusters (statefips) =         41       Root MSE        =     0.0279
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+D.           |               Robust
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+black~st_qtl#|
+   c.d_ln_mw |
+          1  |   .0172449   .0166792     1.03   0.307    -.0164651    .0509549
+          2  |   .0225953   .0158814     1.42   0.163    -.0095022    .0546927
+          3  |   .0227548   .0143118     1.59   0.120    -.0061705      .05168
+          4  |   .0429309   .0169667     2.53   0.015       .00864    .0772218
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       118           0         118     |
+-----------------------------------------------------+
+(note: file ../output/fd_static_heter_black_share2010.png not found)
+(file ../output/fd_static_heter_black_share2010.png written in PNG format)
+(note: file ../output/fd_static_heter_black_share2010.eps not found)
+(file ../output/fd_static_heter_black_share2010.eps written in EPS format)
+
+. 
+end of do-file
+
+
+Execute:  StataMP-64 /e do "./horse_race_dynamic_models.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./horse_race_dynamic_models.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. adopath + ../../../lib/stata/min_wage/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+  [8]              "../../../lib/stata/min_wage/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.         local instub "../temp"
+  2.         local outstub "../output"
+  3. 
+.         use "`instub'/fd_rent_panel.dta", clear
+  4. 
+.         make_results_labels, w(5)
+  5.         local estlabels "`r(estlabels)'"
+  6. 
+.         horse_race_models, depvar(ln_med_rent_psqft_sfcc) w(5) ///
+>                 absorb(year_month) cluster(statefips)
+  7.         esttab * using "`outstub'/horse_race.tex", compress se replace sub
+> stitute(\_ _)         ///
+>                 order(F5D.ln_mw F4D.ln_mw F3D.ln_mw F2D.ln_mw FD.ln_mw D.ln_m
+> w ///
+>                 LD.ln_mw L2D.ln_mw L3D.ln_mw L4D.ln_mw L5D.ln_mw LD.ln_med_re
+> nt_psqft_sfcc) ///
+>                 coeflabels(`estlabels') ///
+>                 stats(N, fmt(%9.0g)             ///
+>                 labels("Observations")) star(* 0.10 ** 0.05 *** 0.01)   ///
+>                 mtitles("DiD" "\shortstack{Distributed \\ leads and lags}" "\
+> shortstack{Distributed \\ Lags}" ///
+>                 "\shortstack{AB Distributed \\ leads and lags}" "\shortstack{
+> AB Distributed \\ Lags}" ///
+>                 "\shortstack{MW Distributed \\ leads and lags}" "\shortstack{
+> MW Distributed \\ Lags}") nonote
+  8. end
+
+. 
+. program horse_race_models
+  1.     syntax, depvar(str) w(int) absorb(str) cluster(str) 
+  2.         
+.     eststo clear
+  3.         eststo: qui reghdfe D.`depvar' D.ln_mw,                           
+>                       ///
+>                 absorb(`absorb')                                             
+>                                                    ///
+>                 vce(cluster `cluster') nocons
+  4.                 
+.         eststo: qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw,                  
+>    ///
+>                 absorb(`absorb')                                             
+>                                            ///
+>                 vce(cluster `cluster') nocons
+  5.                 
+.         eststo: qui reghdfe D.`depvar' L(0/`w').D.ln_mw,                     
+>    ///
+>                 absorb(`absorb')                                             
+>                                            ///
+>                 vce(cluster `cluster') nocons
+  6.                 
+.         eststo: qui ivreghdfe D.`depvar' L(-`w'/`w').D.ln_mw (L.D.`depvar' = 
+> L2.D.`depvar'),                    ///
+>                 absorb(`absorb') ///
+>                 cluster (`cluster') nocons
+  7. 
+.         eststo: qui ivreghdfe D.`depvar' L(0/`w').D.ln_mw (L.D.`depvar' = L2.
+> D.`depvar'),                       ///
+>                 absorb(`absorb') ///
+>                 cluster (`cluster') nocons
+  8.                 
+.         eststo: qui ivreghdfe D.`depvar' L(-`w'/`w').D.ln_mw (L.D.`depvar' = 
+> L6.D.ln_mw),                       ///
+>                 absorb(`absorb') ///
+>                 cluster (`cluster') nocons
+  9.                 
+.         eststo: qui ivreghdfe D.`depvar' L(0/`w').D.ln_mw (L.D.`depvar' = L6.
+> D.ln_mw),                  ///
+>                 absorb(`absorb') ///
+>                 cluster (`cluster') nocons
+ 10. end
+
+. 
+. program make_results_labels, rclass
+  1.         syntax, w(int)
+  2. 
+.         
+.         local estlabels `"D.ln_mw "$\Delta \ln \underline{w}_{i,t}$""'
+  3.         local estlabels `"FD.ln_mw "$\Delta \ln \underline{w}_{i,t-1}$" `e
+> stlabels' LD.ln_mw "$\ln \underline{w}_{i,t+1}$""'
+  4.         forvalues i = 2(1)`w'{
+  5.                 local estlabels `"F`i'D.ln_mw "$\Delta \ln \underline{w}_{
+> i,t-`i'}$" `estlabels' L`i'D.ln_mw "$\Delta \ln \underline{w}_{i,t+`i'}$""'
+  6.         }
+  7.         local estlabels `"`estlabels' LD.ln_med_rent_psqft_sfcc "$\Delta \
+> ln y_{i,t-1}$""'
+  8. 
+.         return local estlabels "`estlabels'"    
+  9. end 
+
+. 
+. main
+(est1 stored)
+(est2 stored)
+(est3 stored)
+(est4 stored)
+(est5 stored)
+(est6 stored)
+(est7 stored)
+(note: file ../output/horse_race.tex not found)
+(output written to ../output/horse_race.tex)
+
+. 
+end of do-file
+
+ make.py ended: 2020-11-10 19:58:25
