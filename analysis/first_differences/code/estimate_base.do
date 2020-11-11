@@ -17,7 +17,7 @@ program main
 	* Static Model
 	run_static_model, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) cluster(statefips)
 	esttab * using "`outstub'/fd_table.tex", keep(D.ln_mw) compress se replace substitute(\_ _) ///
-		coeflabels(`estlabels_static') ///
+		b(%9.3f) se(%9.3f) coeflabels(`estlabels_static') ///
 		stats(ctrl_wage ctrl_emp ctrl_estab r2 N, fmt(%s3 %s3 %s3 %9.3f %9.0gc) ///
 		labels("Wage controls" "Employment controls" "Establishment-count controls" ///
 			"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) ///
@@ -25,7 +25,7 @@ program main
 
 	run_static_model_trend, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) cluster(statefips)
 	esttab * using "`outstub'/fd_table_trend.tex", keep(D.ln_mw) compress se replace substitute(\_ _) 	///
-		coeflabels(`estlabels_static') ///
+		b(%9.3f) se(%9.3f) coeflabels(`estlabels_static') ///
 		stats(zs_trend zs_trend_sq r2 N, fmt(%s3 %s3 %9.3f %9.0gc) ///
 		labels("Zipcode-specifc linear trend" "Zipcode-specific quadratic trend" ///
 			"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) nonote nomtitles 
@@ -35,10 +35,10 @@ program main
 		cluster(statefips)
 	esttab reg_1 reg_2 reg_3 reg_4 reg_5 using "`outstub'/fd_dynamic_table.tex", ///
 		keep(*.ln_mw) compress se replace substitute(\_ _) ///
-		coeflabels(`estlabels_dyn') ///
-		stats(cumsum_b cumsum_V p_value_F ctrl_wage ctrl_emp ctrl_estab r2 N, ///
-			fmt(%9.3f %s5 %9.3f %s3 %s3 %s3 %9.3f %9.0gc) ///
-		labels("Cumulative effect" "Cumulative effect s.e." "P-value no pretrends" ///
+		b(%9.4f) se(%9.4f) coeflabels(`estlabels_dyn') ///
+		stats(k cumsum_b cumsum_V k p_value_F ctrl_wage ctrl_emp ctrl_estab r2 N, ///
+			fmt(%s1 %s7 %s7 %s1 %9.3f %s3 %s3 %s3 %9.3f %9.0gc) ///
+		labels("\vspace{-2mm}" "Cumulative effect" " " "\hline" "P-value no pretrends" ///
 			"Wage controls" "Employment controls" "Establishment-count controls"  ///
 			"R-squared" "Observations")) ///
 		star(* 0.10 ** 0.05 *** 0.01) nonote nomtitles
@@ -113,6 +113,7 @@ program run_dynamic_model
 	
 	test `pretrend_test'
 	estadd scalar p_value_F = r(p)
+	estadd local k ""
 
 	add_cumsum, coefficients(`lincomest_coeffs') i(1)
 
@@ -122,6 +123,7 @@ program run_dynamic_model
 
 	test `pretrend_test'
 	estadd scalar p_value_F = r(p)
+	estadd local k ""
 
 	add_cumsum, coefficients(`lincomest_coeffs') i(2)
 
@@ -131,6 +133,7 @@ program run_dynamic_model
 
 	test `pretrend_test'
 	estadd scalar p_value_F = r(p)
+	estadd local k ""
 
 	add_cumsum, coefficients(`lincomest_coeffs') i(3)
 
@@ -140,6 +143,7 @@ program run_dynamic_model
 
 	test `pretrend_test'
 	estadd scalar p_value_F = r(p)
+	estadd local k ""
 
 	add_cumsum, coefficients(`lincomest_coeffs') i(4)
 
@@ -150,6 +154,7 @@ program run_dynamic_model
 
 	test `pretrend_test'
 	estadd scalar p_value_F = r(p)
+	estadd local k ""
 
 	add_cumsum, coefficients(`lincomest_coeffs') i(5)
 end
@@ -179,9 +184,19 @@ program add_cumsum
 	lincomest `coefficients'
 	mat b = e(b)
 	mat V = e(V)
+	local b_digits = round(b[1,1], 0.001)
 	local se_digits = round(V[1,1]^.5, 0.001)
+	if abs(b[1,1]/(V[1,1]^.5)) > 1.96 {
+		local star = "\sym{**}"
+	}
+	else if abs(b[1,1]/(V[1,1]^.5)) > 1.65 {
+		local star = "\sym{*}"
+	}
+	else {
+		local star = ""
+	}
 
-	estadd scalar cumsum_b = b[1,1]: reg_`i'
+	estadd local cumsum_b = "0`b_digits'`star'": reg_`i'
 	estadd local cumsum_V = "(0`se_digits')":  reg_`i'
 	*estadd scalar cumsum_V = V[1,1]^.5: reg_`i'
 end
