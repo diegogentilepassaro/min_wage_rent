@@ -203,6 +203,8 @@ format_tables <- function(x, datadir, data_version) {
                    (QU0E014 + QU0E015 + QU0E016 + QU0E017), QU0E001)]
       
       data[, 'med_hhinc20105' := QU1E001]
+
+      data[, 'med_pinc20105' := QXFE001]
       
       data[, c('unemp_share20105', 'unemp_share20105D') := list(QXSE005, QXSE002)]
       
@@ -218,7 +220,7 @@ format_tables <- function(x, datadir, data_version) {
                        'college_share20105', 
                        'poor_share20105', 
                        'lo_hhinc_share20105', 'hi_hhinc_share20105',
-                       'med_hhinc20105',
+                       'med_hhinc20105', 'med_pinc20105',
                        'unemp_share20105', 
                        'employee_share20105', 
                        'work_county_share20105D', 'worktravel_share_20105D', 'college_share20105D', 'poor_share20105D', 'hhinc_share20105D', 'unemp_share20105D', 'employee_share20105D', 
