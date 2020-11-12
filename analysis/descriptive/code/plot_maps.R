@@ -48,6 +48,7 @@ make_xwalks <- function() {
 plot_sample <- function(df_data, 
                         zipzcta,
                         zctamsa,
+                        plotmsa = F,
                         out) {
   
   #removing alaska and hawaii for visual clarity (we have though 26 zipcodes there)
@@ -73,23 +74,42 @@ plot_sample <- function(df_data,
   us_boundary <- sfheaders::sf_multipolygon(map_data('state'), x = 'long', y = 'lat', multipolygon_id = 'group')
   st_crs(us_boundary) <-4326
   
-  plot<- ggplot() + 
-    geom_sf(data = msa_map, color = 'transparent', aes(fill = 'msafill')) +
-    geom_sf(data = zcta_sample_map, color = 'transparent', aes(fill = 'samplefill')) + 
-    geom_sf(data = us_boundary, fill= NA, size = 1.5) +
-    theme_void() + 
-    theme(aspect.ratio = 0.6) + 
-    scale_fill_manual(values = c('msafill' = unname(seecol(pal_seeblau, hex = T)[1]),'samplefill' = unname(seecol(pal_petrol, hex = T)[5])), 
-                       label = c('CBSAs', 'Sample'), 
-                       name = '', 
-                       guide = guide_legend(direction = "horizontal",
-                                            keyheight = unit(4, units = "cm"),
-                                            keywidth = unit(8, units = "cm"),
-                                            byrow = T)) + 
-    theme(legend.position = "bottom", 
-          plot.title = element_text(size=180),
-          plot.subtitle = element_text(size = 140), 
-          legend.text = element_text(size = 80))
+  if (plotmsa == T) {
+    plot<- ggplot() + 
+      geom_sf(data = msa_map, color = 'transparent', aes(fill = 'msafill')) +
+      geom_sf(data = zcta_sample_map, color = 'transparent', aes(fill = 'samplefill')) + 
+      geom_sf(data = us_boundary, fill= NA, size = 1.5) +
+      theme_void() + 
+      theme(aspect.ratio = 0.6) + 
+      scale_fill_manual(values = c('msafill' = unname(seecol(pal_seeblau, hex = T)[1]),'samplefill' = unname(seecol(pal_petrol, hex = T)[5])), 
+                         label = c('CBSAs', 'Sample'), 
+                         name = '', 
+                         guide = guide_legend(direction = "horizontal",
+                                              keyheight = unit(4, units = "cm"),
+                                              keywidth = unit(8, units = "cm"),
+                                              byrow = T)) + 
+      theme(legend.position = "bottom", 
+            plot.title = element_text(size=180),
+            plot.subtitle = element_text(size = 140), 
+            legend.text = element_text(size = 80))
+  } else if (plotmsa==F) {
+      plot<- ggplot() + 
+        geom_sf(data = zcta_sample_map, color = 'transparent', aes(fill = 'samplefill')) + 
+        geom_sf(data = us_boundary, fill= NA, size = 1.5) +
+        theme_void() + 
+        theme(aspect.ratio = 0.6) + 
+        scale_fill_manual(values = c('samplefill' = unname(seecol(pal_petrol, hex = T)[5])), 
+                          label = c('Zillow Sample'), 
+                          name = '', 
+                          guide = guide_legend(direction = "horizontal",
+                                               keyheight = unit(4, units = "cm"),
+                                               keywidth = unit(8, units = "cm"),
+                                               byrow = T)) + 
+        theme(legend.position = "bottom", 
+              plot.title = element_text(size=180),
+              plot.subtitle = element_text(size = 140), 
+              legend.text = element_text(size = 80))
+  }
   return(plot)
 }
 plot_demo <- function(target_demo,
@@ -174,11 +194,18 @@ plot_changes_city <- function(target_var,
   df_target <- df_target[, Fyear_month := shift(year_month, type = 'lead'), by = zipcode]
   df_target <- df_target[Fyear_month >= as.Date(mwdate), ]
   df_target <- df_target[df_target[, .I[1:nmonths2], zipcode]$V1]
-  df_target[, pct_rentch := (get(target_var)[.N] - get(target_var)[1])/get(target_var)[1], by = 'zipcode']
+  df_target[, pct_target := (get(target_var)[.N] - get(target_var)[1])/get(target_var)[1], by = 'zipcode']
   df_target <- df_target[, last(.SD), by = zipcode]
-  df_target <- df_target[!is.na(pct_rentch),]
+  #double condition if mw
+  # df_target <- df_target[!is.na(pct_target),]
+  df_target <- df_target[!is.na(medrentpricepsqft_sfcc),]
   df_target[, 'region' := zipcode]
-  df_target[, pct_rentch := round(Winsorize(pct_rentch)*100, digits = 2)] #winsorize at .05 and .95
+  #winsor if rent?
+  if (target_var=='medrentpricepsqft_sfcc') {
+    df_target[, pct_target := round(Winsorize(pct_target)*100, digits = 2)] #winsorize at .05 and .95
+  } else {
+    df_target[, pct_target := round(pct_mwch*100, digits = 2)]  
+  }
   
   data(zip.map)
   zcta_map <- sfheaders::sf_multipolygon(zip.map, x = 'long', y = 'lat', multipolygon_id = 'id', polygon_id = 'piece', keep = T)
@@ -195,12 +222,20 @@ plot_changes_city <- function(target_var,
   mw_map <- st_union(mw_map)
   
   #define color palette over fixed interval
-  minVal = min(df_target$pct_rentch, na.rm = T)
-  maxVal = max(df_target$pct_rentch, na.rm = T)
+  minVal = min(df_target$pct_target, na.rm = T)
+  maxVal = max(df_target$pct_target, na.rm = T)
+  
+  if (grepl('mw', target_var)==T){
+    legend_name <- "6-Months Rent Change (%)"
+    legend_width <- 50
+  } else {
+    legend_name <- "6-Months Minimum Wage Change (%)"
+    legend_width <- 70
+  }
   
   plot <- ggplot() + 
     geom_sf(data = msa_map, color = 'black', fill = 'transparent', size = 1.5) +  
-    geom_sf(data = zcta_sample_map, aes(fill=pct_rentch), color="white", size = 1.5) +
+    geom_sf(data = zcta_sample_map, aes(fill=pct_target), color="white", size = 1.5) +
     #geom_sf(data = mw_map, color = 'darkred', fill = 'transparent', size = 5) +
     theme_void() +
     theme(panel.grid.major = element_line(colour = 'transparent')) +
@@ -208,11 +243,11 @@ plot_changes_city <- function(target_var,
       low = seecol(pal_petrol, hex = T)[1], 
       high = seecol(pal_petrol, hex = T)[5],
       limits = c(minVal, maxVal),
-      name = "6-Months Rent Change (%)", 
+      name = legend_name, 
       aesthetics = 'fill',
       guide = guide_colorbar(direction = "horizontal",
                              barheight = unit(2, units = "cm"),
-                             barwidth = unit(50, units = "cm"),
+                             barwidth = unit(legend_width, units = "cm"),
                              draw.ulim = T,
                              draw.llim = T,
                              title.position = 'top',
@@ -327,9 +362,6 @@ dev.off()
 png(filename = paste0(outdir, 'popurban_density_map.png'), width = 7680, height = 5680)
 plot_demo(out = outdir, zctamsa = zcta_msa_xwalk, target_demo = 'urbpopden', legend_name = 'Urban Population Density (per Sq. Miles)')
 dev.off()
-png(filename = paste0(outdir, 'houseurban_density_map.png'), width = 7680, height = 5680)
-plot_demo(out = outdir, zctamsa = zcta_msa_xwalk, target_demo = 'urbhouseden', legend_name = 'Urban Housing Density (per Sq. Miles)')
-dev.off()
 
 
 # L.A. MSA
@@ -347,7 +379,7 @@ plot_changes_city(target_var = 'medrentpricepsqft_sfcc',
                 out = outdir)
 dev.off()
 png(filename = paste0(outdir, 'Los_Angeles_msa_mw.png'), width = 7680, height = 7680)
-plot_mw_changes_city(target_var = 'actual_mw', 
+plot_changes_city(target_var = 'actual_mw', 
                  target_msa = "Los Angeles",
                  nmon = 6,
                  plotname = "Los Angeles MSA",
@@ -360,7 +392,7 @@ plot_mw_changes_city(target_var = 'actual_mw',
                  out = outdir)
 dev.off()
 png(filename = paste0(outdir, 'Los_Angeles_msa_expmw.png'), width = 7680, height = 7680)
-plot_mw_changes_city(target_var = 'exp_mw_totjob', 
+plot_changes_city(target_var = 'exp_mw_totjob', 
                      target_msa = "Los Angeles",
                      nmon = 6,
                      plotname = "Los Angeles MSA",
