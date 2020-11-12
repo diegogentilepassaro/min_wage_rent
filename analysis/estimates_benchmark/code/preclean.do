@@ -14,7 +14,7 @@ program main
 		dactual_mw actual_mw medrentpricepsqft_* 							///
 		med_hhinc20105 renthouse_share2010 white_share2010 black_share2010			///
 		college_share20105 work_county_share20105 unemp_share20105 teen_share2010   ///
-		estcount_* avgwwage_* emp_* u1* sh_mww_renter_wmean* mww_shrenter_*
+		estcount_* avgwwage_* emp_* u1* sh_mww_renter_wmean* mww_shrenter_* medrentprice_sfcc
 
 	
 
@@ -62,7 +62,6 @@ program create_vars
 	foreach var in `desvars' {
 		cap destring `var', replace
 	}
-
 end
 
 program simplify_varnames

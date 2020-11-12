@@ -33,7 +33,10 @@ end
 program incidence
 	syntax, outstub(str)
 
-	g tot_wage_bill = D2.ln_mw  if L2.dactual_mw>0
+	sum med_hhinc20105, det 
+
+	g tot_wage_bill = d_ln_mw * mww_shrenter_wmean2  if dactual_mw>0
+
 end 
 
 program benchmark_plot_all2
