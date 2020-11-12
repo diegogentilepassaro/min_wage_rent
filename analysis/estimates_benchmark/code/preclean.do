@@ -13,7 +13,8 @@ program main
 		year_month calendar_month trend trend_sq trend_cu					 		///
 		dactual_mw actual_mw medrentpricepsqft_* medrentprice_sfcc 							///
 		med_hhinc20105 med_pinc20105 renthouse_share2010 white_share2010 black_share2010			///
-		college_share20105 work_county_share20105 unemp_share20105 teen_share2010 pop2010   ///
+		college_share20105 work_county_share20105 unemp_share20105 teen_share2010 ///
+		pop2010  workers20105 workers_prsal20105 ///
 		estcount_* avgwwage_* emp_* u1* sh_mww_renter_wmean* mww_shrenter_* sh_mww_wmean* sh_mww_all* 
 		
 

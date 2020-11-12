@@ -30,21 +30,42 @@ program main
 	} */	
 end 
 
-program incidence, rclass
+program incidence
 	syntax, depvar(str) absorb(str) cluster(str) mww_share(str) outstub(str) [w(int 5)]
 
 	qui reghdfe D.`depvar' D.ln_mw, ///
 			absorb(`absorb')        ///
 			vce(cluster `cluster') nocons
+	local r = _b[D.ln_mw]
 	g estsample = e(sample)
 
 	g med_pinc_month = med_pinc20105 / 12 
+	qui sum med_pinc_month if F.dactual_mw>0 & estsample==1 
+	local avg_med_pinc_month = r(mean)
 
 	g Dmmw = D.actual_mw * 40 * 4.35 if dactual_mw>0 & estsample==1
+	qui sum dactual_mw if dactual_mw>0 & estsample==1
+	local avg_Dmw = r(mean)
+	local avg_Dmmw = `avg_Dmw' * 40 * 4.35
 
-	g Dincome = Dmmw * `mww_share' * pop2010 if dactual_mw>0 & estsample==1
+	qui sum `mww_share' if dactual_mw>0 & estsample==1
+	local avg_mww_share = r(mean)
 
-	g Dincome_pct = Dincome / L.med_pinc_month if dactual_mw>0 & estsample==1
+	g Dincome = Dmmw * `mww_share' if dactual_mw>0 & estsample==1
+	local avg_Dincome = `avg_Dmmw' * `avg_mww_share'
+
+	g Dincome_pct = (Dincome / L.med_pinc_month)*100 if dactual_mw>0 & estsample==1
+	local avg_Dincome_pct = (`avg_Dincome' / `avg_med_pinc_month')*100
+
+	g Drent_pct = (D.`depvar')*100 if dactual_mw>0 & estsample==1
+
+	g pt = `r' / Dincome_pct
+	local avg_pt = `r' / `avg_Dincome_pct'
+
+	sum pt, det 
+
+	di `avg_pt'
+	hist pt
 
 end 
 
