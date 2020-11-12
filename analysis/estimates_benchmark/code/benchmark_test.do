@@ -17,7 +17,9 @@ program main
 	local gamma_hi = - 0.5
 	local k = 0.1
 
-	foreach win in 5 {
+	incidence, outstub(`outstub')
+
+	/* foreach win in 5 {
 		benchmark_plot_all2, depvar(ln_med_rent_psqft) w(`win') absorb(year_month zipcode) cluster(statefips) outstub(`outstub') ///
 							 beta_low(`beta_low') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k')
 		graph export `outstub'/benchmark_all2_w`win'_ziptrend_base.png, replace
@@ -25,10 +27,14 @@ program main
 		benchmark_plot_wmean, depvar(ln_med_rent_psqft) w(`win') absorb(year_month zipcode) cluster(statefips) outstub(`outstub') ///
 							 beta_low(`beta_low') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k')
 		graph export `outstub'/benchmark_wmean2_w`win'_ziptrend_base.png, replace	
-	}	
+	} */	
 end 
 
+program incidence
+	syntax, outstub(str)
 
+	g tot_wage_bill = D2.ln_mw  if L2.dactual_mw>0
+end 
 
 program benchmark_plot_all2
     syntax, depvar(str) w(int) absorb(str) cluster(str) outstub(str) beta_low(str) gamma_low(str) gamma_hi(str) k(str)
@@ -63,11 +69,11 @@ program benchmark_plot_all2
 	sum mww_shrenter_wmean2 if e(sample)
 	local mww_share_rentm = r(mean)
 
-	compute_benchmark, beta_low(`beta_low') alpha(`alpha') s_low(`mww_share_rent1') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(total)
+	compute_benchmark, beta_low(`beta_low') s_low(`mww_share_rent1') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(total)
 	local mod_rent1  = r(benchmark_total)
-	compute_benchmark, beta_low(`beta_low') alpha(`alpha') s_low(`mww_share_rent2') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(total_rent)
+	compute_benchmark, beta_low(`beta_low') s_low(`mww_share_rent2') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(total_rent)
 	local mod_rent2 = r(benchmark_total_rent)
-	compute_benchmark, beta_low(`beta_low') alpha(`alpha') s_low(`mww_share_rentm') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(rent)
+	compute_benchmark, beta_low(`beta_low') s_low(`mww_share_rentm') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(rent)
 	local mod_rentm = r(benchmark_rent)
 
 	coefplot (model1, color(ebblue) ciopts(lcolor(ebblue) lp(dash) lw(vthin)) rename(D.ln_mw = "Static") keep(D.ln_mw))     ///
@@ -124,11 +130,11 @@ program benchmark_plot_wmean
 	sum mww_shrenter_wmean2 if e(sample)
 	local mww_share_rentm = r(mean)
 
-	compute_benchmark, beta_low(`beta_low') alpha(`alpha') s_low(`mww_share_rent1') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(total)
+	compute_benchmark, beta_low(`beta_low') s_low(`mww_share_rent1') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(total)
 	local mod_rent1  = r(benchmark_total)
-	compute_benchmark, beta_low(`beta_low') alpha(`alpha') s_low(`mww_share_rent2') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(total_rent)
+	compute_benchmark, beta_low(`beta_low') s_low(`mww_share_rent2') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(total_rent)
 	local mod_rent2 = r(benchmark_total_rent)
-	compute_benchmark, beta_low(`beta_low') alpha(`alpha') s_low(`mww_share_rentm') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(rent)
+	compute_benchmark, beta_low(`beta_low') s_low(`mww_share_rentm') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(rent)
 	local mod_rentm = r(benchmark_rent)
 
 	coefplot (model1, color(ebblue) ciopts(lcolor(ebblue) lp(dash) lw(vthin)) rename(D.ln_mw = "Static") keep(D.ln_mw))     ///
