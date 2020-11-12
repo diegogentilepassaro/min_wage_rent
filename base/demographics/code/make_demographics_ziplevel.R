@@ -181,6 +181,10 @@ format_tables <- function(x, datadir, data_version) {
    }
    
    else if (x == 'ds191_20125_2012_tract.csv') {
+
+      data[, 'workers20105' := QS6E001]
+
+      data[, 'workers_prsal20105' := QX5E004 + QX5E005 + QX5E006 + QX5E014 + QX5E015 + QX5E016]
       
       data[, c('work_county_share20105', 'work_county_share20105D'):= list(QS6E003, QS6E001)]
       
@@ -214,7 +218,8 @@ format_tables <- function(x, datadir, data_version) {
       
       
       
-      target_vars <- c('tract_fips', 'county_fips', 
+      target_vars <- c('tract_fips', 'county_fips',
+                       'workers20105', 'workers_prsal20105',
                        'work_county_share20105', 
                        'worktravel_10_share20105', 'worktravel_10_60_share20105', 'worktravel_60_share20105', 
                        'college_share20105', 
