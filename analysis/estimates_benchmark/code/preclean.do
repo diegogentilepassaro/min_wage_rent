@@ -11,10 +11,11 @@ program main
 	use "`instub'/baseline_rent_panel.dta", clear 
 	keep zipcode place_code msa countyfips statefips 								///
 		year_month calendar_month trend trend_sq trend_cu					 		///
-		dactual_mw actual_mw medrentpricepsqft_* 							///
-		med_hhinc20105 renthouse_share2010 white_share2010 black_share2010			///
-		college_share20105 work_county_share20105 unemp_share20105 teen_share2010   ///
-		estcount_* avgwwage_* emp_* u1* sh_mww_renter_wmean* mww_shrenter_* medrentprice_sfcc
+		dactual_mw actual_mw medrentpricepsqft_* medrentprice_sfcc 							///
+		med_hhinc20105 med_pinc20105 renthouse_share2010 white_share2010 black_share2010			///
+		college_share20105 work_county_share20105 unemp_share20105 teen_share2010 pop2010   ///
+		estcount_* avgwwage_* emp_* u1* sh_mww_renter_wmean* mww_shrenter_* sh_mww_wmean* sh_mww_all* 
+		
 
 	
 

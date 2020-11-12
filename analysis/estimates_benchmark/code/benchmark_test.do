@@ -17,7 +17,7 @@ program main
 	local gamma_hi = - 0.5
 	local k = 0.1
 
-	incidence, outstub(`outstub')
+	incidence, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) cluster(statefips) mww_share(sh_mww_all2) outstub(`outstub')
 
 	/* foreach win in 5 {
 		benchmark_plot_all2, depvar(ln_med_rent_psqft) w(`win') absorb(year_month zipcode) cluster(statefips) outstub(`outstub') ///
@@ -30,12 +30,21 @@ program main
 	} */	
 end 
 
-program incidence
-	syntax, outstub(str)
+program incidence, rclass
+	syntax, depvar(str) absorb(str) cluster(str) mww_share(str) outstub(str) [w(int 5)]
 
-	sum med_hhinc20105, det 
+	qui reghdfe D.`depvar' D.ln_mw, ///
+			absorb(`absorb')        ///
+			vce(cluster `cluster') nocons
+	g estsample = e(sample)
 
-	g tot_wage_bill = d_ln_mw * mww_shrenter_wmean2  if dactual_mw>0
+	g med_pinc_month = med_pinc20105 / 12 
+
+	g Dmmw = D.actual_mw * 40 * 4.35 if dactual_mw>0 & estsample==1
+
+	g Dincome = Dmmw * `mww_share' * pop2010 if dactual_mw>0 & estsample==1
+
+	g Dincome_pct = Dincome / L.med_pinc_month if dactual_mw>0 & estsample==1
 
 end 
 
