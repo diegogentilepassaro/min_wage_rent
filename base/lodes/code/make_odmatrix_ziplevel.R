@@ -27,7 +27,9 @@ main <- function() {
   aux_all <- rbindlist(lapply(files_aux, function(x) fread(x)))
   aux_all[, h_statefips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0),1 , 2))]
   
-  odzip <- lapply(state_list, make_odmatrix_state)
+  odzip <- lapply(state_list, function(y) {
+    make_odmatrix_state(stabb = y, datadir = datadir_lodes, out = outdir, aux = aux_all, xwalk = tract_zip_xwalk, dest_threshold = .9)
+  })
     
 }
 
@@ -49,9 +51,9 @@ make_xwalk <- function(instub) { #crosswalk function
   return(list(xwalk, tract_zip_xwalk))
 }
 
-make_odmatrix_state <- function(x, datadir = datadir_lodes, out = outdir, aux = aux_all, xwalk = tract_zip_xwalk, dest_threshold = .9) {
+make_odmatrix_state <- function(stabb, datadir, out, aux, xwalk, dest_threshold) {
   #for each state (lapply): 
-  this_state <- fread(paste0(datadir, x, '_od_main_JT00_2017.csv.gz'))
+  this_state <- fread(paste0(datadir, stabb, '_od_main_JT00_2017.csv.gz'))
   this_fips <- as.numeric(substr(str_pad(this_state$h_geocode[1], 15, pad = 0),1 , 2))
   this_aux <- aux[h_statefips==this_fips,][, h_statefips:=NULL]
   this_state <- rbindlist(list(this_state, this_aux))
