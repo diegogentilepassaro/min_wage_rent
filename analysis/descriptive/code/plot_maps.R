@@ -59,8 +59,6 @@ main <- function() {
   
   make_city_plots <- function(x, vars = varplot) {
     
-    plot_name <- paste0(x[1], ' MSA')
-    
     lapply(vars, function(y) {
       if (y=='actual_mw') this_file_name <- paste0(gsub(' ', '_', x[1]), '_mw_msa.png')
       else if (y=='exp_mw_totjob') this_file_name <- paste0(gsub(' ', '_', x[1]), '_expmw_msa.png')
@@ -70,7 +68,6 @@ main <- function() {
       print(plot_changes_city(target_var = y,
                               target_msa = x[1],
                               nmon = 6,
-                              plotname = plot_name,
                               df_data = df,
                               mwarea = x[2],
                               mwdate = x[3],
@@ -242,7 +239,6 @@ plot_changes_city <- function(target_var,
                               target_msa, 
                               mwarea, 
                               mwdate, 
-                              plotname, 
                               df_data, 
                               nmon,
                               zctamsa, 
@@ -318,7 +314,6 @@ plot_changes_city <- function(target_var,
                              title.hjust = 0.5,
                              label.hjust = 0.5), 
       na.value = 'gray') +
-    labs(title=plotname, subtitle = paste0('MW change date: ', mwdate)) +
     theme(legend.position = "bottom",
           plot.title = element_text(size=180),
           plot.subtitle = element_text(size = 140),
