@@ -99,6 +99,14 @@ program add_covars
 		merge m:1 zipcode using `inlodes'/zip_lodes.dta, nogen assert(1 2 3) keep(1 3)
 		merge m:1 zipcode year_month using `indemo'/exp_mw.dta, nogen assert(1 2 3) keep(1 3)
 	}
+	
+	gen date = dofm(year_month)
+	format date %d
+		
+	gen year  = year(date)
+	gen month = month(date)
+
+	drop date
 end 
 
 program create_baseline_panel
@@ -156,7 +164,6 @@ program unbalanced_panel
 		medlistingpricepsqft_sfcc monthlylistings_nsa_sfcc              ///
 		newmonthlylistings_nsa_sfcc										///
 		using "`instub'/zipcode_yearmonth_panel.dta", clear
-
 
 	local allmissing_tot ""	
 	foreach stub in `vars' {
