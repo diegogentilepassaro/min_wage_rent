@@ -19,6 +19,74 @@ remotes::install_github("jrnold/stataXml") #need this to process stata dates
 library('stataXml')
   
 
+main <- function() {
+  df <- read.dta13(paste0(datadir, 'unbal_rent_panel.dta'))
+  df <- setDT(df)
+  df[, countyfips := str_pad(as.character(countyfips), 5, pad = 0)]
+  df[, zipcode := str_pad(as.character(zipcode), 5, pad = 0)]
+  df[, year_month := fromStataTime(year_month, '%tm')]
+  df <- df[, .(year_month, statefips, countyfips, county, place_code, msa, zipcode, 
+               medrentpricepsqft_sfcc, state_mw, county_mw, local_mw, actual_mw, dactual_mw, mw_event, which_mw, exp_mw_totjob)]
+  
+  
+  xwalks <- make_xwalks()
+  zip_zcta_xwalk <- xwalks[['zip_zcta_xwalk']]
+  zcta_place_xwalk <- xwalks[['zcta_place_xwalk']]
+  zcta_msa_xwalk <- xwalks[['zcta_msa_xwalk']]
+  zip_county <- xwalks[['zip_county']]
+  
+  data(zip.map)
+  zcta_map <- sfheaders::sf_multipolygon(zip.map, x = 'long', y = 'lat', multipolygon_id = 'id', polygon_id = 'piece', keep = T)
+  
+  
+  png(filename = paste0(outdir, 'sample_map.png'), width = 7680, height = 5680)
+  print(plot_sample(df_data = df, zipzcta = zip_zcta_xwalk,
+                    out = outdir, zctamsa = zcta_msa_xwalk, zcta_map = zcta_map))
+  dev.off()
+
+  png(filename = paste0(outdir, 'popurban_density_map.png'), width = 7680, height = 5680)
+  print(plot_demo(out = outdir, zctamsa = zcta_msa_xwalk, zcta_map = zcta_map,
+                  target_demo = 'urbpopden', legend_name = 'Urban Population Density (per Sq. Miles)'))
+  dev.off()
+  
+  
+  city_list <- list(c('Los Angeles', 44000, '2019-07-01'), 
+                    c('Seattle', 63000,'2019-01-01'), 
+                    c('Chicago', 14000, '2019-07-01'),
+                    c('San Francisco', 67000, '2019-07-01'), 
+                    c('San Diego', 66000, '2019-01-01'))
+  varplot <- c('medrentpricepsqft_sfcc', 'actual_mw', 'exp_mw_totjob')
+  
+  make_city_plots <- function(x, vars = varplot) {
+    
+    plot_name <- paste0(x[1], ' MSA')
+    
+    lapply(vars, function(y) {
+      if (y=='actual_mw') this_file_name <- paste0(gsub(' ', '_', x[1]), '_mw_msa.png')
+      else if (y=='exp_mw_totjob') this_file_name <- paste0(gsub(' ', '_', x[1]), '_expmw_msa.png')
+      else this_file_name <- paste0(gsub(' ', '_', x[1]), '_rent_msa.png')
+      
+      png(filename = paste0(outdir,this_file_name), width = 7680, height = 7680)
+      print(plot_changes_city(target_var = y,
+                              target_msa = x[1],
+                              nmon = 6,
+                              plotname = plot_name,
+                              df_data = df,
+                              mwarea = x[2],
+                              mwdate = x[3],
+                              zctamsa = zcta_msa_xwalk,
+                              zctaplace = zcta_place_xwalk,
+                              zcta_map = zcta_map,
+                              out = outdir))
+      dev.off()
+      
+    })
+  }
+  
+  lapply(city_list, make_city_plots)
+  
+}
+
 make_xwalks <- function() {
   zip_zcta_xwalk <- setDT(read_excel('../../../raw/crosswalk/zip_to_zcta_2019.xlsx'))
   zip_zcta_xwalk <- zip_zcta_xwalk[!str_detect(zip_zcta_xwalk$ZIP_TYPE, "^Post")]
@@ -48,6 +116,7 @@ make_xwalks <- function() {
 plot_sample <- function(df_data, 
                         zipzcta,
                         zctamsa,
+                        zcta_map,
                         plotmsa = F,
                         out) {
   
@@ -56,8 +125,6 @@ plot_sample <- function(df_data,
   sample_zcta <- zipzcta[sample_zip, on = .(zipcode)][, .(zcta)][, value := 1]
   setnames(sample_zcta, old = 'zcta', new = 'region')
   
-  data(zip.map)
-  zcta_map <- sfheaders::sf_multipolygon(zip.map, x = 'long', y = 'lat', multipolygon_id = 'id', polygon_id = 'piece', keep = T)
   zcta_sample_map <- inner_join(zcta_map, sample_zcta, on = 'region')
   zcta_sample_map <- mutate(zcta_sample_map, fillvar = 2)
   st_crs(zcta_sample_map) <-4326
@@ -112,9 +179,11 @@ plot_sample <- function(df_data,
   }
   return(plot)
 }
+
 plot_demo <- function(target_demo,
                       legend_name,
                       zctamsa, 
+                      zcta_map,
                       out) {
   census_api_key('6e4bf831630a20872606ce3949acd975473a1d87')
   #censusvar <- load_variables(year = 2010, dataset = 'sf1') #to navigate census variables
@@ -125,8 +194,7 @@ plot_demo <- function(target_demo,
     select(- 'NAME') %>%
     setDT()
   
-  data(zip.map)
-  zcta_map <- sfheaders::sf_multipolygon(zip.map, x = 'long', y = 'lat', multipolygon_id = 'id', polygon_id = 'piece', keep = T) %>%
+  zcta_map <- zcta_map %>%
     select(- 'id', - 'order', -'group', -'AFFGEOID10', -'ZCTA5CE10', -'GEOID10', -'hole') %>%
     rename('zcta' = 'region') %>%
     left_join(zctamsa, by = 'zcta') %>%
@@ -170,8 +238,6 @@ plot_demo <- function(target_demo,
 }
 
 
-
-
 plot_changes_city <- function(target_var,
                               target_msa, 
                               mwarea, 
@@ -182,6 +248,7 @@ plot_changes_city <- function(target_var,
                               zctamsa, 
                               zipzcta,
                               zctaplace,
+                              zcta_map,
                               out) {
   nmonths <- nmon
   nmonths2 <- nmonths + 1 # keep t-1 for computing percentage change
@@ -202,13 +269,10 @@ plot_changes_city <- function(target_var,
   df_target[, 'region' := zipcode]
   #winsor if rent?
   if (target_var=='medrentpricepsqft_sfcc') {
-    df_target[, pct_target := round(Winsorize(pct_target)*100, digits = 2)] #winsorize at .05 and .95
+    df_target[, pct_target := round(Winsorize(pct_target, na.rm = T)*100, digits = 2)] #winsorize at .05 and .95
   } else {
-    df_target[, pct_target := round(pct_mwch*100, digits = 2)]  
+    df_target[, pct_target := round(pct_target*100, digits = 2)]  
   }
-  
-  data(zip.map)
-  zcta_map <- sfheaders::sf_multipolygon(zip.map, x = 'long', y = 'lat', multipolygon_id = 'id', polygon_id = 'piece', keep = T)
   
   zcta_sample_map <- inner_join(zcta_map, df_target, on = 'region')
   st_crs(zcta_sample_map) <- 4326
@@ -226,11 +290,11 @@ plot_changes_city <- function(target_var,
   maxVal = max(df_target$pct_target, na.rm = T)
   
   if (grepl('mw', target_var)==T){
-    legend_name <- "6-Months Rent Change (%)"
-    legend_width <- 50
-  } else {
-    legend_name <- "6-Months Minimum Wage Change (%)"
+    legend_name <- "6-Month Minimum Wage Change (%)"
     legend_width <- 70
+  } else {
+    legend_name <- "6-Month Rent Change (%)"
+    legend_width <- 50
   }
   
   plot <- ggplot() + 
@@ -240,7 +304,7 @@ plot_changes_city <- function(target_var,
     theme_void() +
     theme(panel.grid.major = element_line(colour = 'transparent')) +
     scale_fill_gradient(
-      low = seecol(pal_petrol, hex = T)[1], 
+      low = seecol(pal_seeblau, hex = T)[1], 
       high = seecol(pal_petrol, hex = T)[5],
       limits = c(minVal, maxVal),
       name = legend_name, 
@@ -264,314 +328,11 @@ plot_changes_city <- function(target_var,
   return(plot)
 }
 
-plot_mw_changes_city <- function(target_var,
-                              target_msa, 
-                              mwarea, 
-                              mwdate, 
-                              plotname, 
-                              df_data, 
-                              nmon,
-                              zctamsa, 
-                              zipzcta,
-                              zctaplace,
-                              out) {
-  nmonths <- nmon
-  nmonths2 <- nmonths + 1 # keep t-1 for computing percentage change
   
-  #identify main variable to plot: % change in rents after last MW change
-  df_target <- df_data[data.table::like(vector = msa, pattern = target_msa), 
-                       c('zipcode', 'countyfips', 'year_month', 'msa', 'place_code',
-                         'medrentpricepsqft_sfcc', 'actual_mw', 'dactual_mw', 
-                         'exp_mw_totjob')]
-  df_target <- df_target[, Fyear_month := shift(year_month, type = 'lead'), by = zipcode]
-  df_target <- df_target[Fyear_month >= as.Date(mwdate), ]
-  df_target <- df_target[df_target[, .I[1:nmonths2], zipcode]$V1]
-  df_target[, pct_mwch := (get(target_var)[.N] - get(target_var)[1])/get(target_var)[1], by = 'zipcode']
-  df_target <- df_target[, last(.SD), by = zipcode]
-  df_target <- df_target[!is.na(pct_mwch) & !is.na(medrentpricepsqft_sfcc),]
-  df_target[, 'region' := zipcode]
-  df_target[, pct_mwch := round(pct_mwch*100, digits = 2)]  
-
-  data(zip.map)
-  zcta_map <- sfheaders::sf_multipolygon(zip.map, x = 'long', y = 'lat', multipolygon_id = 'id', polygon_id = 'piece', keep = T)
-  
-  zcta_sample_map <- inner_join(zcta_map, df_target, on = 'region')
-  st_crs(zcta_sample_map) <- 4326
-  
-  msa_map <- zctamsa[data.table::like(vector = msaname, pattern = target_msa), ]
-  msa_map <- inner_join(zcta_map, msa_map, by = c('region' = 'zcta'))
-  st_crs(msa_map) <-4326
-  
-  mw_map <- inner_join(msa_map, zctaplace, by = c('region' = 'zcta'))
-  mw_map <- mw_map[mw_map$place_code==mwarea,]
-  mw_map <- st_union(mw_map)
-
-  minVal = min(df_target$pct_mwch, na.rm = T)
-  maxVal = max(df_target$pct_mwch, na.rm = T)
-
-  plot <- ggplot() + 
-    geom_sf(data = msa_map, color = 'black', fill = 'transparent', size = 1.5) +  
-    geom_sf(data = zcta_sample_map, aes(fill=pct_mwch), color="white", size =1.5) +
-    theme_void() +
-    theme(panel.grid.major = element_line(colour = 'transparent')) +
-    scale_fill_gradient(
-      low = seecol(pal_petrol, hex = T)[1], 
-      high = seecol(pal_petrol, hex = T)[5],
-      limits = c(minVal, maxVal),
-      name = "6-Months Minimum Wage Change (%)", 
-      aesthetics = 'fill',
-      guide = guide_colorbar(direction = "horizontal",
-                             barheight = unit(2, units = "cm"),
-                             barwidth = unit(70, units = "cm"),
-                             draw.ulim = T,
-                             draw.llim = T,
-                             title.position = 'top',
-                             title.hjust = 0.5,
-                             label.hjust = 0.5), 
-      na.value = 'gray') +
-    labs(title=plotname, subtitle = paste0('MW change date: ', mwdate)) +
-    theme(legend.position = "bottom",
-          plot.title = element_text(size=180),
-          plot.subtitle = element_text(size = 140),
-          legend.title = element_text(size = 120),
-          legend.text = element_text(size = 80))
-  
-  return(plot)
-}
-  
-df <- read.dta13(paste0(datadir, 'unbal_rent_panel.dta'))
-df <- setDT(df)
-df[, countyfips := str_pad(as.character(countyfips), 5, pad = 0)]
-df[, zipcode := str_pad(as.character(zipcode), 5, pad = 0)]
-df[, year_month := fromStataTime(year_month, '%tm')]
-df <- df[, .(year_month, statefips, countyfips, county, place_code, msa, zipcode, 
-             medrentpricepsqft_sfcc, state_mw, county_mw, local_mw, actual_mw, dactual_mw, mw_event, which_mw, exp_mw_totjob)]
 
 
-xwalks <- make_xwalks()
-zip_zcta_xwalk <- xwalks[['zip_zcta_xwalk']]
-zcta_place_xwalk <- xwalks[['zcta_place_xwalk']]
-zcta_msa_xwalk <- xwalks[['zcta_msa_xwalk']]
-zip_county <- xwalks[['zip_county']]
 
-
-png(filename = paste0(outdir, 'sample_map.png'), width = 7680, height = 5680)
-plot_sample(df_data = df, zipzcta = zip_zcta_xwalk, out = outdir, zctamsa = zcta_msa_xwalk)
-dev.off()
-
-png(filename = paste0(outdir, 'popurban_density_map.png'), width = 7680, height = 5680)
-plot_demo(out = outdir, zctamsa = zcta_msa_xwalk, target_demo = 'urbpopden', legend_name = 'Urban Population Density (per Sq. Miles)')
-dev.off()
-
-
-# L.A. MSA
-png(filename = paste0(outdir, 'Los_Angeles_msa.png'), width = 7680, height = 7680)
-plot_changes_city(target_var = 'medrentpricepsqft_sfcc', 
-                target_msa = "Los Angeles",
-                nmon = 6,
-                plotname = "Los Angeles MSA",
-                df_data = df,
-                mwarea = 44000,
-                mwdate = '2019-07-01',
-                zctamsa = zcta_msa_xwalk,
-                zipzcta = zip_zcta_xwalk,
-                zctaplace = zcta_place_xwalk,
-                out = outdir)
-dev.off()
-png(filename = paste0(outdir, 'Los_Angeles_msa_mw.png'), width = 7680, height = 7680)
-plot_changes_city(target_var = 'actual_mw', 
-                 target_msa = "Los Angeles",
-                 nmon = 6,
-                 plotname = "Los Angeles MSA",
-                 df_data = df,
-                 mwarea = 44000,
-                 mwdate = '2019-07-01',
-                 zctamsa = zcta_msa_xwalk,
-                 zipzcta = zip_zcta_xwalk,
-                 zctaplace = zcta_place_xwalk,
-                 out = outdir)
-dev.off()
-png(filename = paste0(outdir, 'Los_Angeles_msa_expmw.png'), width = 7680, height = 7680)
-plot_changes_city(target_var = 'exp_mw_totjob', 
-                     target_msa = "Los Angeles",
-                     nmon = 6,
-                     plotname = "Los Angeles MSA",
-                     df_data = df,
-                     mwarea = 44000,
-                     mwdate = '2019-07-01',
-                     zctamsa = zcta_msa_xwalk,
-                     zipzcta = zip_zcta_xwalk,
-                     zctaplace = zcta_place_xwalk,
-                     out = outdir)
-dev.off()
-
-# Seattle MSA
-png(filename = paste0(outdir, 'Seattle_msa.png'), width = 7680, height = 7680)
-plot_changes_city(target_var = 'medrentpricepsqft_sfcc',
-           target_msa = "Seattle",
-           nmon = 6,
-           plotname = "Seattle MSA",
-           df_data = df,
-           mwarea = 63000,
-           mwdate = '2019-01-01',
-           zctamsa = zcta_msa_xwalk,
-           zipzcta = zip_zcta_xwalk,
-           zctaplace = zcta_place_xwalk,
-           out = outdir)
-dev.off()
-png(filename = paste0(outdir, 'Seattle_msa_mw.png'), width = 7680, height = 7680)
-plot_mw_changes_city(target_var = 'actual_mw',
-                  target_msa = "Seattle",
-                  nmon = 6,
-                  plotname = "Seattle MSA",
-                  df_data = df,
-                  mwarea = 63000,
-                  mwdate = '2019-01-01',
-                  zctamsa = zcta_msa_xwalk,
-                  zipzcta = zip_zcta_xwalk,
-                  zctaplace = zcta_place_xwalk,
-                  out = outdir)
-dev.off()
-png(filename = paste0(outdir, 'Seattle_msa_expmw.png'), width = 7680, height = 7680)
-plot_mw_changes_city(target_var = 'exp_mw_totjob',
-                     target_msa = "Seattle",
-                     nmon = 6,
-                     plotname = "Seattle MSA",
-                     df_data = df,
-                     mwarea = 63000,
-                     mwdate = '2019-01-01',
-                     zctamsa = zcta_msa_xwalk,
-                     zipzcta = zip_zcta_xwalk,
-                     zctaplace = zcta_place_xwalk,
-                     out = outdir)
-dev.off()
-
-# Chicago MSA (cook county increase MW in July 2019)
-png(filename = paste0(outdir, 'Chicago_msa.png'), width = 7680, height = 7680)
-plot_changes_city(target_var = 'medrentpricepsqft_sfcc',
-                  target_msa = "Chicago",
-                  nmon = 6,
-                  plotname = "Chicago MSA",
-                  df_data = df,
-                  mwarea = 14000,
-                  mwdate = '2019-07-01',
-                  zctamsa = zcta_msa_xwalk,
-                  zipzcta = zip_zcta_xwalk,
-                  zctaplace = zcta_place_xwalk,
-                  out = outdir)
-dev.off()
-
-
-png(filename = paste0(outdir, 'Chicago_msa_mw.png'), width = 7680, height = 7680)
-plot_mw_changes_city(target_var = 'actual_mw',
-                     target_msa = "Chicago",
-                     nmon = 6,
-                     plotname = "Chicago MSA",
-                     df_data = df,
-                     mwarea = 14000,
-                     mwdate = '2019-07-01',
-                     zctamsa = zcta_msa_xwalk,
-                     zipzcta = zip_zcta_xwalk,
-                     zctaplace = zcta_place_xwalk,
-                     out = outdir)
-dev.off()
-png(filename = paste0(outdir, 'Chicago_msa_expmw.png'), width = 7680, height = 7680)
-plot_mw_changes_city(target_var = 'exp_mw_totjob',
-                     target_msa = "Chicago",
-                     nmon = 6,
-                     plotname = "Chicago MSA",
-                     df_data = df,
-                     mwarea = 14000,
-                     mwdate = '2019-07-01',
-                     zctamsa = zcta_msa_xwalk,
-                     zipzcta = zip_zcta_xwalk,
-                     zctaplace = zcta_place_xwalk,
-                     out = outdir)
-dev.off()
-
-# SF msa
-png(filename = paste0(outdir, 'San_Francisco_msa.png'), width = 7680, height = 7680)
-plot_changes_city(target_var = 'medrentpricepsqft_sfcc',
-                target_msa = "San Francisco",
-                nmon = 6,
-                plotname = "San Francisco MSA",
-                df_data = df,
-                mwarea = 67000,
-                mwdate = '2019-07-01',
-                zctamsa = zcta_msa_xwalk,
-                zipzcta = zip_zcta_xwalk,
-                zctaplace = zcta_place_xwalk,
-                out = outdir)
-dev.off()
-png(filename = paste0(outdir, 'San_Francisco_msa_mw.png'), width = 7680, height = 7680)
-plot_mw_changes_city(target_var = 'actual_mw',
-                  target_msa = "San Francisco",
-                  nmon = 6,
-                  plotname = "San Francisco MSA",
-                  df_data = df,
-                  mwarea = 67000,
-                  mwdate = '2019-07-01',
-                  zctamsa = zcta_msa_xwalk,
-                  zipzcta = zip_zcta_xwalk,
-                  zctaplace = zcta_place_xwalk,
-                  out = outdir)
-dev.off()
-png(filename = paste0(outdir, 'San_Francisco_msa_expmw.png'), width = 7680, height = 7680)
-plot_mw_changes_city(target_var = 'exp_mw_totjob',
-                     target_msa = "San Francisco",
-                     nmon = 6,
-                     plotname = "San Francisco MSA",
-                     df_data = df,
-                     mwarea = 67000,
-                     mwdate = '2019-07-01',
-                     zctamsa = zcta_msa_xwalk,
-                     zipzcta = zip_zcta_xwalk,
-                     zctaplace = zcta_place_xwalk,
-                     out = outdir)
-dev.off()
-
-#San Diego
-png(filename = paste0(outdir, 'San_Diego_msa.png'), width = 7680, height = 7680)
-plot_changes_city(target_var = 'medrentpricepsqft_sfcc',
-           target_msa = "San Diego",
-           mwarea = 66000,
-           nmon = 6,
-           plotname = "San Diego MSA",
-           df_data = df,
-           mwdate = '2019-01-01',
-           zctamsa = zcta_msa_xwalk,
-           zipzcta = zip_zcta_xwalk,
-           zctaplace = zcta_place_xwalk,
-           out = outdir)
-dev.off()
-png(filename = paste0(outdir, 'San_Diego_msa_mw.png'), width = 7680, height = 7680)
-plot_mw_changes_city(target_var = 'actual_mw',
-                  target_msa = "San Diego",
-                  mwarea = 66000,
-                  nmon = 6,
-                  plotname = "San Diego MSA",
-                  df_data = df,
-                  mwdate = '2019-01-01',
-                  zctamsa = zcta_msa_xwalk,
-                  zipzcta = zip_zcta_xwalk,
-                  zctaplace = zcta_place_xwalk,
-                  out = outdir)
-dev.off()
-png(filename = paste0(outdir, 'San_Diego_msa_expmw.png'), width = 7680, height = 7680)
-plot_mw_changes_city(target_var = 'exp_mw_totjob',
-                     target_msa = "San Diego",
-                     mwarea = 66000,
-                     nmon = 6,
-                     plotname = "San Diego MSA",
-                     df_data = df,
-                     mwdate = '2019-01-01',
-                     zctamsa = zcta_msa_xwalk,
-                     zipzcta = zip_zcta_xwalk,
-                     zctaplace = zcta_place_xwalk,
-                     out = outdir)
-dev.off()
-
-
+main()
 
 
 
