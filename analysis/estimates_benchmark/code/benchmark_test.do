@@ -17,7 +17,7 @@ program main
 	local gamma_hi = - 0.5
 	local k = 0.1
 
-	incidence, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) cluster(statefips) mww_share(sh_mww_all2) outstub(`outstub')
+	incidence_formula, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) cluster(statefips) mww_share(sh_mww_all2) outstub(`outstub')
 
 	/* foreach win in 5 {
 		benchmark_plot_all2, depvar(ln_med_rent_psqft) w(`win') absorb(year_month zipcode) cluster(statefips) outstub(`outstub') ///
@@ -30,7 +30,7 @@ program main
 	} */	
 end 
 
-program incidence
+program incidence_formula
 	syntax, depvar(str) absorb(str) cluster(str) mww_share(str) outstub(str) [w(int 5)]
 
 	qui reghdfe D.`depvar' D.ln_mw, ///
