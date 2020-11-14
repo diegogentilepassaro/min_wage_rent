@@ -14,22 +14,17 @@ program main
 		dactual_mw actual_mw medrentpricepsqft_* 							///
 		med_hhinc20105 renthouse_share2010 white_share2010 black_share2010			///
 		college_share20105 work_county_share20105 unemp_share20105 teen_share2010   ///
-		estcount_* avgwwage_* emp_* u1*                                             ///
-		walall_njob_29young_ssh halall_njob_29young_ssh walall_29y_lowinc_ssh halall_29y_lowinc_ssh
-
-	
+		sh_treated* exp_mw*
 
 	local het_vars "med_hhinc20105 unemp_share20105 college_share20105 black_share2010"
 	local het_vars "`het_vars'  teen_share2010"
-	local het_vars "`het_vars' walall_njob_29young_ssh halall_njob_29young_ssh walall_29y_lowinc_ssh halall_29y_lowinc_ssh" 
  
 
-	create_vars, 	log_vars(actual_mw medrentpricepsqft_sfcc emp_* estcount_* avgwwage_* u1*) 	///
+	create_vars, 	log_vars(actual_mw medrentpricepsqft_sfcc exp_mw*) 	///
 					heterogeneity_vars(`het_vars')
 	
-	simplify_varnames
-
 	xtset zipcode year_month
+	simplify_varnames
 	gen d_ln_mw = D.ln_mw
 
 	save_data "`outstub'/fd_rent_panel.dta", key(zipcode year_month) replace log(`logfile')
@@ -43,9 +38,9 @@ program create_vars
 		unab this_var: `v'
 		local log_vars_expanded `"`log_vars_expanded' `this_var'"'
 	}
-	unab bpsvars: u1*
+	cap unab bpsvars: u1*
 	foreach var in `bpsvars' {
-		replace `var' = 1 + `var'
+		cap replace `var' = 1 + `var'
 	}
 	foreach var in `log_vars_expanded' {
 		gen ln_`var' = ln(`var')
@@ -61,6 +56,13 @@ program create_vars
 
 		gquantiles `var'_st_qtl  = `var', xtile nq(4) by(statefips)
 	}
+
+	foreach var in  exp_mw_totjob exp_mw_job_young exp_mw_job_lowinc ln_exp_mw_totjob {
+		g D`var' = D.`var'
+		order D`var', after(`var')
+	}
+	g treat_dir = (dactual_mw>0)
+	bys zipcode (year_month): gegen ziptreated_dir = max(treat_dir)
 end
 
 program simplify_varnames
