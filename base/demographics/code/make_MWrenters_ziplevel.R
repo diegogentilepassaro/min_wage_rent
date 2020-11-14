@@ -7,7 +7,7 @@ load_packages(c('tidyverse', 'data.table', 'tidycensus', 'bit64', 'readxl', 'lfe
 
 main <- function() {
   
-  data_version <- "0047"
+  data_version <- "0053"
   
   datadir <- paste0("../../../drive/raw_data/census/tract/nhgis", data_version, "_csv/")
   
@@ -44,9 +44,10 @@ main <- function() {
                    'hh_1worker', 'hh_2worker', 'hh_workerTOT', 'hhinc_blackTOT', 'hhinc_whiteTOT', 
                    'hhinc_sub25_whiteTOT', 'hhinc_sub25_blackTOT', 'renthh_hunitsTOT', 'renthh_sub35_hunitsTOT', 
                    'hh_hunitsTOT', 'hh_sub35_hunitsTOT', 'renthh_single_hunitsTOT', 'renthh_couple_hunitsTOT', 
-                   'hh_single_hunitsTOT', 'hh_couple_hunitsTOT', 'renthhinc_hunitsTOT')
+                   'hh_single_hunitsTOT', 'hh_couple_hunitsTOT', 'renthhinc_hunitsTOT', 
+                   'mww_pt', 'mww_ft', 'mww', 'workers_ft', 'workers_pt')
 
-mww_varlist_tot <- c('tract_fips', 'county_fips', 'mw_annual1', 'mw_annual2', mww_varlist)     
+mww_varlist_tot <- c('tract_fips', 'county_fips', 'mw_annual_ft', 'mw_annual_ft2', 'mw_annual_pt', mww_varlist)     
   
 table_final <- table_final[, ..mww_varlist_tot]  
 
@@ -77,7 +78,10 @@ table_final_zipshare[, c('sh_mww_all2',
                          'sh_hh2worker',
                          'sh_renthh_single', 
                          'sh_renthh_couple', 
-                         'sh_renthh') := list(
+                         'sh_renthh', 
+                         'sh_mww_ft', 
+                         'sh_mww_pt', 
+                         'sh_mww') := list(
   (mww_all2/hhTOT), 
   (mww_all1/hhTOT),
   (mww_sub25_all2/hhinc_sub25TOT), 
@@ -100,7 +104,10 @@ table_final_zipshare[, c('sh_mww_all2',
   (hh_2worker/hh_workerTOT),
   (renthh_single_hunitsTOT/renthh_hunitsTOT), 
   (renthh_couple_hunitsTOT/renthh_hunitsTOT),
-  (renthh_hunitsTOT/hh_hunitsTOT))]
+  (renthh_hunitsTOT/hh_hunitsTOT), 
+  (mww_ft / workers_ft), 
+  (mww_pt / workers_pt), 
+  (mww / (workers_ft + workers_pt)))]
 
 table_final_zipshare[, c('sh_mww_wmean1',
                          'sh_mww_wmean2',
@@ -125,8 +132,8 @@ table_final_zipshare <- table_final_zipshare[, c('zipcode',
                                                  'mww_shsub25_all1', 'mww_shsub25_all2', 
                                                  'mww_shblack_all1', 'mww_shblack_all2', 'mww_sub25_shblack_all1', 'mww_sub25_shblack_all2', 
                                                  'sh_mww_renter_all1', 'sh_mww_renter_all2', 'sh_mww_renter_wmean1', 'sh_mww_renter_wmean2', 
-                                                 'mww_shrenter_all1', 'mww_shrenter_all2',  'mww_shrenter_wmean1', 'mww_shrenter_wmean2'
-                                                 )]
+                                                 'mww_shrenter_all1', 'mww_shrenter_all2',  'mww_shrenter_wmean1', 'mww_shrenter_wmean2', 
+                                                 'sh_mww_ft', 'sh_mww_pt', 'sh_mww', 'workers_pt', 'workers_ft')]
 
 save_data(df = table_final_zipshare, key = 'zipcode', 
           filename = paste0(outdir, 'zip_mw.csv'))
@@ -134,101 +141,123 @@ save_data(df = table_final_zipshare, key = 'zipcode',
 }
 
 compute_mw_workers <- function(data){
-  data[mw_annual2<=17500 , mww_all2 := .(hhinc_0_15)][
-    mw_annual2>17500 & mw_annual2<=22500, mww_all2 := .(hhinc_0_15 + hhinc_15_20)][
-      mw_annual2>22500 & mw_annual2<=27500, mww_all2 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25)][
-        mw_annual2>27500 & mw_annual2<=32500, mww_all2 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30)][
-          mw_annual2>32500 & mw_annual2<=37500, mww_all2 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35)][
-            mw_annual2>37500 & mw_annual2<=42500, mww_all2 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40)][
-              mw_annual2>42500 & mw_annual2<=47500, mww_all2 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40 + hhinc_40_45)][
-                mw_annual2>47500 & mw_annual2<=52500, mww_all2 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40 + hhinc_40_45 + hhinc_45_50)][
-                  mw_annual2>52500 & mw_annual2<=65000, mww_all2 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40 + hhinc_40_45 + hhinc_45_50 + hhinc_50_60)]
+  
+ data[mw_annual_ft<=3750, mww_ft := .(pinc_ft_0_25)][
+   mw_annual_ft>3750 & mw_annual_ft<=6250, mww_ft := .(pinc_ft_0_25 + pinc_ft_25_50)][
+     mw_annual_ft>6250 & mw_annual_ft<=8750, mww_ft := .(pinc_ft_0_25 + pinc_ft_25_50 + pinc_ft_50_75)][
+       mw_annual_ft>8750 & mw_annual_ft<=11250, mww_ft := .(pinc_ft_0_25 + pinc_ft_25_50 + pinc_ft_50_75 + pinc_ft_75_100)][
+         mw_annual_ft>11250 & mw_annual_ft<=13750, mww_ft := .(pinc_ft_0_25 + pinc_ft_25_50 + pinc_ft_50_75 + pinc_ft_75_100 + pinc_ft_100_125)][
+           mw_annual_ft>13750 & mw_annual_ft<=16250, mww_ft := .(pinc_ft_0_25 + pinc_ft_25_50 + pinc_ft_50_75 + pinc_ft_75_100 + pinc_ft_100_125 + pinc_ft_125_150)][
+             mw_annual_ft>16250 & mw_annual_ft<=18750, mww_ft := .(pinc_ft_0_25 + pinc_ft_25_50 + pinc_ft_50_75 + pinc_ft_75_100 + pinc_ft_100_125 + pinc_ft_125_150 + pinc_ft_150_175)][
+               mw_annual_ft>18750 & mw_annual_ft<=21250, mww_ft := .(pinc_ft_0_25 + pinc_ft_25_50 + pinc_ft_50_75 + pinc_ft_75_100 + pinc_ft_100_125 + pinc_ft_125_150 + pinc_ft_150_175 + pinc_ft_175_200)][
+                 mw_annual_ft>21250 & mw_annual_ft<=23750, mww_ft := .(pinc_ft_0_25 + pinc_ft_25_50 + pinc_ft_50_75 + pinc_ft_75_100 + pinc_ft_100_125 + pinc_ft_125_150 + pinc_ft_150_175 + pinc_ft_175_200 + pinc_ft_200_225)][
+                   mw_annual_ft>23750 & mw_annual_ft<=26250, mww_ft := .(pinc_ft_0_25 + pinc_ft_25_50 + pinc_ft_50_75 + pinc_ft_75_100 + pinc_ft_100_125 + pinc_ft_125_150 + pinc_ft_150_175 + pinc_ft_175_200 + pinc_ft_200_225 + pinc_ft_225_250)][
+                     mw_annual_ft>26250 , mww_ft := .(pinc_ft_0_25 + pinc_ft_25_50 + pinc_ft_50_75 + pinc_ft_75_100 + pinc_ft_100_125 + pinc_ft_125_150 + pinc_ft_150_175 + pinc_ft_175_200 + pinc_ft_200_225 + pinc_ft_225_250 + pinc_ft_250_300)] 
+ 
+  data[mw_annual_pt<=3750, mww_pt := .(pinc_pt_0_25)][
+   mw_annual_pt>3750 & mw_annual_pt<=6250, mww_pt := .(pinc_pt_0_25 + pinc_pt_25_50)][
+     mw_annual_pt>6250 & mw_annual_pt<=8750, mww_pt := .(pinc_pt_0_25 + pinc_pt_25_50 + pinc_pt_50_75)][
+       mw_annual_pt>8750 & mw_annual_pt<=11250, mww_pt := .(pinc_pt_0_25 + pinc_pt_25_50 + pinc_pt_50_75 + pinc_pt_75_100)][
+         mw_annual_pt>11250 & mw_annual_pt<=13750, mww_pt := .(pinc_pt_0_25 + pinc_pt_25_50 + pinc_pt_50_75 + pinc_pt_75_100 + pinc_pt_100_125)][
+           mw_annual_pt>13750, mww_pt := .(pinc_pt_0_25 + pinc_pt_25_50 + pinc_pt_50_75 + pinc_pt_75_100 + pinc_pt_100_125 + pinc_pt_125_150)] 
+  
+  data[, 'mww' := .(mww_ft + mww_pt)]
+  
+  data[mw_annual_ft2<=17500 , mww_all2 := .(hhinc_0_15)][
+    mw_annual_ft2>17500 & mw_annual_ft2<=22500, mww_all2 := .(hhinc_0_15 + hhinc_15_20)][
+      mw_annual_ft2>22500 & mw_annual_ft2<=27500, mww_all2 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25)][
+        mw_annual_ft2>27500 & mw_annual_ft2<=32500, mww_all2 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30)][
+          mw_annual_ft2>32500 & mw_annual_ft2<=37500, mww_all2 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35)][
+            mw_annual_ft2>37500 & mw_annual_ft2<=42500, mww_all2 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40)][
+              mw_annual_ft2>42500 & mw_annual_ft2<=47500, mww_all2 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40 + hhinc_40_45)][
+                mw_annual_ft2>47500 & mw_annual_ft2<=52500, mww_all2 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40 + hhinc_40_45 + hhinc_45_50)][
+                  mw_annual_ft2>52500 & mw_annual_ft2<=65000, mww_all2 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40 + hhinc_40_45 + hhinc_45_50 + hhinc_50_60)]
 
-  data[mw_annual1<=17500 , mww_all1 := .(hhinc_0_15)][
-    mw_annual1>17500 & mw_annual1<=22500, mww_all1 := .(hhinc_0_15 + hhinc_15_20)][
-      mw_annual1>22500 & mw_annual1<=27500, mww_all1 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25)][
-        mw_annual1>27500 & mw_annual1<=32500, mww_all1 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30)][
-          mw_annual1>32500 & mw_annual1<=37500, mww_all1 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35)][
-            mw_annual1>37500 & mw_annual1<=42500, mww_all1 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40)][
-              mw_annual1>42500 & mw_annual1<=47500, mww_all1 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40 + hhinc_40_45)][
-                mw_annual1>47500 & mw_annual1<=52500, mww_all1 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40 + hhinc_40_45 + hhinc_45_50)][
-                  mw_annual1>52500 & mw_annual1<=65000, mww_all1 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40 + hhinc_40_45 + hhinc_45_50 + hhinc_50_60)]
+  data[mw_annual_ft<=17500 , mww_all1 := .(hhinc_0_15)][
+    mw_annual_ft>17500 & mw_annual_ft<=22500, mww_all1 := .(hhinc_0_15 + hhinc_15_20)][
+      mw_annual_ft>22500 & mw_annual_ft<=27500, mww_all1 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25)][
+        mw_annual_ft>27500 & mw_annual_ft<=32500, mww_all1 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30)][
+          mw_annual_ft>32500 & mw_annual_ft<=37500, mww_all1 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35)][
+            mw_annual_ft>37500 & mw_annual_ft<=42500, mww_all1 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40)][
+              mw_annual_ft>42500 & mw_annual_ft<=47500, mww_all1 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40 + hhinc_40_45)][
+                mw_annual_ft>47500 & mw_annual_ft<=52500, mww_all1 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40 + hhinc_40_45 + hhinc_45_50)][
+                  mw_annual_ft>52500 & mw_annual_ft<=65000, mww_all1 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40 + hhinc_40_45 + hhinc_45_50 + hhinc_50_60)]
   
     
-  data[mw_annual2<=17500 , mww_sub25_all2 := .(hhinc_sub25_0_15)][
-    mw_annual2>17500 & mw_annual2<=22500, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20)][
-      mw_annual2>22500 & mw_annual2<=27500, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25)][
-        mw_annual2>27500 & mw_annual2<=32500, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30)][
-          mw_annual2>32500 & mw_annual2<=37500, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35)][
-            mw_annual2>37500 & mw_annual2<=42500, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40)][
-              mw_annual2>42500 & mw_annual2<=47500, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40 + hhinc_sub25_40_45)][
-                mw_annual2>47500 & mw_annual2<=52500, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40 + hhinc_sub25_40_45 + hhinc_sub25_45_50)][
-                  mw_annual2>52500 & mw_annual2<=65000, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40 + hhinc_sub25_40_45 + hhinc_sub25_45_50 + hhinc_sub25_50_60)]
+  data[mw_annual_ft2<=17500 , mww_sub25_all2 := .(hhinc_sub25_0_15)][
+    mw_annual_ft2>17500 & mw_annual_ft2<=22500, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20)][
+      mw_annual_ft2>22500 & mw_annual_ft2<=27500, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25)][
+        mw_annual_ft2>27500 & mw_annual_ft2<=32500, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30)][
+          mw_annual_ft2>32500 & mw_annual_ft2<=37500, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35)][
+            mw_annual_ft2>37500 & mw_annual_ft2<=42500, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40)][
+              mw_annual_ft2>42500 & mw_annual_ft2<=47500, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40 + hhinc_sub25_40_45)][
+                mw_annual_ft2>47500 & mw_annual_ft2<=52500, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40 + hhinc_sub25_40_45 + hhinc_sub25_45_50)][
+                  mw_annual_ft2>52500 & mw_annual_ft2<=65000, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40 + hhinc_sub25_40_45 + hhinc_sub25_45_50 + hhinc_sub25_50_60)]
   
-  data[mw_annual1<=17500 , mww_sub25_all1 := .(hhinc_sub25_0_15)][
-    mw_annual1>17500 & mw_annual1<=22500, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20)][
-      mw_annual1>22500 & mw_annual1<=27500, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25)][
-        mw_annual1>27500 & mw_annual1<=32500, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30)][
-          mw_annual1>32500 & mw_annual1<=37500, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35)][
-            mw_annual1>37500 & mw_annual1<=42500, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40)][
-              mw_annual1>42500 & mw_annual1<=47500, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40 + hhinc_sub25_40_45)][
-                mw_annual1>47500 & mw_annual1<=52500, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40 + hhinc_sub25_40_45 + hhinc_sub25_45_50)][
-                  mw_annual1>52500 & mw_annual1<=65000, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40 + hhinc_sub25_40_45 + hhinc_sub25_45_50 + hhinc_sub25_50_60)]
+  data[mw_annual_ft<=17500 , mww_sub25_all1 := .(hhinc_sub25_0_15)][
+    mw_annual_ft>17500 & mw_annual_ft<=22500, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20)][
+      mw_annual_ft>22500 & mw_annual_ft<=27500, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25)][
+        mw_annual_ft>27500 & mw_annual_ft<=32500, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30)][
+          mw_annual_ft>32500 & mw_annual_ft<=37500, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35)][
+            mw_annual_ft>37500 & mw_annual_ft<=42500, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40)][
+              mw_annual_ft>42500 & mw_annual_ft<=47500, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40 + hhinc_sub25_40_45)][
+                mw_annual_ft>47500 & mw_annual_ft<=52500, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40 + hhinc_sub25_40_45 + hhinc_sub25_45_50)][
+                  mw_annual_ft>52500 & mw_annual_ft<=65000, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40 + hhinc_sub25_40_45 + hhinc_sub25_45_50 + hhinc_sub25_50_60)]
   
-  data[mw_annual2<=17500 , mww_black_all2 := .(hhinc_black_0_15)][
-    mw_annual2>17500 & mw_annual2<=22500, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20)][
-      mw_annual2>22500 & mw_annual2<=27500, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25)][
-        mw_annual2>27500 & mw_annual2<=32500, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30)][
-          mw_annual2>32500 & mw_annual2<=37500, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35)][
-            mw_annual2>37500 & mw_annual2<=42500, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40)][
-              mw_annual2>42500 & mw_annual2<=47500, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40 + hhinc_black_40_45)][
-                mw_annual2>47500 & mw_annual2<=52500, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40 + hhinc_black_40_45 + hhinc_black_45_50)][
-                  mw_annual2>52500 & mw_annual2<=65000, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40 + hhinc_black_40_45 + hhinc_black_45_50 + hhinc_black_50_60)]  
+  data[mw_annual_ft2<=17500 , mww_black_all2 := .(hhinc_black_0_15)][
+    mw_annual_ft2>17500 & mw_annual_ft2<=22500, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20)][
+      mw_annual_ft2>22500 & mw_annual_ft2<=27500, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25)][
+        mw_annual_ft2>27500 & mw_annual_ft2<=32500, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30)][
+          mw_annual_ft2>32500 & mw_annual_ft2<=37500, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35)][
+            mw_annual_ft2>37500 & mw_annual_ft2<=42500, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40)][
+              mw_annual_ft2>42500 & mw_annual_ft2<=47500, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40 + hhinc_black_40_45)][
+                mw_annual_ft2>47500 & mw_annual_ft2<=52500, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40 + hhinc_black_40_45 + hhinc_black_45_50)][
+                  mw_annual_ft2>52500 & mw_annual_ft2<=65000, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40 + hhinc_black_40_45 + hhinc_black_45_50 + hhinc_black_50_60)]  
 
-  data[mw_annual1<=17500 , mww_black_all1 := .(hhinc_black_0_15)][
-    mw_annual1>17500 & mw_annual1<=22500, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20)][
-      mw_annual1>22500 & mw_annual1<=27500, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25)][
-        mw_annual1>27500 & mw_annual1<=32500, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30)][
-          mw_annual1>32500 & mw_annual1<=37500, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35)][
-            mw_annual1>37500 & mw_annual1<=42500, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40)][
-              mw_annual1>42500 & mw_annual1<=47500, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40 + hhinc_black_40_45)][
-                mw_annual1>47500 & mw_annual1<=52500, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40 + hhinc_black_40_45 + hhinc_black_45_50)][
-                  mw_annual1>52500 & mw_annual1<=65000, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40 + hhinc_black_40_45 + hhinc_black_45_50 + hhinc_black_50_60)]    
+  data[mw_annual_ft<=17500 , mww_black_all1 := .(hhinc_black_0_15)][
+    mw_annual_ft>17500 & mw_annual_ft<=22500, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20)][
+      mw_annual_ft>22500 & mw_annual_ft<=27500, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25)][
+        mw_annual_ft>27500 & mw_annual_ft<=32500, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30)][
+          mw_annual_ft>32500 & mw_annual_ft<=37500, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35)][
+            mw_annual_ft>37500 & mw_annual_ft<=42500, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40)][
+              mw_annual_ft>42500 & mw_annual_ft<=47500, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40 + hhinc_black_40_45)][
+                mw_annual_ft>47500 & mw_annual_ft<=52500, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40 + hhinc_black_40_45 + hhinc_black_45_50)][
+                  mw_annual_ft>52500 & mw_annual_ft<=65000, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40 + hhinc_black_40_45 + hhinc_black_45_50 + hhinc_black_50_60)]    
   
-  data[mw_annual1<=17500 , mww_sub25_black_all1 := .(hhinc_sub25_black_0_15)][
-    mw_annual1>17500 & mw_annual1<=22500, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20)][
-      mw_annual1>22500 & mw_annual1<=27500, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25)][
-        mw_annual1>27500 & mw_annual1<=32500, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30)][
-          mw_annual1>32500 & mw_annual1<=37500, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35)][
-            mw_annual1>37500 & mw_annual1<=42500, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40)][
-              mw_annual1>42500 & mw_annual1<=47500, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40 + hhinc_sub25_black_40_45)][
-                mw_annual1>47500 & mw_annual1<=52500, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40 + hhinc_sub25_black_40_45 + hhinc_sub25_black_45_50)][
-                  mw_annual1>52500 & mw_annual1<=65000, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40 + hhinc_sub25_black_40_45 + hhinc_sub25_black_45_50 + hhinc_sub25_black_50_60)]
+  data[mw_annual_ft<=17500 , mww_sub25_black_all1 := .(hhinc_sub25_black_0_15)][
+    mw_annual_ft>17500 & mw_annual_ft<=22500, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20)][
+      mw_annual_ft>22500 & mw_annual_ft<=27500, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25)][
+        mw_annual_ft>27500 & mw_annual_ft<=32500, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30)][
+          mw_annual_ft>32500 & mw_annual_ft<=37500, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35)][
+            mw_annual_ft>37500 & mw_annual_ft<=42500, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40)][
+              mw_annual_ft>42500 & mw_annual_ft<=47500, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40 + hhinc_sub25_black_40_45)][
+                mw_annual_ft>47500 & mw_annual_ft<=52500, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40 + hhinc_sub25_black_40_45 + hhinc_sub25_black_45_50)][
+                  mw_annual_ft>52500 & mw_annual_ft<=65000, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40 + hhinc_sub25_black_40_45 + hhinc_sub25_black_45_50 + hhinc_sub25_black_50_60)]
   
-  data[mw_annual2<=17500 , mww_sub25_black_all2 := .(hhinc_sub25_black_0_15)][
-    mw_annual2>17500 & mw_annual2<=22500, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20)][
-      mw_annual2>22500 & mw_annual2<=27500, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25)][
-        mw_annual2>27500 & mw_annual2<=32500, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30)][
-          mw_annual2>32500 & mw_annual2<=37500, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35)][
-            mw_annual2>37500 & mw_annual2<=42500, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40)][
-              mw_annual2>42500 & mw_annual2<=47500, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40 + hhinc_sub25_black_40_45)][
-                mw_annual2>47500 & mw_annual2<=52500, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40 + hhinc_sub25_black_40_45 + hhinc_sub25_black_45_50)][
-                  mw_annual2>52500 & mw_annual2<=65000, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40 + hhinc_sub25_black_40_45 + hhinc_sub25_black_45_50 + hhinc_sub25_black_50_60)]
+  data[mw_annual_ft2<=17500 , mww_sub25_black_all2 := .(hhinc_sub25_black_0_15)][
+    mw_annual_ft2>17500 & mw_annual_ft2<=22500, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20)][
+      mw_annual_ft2>22500 & mw_annual_ft2<=27500, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25)][
+        mw_annual_ft2>27500 & mw_annual_ft2<=32500, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30)][
+          mw_annual_ft2>32500 & mw_annual_ft2<=37500, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35)][
+            mw_annual_ft2>37500 & mw_annual_ft2<=42500, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40)][
+              mw_annual_ft2>42500 & mw_annual_ft2<=47500, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40 + hhinc_sub25_black_40_45)][
+                mw_annual_ft2>47500 & mw_annual_ft2<=52500, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40 + hhinc_sub25_black_40_45 + hhinc_sub25_black_45_50)][
+                  mw_annual_ft2>52500 & mw_annual_ft2<=65000, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40 + hhinc_sub25_black_40_45 + hhinc_sub25_black_45_50 + hhinc_sub25_black_50_60)]
   
   
-  data[mw_annual2<=17500 , mww_renter_all2 := .(hhinc_0_15)][
-    mw_annual2>17500 & mw_annual2<=22500, mww_renter_all2 := .(renthhinc_0_15 + renthhinc_15_20)][
-      mw_annual2>22500 & mw_annual2<=27500, mww_renter_all2 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25)][
-        mw_annual2>27500 & mw_annual2<=42500, mww_renter_all2 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25 + renthhinc_25_35)][
-          mw_annual2>42500 & mw_annual2<=57500, mww_renter_all2 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25 + renthhinc_25_35 + renthhinc_35_50)][
-            mw_annual2>57500, mww_renter_all2 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25 + renthhinc_25_35 + renthhinc_35_50)]
+  data[mw_annual_ft2<=17500 , mww_renter_all2 := .(hhinc_0_15)][
+    mw_annual_ft2>17500 & mw_annual_ft2<=22500, mww_renter_all2 := .(renthhinc_0_15 + renthhinc_15_20)][
+      mw_annual_ft2>22500 & mw_annual_ft2<=27500, mww_renter_all2 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25)][
+        mw_annual_ft2>27500 & mw_annual_ft2<=42500, mww_renter_all2 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25 + renthhinc_25_35)][
+          mw_annual_ft2>42500 & mw_annual_ft2<=57500, mww_renter_all2 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25 + renthhinc_25_35 + renthhinc_35_50)][
+            mw_annual_ft2>57500, mww_renter_all2 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25 + renthhinc_25_35 + renthhinc_35_50)]
  
-  data[mw_annual1<=17500 , mww_renter_all1 := .(hhinc_0_15)][
-    mw_annual1>17500 & mw_annual1<=22500, mww_renter_all1 := .(renthhinc_0_15 + renthhinc_15_20)][
-      mw_annual1>22500 & mw_annual1<=27500, mww_renter_all1 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25)][
-        mw_annual1>27500 & mw_annual1<=42500, mww_renter_all1 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25 + renthhinc_25_35)][
-          mw_annual1>42500 & mw_annual1<=57500, mww_renter_all1 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25 + renthhinc_25_35 + renthhinc_35_50)][
-            mw_annual1>57500, mww_renter_all1 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25 + renthhinc_25_35 + renthhinc_35_50)]
+  data[mw_annual_ft<=17500 , mww_renter_all1 := .(hhinc_0_15)][
+    mw_annual_ft>17500 & mw_annual_ft<=22500, mww_renter_all1 := .(renthhinc_0_15 + renthhinc_15_20)][
+      mw_annual_ft>22500 & mw_annual_ft<=27500, mww_renter_all1 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25)][
+        mw_annual_ft>27500 & mw_annual_ft<=42500, mww_renter_all1 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25 + renthhinc_25_35)][
+          mw_annual_ft>42500 & mw_annual_ft<=57500, mww_renter_all1 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25 + renthhinc_25_35 + renthhinc_35_50)][
+            mw_annual_ft>57500, mww_renter_all1 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25 + renthhinc_25_35 + renthhinc_35_50)]
   
    
   return(data)
@@ -321,6 +350,11 @@ format_tables <- function(x, datadir, data_version) {
                 (AJZLE013 + AJZLE014 + AJZLE015 + AJZLE016 + AJZLE017 + AJZLE018), 
                 (AJZLE002))]
     
+    data[, c('workers_ft', 'workers_pt') := list((AJ1EE004 + AJ1EE009 + AJ1EE014 + AJ1EE019 + AJ1EE024 + AJ1EE029 + AJ1EE034), 
+                                                 (AJ1EE005 + AJ1EE010 + AJ1EE015 + AJ1EE020 + AJ1EE025 + AJ1EE030 + AJ1EE035))] 
+    
+    data[, c('pop_rent_share', 'pop_rent_shareD') := list(AJ17E003, AJ17E001)]
+    
     data[, c('renthh_grent_incshare_0_10', 
              'renthh_grent_incshare_10_15', 
              'renthh_grent_incshare_15_20', 
@@ -370,6 +404,7 @@ format_tables <- function(x, datadir, data_version) {
                      'hhinc_sub25_0_15', 'hhinc_sub25_15_20', 'hhinc_sub25_20_25', 'hhinc_sub25_25_30', 
                      'hhinc_sub25_30_35', 'hhinc_sub25_35_40', 'hhinc_sub25_40_45', 'hhinc_sub25_45_50', 
                      'hhinc_sub25_50_60', 'hhinc_sub25_60_', 'hhinc_sub25TOT', 
+                     'workers_ft', 'workers_pt', 'pop_rent_share', 'pop_rent_shareD',
                      'renthh_grent_incshare_0_10', 'renthh_grent_incshare_10_15', 'renthh_grent_incshare_15_20', 
                      'renthh_grent_incshare_20_25', 'renthh_grent_incshare_25_30', 'renthh_grent_incshare_30_35', 
                      'renthh_grent_incshare_35_40', 'renthh_grent_incshare_40_50', 'renthh_grent_incshare_50_', 
@@ -382,6 +417,8 @@ format_tables <- function(x, datadir, data_version) {
   }
   
   if (x == "ds240_20185_2018_tract.csv") {
+    
+    data[, c('worker_rent_share', 'worker_rent_shareD') := list(AKAXE003, AKAXE001)]
     
     data[, c('hh_1worker', 
              'hh_2worker', 
@@ -482,6 +519,44 @@ format_tables <- function(x, datadir, data_version) {
                 (AKGQE013 + AKGQE014 + AKGQE015 + AKGQE016 + AKGQE017 + AKGQE018), 
                 (AKGQE002))]
     
+    data[, c('pinc_ft_0_25', 
+             'pinc_ft_25_50', 
+             'pinc_ft_50_75', 
+             'pinc_ft_75_100', 
+             'pinc_ft_100_125', 
+             'pinc_ft_125_150', 
+             'pinc_ft_150_175', 
+             'pinc_ft_175_200', 
+             'pinc_ft_200_225', 
+             'pinc_ft_225_250', 
+             'pinc_ft_250_300', 
+             'pinc_ft_TOT', 
+             'pinc_pt_0_25', 
+             'pinc_pt_25_50', 
+             'pinc_pt_50_75', 
+             'pinc_pt_75_100', 
+             'pinc_pt_100_125', 
+             'pinc_pt_125_150', 
+             'pinc_pt_TOT') := list((AKH1E006 + AKH1E053), 
+                                     (AKH1E007 + AKH1E054), 
+                                     (AKH1E008 + AKH1E055), 
+                                     (AKH1E009 + AKH1E056), 
+                                     (AKH1E010 + AKH1E057), 
+                                     (AKH1E011 + AKH1E058), 
+                                     (AKH1E012 + AKH1E059), 
+                                     (AKH1E013 + AKH1E060), 
+                                     (AKH1E014 + AKH1E061), 
+                                     (AKH1E015 + AKH1E062), 
+                                     (AKH1E016 + AKH1E063), 
+                                     (AKH1E003 + AKH1E050), 
+                                     (AKH1E029 + AKH1E076), 
+                                     (AKH1E030 + AKH1E077), 
+                                     (AKH1E031 + AKH1E078), 
+                                     (AKH1E032 + AKH1E079),
+                                     (AKH1E033 + AKH1E080), 
+                                     (AKH1E034 + AKH1E081), 
+                                     (AKH1E028 + AKH1E075))]
+    
     data[, c('renthh_sub35_single',
              'renthh_sub35_couple', 
              'renthh_hunitsTOT', 
@@ -522,6 +597,7 @@ format_tables <- function(x, datadir, data_version) {
                 (AKLXE014))]
     
     target_vars <- c('tract_fips', 'county_fips', 
+                     'worker_rent_share', 'worker_rent_shareD',
                      'hh_1worker', 'hh_2worker', 'hh_workerTOT', 
                      'hhinc_black_0_15', 'hhinc_black_15_20', 'hhinc_black_20_25', 
                      'hhinc_black_25_30', 'hhinc_black_30_35', 'hhinc_black_35_40', 
@@ -539,6 +615,11 @@ format_tables <- function(x, datadir, data_version) {
                      'hhinc_sub25_white_25_30', 'hhinc_sub25_white_30_35', 'hhinc_sub25_white_35_40', 
                      'hhinc_sub25_white_40_45', 'hhinc_sub25_white_45_50', 'hhinc_sub25_white_50_60', 
                      'hhinc_sub25_white_60_', 'hhinc_sub25_whiteTOT', 
+                     'pinc_ft_0_25', 'pinc_ft_25_50', 'pinc_ft_50_75', 'pinc_ft_75_100', 'pinc_ft_100_125', 
+                     'pinc_ft_125_150', 'pinc_ft_150_175', 'pinc_ft_175_200', 'pinc_ft_200_225', 
+                     'pinc_ft_225_250', 'pinc_ft_250_300', 'pinc_ft_TOT', 'pinc_pt_0_25', 
+                     'pinc_pt_25_50', 'pinc_pt_50_75', 'pinc_pt_75_100', 'pinc_pt_100_125', 
+                     'pinc_pt_125_150', 'pinc_pt_TOT',
                      'renthh_sub35_single', 'renthh_sub35_couple', 'renthh_hunitsTOT', 
                      'renthh_sub35_hunitsTOT', 'hh_hunitsTOT', 'hh_sub35_hunitsTOT',
                      'renthh_single_hunitsTOT', 'renthh_couple_hunitsTOT', 'hh_single_hunitsTOT', 

@@ -63,11 +63,11 @@ main <- function() {
   
   mw_vars <- c('local_mw', 'county_mw', 'state_mw', 'fed_mw')
   
-  dfp[,actual_mw := rowMaxs(as.matrix(dfp[,..mw_vars]), na.rm = T)][,actual_mw:= ifelse(actual_mw == -Inf, NA, actual_mw)]
+  dfp[,actual_mw := rowMaxs(as.matrix(dfp[,..mw_vars]), na.rm = T)][,actual_mw:= fifelse(actual_mw == -Inf, NA, actual_mw)]
   
   mw_avg1318 <- dfp[, .(mw1318 = mean(actual_mw, na.rm = T)), by = 'tract_fips']
   
-  mw_avg1318[, c('mw_annual1', 'mw_annual2') := list(mw1318*40*4.35*12, mw1318*40*4.35*12*2)]
+  mw_avg1318[, c('mw_annual_ft', 'mw_annual_ft2', 'mw_annual_pt') := list(mw1318*40*4.35*12, mw1318*40*4.35*12*2, mw1318*20*4.35*12)]
   
   save_data(mw_avg1318, key = 'tract_fips', 
             filename = paste0(outdir,'mw_avg1318.csv'))

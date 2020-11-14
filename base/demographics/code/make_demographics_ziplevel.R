@@ -6,7 +6,7 @@ load_packages(c('tidyverse', 'data.table', 'tidycensus', 'bit64', 'readxl'))
 
 main <- function() {
    
-   data_version <- "0048"
+   data_version <- "0052"
    
    datadir <- paste0("../../../drive/raw_data/census/tract/nhgis", data_version, "_csv/")
    xwalkdir <- "../../../raw/crosswalk/" 
@@ -157,8 +157,7 @@ format_tables <- function(x, datadir, data_version) {
                        'child_share2010', 'teen_share2010', 'youngadult_share2010', 'adult_share2010', 'elder_share2010', 'age_share2010D', 
                        'housing_units2010')
       
-   }
-   
+   } 
    else if (x == 'ds173_2010_tract.csv') {
       
       data[, c('hh_couple_share2010', 'hh_couple_share2010D',           #share of couples (married or partners) out of household population
@@ -169,8 +168,7 @@ format_tables <- function(x, datadir, data_version) {
       target_vars <- c('tract_fips', 'county_fips', 
                        'hh_couple_share2010', 'hh_couple_share2010D', 'hh_couple_child_share2010', 'hh_couple_child_share2010D')
       
-   }
-   
+   } 
    else if (x == 'ds181_2010_tract.csv') {
       data[, c('renthouse_share2010', 'renthouse_share2010D') :=  #share of housing units that are renter-occupied 
               list(LHT004,LHT001)]
@@ -178,8 +176,7 @@ format_tables <- function(x, datadir, data_version) {
       target_vars <- c('tract_fips', 'county_fips', 
                        'renthouse_share2010', 'renthouse_share2010D')
       
-   }
-   
+   } 
    else if (x == 'ds191_20125_2012_tract.csv') {
 
       data[, 'workers20105' := QS6E001]
@@ -215,6 +212,8 @@ format_tables <- function(x, datadir, data_version) {
       data[, c('employee_share20105', 'employee_share20105D') := list((QX5E004 + QX5E014 + QX5E006 + QX5E016 + QX5E007 + QX5E008 + QX5E009 + QX5E017 + QX5E018 + QX5E019),QX5E001)]
       
       data[, c('worker_foodservice20105', 'worker_foodservice20105D') := list((QXTE024 + QXTE060), QXTE001)]
+
+      data[, c('tot_pinc20105', 'tot_pinc_ft20105') := list(QXGE001, (QXGE003 + QXGE006))]
       
       
       
@@ -229,11 +228,11 @@ format_tables <- function(x, datadir, data_version) {
                        'unemp_share20105', 
                        'employee_share20105', 
                        'work_county_share20105D', 'worktravel_share_20105D', 'college_share20105D', 'poor_share20105D', 'hhinc_share20105D', 'unemp_share20105D', 'employee_share20105D', 
-                       'worker_foodservice20105', 'worker_foodservice20105D')
+                       'worker_foodservice20105', 'worker_foodservice20105D', 
+                       'tot_pinc20105', 'tot_pinc_ft20105')
       
       
-   }
-   
+   } 
    else if (x == 'ds192_20125_2012_tract.csv') {
       
       data[, c('med_earn_healthsup_20105',       #median earnings (USD 2012) for healthcare support occup.
