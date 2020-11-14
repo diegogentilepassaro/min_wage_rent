@@ -22,7 +22,6 @@ program main
 		plot_dd_static_heterogeneity, depvar(ln_med_rent_psqft_sfcc) absorb(year_month zipcode) ///
 			het_var(`var'_st_qtl) cluster(statefips) ytitle(`r(title)')
 		graph export "`outstub'/fd_static_heter_`var'.png", replace
-
 	}
 
 	*table - demographics 
@@ -51,6 +50,20 @@ program main
 		stats(r2 N, fmt(%9.3f %9.0gc) labels("R-squared" "Observations")) ///
 		star(* 0.10 ** 0.05 *** 0.01)  nonote
 
+end
+
+program plot_static_heterogeneity
+	syntax, depvar(str) absorb(str) cluster(str) het_var(str) ytitle(str) [qtles(int 4)]
+
+	eststo clear
+	reghdfe D.`depvar' c.d_ln_mw#i.`het_var', ///
+		absorb(`absorb') ///
+		vce(cluster `cluster') nocons
+
+	coefplot, base graphregion(color(white)) bgcolor(white) ///
+		ylabel(1 "First quartile" 2 "Second quartile" 3 "Third quartile" 4 "Fourth quartile") ///
+		ytitle(`ytitle') xtitle("Elasticity of rents to the MW")	///
+		xline(0, lcol(black)) mcolor(edkblue) ciopts(recast(rcap) lc(edkblue) lw(vthin))
 end
 
 program build_ytitle, rclass
@@ -201,7 +214,6 @@ program make_table_titles, rclass
 	return local title_list "`title_list'" 
 
 end 
-
 
 
 *Execute 
