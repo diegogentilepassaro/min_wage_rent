@@ -103,7 +103,7 @@ program build_coeff_plot_controls
 
 	eststo clear
 
-	define_controls estcount avgwwage
+	define_controls
 	local emp_ctrls "`r(emp_ctrls)'"
 	local estab_ctrls "`r(estcount_ctrls)'"
 	local wage_ctrls "`r(avgwwage_ctrls)'"
@@ -153,16 +153,6 @@ program build_coeff_plot_controls
 		ytitle("Dynamic coefficients") ylabel(-0.06(0.02).06, grid)	///
 		legend(order(1 "Baseline" 3 "Employment" ///
 			5 "Establishment" 7 "Wage" 9 "Building") size(small) rows(1))
-end
-
-program define_controls, rclass
-	foreach ctrl_type in emp estcount avgwwage {
-		local var_list "ln_`ctrl_type'_bizserv ln_`ctrl_type'_info ln_`ctrl_type'_manu"
-		return local `ctrl_type'_ctrls `var_list'
-	}
-
-	local housing_cont   "ln_u1rep_units ln_u1rep_value"
-	return local housing_cont "`housing_cont'"
 end
 
 program store_dynamic_coeffs
