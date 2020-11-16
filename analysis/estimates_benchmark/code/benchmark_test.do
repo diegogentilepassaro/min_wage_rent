@@ -17,7 +17,9 @@ program main
 	local gamma_hi = - 0.5
 	local k = 0.1
 
-	incidence_formula, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) cluster(statefips) mww_share(sh_mww_all2) outstub(`outstub')
+	incidence_formula_dist, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) cluster(statefips) mww_share_stub(sh_mww) outstub(`outstub')
+	incidence_formula_avg, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) cluster(statefips) mww_share_stub(sh_mww) outstub(`outstub')
+	incidence_formula_avg1pct, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) cluster(statefips) mww_share_stub(sh_mww) outstub(`outstub')
 
 	/* foreach win in 5 {
 		benchmark_plot_all2, depvar(ln_med_rent_psqft) w(`win') absorb(year_month zipcode) cluster(statefips) outstub(`outstub') ///
@@ -30,8 +32,8 @@ program main
 	} */	
 end 
 
-program incidence_formula
-	syntax, depvar(str) absorb(str) cluster(str) mww_share(str) outstub(str) [w(int 5)]
+program incidence_formula_dist
+	syntax, depvar(str) absorb(str) cluster(str) mww_share_stub(str) outstub(str) [w(int 5)]
 
 	qui reghdfe D.`depvar' D.ln_mw, ///
 			absorb(`absorb')        ///
@@ -39,35 +41,109 @@ program incidence_formula
 	local r = _b[D.ln_mw]
 	g estsample = e(sample)
 
-	g med_pinc_month = med_pinc20105 / 12 
-	qui sum med_pinc_month if F.dactual_mw>0 & estsample==1 
-	local avg_med_pinc_month = r(mean)
+ 	/* order actual_mw, last
+	g Dmw_1pct = actual_mw * 1.01
+	replace Dmw_1pct = Dmw_1pct - L.actual_mw - dactual_mw
+	sum d_ln_mw if dactual_mw>0 & estsample==1 */
 
-	g Dmmw = D.actual_mw * 40 * 4.35 if dactual_mw>0 & estsample==1
+	g Dmmw_ft = dactual_mw * 40 * 4.35 if dactual_mw>0 & estsample==1
+	g Dmmw_pt = dactual_mw * 20 * 4.35 if dactual_mw>0 & estsample==1
+
+	g Dincome_ft = Dmmw_ft * `mww_share_stub'_ft * workers_ft if dactual_mw>0 & estsample==1
+	g Dincome_pt = Dmmw_pt * `mww_share_stub'_pt * workers_pt if dactual_mw>0 & estsample==1
+
+	g tot_pinc_month = tot_pinc20105 / 12 
+	g Dincome_pct = ((Dincome_ft + Dincome_pt) / L.tot_pinc_month)*100 if dactual_mw>0 & estsample==1
+
+	g r_pct = d_ln_mw * 100 * `r'
+
+	g ratio = r_pct / Dincome_pct
+
+	winsor2 ratio, replace cuts(0 95)
+
+	qui sum ratio
+	local ratiomean = r(mean) 
+	local ratiomean = round(`ratiomean', .01)
+	local xratiolabel = `ratiomean' + 0.2
+	twoway (hist ratio, color(edkblue%50)), xline(`ratiomean') text(1.5 `xratiolabel' "Average: `ratiomean'", size(small)) ylabel(, grid)
+	graph export `outstub'/effect_totwage_ratio_dist.png, replace
+end
+
+program incidence_formula_avg 
+	syntax, depvar(str) absorb(str) cluster(str) mww_share_stub(str) outstub(str) [w(int 5)]
+
+	qui reghdfe D.`depvar' D.ln_mw, ///
+			absorb(`absorb')        ///
+			vce(cluster `cluster') nocons
+	local r = _b[D.ln_mw]
+	cap g estsample = e(sample)
+
+
 	qui sum dactual_mw if dactual_mw>0 & estsample==1
 	local avg_Dmw = r(mean)
-	local avg_Dmmw = `avg_Dmw' * 40 * 4.35
+	di `avg_Dmw'
 
-	qui sum `mww_share' if dactual_mw>0 & estsample==1
-	local avg_mww_share = r(mean)
+	local avg_Dmmw_ft = `avg_Dmw' * 40 * 4.35
+	local avg_Dmmw_pt = `avg_Dmw' * 20 * 4.35
 
-	g Dincome = Dmmw * `mww_share' if dactual_mw>0 & estsample==1
-	local avg_Dincome = `avg_Dmmw' * `avg_mww_share'
+	foreach mww_type in ft pt {
+		qui g mww_`mww_type' = `mww_share_stub'_`mww_type' * workers_`mww_type' 
+		qui sum mww_`mww_type' if dactual_mw>0 & estsample==1
+		local avg_mww_`mww_type' r(mean)
+		local avg_Dincome_`mww_type' = `avg_Dmmw_`mww_type'' * `avg_mww_`mww_type''		
+	}
 
-	g Dincome_pct = (Dincome / L.med_pinc_month)*100 if dactual_mw>0 & estsample==1
-	local avg_Dincome_pct = (`avg_Dincome' / `avg_med_pinc_month')*100
+	cap g tot_pinc_month = tot_pinc20105 / 12 
+	qui sum tot_pinc_month if F.actual_mw>0 & estsample==1
+	local avg_tot_pinc20105 = r(mean)
 
-	g Drent_pct = (D.`depvar')*100 if dactual_mw>0 & estsample==1
+	local avg_Dincome_pct = ((`avg_Dincome_ft' + `avg_Dincome_pt') / `avg_tot_pinc20105')*100
 
-	g pt = `r' / Dincome_pct
-	local avg_pt = `r' / `avg_Dincome_pct'
+	di `avg_Dincome_pct'
 
-	sum pt, det 
+	sum d_ln_mw if dactual_mw>0 & estsample==1
+	local avg_Dmw_pct = r(mean)*100
+	local avg_r = `r' * `avg_Dmw_pct'
 
-	di `avg_pt'
-	hist pt
+	local avg_ratio = `avg_r' / `avg_Dincome_pct'
 
-end 
+	di "Average Ratio is: `avg_ratio'"
+end  
+
+program incidence_formula_avg1pct 
+	syntax, depvar(str) absorb(str) cluster(str) mww_share_stub(str) outstub(str) [w(int 5)]
+
+	qui reghdfe D.`depvar' D.ln_mw, ///
+			absorb(`absorb')        ///
+			vce(cluster `cluster') nocons
+	local r = _b[D.ln_mw]
+	cap g estsample = e(sample)
+
+	g Dmw_1pct = L.actual_mw if dactual_mw>0  & estsample==1
+	replace Dmw_1pct = Dmw_1pct*1.01 if dactual_mw>0 & estsample==1
+	replace Dmw_1pct = Dmw_1pct - L.actual_mw if dactual_mw>0 & estsample==1
+	qui sum Dmw_1pct if dactual_mw>0 & estsample==1
+	local avg_Dmw = r(mean)
+
+	local avg_Dmmw_ft = `avg_Dmw' * 40 * 4.35
+	local avg_Dmmw_pt = `avg_Dmw' * 20 * 4.35
+
+	foreach mww_type in ft pt {
+		qui cap g mww_`mww_type' = `mww_share_stub'_`mww_type' * workers_`mww_type' 
+		qui sum mww_`mww_type' if dactual_mw>0 & estsample==1
+		local avg_mww_`mww_type' r(mean)
+		local avg_Dincome_`mww_type' = `avg_Dmmw_`mww_type'' * `avg_mww_`mww_type''		
+	}
+
+	cap g tot_pinc_month = tot_pinc20105 / 12 
+	qui sum tot_pinc_month if F.actual_mw>0 & estsample==1
+	local avg_tot_pinc20105 = r(mean)
+
+	local avg_Dincome_pct = ((`avg_Dincome_ft' + `avg_Dincome_pt') / `avg_tot_pinc20105')*100
+
+	local avg_ratio = `r' / `avg_Dincome_pct'
+	di "Average Ratio is: `avg_ratio'"
+end  
 
 program benchmark_plot_all2
     syntax, depvar(str) w(int) absorb(str) cluster(str) outstub(str) beta_low(str) gamma_low(str) gamma_hi(str) k(str)
@@ -177,8 +253,6 @@ program benchmark_plot_wmean
  	citop barwidth(0.3) fcolor(*.5) nooffsets               													  ///
 	yline(`mod_rentm', lcolor(cranberry) lp(shortdash)) 
 end
-
-
 
 program compute_benchmark, rclass
 	syntax, beta_low(str) s_low(str) gamma_low(str) gamma_hi(str) k(str) name(str)
