@@ -201,10 +201,10 @@ program build_cumsum_plot
 
 	twoway 	(line b_cumsum_full_lb at, col(navy) lpat(dash)) ///
 			(line b_cumsum_full_hb at, col(navy) lpat(dash)) ///
-			(connected cumsum_full_b at, mcol(navy)) ///
+			(connected cumsum_full_b at, mcol(navy) lcol(navy)) ///
 			(line b_cumsum_lags_lb at, col(maroon) lpat(dash)) ///
 			(line b_cumsum_lags_hb at, col(maroon) lpat(dash)) ///			
-			(connected cumsum_lags_b at, mcol(maroon)), ///
+			(connected cumsum_lags_b at, mcol(maroon) lcol(maroon)), ///
 		yline(0, lcol(black)) ///
 		xlabel(`r(xlab)', labsize(small))  xtitle(" ") ///
 		ylabel(-0.06(0.02).1, grid labsize(small)) ytitle("Cumulative sum of effects") ///
