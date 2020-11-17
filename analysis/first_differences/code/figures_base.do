@@ -11,20 +11,21 @@ program main
 	use "`instub'/fd_rent_panel.dta", clear
 
 	build_coeff_plot, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
-		cluster(statefips)
-	graph export "`outstub'/fd_models.png", replace
-	graph export "`outstub'/fd_models.eps", replace
+		cluster(statefips) outstub(`outstub')
+
+	use "`instub'/fd_rent_panel.dta", clear
+	
+	build_cumsum_plot, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
+		cluster(statefips) outstub(`outstub')
 
 	use "`instub'/fd_rent_panel.dta", clear
 
 	build_coeff_plot_controls, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
-		cluster(statefips)
-	graph export "../output/fd_models_control.png", replace
-	graph export "../output/fd_models_control.eps", replace
+		cluster(statefips) outstub(`outstub')
 end
 
 program build_coeff_plot
-	syntax, depvar(str) absorb(str) cluster(str) [w(int 5) t_plot(real 1.645) offset(real 0.09)]
+	syntax, depvar(str) absorb(str) cluster(str) outstub(str) [w(int 5) t_plot(real 1.645) offset(real 0.09)]
 
 	eststo clear
 	reghdfe D.`depvar' D.ln_mw,	absorb(`absorb') vce(cluster `cluster') nocons
@@ -71,6 +72,7 @@ program build_coeff_plot
 	replace cumsum_b_lags = cumsum_b_lags[_n-1] + b_lags[_n] if _n > 1
 
 	replace at = at + `w'
+	save "../temp/plot_coeffs_lags.dta", replace
 		
 	merge 1:1 at using "../temp/plot_coeffs.dta", nogen
 	sort at
@@ -87,19 +89,135 @@ program build_coeff_plot
 	twoway 	(scatter b_full at_full, mcol(navy)) ///
 				(rcap b_full_lb b_full_ub at_full, col(navy) lw(vthin)) ///
 			(scatter b_lags at_lags, mcol(maroon)) ///
-				(rcap b_lags_lb b_lags_ub at_lags, col(maroon) lw(vthin)) ///
-			(line static_path at, lcol(gs4) lpat(dash)) ///
-			(line cumsum_b_lags at, lcol(maroon) lpat(dash)), ///
+				(rcap b_lags_lb b_lags_ub at_lags, col(maroon) lw(vthin)), ///
 		yline(0, lcol(black)) ///
-		xlabel(`r(xlab)', labsize(small)) xtitle("Leads and lags of difference in log MW") ///
+		xlabel(`r(xlab)', labsize(small)) xtitle(" ") ///
 		ylabel(-0.06(0.02).08, grid labsize(small)) ytitle("Coefficient") ///
 		legend(order(1 "Full dynamic model" 3 "Distributed lags model" ///
 			5 "Effects path static model" 6 "Effects path distributed lags model") size(small)) ///
 		graphregion(color(white)) bgcolor(white)
+	graph export "`outstub'/fd_models_coeffs.png", replace
+	graph export "`outstub'/fd_models_coeffs.eps", replace
+
+	make_plot_xlabels, w(`w')
+
+	twoway 	(scatter b_full at_full, mcol(navy)) ///
+				(rcap b_full_lb b_full_ub at_full, col(navy) lw(vthin)) ///
+			(scatter b_lags at_lags, mcol(maroon)) ///
+				(rcap b_lags_lb b_lags_ub at_lags, col(maroon) lw(vthin)) ///
+			(line static_path at, lcol(gs4) lpat(dash)) ///
+			(line cumsum_b_lags at, lcol(maroon) lpat(dash)), ///
+		yline(0, lcol(black)) ///
+		xlabel(`r(xlab)', labsize(small)) xtitle(" ") ///
+		ylabel(-0.06(0.02).08, grid labsize(small)) ytitle("Coefficient") ///
+		legend(order(1 "Full dynamic model" 3 "Distributed lags model" ///
+			5 "Effects path static model" 6 "Effects path distributed lags model") size(small)) ///
+		graphregion(color(white)) bgcolor(white)
+	graph export "`outstub'/fd_models_everything.png", replace
+	graph export "`outstub'/fd_models_everything.eps", replace
+end
+
+program build_cumsum_plot
+	syntax, depvar(str) absorb(str) cluster(str) outstub(str) [w(int 5) t_plot(real 1.645) offset(real 0.09)]
+
+	eststo clear
+	
+	define_controls
+	local emp_ctrls "`r(emp_ctrls)'"
+	local estcount_ctrls "`r(estcount_ctrls)'"
+	local avgwwage_ctrls "`r(avgwwage_ctrls)'"
+	
+	local w_minus1 = `w' - 1
+	local w_span = 2*`w' + 1
+	
+	local names "full lags"
+	mat define start = (-`w', 0)
+
+	forvalues i = 1/2 {
+		local name: word `i' of `names'
+		local start_lag = start[1, `i']
+
+		local coeffs_list "D1.ln_mw LD.ln_mw"
+		forvalues i = 2/`w' {
+			local coeffs_list "`coeffs_list' L`i'D.ln_mw"
+		}
+		local coeffs_list "`coeffs_list' L`w'D.ln_mw"
+		
+		if `start_lag' < 0 {
+			forvalues i = 1/`w' {
+				local coeffs_list "F`i'D.ln_mw `coeffs_list'"
+			}
+		}
+		matrix COEFF = J(`w_span', 5, .)
+		matrix colname COEFF = "at" "cumsum_`name'_b" "cumsum_`name'_sd" "b_cumsum_`name'_lb" "b_cumsum_`name'_hb"
+		
+		forvalues i = 1/`w_span' {
+			matrix COEFF[`i',1] = `i'
+			
+			local this_lag = `i' - `w' - 1
+			
+			if `this_lag' >= `start_lag' {
+				local j = `this_lag' - `start_lag' + 1
+				
+				local ll: word `j' of `coeffs_list'
+				
+				if `j' == 1 {
+					local cumsum_coeffs "`ll'"
+				}
+				else {
+					local cumsum_coeffs "`cumsum_coeffs' + `ll'"
+				}
+			
+				qui reghdfe D.`depvar' L(`start_lag'/`w').D.ln_mw, absorb(`absorb') vce(cluster `cluster') nocons
+				lincomest `cumsum_coeffs'
+				mat b = e(b)
+				mat V = e(V)
+
+				matrix COEFF[`i',2] = b[1, 1]
+				matrix COEFF[`i',3] = V[1, 1]^.5
+				matrix COEFF[`i',4] = b[1, 1] - `t_plot'*V[1, 1]^.5
+				matrix COEFF[`i',5] = b[1, 1] + `t_plot'*V[1, 1]^.5
+			}
+		}
+		preserve
+			svmat double COEFF, name(col)
+			keep at cumsum_`name'_b cumsum_`name'_sd b_cumsum_`name'_lb b_cumsum_`name'_hb
+			drop if missing(at)
+			save "../temp/cumsum_coeffs_`name'.dta", replace
+		restore
+	}
+	
+	*qui reghdfe D5.`depvar' D5.ln_mw, absorb(`absorb') vce(cluster `cluster') nocons
+	
+	use "../temp/cumsum_coeffs_full.dta", clear
+	merge 1:1 at using "../temp/cumsum_coeffs_lags.dta", nogen
+	sort at
+
+	// Figure
+	make_plot_xlabels, w(`w')
+	
+	replace cumsum_lags_b = 0 if missing(cumsum_lags_b)
+	replace b_cumsum_lags_lb = 0 if missing(b_cumsum_lags_lb)
+	replace b_cumsum_lags_hb = 0 if missing(b_cumsum_lags_hb)
+
+	twoway 	(line b_cumsum_full_lb at, col(navy) lpat(dash)) ///
+			(line b_cumsum_full_hb at, col(navy) lpat(dash)) ///
+			(line cumsum_full_b at, mcol(navy)) ///
+			(line b_cumsum_lags_lb at, col(maroon) lpat(dash)) ///
+			(line b_cumsum_lags_hb at, col(maroon) lpat(dash)) ///			
+			(line cumsum_lags_b at, mcol(maroon)), ///
+		yline(0, lcol(black)) ///
+		xlabel(`r(xlab)', labsize(small)) ///
+		ylabel(-0.06(0.02).1, grid labsize(small)) ytitle("Cumulative sum of effects") ///
+		legend(order(3 "Full dynamic model" 6 "Distributed lags model") size(small)) ///
+		graphregion(color(white)) bgcolor(white)
+	
+	graph export "`outstub'/fd_models_cumsum.png", replace
+	graph export "`outstub'/fd_models_cumsum.eps", replace
 end
 
 program build_coeff_plot_controls
-	syntax, depvar(str) absorb(str) cluster(str) [w(int 5) t_plot(real 1.645) offset(real 0.17)]
+	syntax, depvar(str) absorb(str) cluster(str) outstub(str) [w(int 5) t_plot(real 1.645) offset(real 0.17)]
 
 	eststo clear
 
@@ -153,6 +271,9 @@ program build_coeff_plot_controls
 		ytitle("Dynamic coefficients") ylabel(-0.06(0.02).06, grid)	///
 		legend(order(1 "Baseline" 3 "Employment" ///
 			5 "Establishment" 7 "Wage" 9 "Building") size(small) rows(1))
+	
+	graph export "../output/fd_models_control.png", replace
+	graph export "../output/fd_models_control.eps", replace
 end
 
 program store_dynamic_coeffs
