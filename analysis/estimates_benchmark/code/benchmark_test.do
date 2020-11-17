@@ -11,14 +11,15 @@ program main
 
 	use "`instub'/fd_rent_panel.dta", clear
 
+	
 	* Baseline parameters
 	local beta_low = 0.1
 	local gamma_low = - 0.7
 	local gamma_hi = - 0.5
 	local k = 0.1
 
-	incidence_formula_dist, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) cluster(statefips) mww_share_stub(sh_mww) outstub(`outstub')
-	incidence_formula_avg, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) cluster(statefips) mww_share_stub(sh_mww) outstub(`outstub')
+	*incidence_formula_dist, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) cluster(statefips) mww_share_stub(sh_mww) outstub(`outstub')
+	*incidence_formula_avg, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) cluster(statefips) mww_share_stub(sh_mww) outstub(`outstub')
 	incidence_formula_avg1pct, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) cluster(statefips) mww_share_stub(sh_mww) outstub(`outstub')
 
 	/* foreach win in 5 {
@@ -33,12 +34,21 @@ program main
 end 
 
 program incidence_formula_dist
-	syntax, depvar(str) absorb(str) cluster(str) mww_share_stub(str) outstub(str) [w(int 5)]
+	syntax, depvar(str) absorb(str) cluster(str) mww_share_stub(str) outstub(str) [w(int 5) dynamic(str)]
 
 	qui reghdfe D.`depvar' D.ln_mw, ///
 			absorb(`absorb')        ///
 			vce(cluster `cluster') nocons
 	local r = _b[D.ln_mw]
+
+	if "`dynamic'"=="yes" {
+		qui reghdfe D.`depvar' L(0/`w').D.ln_mw, ///
+			absorb(`absorb') ///
+			vce(cluster `cluster') nocons		
+		lincomest D1.ln_mw + LD.ln_mw + L2D.ln_mw + L3D.ln_mw + L4D.ln_mw + L5D.ln_mw 
+		matrix A = e(b)
+		local r = A[1,1]	
+	}
 	g estsample = e(sample)
 
  	/* order actual_mw, last
@@ -70,12 +80,21 @@ program incidence_formula_dist
 end
 
 program incidence_formula_avg 
-	syntax, depvar(str) absorb(str) cluster(str) mww_share_stub(str) outstub(str) [w(int 5)]
+	syntax, depvar(str) absorb(str) cluster(str) mww_share_stub(str) outstub(str) [w(int 5) dynamic(str)]
 
 	qui reghdfe D.`depvar' D.ln_mw, ///
 			absorb(`absorb')        ///
 			vce(cluster `cluster') nocons
 	local r = _b[D.ln_mw]
+
+	if "`dynamic'"=="yes" {
+		qui reghdfe D.`depvar' L(0/`w').D.ln_mw, ///
+			absorb(`absorb') ///
+			vce(cluster `cluster') nocons		
+		lincomest D1.ln_mw + LD.ln_mw + L2D.ln_mw + L3D.ln_mw + L4D.ln_mw + L5D.ln_mw 
+		matrix A = e(b)
+		local r = A[1,1]	
+	}
 	cap g estsample = e(sample)
 
 
@@ -111,12 +130,21 @@ program incidence_formula_avg
 end  
 
 program incidence_formula_avg1pct 
-	syntax, depvar(str) absorb(str) cluster(str) mww_share_stub(str) outstub(str) [w(int 5)]
+	syntax, depvar(str) absorb(str) cluster(str) mww_share_stub(str) outstub(str) [w(int 5) dynamic(str)]
 
 	qui reghdfe D.`depvar' D.ln_mw, ///
 			absorb(`absorb')        ///
 			vce(cluster `cluster') nocons
 	local r = _b[D.ln_mw]
+
+	 if "`dynamic'"=="yes" {
+		qui reghdfe D.`depvar' L(0/`w').D.ln_mw, ///
+			absorb(`absorb') ///
+			vce(cluster `cluster') nocons		
+		lincomest D1.ln_mw + LD.ln_mw + L2D.ln_mw + L3D.ln_mw + L4D.ln_mw + L5D.ln_mw 
+		matrix A = e(b)
+		local r = A[1,1]	
+	}
 	cap g estsample = e(sample)
 
 	g Dmw_1pct = L.actual_mw if dactual_mw>0  & estsample==1
@@ -142,6 +170,8 @@ program incidence_formula_avg1pct
 	local avg_Dincome_pct = ((`avg_Dincome_ft' + `avg_Dincome_pt') / `avg_tot_pinc20105')*100
 
 	local avg_ratio = `r' / `avg_Dincome_pct'
+
+	di "Average pct change in tot. wage bill: `avg_Dincome_pct'"
 	di "Average Ratio is: `avg_ratio'"
 end  
 
