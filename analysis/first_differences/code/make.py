@@ -18,7 +18,7 @@ from gslab_make.dir_mod import *
 # SET DEFAULT OPTIONS
 set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
-#clear_dirs('../temp/')
+clear_dirs('../temp/')
 clear_dirs('../output/')
 
 envir_vars = os.getenv('PATH')

@@ -93,8 +93,7 @@ program build_coeff_plot
 		yline(0, lcol(black)) ///
 		xlabel(`r(xlab)', labsize(small)) xtitle(" ") ///
 		ylabel(-0.06(0.02).08, grid labsize(small)) ytitle("Coefficient") ///
-		legend(order(1 "Full dynamic model" 3 "Distributed lags model" ///
-			5 "Effects path static model" 6 "Effects path distributed lags model") size(small)) ///
+		legend(order(1 "Full dynamic model" 3 "Distributed lags model") size(small)) ///
 		graphregion(color(white)) bgcolor(white)
 	graph export "`outstub'/fd_models_coeffs.png", replace
 	graph export "`outstub'/fd_models_coeffs.eps", replace
@@ -202,12 +201,12 @@ program build_cumsum_plot
 
 	twoway 	(line b_cumsum_full_lb at, col(navy) lpat(dash)) ///
 			(line b_cumsum_full_hb at, col(navy) lpat(dash)) ///
-			(line cumsum_full_b at, mcol(navy)) ///
+			(connected cumsum_full_b at, mcol(navy)) ///
 			(line b_cumsum_lags_lb at, col(maroon) lpat(dash)) ///
 			(line b_cumsum_lags_hb at, col(maroon) lpat(dash)) ///			
-			(line cumsum_lags_b at, mcol(maroon)), ///
+			(connected cumsum_lags_b at, mcol(maroon)), ///
 		yline(0, lcol(black)) ///
-		xlabel(`r(xlab)', labsize(small)) ///
+		xlabel(`r(xlab)', labsize(small))  xtitle(" ") ///
 		ylabel(-0.06(0.02).1, grid labsize(small)) ytitle("Cumulative sum of effects") ///
 		legend(order(3 "Full dynamic model" 6 "Distributed lags model") size(small)) ///
 		graphregion(color(white)) bgcolor(white)
