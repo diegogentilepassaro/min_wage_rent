@@ -8,6 +8,17 @@ program main
 
     use `instub'/industry_county_qtr_emp_wage.dta, clear
 
+    select_sectors, ownership(`" "Total Covered" "') industry(`""Total, all industries"')
+
+    clean_vars
+
+    create_monthly_panel
+
+    save_data `outstub'/tot_emp_wage_countymonth.dta, ///
+    key(countyfips year_month) replace 
+
+    use `instub'/industry_county_qtr_emp_wage.dta, clear
+
     select_sectors, ownership(`""Federal Government" "State Government" "Local Government" "Private""') ///
     industry(`" "Goods-producing" "Natural resources and mining" "Construction" "Manufacturing" "Service-providing" "Trade, transportation, and utilities" "Information" "Financial Activities" "Professional and business services" "Education and health services" "Leisure and hospitality" "')
 
@@ -76,6 +87,7 @@ program clean_vars
     replace industry = "stgov"   if industry == "State Government"
     replace industry = "transp"  if industry == "Trade, transportation, and utilities"
     replace industry = "locgov"  if industry == "Local Government"
+    replace industry = "tot"     if industry == "Total Covered"
 
 end  
 
