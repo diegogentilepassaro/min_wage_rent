@@ -6,7 +6,7 @@ load_packages(c('tidyverse', 'data.table', 'tidycensus', 'bit64', 'readxl'))
 
 main <- function() {
    
-   data_version <- "0043"
+   data_version <- "0052"
    
    datadir <- paste0("../../../drive/raw_data/census/tract/nhgis", data_version, "_csv/")
    xwalkdir <- "../../../raw/crosswalk/" 
@@ -32,23 +32,26 @@ main <- function() {
 
    
    table_final <- table_final[xwalk, on = 'tract_fips']
-   
+   table_final[, tot_ratio_denom := sum(tot_ratio, na.rm = T), by = zipcode]
+   table_final[, rel_wgt := tot_ratio / tot_ratio_denom]
    
    start_geo <- 'tract_fips'
    target_geo <- 'zipcode'
    wgt <- 'tot_ratio'
-   demovars <- setdiff(colnames(table_final), c(start_geo, target_geo, wgt, 'county_fips'))
+   med_demovars <- colnames(table_final)[str_detect(colnames(table_final), "^med")]
+   share_demovars <- setdiff(colnames(table_final), c(start_geo, target_geo, wgt, 'county_fips', med_demovars))
    
-   table_final <- table_final[, lapply(.SD, function(x, w) sum(as.numeric(x)*w, na.rm = T), w=tot_ratio), by = target_geo, .SDcols = demovars]
+   table_final_zipshare <- table_final[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), by = target_geo, .SDcols = share_demovars]
    
    
-   table_final[, c('urb_share2010', 
+   table_final_zipshare[, c('urb_share2010', 
                    'white_share2010', 'black_share2010', 'hisp_share2010', 'asian_share2010', 'natam_share2010', 
                    'child_share2010', 'teen_share2010', 'youngadult_share2010', 'adult_share2010', 'elder_share2010', 
                    'hh_couple_share2010', 'hh_couple_child_share2010',
                    'renthouse_share2010',
                    'work_county_share20105', 'worktravel_10_share20105', 'worktravel_10_60_share20105', 'worktravel_60_share20105', 
-                   'college_share20105', 'poor_share20105', 'lo_hhinc_share20105', 'hi_hhinc_share20105', 'unemp_share20105', 'employee_share20105') := list(
+                   'college_share20105', 'poor_share20105', 'lo_hhinc_share20105', 'hi_hhinc_share20105', 'unemp_share20105', 'employee_share20105', 
+                   'worker_food_share20105') := list(
                       (urb_share2010 / urb_share2010D), 
                       (white_share2010 / race_share2010D),
                       (black_share2010 / race_share2010D),
@@ -72,13 +75,22 @@ main <- function() {
                       (lo_hhinc_share20105 / hhinc_share20105D),
                       (hi_hhinc_share20105 / hhinc_share20105D), 
                       (unemp_share20105 / unemp_share20105D), 
-                      (employee_share20105 / employee_share20105D))]
+                      (employee_share20105 / employee_share20105D), 
+                      (worker_foodservice20105/worker_foodservice20105D))]
    
-   denom_cols <- colnames(table_final)[str_detect(colnames(table_final), "D$")]
+   denom_cols <- colnames(table_final_zipshare)[str_detect(colnames(table_final_zipshare), "D$")]
    
-   table_final[, (denom_cols):= NULL]
+   table_final_zipshare[, (denom_cols):= NULL]
    
-   save_data(table_final,
+   table_final_med <- table_final[, lapply(.SD, function(x, w) weighted.mean(x,w, na.rm = T), w=rel_wgt), by = target_geo, .SDcols = med_demovars]
+   
+   table_final_all <- table_final_zipshare[table_final_med, on = 'zipcode']
+   
+   zip_mw <- fread(paste0(outdir,'zip_mw.csv'))
+   
+   table_final_all <- zip_mw[table_final_all, on = 'zipcode']
+   
+   save_data(table_final_all,
              filename = paste0(outdir, 'zip_demo.csv'),
              key = c('zipcode'))
 }
@@ -87,7 +99,6 @@ main <- function() {
 format_tables <- function(x, datadir, data_version) {
    data <- fread(paste0(datadir, "nhgis", data_version, "_", x))
 
-   
    make_geo <-  function(y) {
       if (class(y)[1] != "data.table") y <- setDT(y)
 
@@ -98,6 +109,7 @@ format_tables <- function(x, datadir, data_version) {
             str_pad(TRACTA, 6, pad = "0"))),
          as.numeric(paste0(str_pad(STATEA, 2, pad = "0"),
                            str_pad(COUNTYA, 3, pad = "0"))))]
+      setnames(y, old = "CBSAA", new = "cbsa")
 
       return(y)
    }
@@ -123,14 +135,14 @@ format_tables <- function(x, datadir, data_version) {
                    H7Z001)]
       
       data[, c('child_share2010',      #0-14
-               'teen_share2010',       #15-21
-               'youngadult_share2010', #22-34
+               'teen_share2010',       #15-24
+               'youngadult_share2010', #25-34
                'adult_share2010',      #35-64
                'elder_share2010', 
                'age_share2010D') :=   #65-
               list((H76003 + H76004 + H76005 + H76027 + H76028 + H76029), 
-                   (H76006 + H76007 + H76008 + H76009 + H76030 + H76031 + H76032 + H76033), 
-                   (H76010 + H76011 + H76012 + H76034 + H76035 + H76036), 
+                   (H76006 + H76007 + H76008 + H76009 + H76010  + H76030 + H76031 + H76032 + H76033 + H76034), 
+                   (H76011 + H76012 + H76035 + H76036), 
                    (H76013 + H76014 + H76015 + H76016 + H76017 + H76018 + H76019 + H76037 + H76038 + H76039 + H76040 + H76041 + H76042 + H76043),
                    (H76020 + H76021 + H76022 + H76023 + H76024 + H76025 + H76044 + H76045 + H76046 + H76047 + H76048 + H76049), 
                    H76001)]
@@ -145,9 +157,7 @@ format_tables <- function(x, datadir, data_version) {
                        'child_share2010', 'teen_share2010', 'youngadult_share2010', 'adult_share2010', 'elder_share2010', 'age_share2010D', 
                        'housing_units2010')
       
-      data <- data[, ..target_vars]
-   }
-   
+   } 
    else if (x == 'ds173_2010_tract.csv') {
       
       data[, c('hh_couple_share2010', 'hh_couple_share2010D',           #share of couples (married or partners) out of household population
@@ -158,9 +168,7 @@ format_tables <- function(x, datadir, data_version) {
       target_vars <- c('tract_fips', 'county_fips', 
                        'hh_couple_share2010', 'hh_couple_share2010D', 'hh_couple_child_share2010', 'hh_couple_child_share2010D')
       
-      data <- data[ ,..target_vars]
-   }
-   
+   } 
    else if (x == 'ds181_2010_tract.csv') {
       data[, c('renthouse_share2010', 'renthouse_share2010D') :=  #share of housing units that are renter-occupied 
               list(LHT004,LHT001)]
@@ -168,10 +176,12 @@ format_tables <- function(x, datadir, data_version) {
       target_vars <- c('tract_fips', 'county_fips', 
                        'renthouse_share2010', 'renthouse_share2010D')
       
-      data <- data[, ..target_vars]
-   }
-   
+   } 
    else if (x == 'ds191_20125_2012_tract.csv') {
+
+      data[, 'workers20105' := QS6E001]
+
+      data[, 'workers_prsal20105' := QX5E004 + QX5E005 + QX5E006 + QX5E014 + QX5E015 + QX5E016]
       
       data[, c('work_county_share20105', 'work_county_share20105D'):= list(QS6E003, QS6E001)]
       
@@ -194,26 +204,35 @@ format_tables <- function(x, datadir, data_version) {
                    (QU0E014 + QU0E015 + QU0E016 + QU0E017), QU0E001)]
       
       data[, 'med_hhinc20105' := QU1E001]
+
+      data[, 'med_pinc20105' := QXFE001]
       
       data[, c('unemp_share20105', 'unemp_share20105D') := list(QXSE005, QXSE002)]
       
       data[, c('employee_share20105', 'employee_share20105D') := list((QX5E004 + QX5E014 + QX5E006 + QX5E016 + QX5E007 + QX5E008 + QX5E009 + QX5E017 + QX5E018 + QX5E019),QX5E001)]
       
-      target_vars <- c('tract_fips', 'county_fips', 
+      data[, c('worker_foodservice20105', 'worker_foodservice20105D') := list((QXTE024 + QXTE060), QXTE001)]
+
+      data[, c('tot_pinc20105', 'tot_pinc_ft20105') := list(QXGE001, (QXGE003 + QXGE006))]
+      
+      
+      
+      target_vars <- c('tract_fips', 'county_fips',
+                       'workers20105', 'workers_prsal20105',
                        'work_county_share20105', 
                        'worktravel_10_share20105', 'worktravel_10_60_share20105', 'worktravel_60_share20105', 
                        'college_share20105', 
                        'poor_share20105', 
                        'lo_hhinc_share20105', 'hi_hhinc_share20105',
-                       'med_hhinc20105',
+                       'med_hhinc20105', 'med_pinc20105',
                        'unemp_share20105', 
                        'employee_share20105', 
-                       'work_county_share20105D', 'worktravel_share_20105D', 'college_share20105D', 'poor_share20105D', 'hhinc_share20105D', 'unemp_share20105D', 'employee_share20105D')
+                       'work_county_share20105D', 'worktravel_share_20105D', 'college_share20105D', 'poor_share20105D', 'hhinc_share20105D', 'unemp_share20105D', 'employee_share20105D', 
+                       'worker_foodservice20105', 'worker_foodservice20105D', 
+                       'tot_pinc20105', 'tot_pinc_ft20105')
       
       
-      data <- data[, ..target_vars]
-   }
-   
+   } 
    else if (x == 'ds192_20125_2012_tract.csv') {
       
       data[, c('med_earn_healthsup_20105',       #median earnings (USD 2012) for healthcare support occup.
@@ -232,8 +251,9 @@ format_tables <- function(x, datadir, data_version) {
       target_vars <- c('tract_fips', 'county_fips', 
                        'med_earn_healthsup_20105', 'med_earn_protectserv_20105', 'med_earn_foodserv_20105', 'med_earn_cleaning_20105', 'med_earn_perscare_20105', 'med_earn_prodtransp_20105')
       
-      data <- data[, ..target_vars]
    }
+   
+   data <- data[, ..target_vars]
    
 
    return(data)

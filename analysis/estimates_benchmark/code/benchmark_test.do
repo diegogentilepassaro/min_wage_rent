@@ -13,16 +13,32 @@ program main
 	use "`instub'/fd_rent_panel.dta", clear
 
 	
-	* Baseline parameters
-	local beta_low = 0.1
-	local gamma_low = - 0.7
-	local gamma_hi = - 0.5
-	local k = 0.1
-
-	incidence_formula_avg_reg, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_mw) absorb(year_month) cluster(statefips) wagevar(avg_d_ln_mwage) instub_wage(`instub_wage') outstub(`outstub')
 	
-	incidence_formula_avg1pct, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_mw) absorb(year_month) cluster(statefips) mww_share_stub(sh_mww) outstub(`outstub') 
+
+	benchmark_plot, depvar(ln_med_rent_psqft) w(5) absorb(year_month) cluster(statefips) outstub(`outstub') 
+					
+
+STOP
+	
 	incidence_formula_avg, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_mw) absorb(year_month) cluster(statefips) mww_share_stub(sh_mww) outstub(`outstub')
+	incidence_formula_avg1pct, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_mw) absorb(year_month) cluster(statefips) mww_share_stub(sh_mww) outstub(`outstub') 
+	incidence_formula_avg_reg, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_mw) absorb(year_month) cluster(statefips) wagevar(avg_d_ln_mwage) instub_wage(`instub_wage') outstub(`outstub')
+	incidence_formula_avg_reg, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_expmw) absorb(year_month) cluster(statefips) wagevar(avg_d_ln_mwage) instub_wage(`instub_wage') outstub(`outstub')
+	incidence_comparison_dube2019, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_expmw) absorb(year_month) mww_share_stub(sh_mww) cluster(statefips) outstub(`outstub')
+	esttab * using "`outstub'/incidence_table.tex", cells(none) noobs replace substitute(\_ _) ///
+	stats(effect_rent effect_wage avg_ratio, fmt(%9.3f %9.3f %9.3f) ///
+		labels("\overline{\Delta r}" "\overline{\Delta W}" "Pass-Through")) ///
+	mtitles("\shortstack{Formula +\\ \overline{\%\Delta MW}\hat{\beta}}" ///
+		    "\shortstack{Formula + \\ Elasticity \(\hat{\beta}\)}"    ///
+		    "\shortstack{Regression + \\ Elasticity \(\hat{\beta}\)}" ///
+		    "\shortstack{Regression + \\ Experienced MW \\Elasticity}" ///
+		    "\shortstack{Dube et al. (2019) + \\ Experienced MW \\Elasticity}") ///
+	star(* 0.10 ** 0.05 *** 0.01)
+	
+
+	
+
+	
 	//incidence_formula_dist, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_mw) absorb(year_month) cluster(statefips) mww_share_stub(sh_mww) outstub(`outstub')
 
 
@@ -37,7 +53,42 @@ program main
 	} */	
 end 
 
-program incidence_formula_avg_reg, rclass
+program incidence_comparison_dube2019
+	syntax, depvar(str) treatvar(str) absorb(str) cluster(str) mww_share_stub(str) outstub(str) [w(int 5) dynamic(str)]
+
+	eststo: qui reghdfe D.`depvar' D.`treatvar', ///
+			absorb(`absorb')        ///
+			vce(cluster `cluster') nocons
+	local r = _b[D.`treatvar']
+	 if "`dynamic'"=="yes" {
+		eststo: qui reghdfe D.`depvar' L(0/`w').D.`treatvar', ///
+			absorb(`absorb') ///
+			vce(cluster `cluster') nocons		
+		qui lincomest D1.`treatvar' + LD.`treatvar' + L2D.`treatvar' + L3D.`treatvar' + L4D.`treatvar' + L5D.`treatvar' 
+		matrix A = e(b)
+		local r = A[1,1]	
+	}
+	cap g estsample = e(sample)
+	local treatsamp   = subinstr("`treatvar'", "ln_", "", .)
+	local eventsample = "D.`treatsamp'>0 & estsample==1"
+
+	local Daffected_wages = 0.068
+	local Affected_jobs   = 0.086
+	local avg_Dmw     = 10.1
+
+	qui sum `mww_share_stub' if `eventsample'
+	local avg_sh_mww  = r(mean)
+	di `avg_sh_mww'
+
+	local effect_wage = ((`Daffected_wages' / `avg_Dmw')*`avg_sh_mww') * 100
+	local avg_ratio = `r' / `effect_wage'
+
+	estadd scalar effect_rent `r'
+	estadd scalar effect_wage `effect_wage'
+	estadd scalar avg_ratio `avg_ratio'
+end 
+
+program incidence_formula_avg_reg
 	syntax, depvar(str) treatvar(str) absorb(str) cluster(str) wagevar(str) instub_wage(str) outstub(str) [w(int 5) dynamic(str)]
 	
 	qui reghdfe D.`depvar' D.`treatvar', ///
@@ -46,14 +97,14 @@ program incidence_formula_avg_reg, rclass
 	local r = _b[D.`treatvar']
 
 	if "`dynamic'"=="yes" {
-		qui reghdfe D.`depvar' L(0/`w').D.`treatvar', ///
+		qui reghdfe D.`depvar' L(-2/1).D.`treatvar', ///
 			absorb(`absorb') ///
 			vce(cluster `cluster') nocons		
-		lincomest D1.`treatvar' + LD.`treatvar' + L2D.`treatvar' + L3D.`treatvar' + L4D.`treatvar' + L5D.`treatvar' 
+		lincomest D1.`treatvar' + LD.`treatvar'  
 		matrix A = e(b)
 		local r = A[1,1]	
 	}
-
+	preserve
 	keep countyfips 
 	duplicates drop 
 	tempfile samplecty 
@@ -61,22 +112,133 @@ program incidence_formula_avg_reg, rclass
 	use `instub_wage'/mw_wage_panel.dta, clear 
 	merge m:1 countyfips using `samplecty', nogen assert(1 2 3) keep(3)
 	sort countyfips quarter
-	reghdfe `wagevar' D.`treatvar', absorb(quarter countyfips statefips) nocons
+	qui reghdfe `wagevar' D.`treatvar', absorb(quarter countyfips statefips) nocons
 	local effect_wage = _b[D.`treatvar']
 	if "`dynamic'"=="yes" {
-		reghdfe `wagevar' L(0/`w').D.`treatvar', absorb(quarter countyfips statefips) nocons	
-		lincomest D1.`treatvar' + LD.`treatvar' + L2D.`treatvar' + L3D.`treatvar' + L4D.`treatvar' + L5D.`treatvar' 
+		qui reghdfe `wagevar' L(-2/1).D.`treatvar', absorb(quarter countyfips statefips) nocons	
+		qui lincomest D1.`treatvar' + LD.`treatvar'
 		matrix A = e(b)
 		local effect_wage = A[1,1]
 	}
-	
+	restore
 	local avg_ratio = `r' / `effect_wage'
 
-	return local effect_wage `effect_wage'
-	return local avg_ratio `avg_ratio'
 
+	eststo: qui reghdfe D.`depvar' D.`treatvar', ///
+			absorb(`absorb')        ///
+			vce(cluster `cluster') nocons
+
+	if "`dynamic'"=="yes" {
+		eststo: qui reghdfe D.`depvar' L(-2/1).D.`treatvar', ///
+			absorb(`absorb') ///
+			vce(cluster `cluster') nocons		
+	}
+
+	estadd scalar effect_rent `r'
+	estadd scalar effect_wage `effect_wage'
+	estadd scalar avg_ratio `avg_ratio'
 end 
 
+
+program incidence_formula_avg
+	syntax, depvar(str) treatvar(str) absorb(str) cluster(str) mww_share_stub(str) outstub(str) [w(int 5) dynamic(str)]
+
+	eststo: qui reghdfe D.`depvar' D.`treatvar', ///
+			absorb(`absorb')        ///
+			vce(cluster `cluster') nocons
+	local r = _b[D.`treatvar']
+
+	if "`dynamic'"=="yes" {
+		eststo: qui reghdfe D.`depvar' L(0/`w').D.`treatvar', ///
+			absorb(`absorb') ///
+			vce(cluster `cluster') nocons		
+		qui lincomest D1.`treatvar' + LD.`treatvar' + L2D.`treatvar' + L3D.`treatvar' + L4D.`treatvar' + L5D.`treatvar' 
+		matrix A = e(b)
+		local r = A[1,1]	
+	}
+	cap g estsample = e(sample)
+	local treatsamp   = subinstr("`treatvar'", "ln_", "", .)
+	local eventsample = "D.`treatsamp'>0 & estsample==1"
+
+
+
+	qui sum dactual_mw if `eventsample'
+	local avg_Dmw = r(mean)
+
+	local avg_Dmmw_ft = `avg_Dmw' * 40 * 4.35
+	local avg_Dmmw_pt = `avg_Dmw' * 20 * 4.35
+
+	foreach mww_type in ft pt {
+		qui g mww_`mww_type' = `mww_share_stub'_`mww_type' * workers_`mww_type' 
+		qui sum mww_`mww_type' if `eventsample'
+		local avg_mww_`mww_type' r(mean)
+		local avg_Dincome_`mww_type' = `avg_Dmmw_`mww_type'' * `avg_mww_`mww_type''		
+	}
+
+	cap g tot_pinc_month    = tot_pinc20105 / 12 
+	qui sum tot_pinc_month if F.`treatsamp'>0 & estsample==1
+	local avg_tot_pinc20105 = r(mean)
+
+	local avg_Dincome_pct = ((`avg_Dincome_ft' + `avg_Dincome_pt') / `avg_tot_pinc20105')*100
+
+	sum d_`treatvar' if `eventsample'
+	local avg_Dmw_pct = r(mean)*100
+	local avg_r       = `r' * `avg_Dmw_pct'
+
+	local avg_ratio = `avg_r' / `avg_Dincome_pct'
+
+	estadd scalar effect_rent `avg_r'
+	estadd scalar effect_wage `avg_Dincome_pct'
+	estadd scalar avg_ratio `avg_ratio'
+end  
+
+program incidence_formula_avg1pct
+	syntax, depvar(str) treatvar(str) absorb(str) cluster(str) mww_share_stub(str) outstub(str) [w(int 5) dynamic(str)]
+
+	eststo: qui reghdfe D.`depvar' D.`treatvar', ///
+			absorb(`absorb')        ///
+			vce(cluster `cluster') nocons
+	local r = _b[D.`treatvar']
+	 if "`dynamic'"=="yes" {
+		eststo: qui reghdfe D.`depvar' L(0/`w').D.`treatvar', ///
+			absorb(`absorb') ///
+			vce(cluster `cluster') nocons		
+		qui lincomest D1.`treatvar' + LD.`treatvar' + L2D.`treatvar' + L3D.`treatvar' + L4D.`treatvar' + L5D.`treatvar' 
+		matrix A = e(b)
+		local r = A[1,1]	
+	}
+	cap g estsample   = e(sample)
+	local treatsamp   = subinstr("`treatvar'", "ln_", "", .)
+	local eventsample = "D.`treatsamp'>0 & estsample==1"
+	
+	g Dmw_1pct       = L.`treatsamp'            if `eventsample'
+	replace Dmw_1pct = Dmw_1pct*1.01            if `eventsample'
+	replace Dmw_1pct = Dmw_1pct - L.`treatsamp' if `eventsample'
+	qui sum Dmw_1pct if `eventsample'
+	local avg_Dmw    = r(mean)
+
+	local avg_Dmmw_ft = `avg_Dmw' * 40 * 4.35
+	local avg_Dmmw_pt = `avg_Dmw' * 20 * 4.35
+
+	foreach mww_type in ft pt {
+		qui cap g mww_`mww_type' = `mww_share_stub'_`mww_type' * workers_`mww_type' 
+		qui sum mww_`mww_type' if `eventsample'
+		local avg_mww_`mww_type' r(mean)
+		local avg_Dincome_`mww_type' = `avg_Dmmw_`mww_type'' * `avg_mww_`mww_type''		
+	}
+
+	cap g tot_pinc_month    = tot_pinc20105 / 12 
+	qui sum tot_pinc_month  if F.`treatsamp'>0 & estsample==1
+	local avg_tot_pinc20105 = r(mean)
+
+	local avg_Dincome_pct = ((`avg_Dincome_ft' + `avg_Dincome_pt') / `avg_tot_pinc20105')*100
+
+	local avg_ratio = `r' / `avg_Dincome_pct'
+
+	estadd scalar effect_rent `r'
+	estadd scalar effect_wage `avg_Dincome_pct'
+	estadd scalar avg_ratio `avg_ratio'
+end  
 
 program incidence_formula_dist
 	syntax, depvar(str) treatvar(str) absorb(str) cluster(str) mww_share_stub(str) outstub(str) [w(int 5) dynamic(str)]
@@ -95,20 +257,22 @@ program incidence_formula_dist
 		local r = A[1,1]	
 	}
 	g estsample = e(sample)
+	local treatsamp   = subinstr("`treatvar'", "ln_", "", .)
+	local eventsample = "D.`treatsamp'>0 & estsample==1"
 
  	/* order actual_mw, last
 	g Dmw_1pct = actual_mw * 1.01
 	replace Dmw_1pct = Dmw_1pct - L.actual_mw - dactual_mw
 	sum d_ln_mw if dactual_mw>0 & estsample==1 */
 
-	g Dmmw_ft = dactual_mw * 40 * 4.35 if dactual_mw>0 & estsample==1
-	g Dmmw_pt = dactual_mw * 20 * 4.35 if dactual_mw>0 & estsample==1
+	g Dmmw_ft = D.`treatsamp' * 40 * 4.35 if `eventsample'
+	g Dmmw_pt = D.`treatsamp' * 20 * 4.35 if `eventsample'
 
-	g Dincome_ft = Dmmw_ft * `mww_share_stub'_ft * workers_ft if dactual_mw>0 & estsample==1
-	g Dincome_pt = Dmmw_pt * `mww_share_stub'_pt * workers_pt if dactual_mw>0 & estsample==1
+	g Dincome_ft = Dmmw_ft * `mww_share_stub'_ft * workers_ft if `eventsample'
+	g Dincome_pt = Dmmw_pt * `mww_share_stub'_pt * workers_pt if `eventsample'
 
 	g tot_pinc_month = tot_pinc20105 / 12 
-	g Dincome_pct = ((Dincome_ft + Dincome_pt) / L.tot_pinc_month)*100 if dactual_mw>0 & estsample==1
+	g Dincome_pct    = ((Dincome_ft + Dincome_pt) / L.tot_pinc_month)*100 if `eventsample'
 
 	g r_pct = d_`treatvar' * 100 * `r'
 
@@ -121,110 +285,8 @@ program incidence_formula_dist
 	local ratiomean = round(`ratiomean', .01)
 	local xratiolabel = `ratiomean' + 0.2
 	twoway (hist ratio, color(edkblue%50)), xline(`ratiomean') text(1.5 `xratiolabel' "Average: `ratiomean'", size(small)) ylabel(, grid)
-	graph export `outstub'/effect_totwage_ratio_dist.png, replace
-
-
+	graph export `outstub'/`treatsamp'_totwage_ratio_dist.png, replace
 end
-
-program incidence_formula_avg, rclass
-	syntax, depvar(str) treatvar(str) absorb(str) cluster(str) mww_share_stub(str) outstub(str) [w(int 5) dynamic(str)]
-
-	qui reghdfe D.`depvar' D.`treatvar', ///
-			absorb(`absorb')        ///
-			vce(cluster `cluster') nocons
-	local r = _b[D.`treatvar']
-
-	if "`dynamic'"=="yes" {
-		qui reghdfe D.`depvar' L(0/`w').D.`treatvar', ///
-			absorb(`absorb') ///
-			vce(cluster `cluster') nocons		
-		lincomest D1.`treatvar' + LD.`treatvar' + L2D.`treatvar' + L3D.`treatvar' + L4D.`treatvar' + L5D.`treatvar' 
-		matrix A = e(b)
-		local r = A[1,1]	
-	}
-	cap g estsample = e(sample)
-
-
-	qui sum dactual_mw if dactual_mw>0 & estsample==1
-	local avg_Dmw = r(mean)
-	di `avg_Dmw'
-
-	local avg_Dmmw_ft = `avg_Dmw' * 40 * 4.35
-	local avg_Dmmw_pt = `avg_Dmw' * 20 * 4.35
-
-	foreach mww_type in ft pt {
-		qui g mww_`mww_type' = `mww_share_stub'_`mww_type' * workers_`mww_type' 
-		qui sum mww_`mww_type' if dactual_mw>0 & estsample==1
-		local avg_mww_`mww_type' r(mean)
-		local avg_Dincome_`mww_type' = `avg_Dmmw_`mww_type'' * `avg_mww_`mww_type''		
-	}
-
-	cap g tot_pinc_month = tot_pinc20105 / 12 
-	qui sum tot_pinc_month if F.actual_mw>0 & estsample==1
-	local avg_tot_pinc20105 = r(mean)
-
-	local avg_Dincome_pct = ((`avg_Dincome_ft' + `avg_Dincome_pt') / `avg_tot_pinc20105')*100
-
-	di `avg_Dincome_pct'
-
-	sum d_`treatvar' if dactual_mw>0 & estsample==1
-	local avg_Dmw_pct = r(mean)*100
-	local avg_r = `r' * `avg_Dmw_pct'
-
-	local avg_ratio = `avg_r' / `avg_Dincome_pct'
-
-	return local effect_wage `effect_wage'
-	return local avg_ratio `avg_ratio'
-
-end  
-
-program incidence_formula_avg1pct, rclass
-	syntax, depvar(str) treatvar(str) absorb(str) cluster(str) mww_share_stub(str) outstub(str) [w(int 5) dynamic(str)]
-
-	qui reghdfe D.`depvar' D.`treatvar', ///
-			absorb(`absorb')        ///
-			vce(cluster `cluster') nocons
-	local r = _b[D.`treatvar']
-
-	 if "`dynamic'"=="yes" {
-		qui reghdfe D.`depvar' L(0/`w').D.`treatvar', ///
-			absorb(`absorb') ///
-			vce(cluster `cluster') nocons		
-		lincomest D1.`treatvar' + LD.`treatvar' + L2D.`treatvar' + L3D.`treatvar' + L4D.`treatvar' + L5D.`treatvar' 
-		matrix A = e(b)
-		local r = A[1,1]	
-	}
-	cap g estsample = e(sample)
-
-	g Dmw_1pct = L.actual_mw if dactual_mw>0  & estsample==1
-	replace Dmw_1pct = Dmw_1pct*1.01 if dactual_mw>0 & estsample==1
-	replace Dmw_1pct = Dmw_1pct - L.actual_mw if dactual_mw>0 & estsample==1
-	qui sum Dmw_1pct if dactual_mw>0 & estsample==1
-	local avg_Dmw = r(mean)
-
-	local avg_Dmmw_ft = `avg_Dmw' * 40 * 4.35
-	local avg_Dmmw_pt = `avg_Dmw' * 20 * 4.35
-
-	foreach mww_type in ft pt {
-		qui cap g mww_`mww_type' = `mww_share_stub'_`mww_type' * workers_`mww_type' 
-		qui sum mww_`mww_type' if dactual_mw>0 & estsample==1
-		local avg_mww_`mww_type' r(mean)
-		local avg_Dincome_`mww_type' = `avg_Dmmw_`mww_type'' * `avg_mww_`mww_type''		
-	}
-
-	cap g tot_pinc_month = tot_pinc20105 / 12 
-	qui sum tot_pinc_month if F.actual_mw>0 & estsample==1
-	local avg_tot_pinc20105 = r(mean)
-
-	local avg_Dincome_pct = ((`avg_Dincome_ft' + `avg_Dincome_pt') / `avg_tot_pinc20105')*100
-
-	local avg_ratio = `r' / `avg_Dincome_pct'
-
-	return local effect_wage `effect_wage'
-	return local avg_ratio `avg_ratio'
-end  
-
-
 
 *#############################################
 program benchmark_plot_all2
@@ -335,6 +397,50 @@ program benchmark_plot_wmean
  	citop barwidth(0.3) fcolor(*.5) nooffsets               													  ///
 	yline(`mod_rentm', lcolor(cranberry) lp(shortdash)) 
 end
+
+program benchmark_plot 
+    syntax, depvar(str) w(int) absorb(str) cluster(str) outstub(str)
+	
+   local lincom_coeffs "L0.D.ln_mw"
+    forval x = 1 / 1 {
+    	local lincom_coeffs `"`lincom_coeffs' + L`x'.D.ln_mw"'
+    }
+
+    *Model 1 - DD static
+    eststo model1: reghdfe D.`depvar' D.ln_mw,  ///
+    					absorb(`absorb')         ///
+    					vce(cluster `cluster') nocons
+
+	*model 2: lags only 
+	reghdfe D.`depvar' L(0/`w').D.ln_mw, 			///
+		absorb(`absorb') 											///
+		vce(cluster `cluster') nocons
+	eststo model2: lincomest `lincom_coeffs'
+
+	*benchmarks
+	qui sum sh_mww if e(sample)
+	local sh_mww = r(mean)
+	* Baseline parameters
+	local beta_low = 0.122
+	local gamma_low = - 0.8
+	local gamma_hi = - 0.6
+	*from Diamond
+	local k = 0.1
+
+	compute_benchmark, beta_low(`beta_low') s_low(`sh_mww') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(main)
+	local bench_main = r(benchmark_main)
+	compute_benchmark, beta_low(`beta_low') s_low(`sh_mww') gamma_low(`gamma_low') gamma_hi(`gamma_hi') k(`k') name(hughes)
+	local bench_hughes = r(benchmark_hughes)
+
+
+
+	coefplot (model1, color(ebblue) ciopts(lcolor(ebblue) lp(dash) lw(vthin)) rename(D.ln_mw = "Static") keep(D.ln_mw))     ///
+	         (model2, color(ebblue) ciopts(lcolor(ebblue) lp(dash) lw(vthin)) rename((1) = "Lags only")), ///
+ 	yline(0, lc(gs11)) ylabel(-.05(0.05).1) legend(off) asequation vertical recast(bar)                           ///
+ 	citop barwidth(0.3) fcolor(*.5) nooffsets               													  ///
+	yline(`bench_main', lcolor(cranberry) lp(shortdash)) 
+end 
+
 
 program compute_benchmark, rclass
 	syntax, beta_low(str) s_low(str) gamma_low(str) gamma_hi(str) k(str) name(str)
