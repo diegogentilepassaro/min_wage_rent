@@ -11,7 +11,7 @@ program main
 	use "`instub'/baseline_rent_panel.dta", clear 
 	keep zipcode place_code msa countyfips statefips 								///
 		year_month calendar_month trend trend_sq trend_cu					 		///
-		dactual_mw actual_mw medrentpricepsqft_* medrentprice_sfcc 							///
+		dactual_mw actual_mw exp_mw_totjob medrentpricepsqft_* medrentprice_sfcc 							///
 		med_hhinc20105 med_pinc20105 renthouse_share2010 white_share2010 black_share2010			///
 		college_share20105 work_county_share20105 unemp_share20105 teen_share2010 ///
 		pop2010  workers20105 workers_prsal20105 ///
@@ -23,13 +23,14 @@ program main
 	local het_vars "med_hhinc20105 renthouse_share2010 college_share20105 black_share2010"
 	local het_vars "`het_vars' unemp_share20105 teen_share2010" 
 
-	create_vars, 	log_vars(actual_mw medrentpricepsqft_sfcc emp_* estcount_* avgwwage_* u1*) 	///
+	create_vars, 	log_vars(actual_mw exp_mw_totjob medrentpricepsqft_sfcc emp_* estcount_* avgwwage_* u1*) 	///
 					heterogeneity_vars(`het_vars')
 	
 	simplify_varnames
 
 	xtset zipcode year_month
-	gen d_ln_mw = D.ln_mw
+	gen d_ln_mw    = D.ln_mw
+	gen d_ln_expmw = D.ln_expmw
 
 	save_data "`outstub'/fd_rent_panel.dta", key(zipcode year_month) replace log(`logfile')
 end
@@ -69,9 +70,13 @@ end
 program simplify_varnames
 	
 	cap rename ln_actual_mw                  ln_mw 
+	cap rename ln_exp_mw_totjob              ln_expmw
 	cap rename ln_medrentpricepsqft_sfcc     ln_med_rent_psqft_sfcc
 	cap rename ln_medrentpricepsqft_2br      ln_med_rent_psqft_2br
 	cap rename ln_medrentpricepsqft_mfr5plus ln_med_rent_psqft_mfr5plus
+
+	cap rename actual_mw                     mw
+	cap rename exp_mw_totjob                 expmw
 
 end
 
