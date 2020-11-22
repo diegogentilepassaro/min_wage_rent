@@ -24,10 +24,10 @@ program main
 	incidence_formula_avg_reg, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_mw) absorb(year_month) cluster(statefips) wagevar(avg_d_ln_mwage) instub_wage(`instub_wage') outstub(`outstub')
 	incidence_formula_avg_reg, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_expmw) absorb(year_month) cluster(statefips) wagevar(avg_d_ln_mwage) instub_wage(`instub_wage') outstub(`outstub')
 	incidence_comparison_dube2019, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_expmw) absorb(year_month) mww_share_stub(sh_mww) cluster(statefips) outstub(`outstub')
-	STOP 
+	
 	esttab * using "`outstub'/incidence_table.tex", cells(none) noobs replace substitute(\_ _) ///
 	stats(effect_rent effect_wage avg_ratio, fmt(%9.3f %9.3f %9.3f) ///
-		labels("\overline{\% \Delta m}	" "\overline{\% \Delta W}" "Pass-Through")) ///
+		labels("Effect on Rents" "Effect on Wages" "Pass-Through")) ///
 	mtitles("\shortstack{r}" ///
 		    "\shortstack{QCEW \\ regression}" ///
 		    "\shortstack{QCEW Regression + \\ Experienced MW}" ///
@@ -77,7 +77,6 @@ program incidence_comparison_dube2019
 
 	qui sum `mww_share_stub' if `eventsample'
 	local avg_sh_mww  = r(mean)
-	di `avg_sh_mww'
 
 	local effect_wage = ((`Daffected_wages' / `avg_Dmw')*`avg_sh_mww') * 100
 	local avg_ratio = `r' / `effect_wage'
