@@ -15,24 +15,23 @@ program main
 	
 	
 
-	benchmark_plot, depvar(ln_med_rent_psqft) w(5) absorb(year_month) cluster(statefips) outstub(`outstub') 
+	//benchmark_plot, depvar(ln_med_rent_psqft) w(5) absorb(year_month) cluster(statefips) outstub(`outstub') 
 					
 
-STOP
+
 	
 	incidence_formula_avg, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_mw) absorb(year_month) cluster(statefips) mww_share_stub(sh_mww) outstub(`outstub')
-	incidence_formula_avg1pct, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_mw) absorb(year_month) cluster(statefips) mww_share_stub(sh_mww) outstub(`outstub') 
 	incidence_formula_avg_reg, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_mw) absorb(year_month) cluster(statefips) wagevar(avg_d_ln_mwage) instub_wage(`instub_wage') outstub(`outstub')
 	incidence_formula_avg_reg, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_expmw) absorb(year_month) cluster(statefips) wagevar(avg_d_ln_mwage) instub_wage(`instub_wage') outstub(`outstub')
 	incidence_comparison_dube2019, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_expmw) absorb(year_month) mww_share_stub(sh_mww) cluster(statefips) outstub(`outstub')
+	STOP 
 	esttab * using "`outstub'/incidence_table.tex", cells(none) noobs replace substitute(\_ _) ///
 	stats(effect_rent effect_wage avg_ratio, fmt(%9.3f %9.3f %9.3f) ///
-		labels("\overline{\Delta r}" "\overline{\Delta W}" "Pass-Through")) ///
-	mtitles("\shortstack{Formula +\\ \overline{\%\Delta MW}\hat{\beta}}" ///
-		    "\shortstack{Formula + \\ Elasticity \(\hat{\beta}\)}"    ///
-		    "\shortstack{Regression + \\ Elasticity \(\hat{\beta}\)}" ///
-		    "\shortstack{Regression + \\ Experienced MW \\Elasticity}" ///
-		    "\shortstack{Dube et al. (2019) + \\ Experienced MW \\Elasticity}") ///
+		labels("\overline{\% \Delta m}	" "\overline{\% \Delta W}" "Pass-Through")) ///
+	mtitles("\shortstack{r}" ///
+		    "\shortstack{QCEW \\ regression}" ///
+		    "\shortstack{QCEW Regression + \\ Experienced MW}" ///
+		    "\shortstack{Dube et al. (2019) + \\ Experienced MW}") ///
 	star(* 0.10 ** 0.05 *** 0.01)
 	
 
@@ -112,7 +111,7 @@ program incidence_formula_avg_reg
 	use `instub_wage'/mw_wage_panel.dta, clear 
 	merge m:1 countyfips using `samplecty', nogen assert(1 2 3) keep(3)
 	sort countyfips quarter
-	qui reghdfe `wagevar' D.`treatvar', absorb(quarter countyfips statefips) nocons
+	reghdfe `wagevar' D.`treatvar', absorb(quarter countyfips statefips) nocons
 	local effect_wage = _b[D.`treatvar']
 	if "`dynamic'"=="yes" {
 		qui reghdfe `wagevar' L(-2/1).D.`treatvar', absorb(quarter countyfips statefips) nocons	
@@ -420,10 +419,12 @@ program benchmark_plot
 	*benchmarks
 	qui sum sh_mww if e(sample)
 	local sh_mww = r(mean)
+
 	* Baseline parameters
-	local beta_low = 0.122
-	local gamma_low = - 0.8
-	local gamma_hi = - 0.6
+	local beta_low = 0.471
+	*From Albouy 2016 
+	local gamma_low = - 0.719
+	local gamma_hi = - 0.719
 	*from Diamond
 	local k = 0.1
 
