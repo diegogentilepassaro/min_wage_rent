@@ -24,10 +24,10 @@ program main
 			labels("R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) ///
 			mgroups("$\Delta$ ln(Median rent)" "$\Delta$ ln(No. listings)", pattern(1 0 1 0) ///
 			prefix(\multicolumn{@span}{c}{) suffix(}) span erepeat(\cmidrule(lr){@span})) ///
-			nonote nomtitles 
+			nonote nomtitles
 
-	plot_dynamic_placebo, depvar(ln_med_rent_psqft_sfcc) placebovar(ln_n_listings_sfcc) controls(ln_med_list_psqft_sfcc) ///
-						absorb(year_month i.zipcode) cluster(statefips)
+	plot_dynamic_placebo, depvar(ln_med_rent_psqft_sfcc) placebovar(ln_n_listings_sfcc) ///
+						absorb(year_month zipcode) cluster(statefips)
 
 
 
@@ -53,7 +53,7 @@ program plot_dynamic_placebo
 
 	eststo clear
 	
-	eststo: reghdfe D.`placebovar' L(-`w'/`w').D.ln_mw, ///
+	eststo: reghdfe D.`placebovar' L(-`w'/`w').D.ln_mw `controls', ///
 		absorb(`absorb') ///
 		vce(cluster `cluster') nocons
 
