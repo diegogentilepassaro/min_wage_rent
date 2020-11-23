@@ -13,6 +13,13 @@ program main
 	build_coeff_plot, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
 		cluster(statefips) outstub(`outstub')
 
+	foreach w in 3 6 9 {
+		use "`instub'/fd_rent_panel.dta", clear
+
+		build_coeff_plot, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
+			cluster(statefips) outstub(`outstub') w(`w')
+	}
+
 	use "`instub'/fd_rent_panel.dta", clear
 	
 	build_cumsum_plot, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
@@ -77,8 +84,8 @@ program build_coeff_plot
 	merge 1:1 at using "../temp/plot_coeffs.dta", nogen
 	sort at
 
-	gen at_full = at - `offset'                  // To prevent lines from overlapping perfectly
-	gen at_lags = at + `offset'
+	gen at_full = at - (`w'/5)*`offset'                 // To prevent lines from overlapping perfectly
+	gen at_lags = at + (`w'/5)*`offset'
 	replace at_full = at if _n <= `w'
 	replace at_lags = at if _n <= `w'
 	replace cumsum_b_lags = . if at < `w' - 1
@@ -95,25 +102,27 @@ program build_coeff_plot
 		ylabel(-0.06(0.02).08, grid labsize(small)) ytitle("Coefficient") ///
 		legend(order(1 "Full dynamic model" 3 "Distributed lags model") size(small)) ///
 		graphregion(color(white)) bgcolor(white)
-	graph export "`outstub'/fd_models_coeffs.png", replace
-	graph export "`outstub'/fd_models_coeffs.eps", replace
+	graph export "`outstub'/fd_models_coeffs_w`w'.png", replace
+	graph export "`outstub'/fd_models_coeffs_w`w'.eps", replace
 
-	make_plot_xlabels, w(`w')
+	if `w' == 5 {
+		make_plot_xlabels, w(`w')
 
-	twoway 	(scatter b_full at_full, mcol(navy)) ///
-				(rcap b_full_lb b_full_ub at_full, col(navy) lw(vthin)) ///
-			(scatter b_lags at_lags, mcol(maroon)) ///
-				(rcap b_lags_lb b_lags_ub at_lags, col(maroon) lw(vthin)) ///
-			(line static_path at, lcol(gs4) lpat(dash)) ///
-			(line cumsum_b_lags at, lcol(maroon) lpat(dash)), ///
-		yline(0, lcol(black)) ///
-		xlabel(`r(xlab)', labsize(small)) xtitle(" ") ///
-		ylabel(-0.06(0.02).08, grid labsize(small)) ytitle("Coefficient") ///
-		legend(order(1 "Full dynamic model" 3 "Distributed lags model" ///
-			5 "Effects path static model" 6 "Effects path distributed lags model") size(small)) ///
-		graphregion(color(white)) bgcolor(white)
-	graph export "`outstub'/fd_models_everything.png", replace
-	graph export "`outstub'/fd_models_everything.eps", replace
+		twoway 	(scatter b_full at_full, mcol(navy)) ///
+					(rcap b_full_lb b_full_ub at_full, col(navy) lw(vthin)) ///
+				(scatter b_lags at_lags, mcol(maroon)) ///
+					(rcap b_lags_lb b_lags_ub at_lags, col(maroon) lw(vthin)) ///
+				(line static_path at, lcol(gs4) lpat(dash)) ///
+				(line cumsum_b_lags at, lcol(maroon) lpat(dash)), ///
+			yline(0, lcol(black)) ///
+			xlabel(`r(xlab)', labsize(small)) xtitle(" ") ///
+			ylabel(-0.06(0.02).08, grid labsize(small)) ytitle("Coefficient") ///
+			legend(order(1 "Full dynamic model" 3 "Distributed lags model" ///
+				5 "Effects path static model" 6 "Effects path distributed lags model") size(small)) ///
+			graphregion(color(white)) bgcolor(white)
+		graph export "`outstub'/fd_models_everything.png", replace
+		graph export "`outstub'/fd_models_everything.eps", replace
+	}
 end
 
 program build_cumsum_plot
@@ -269,7 +278,7 @@ program build_coeff_plot_controls
 		xlabel(`r(xlab)', labsize(vsmall)) xtitle("Leads and lags of difference in log MW") ///
 		ytitle("Dynamic coefficients") ylabel(-0.06(0.02).06, grid)	///
 		legend(order(1 "Baseline" 3 "Employment" ///
-			5 "Establishment" 7 "Wage" 9 "Building") size(small) rows(1))
+			5 "Establishment" 7 "Wage" 9 "All") size(small) rows(1))
 	
 	graph export "../output/fd_models_control.png", replace
 	graph export "../output/fd_models_control.eps", replace
