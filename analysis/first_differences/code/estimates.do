@@ -17,7 +17,7 @@ program main
 	* Static Model
 	run_static_model, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) cluster(statefips)
 	esttab * using "`outstub'/fd_table.tex", keep(D.ln_mw) compress se replace substitute(\_ _) ///
-		b(%9.3f) se(%9.3f) coeflabels(`estlabels_static') ///
+		b(%9.4f) se(%9.4f) coeflabels(`estlabels_static') ///
 		stats(ctrl_wage ctrl_emp ctrl_estab r2 N, fmt(%s3 %s3 %s3 %9.3f %9.0gc) ///
 		labels("Wage controls" "Employment controls" "Establishment-count controls" ///
 			"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) ///
@@ -25,7 +25,7 @@ program main
 
 	run_static_model_trend, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) cluster(statefips)
 	esttab * using "`outstub'/fd_table_trend.tex", keep(D.ln_mw) compress se replace substitute(\_ _) 	///
-		b(%9.3f) se(%9.3f) coeflabels(`estlabels_static') ///
+		b(%9.4f) se(%9.4f) coeflabels(`estlabels_static') ///
 		stats(zs_trend zs_trend_sq r2 N, fmt(%s3 %s3 %9.3f %9.0gc) ///
 		labels("Zipcode-specifc linear trend" "Zipcode-specific quadratic trend" ///
 			"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) nonote nomtitles 
