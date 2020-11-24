@@ -20,7 +20,7 @@ program main
 	
 
 	local het_vars "med_hhinc20105 unemp_share20105 college_share20105 black_share2010"
-	local het_vars "`het_vars'  teen_share2010"
+	local het_vars "`het_vars' renthouse_share2010 teen_share2010"
 	local het_vars "`het_vars' walall_njob_29young_ssh halall_njob_29young_ssh walall_29y_lowinc_ssh halall_29y_lowinc_ssh" 
  
 

@@ -13,10 +13,12 @@ main <- function() {
    # outdir  <- "../output/"
    outdir <- "../../../drive/base_large/output/"
    tempdir <- "../temp"
+   log_file <- "../output/data_file_manifest.log"
          
    table_list <- list.files(datadir, 
                             pattern = "*.csv")
    
+   table_list <- table_list[table_list != "nhgis0043_ds176_20105_2010_tract.csv"] # We are not using this file
    table_list <- str_remove_all(table_list, paste0("nhgis", data_version, "_"))
    
    table_clean <- lapply(table_list, format_tables, datadir = datadir, data_version = data_version)
@@ -78,9 +80,9 @@ main <- function() {
    
    table_final[, (denom_cols):= NULL]
    
-   save_data(table_final,
+   save_data(table_final, key = c('zipcode'),
              filename = paste0(outdir, 'zip_demo.csv'),
-             key = c('zipcode'))
+             logfile = log_file)
 }
 
 
@@ -230,11 +232,11 @@ format_tables <- function(x, datadir, data_version) {
                    REPE033)]
       
       target_vars <- c('tract_fips', 'county_fips', 
-                       'med_earn_healthsup_20105', 'med_earn_protectserv_20105', 'med_earn_foodserv_20105', 'med_earn_cleaning_20105', 'med_earn_perscare_20105', 'med_earn_prodtransp_20105')
+                       paste0('med_earn_', c('healthsup_20105', 'protectserv_20105', 'foodserv_20105', 
+                                             'cleaning_20105', 'perscare_20105', 'prodtransp_20105')))
       
       data <- data[, ..target_vars]
    }
-   
 
    return(data)
 }
