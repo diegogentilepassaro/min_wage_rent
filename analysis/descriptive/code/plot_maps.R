@@ -2,7 +2,7 @@ remove(list = ls())
 source("../../../lib/R/load_packages.R")
 source("../../../lib/R/save_data.R")
 
-load_packages(c('tidyverse', 'DescTools', 'data.table', 'matrixStats', 'knitr', 'tigris', 'sf', 'sfheaders', 'remotes', 'choroplethrZip',
+load_packages(c('tidyverse', 'DescTools', 'data.table', 'matrixStats', 'knitr', 'sf', 'sfheaders', 'remotes', 'rgdal',
                 'kableExtra', 'ggplot2', 'png', 'readxl', 'readstata13', 'unikn', 'RColorBrewer', 'maps', 'stringr', 'tidycensus'))
 
 theme_set(theme_minimal())
@@ -17,6 +17,8 @@ options(tigris_class = "sf")
 
 remotes::install_github("jrnold/stataXml") #need this to process stata dates
 library('stataXml')
+remotes::install_github('arilamstein/choroplethrZip@v1.4.0')
+library('choroplethrZip')
   
 
 main <- function() {
@@ -39,32 +41,29 @@ main <- function() {
   zcta_map <- sfheaders::sf_multipolygon(zip.map, x = 'long', y = 'lat', multipolygon_id = 'id', polygon_id = 'piece', keep = T)
   
   
-  png(filename = paste0(outdir, 'sample_map.png'), width = 7680, height = 5680)
+
   print(plot_sample(df_data = df, zipzcta = zip_zcta_xwalk,
                     out = outdir, zctamsa = zcta_msa_xwalk, zcta_map = zcta_map))
-  dev.off()
+  ggsave(filename = paste0(outdir, 'sample_map.png'), width = 15, height = 15)
 
-  png(filename = paste0(outdir, 'popurban_density_map.png'), width = 7680, height = 5680)
   print(plot_demo(out = outdir, zctamsa = zcta_msa_xwalk, zcta_map = zcta_map,
                   target_demo = 'urbpopden', legend_name = 'Urban Population Density (per Sq. Miles)'))
-  dev.off()
-  
-  
-  city_list <- list(c('Los Angeles', 44000, '2019-07-01'), 
-                    c('Seattle', 63000,'2019-01-01'), 
+  ggsave(filename = paste0(outdir, 'popurban_density_map.png'), width = 15, height = 15)
+
+  city_list <- list(c('Los Angeles', 44000, '2019-07-01'),
+                    c('Seattle', 63000,'2019-01-01'),
                     c('Chicago', 14000, '2019-07-01'),
-                    c('San Francisco', 67000, '2019-07-01'), 
+                    c('San Francisco', 67000, '2019-07-01'),
                     c('San Diego', 66000, '2019-01-01'))
   varplot <- c('medrentpricepsqft_sfcc', 'actual_mw', 'exp_mw_totjob')
-  
+
   make_city_plots <- function(x, vars = varplot) {
-    
+
     lapply(vars, function(y) {
       if (y=='actual_mw') this_file_name <- paste0(gsub(' ', '_', x[1]), '_mw_msa.png')
       else if (y=='exp_mw_totjob') this_file_name <- paste0(gsub(' ', '_', x[1]), '_expmw_msa.png')
       else this_file_name <- paste0(gsub(' ', '_', x[1]), '_rent_msa.png')
-      
-      png(filename = paste0(outdir,this_file_name), width = 7680, height = 7680)
+
       print(plot_changes_city(target_var = y,
                               target_msa = x[1],
                               nmon = 6,
@@ -75,11 +74,11 @@ main <- function() {
                               zctaplace = zcta_place_xwalk,
                               zcta_map = zcta_map,
                               out = outdir))
-      dev.off()
-      
+      ggsave(filename = paste0(outdir,this_file_name), width = 15, height = 15)
+
     })
   }
-  
+
   lapply(city_list, make_city_plots)
   
 }
@@ -142,37 +141,37 @@ plot_sample <- function(df_data,
     plot<- ggplot() + 
       geom_sf(data = msa_map, color = 'transparent', aes(fill = 'msafill')) +
       geom_sf(data = zcta_sample_map, color = 'transparent', aes(fill = 'samplefill')) + 
-      geom_sf(data = us_boundary, fill= NA, size = 1.5) +
+      geom_sf(data = us_boundary, fill= NA, size = 0.5) +
       theme_void() + 
       theme(aspect.ratio = 0.6) + 
       scale_fill_manual(values = c('msafill' = unname(seecol(pal_seeblau, hex = T)[1]),'samplefill' = unname(seecol(pal_petrol, hex = T)[5])), 
                          label = c('CBSAs', 'Sample'), 
                          name = '', 
                          guide = guide_legend(direction = "horizontal",
-                                              keyheight = unit(4, units = "cm"),
-                                              keywidth = unit(8, units = "cm"),
+                                              keyheight = unit(1, units = "cm"),
+                                              keywidth = unit(4, units = "cm"),
                                               byrow = T)) + 
       theme(legend.position = "bottom", 
             plot.title = element_text(size=180),
             plot.subtitle = element_text(size = 140), 
-            legend.text = element_text(size = 80))
+            legend.text = element_text(size = 60))
   } else if (plotmsa==F) {
       plot<- ggplot() + 
         geom_sf(data = zcta_sample_map, color = 'transparent', aes(fill = 'samplefill')) + 
-        geom_sf(data = us_boundary, fill= NA, size = 1.5) +
+        geom_sf(data = us_boundary, fill= NA, size = 0.5) +
         theme_void() + 
         theme(aspect.ratio = 0.6) + 
         scale_fill_manual(values = c('samplefill' = unname(seecol(pal_petrol, hex = T)[5])), 
                           label = c('Zillow Sample'), 
                           name = '', 
                           guide = guide_legend(direction = "horizontal",
-                                               keyheight = unit(4, units = "cm"),
-                                               keywidth = unit(8, units = "cm"),
+                                               keyheight = unit(1, units = "cm"),
+                                               keywidth = unit(4, units = "cm"),
                                                byrow = T)) + 
         theme(legend.position = "bottom", 
               plot.title = element_text(size=180),
               plot.subtitle = element_text(size = 140), 
-              legend.text = element_text(size = 80))
+              legend.text = element_text(size = 30))
   }
   return(plot)
 }
@@ -211,7 +210,7 @@ plot_demo <- function(target_demo,
   
   plot <- ggplot() + 
     geom_sf(data = zcta_map, color = 'transparent', aes(fill = get(target_demo))) + 
-    geom_sf(data = us_boundary, fill= NA, size = 1.5) +
+    geom_sf(data = us_boundary, fill= NA, size = .5) +
     theme_void() + 
     theme(aspect.ratio = 0.6) + 
     scale_fill_gradient(
@@ -220,8 +219,8 @@ plot_demo <- function(target_demo,
       name = legend_name, 
       aesthetics = 'fill',
       guide = guide_colorbar(direction = "horizontal",
-                             barheight = unit(2, units = "cm"),
-                             barwidth = unit(50, units = "cm"),
+                             barheight = unit(1, units = "cm"),
+                             barwidth = unit(25, units = "cm"),
                              draw.ulim = T,
                              draw.llim = T,
                              title.position = 'top',
@@ -229,8 +228,8 @@ plot_demo <- function(target_demo,
                              label.hjust = 0.5), 
       na.value = 'gray') + 
     theme(legend.position = "bottom", 
-          legend.title = element_text(size = 80),
-          legend.text = element_text(size = 80))
+          legend.title = element_text(size = 30),
+          legend.text = element_text(size = 30))
   return(plot)
 }
 
@@ -287,15 +286,15 @@ plot_changes_city <- function(target_var,
   
   if (grepl('mw', target_var)==T){
     legend_name <- "6-Month Minimum Wage Change (%)"
-    legend_width <- 70
+    legend_width <- 11.5
   } else {
     legend_name <- "6-Month Rent Change (%)"
-    legend_width <- 50
+    legend_width <- 8.5
   }
   
   plot <- ggplot() + 
-    geom_sf(data = msa_map, color = 'black', fill = 'transparent', size = 1.5) +  
-    geom_sf(data = zcta_sample_map, aes(fill=pct_target), color="white", size = 1.5) +
+    geom_sf(data = msa_map, color = 'black', fill = 'transparent', size = .3) +  
+    geom_sf(data = zcta_sample_map, aes(fill=pct_target), color="white", size = .3) +
     #geom_sf(data = mw_map, color = 'darkred', fill = 'transparent', size = 5) +
     theme_void() +
     theme(panel.grid.major = element_line(colour = 'transparent')) +
@@ -306,7 +305,7 @@ plot_changes_city <- function(target_var,
       name = legend_name, 
       aesthetics = 'fill',
       guide = guide_colorbar(direction = "horizontal",
-                             barheight = unit(2, units = "cm"),
+                             barheight = unit(.5, units = "cm"),
                              barwidth = unit(legend_width, units = "cm"),
                              draw.ulim = T,
                              draw.llim = T,
@@ -317,8 +316,8 @@ plot_changes_city <- function(target_var,
     theme(legend.position = "bottom",
           plot.title = element_text(size=180),
           plot.subtitle = element_text(size = 140),
-          legend.title = element_text(size = 120),
-          legend.text = element_text(size = 80))
+          legend.title = element_text(size = 20),
+          legend.text = element_text(size = 15))
 
   return(plot)
 }
