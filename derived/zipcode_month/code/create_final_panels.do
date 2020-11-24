@@ -102,8 +102,7 @@ program add_covars
 	
 	gen date = dofm(year_month)
 	format date %d
-		
-	gen year  = year(date)
+
 	gen month = month(date)
 
 	drop date
