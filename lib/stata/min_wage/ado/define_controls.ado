@@ -1,6 +1,6 @@
 program define_controls, rclass
 	foreach ctrl_type in emp estcount avgwwage {
-		local var_list "ln_`ctrl_type'_bizserv ln_`ctrl_type'_info ln_`ctrl_type'_manu"
+		local var_list "ln_`ctrl_type'_bizserv ln_`ctrl_type'_info ln_`ctrl_type'_fin"
 		return local `ctrl_type'_ctrls `var_list'
 	}
 
