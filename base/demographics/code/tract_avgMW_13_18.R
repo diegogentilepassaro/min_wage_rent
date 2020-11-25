@@ -63,7 +63,8 @@ main <- function() {
   
   mw_vars <- c('local_mw', 'county_mw', 'state_mw', 'fed_mw')
   
-  dfp[,actual_mw := rowMaxs(as.matrix(dfp[,..mw_vars]), na.rm = T)][,actual_mw:= fifelse(actual_mw == -Inf, NA, actual_mw)]
+  dfp[,actual_mw := rowMaxs(as.matrix(dfp[,..mw_vars]), na.rm = T)]
+  # [,actual_mw:= fifelse(actual_mw == -Inf, NA, actual_mw)]
   
   mw_avg1318 <- dfp[, .(mw1318 = mean(actual_mw, na.rm = T)), by = 'tract_fips']
   
