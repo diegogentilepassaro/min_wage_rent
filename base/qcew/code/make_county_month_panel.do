@@ -9,7 +9,7 @@ program main
     use `instub'/industry_county_qtr_emp_wage.dta, clear
 
     select_sectors, ownership(`""Federal Government" "State Government" "Local Government" "Private""') ///
-    industry(`" "Goods-producing" "Natural resources and mining" "Construction" "Manufacturing" "Service-providing" "Trade, transportation, and utilities" "Information" "Financial Activities" "Professional and business services" "Education and health services" "Leisure and hospitality" "')
+                    industries("1011 1012 1013 1021 1022 1023 1024 1025 1026 1019")
 
     clean_vars
 
@@ -21,7 +21,7 @@ program main
 end 
 
 program select_sectors
-    syntax, ownership(str) industry(str)
+    syntax, ownership(str) industries(str)
 
     local n : word count `ownership'
     local first_owner: word 1 of `ownership'
@@ -38,14 +38,14 @@ program select_sectors
 
     replace industry = trim(regexr(trim(industry), "^[0-9]+", ""))
 
-    local n : word count `industry'
-    local first_ind: word 1 of `industry'
-    local ind_list `"industry=="`first_ind'""'
+    local n : word count `industries'
+    local first_ind: word 1 of `industries'
+    local ind_list `"naics == "`first_ind'""'
     
     if `n'>1 {
         forval x = 2/`n' {
-            local this_ind: word `x' of `industry'
-            local this_ind_list `" | industry== "`this_ind'""'
+            local this_ind: word `x' of `industries'
+            local this_ind_list `" | naics == "`this_ind'""'
             local ind_list `"`ind_list' `this_ind_list'"'    
         }        
     }
@@ -61,7 +61,7 @@ program clean_vars
     destring statefips, replace 
 
     rename (employment_month1 employment_month2 employment_month3 estab_count avg_week_wage) ///
-           (emp_1              emp_2            emp_3             estcount_   avgwwage_)
+           (emp_1             emp_2             emp_3             estcount_   avgwwage_)
 
     replace industry = "const"   if industry == "Construction"
     replace industry = "eduhe"   if industry == "Education and health services"
@@ -76,7 +76,7 @@ program clean_vars
     replace industry = "stgov"   if industry == "State Government"
     replace industry = "transp"  if industry == "Trade, transportation, and utilities"
     replace industry = "locgov"  if industry == "Local Government"
-
+    replace industry = "fin"     if industry == "Financial activities"
 end  
 
 
