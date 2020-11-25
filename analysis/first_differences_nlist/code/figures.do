@@ -55,6 +55,7 @@ program plot_dynamic_placebo
 			yline(0, lcol(black)) ///
 			legend(off)
 		graph export "../output/fd_placebo.png", replace
+		graph export "../output/fd_placebo.eps", replace
 	restore
 end 
 
