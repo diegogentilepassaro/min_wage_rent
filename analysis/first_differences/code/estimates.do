@@ -2,7 +2,7 @@ clear all
 set more off
 adopath + ../../../lib/stata/gslab_misc/ado
 adopath + ../../../lib/stata/min_wage/ado
-set maxvar 32000 
+set maxvar 32000
 
 program main
 	local instub "../temp"
@@ -17,7 +17,7 @@ program main
 	* Static Model
 	run_static_model, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) cluster(statefips)
 	esttab * using "`outstub'/fd_table.tex", keep(D.ln_mw) compress se replace substitute(\_ _) ///
-		b(%9.3f) se(%9.3f) coeflabels(`estlabels_static') ///
+		b(%9.4f) se(%9.4f) coeflabels(`estlabels_static') ///
 		stats(ctrl_wage ctrl_emp ctrl_estab r2 N, fmt(%s3 %s3 %s3 %9.3f %9.0gc) ///
 		labels("Wage controls" "Employment controls" "Establishment-count controls" ///
 			"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) ///
@@ -25,7 +25,7 @@ program main
 
 	run_static_model_trend, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) cluster(statefips)
 	esttab * using "`outstub'/fd_table_trend.tex", keep(D.ln_mw) compress se replace substitute(\_ _) 	///
-		b(%9.3f) se(%9.3f) coeflabels(`estlabels_static') ///
+		b(%9.4f) se(%9.4f) coeflabels(`estlabels_static') ///
 		stats(zs_trend zs_trend_sq r2 N, fmt(%s3 %s3 %9.3f %9.0gc) ///
 		labels("Zipcode-specifc linear trend" "Zipcode-specific quadratic trend" ///
 			"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) nonote nomtitles 
@@ -49,7 +49,7 @@ program run_static_model
 
 	eststo clear
 
-	define_controls estcount avgwwage
+	define_controls
 	local emp_ctrls "`r(emp_ctrls)'"
 	local estcount_ctrls "`r(estcount_ctrls)'"
 	local avgwwage_ctrls "`r(avgwwage_ctrls)'"
@@ -95,7 +95,7 @@ program run_dynamic_model
 	syntax, depvar(str) absorb(str) cluster(str) [w(int 5) t_plot(real 1.645) offset(real 0.09)]
 
 	eststo clear
-	define_controls estcount avgwwage
+	define_controls
 	local emp_ctrls "`r(emp_ctrls)'"
 	local estcount_ctrls "`r(estcount_ctrls)'"
 	local avgwwage_ctrls "`r(avgwwage_ctrls)'"
@@ -159,17 +159,6 @@ program run_dynamic_model
 	add_cumsum, coefficients(`lincomest_coeffs') i(5)
 end
 
-program define_controls, rclass
-	
-	foreach ctrl_type in emp estcount avgwwage {
-		local var_list "ln_`ctrl_type'_bizserv ln_`ctrl_type'_info ln_`ctrl_type'_manu"
-		return local `ctrl_type'_ctrls `var_list'
-	}
-
-	local housing_cont   "ln_u1rep_units ln_u1rep_value"
-	return local housing_cont "`housing_cont'"
-end
-
 program comment_table_control
 	syntax, emp(str) estab(str) wage(str) housing(str)
 
@@ -207,21 +196,6 @@ program comment_table
 	estadd local zs_trend 		"`trend_lin'"
 	estadd local zs_trend_sq 	"`trend_sq'"
 end
-
-program make_results_labels, rclass
-	syntax, w(int)
-	
-	local estlabels `"D.ln_mw "$\Delta \ln \underline{w}_{i,t}$""'
-	local estlabels `"FD.ln_mw "$\Delta \ln \underline{w}_{i,t-1}$" `estlabels' LD.ln_mw "$\ln \underline{w}_{i,t+1}$""'
-	forvalues i = 2(1)`w'{
-		local estlabels `"F`i'D.ln_mw "$\Delta \ln \underline{w}_{i,t-`i'}$" `estlabels' L`i'D.ln_mw "$\Delta \ln \underline{w}_{i,t+`i'}$""'
-	}
-
-	return local estlabels_dyn "`estlabels'"	
-
-	local estlabels_static `"D.ln_mw "$\Delta \ln \underline{w}_{it}$""'
-	return local estlabels_static "`estlabels_static'"
-end 
 
 
 main

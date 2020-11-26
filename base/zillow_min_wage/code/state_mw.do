@@ -131,7 +131,7 @@ end
 program prepare_finaldata    
     syntax, begindate(str) finaldate(str) outstub(str) temp(str)
 
-    merge 1:1 statefips date using `temp'/fedmw.dta, nogenerate
+    merge 1:1 statefips date using `temp'/fedmw.dta, nogen
     merge m:1 statefips using `temp'/crosswalk.dta, nogen assert(3)
 
     gen mw_adj = mw

@@ -5,7 +5,7 @@ adopath + ../../../lib/stata/mental_coupons/ado
 
 
 program main
-	local instub "../temp"
+	local temp "../temp"
 	local indemo "../../../drive/base_large/output"
 	local inqcew "../../../base/qcew/output"
 	local inbps "../../../base/bps/output"
@@ -13,12 +13,12 @@ program main
 	local outstub "../../../drive/derived_large/output"
 	local logfile "../output/data_file_manifest.log"
 
-	import delim using "`indemo'/zip_demo.csv", clear
-	save_data "`instub'/zip_ready.dta", replace key(zipcode) log(none)
-
+	prepare_aux_data, instub(`indemo') outstub(`temp')
+	
 	* Unbalanced rents
-	unbalanced_panel, instub(`instub') inqcew(`inqcew') inbps(`inbps') inlodes(`inlodes') ///
-					  vars(_sfcc _2br _mfr5plus) start_date(01jan2010) end_date(01dec2019)
+	unbalanced_panel, instub(`temp') inqcew(`inqcew') inbps(`inbps') inlodes(`inlodes') ///
+					  vars(_sfcc _2br _mfr5plus) ///
+					  start_date(01jan2010) end_date(01dec2019)
   	save_data `outstub'/unbal_rent_panel.dta, key(zipcode year_month) 	///
 		log(`logfile') replace 
 
@@ -29,16 +29,16 @@ program main
 	}
 
 	foreach var in medrentprice_sfcc `rent_vars' {
-		create_baseline_panel, instub(`instub') var(`var')					///
+		create_baseline_panel, instub(`temp') var(`var')					///
 			balance_date(01jul2015) start_date(01jan2010) end_date(01dec2019)
 	}
 
-	use "`instub'/baseline_medrentprice_sfcc.dta", clear
+	use "`temp'/baseline_medrentprice_sfcc.dta", clear
 	foreach var in `rent_vars' {
-		merge 1:1 zipcode year_month using "`instub'/baseline_`var'.dta", 	///
+		merge 1:1 zipcode year_month using "`temp'/baseline_`var'.dta", 	///
 		    nogen keep(1 3)
 	}
-	add_covars, demo(yes) indemo(`instub') qcew(yes) inqcew(`inqcew') bps(yes) inbps(`inbps') lodes(yes) inlodes(`inlodes')
+	add_covars, demo(yes) indemo(`temp') qcew(yes) inqcew(`inqcew') bps(yes) inbps(`inbps') lodes(yes) inlodes(`inlodes')
 	save_data "`outstub'/baseline_rent_panel.dta", key(zipcode year_month) 	///
 		log(`logfile') replace
 
@@ -49,27 +49,38 @@ program main
 	}
 
 	foreach var in medlistingprice_sfcc `listing_vars' {
-		create_baseline_panel, instub(`instub') var(`var') 					///
+		create_baseline_panel, instub(`temp') var(`var') 					///
 			balance_date(01jul2015) start_date(01jan2010) end_date(01dec2019)
 	}
 
-	use "`instub'/baseline_medlistingprice_sfcc.dta", clear
+	use "`temp'/baseline_medlistingprice_sfcc.dta", clear
 	foreach var in `listing_vars' {
-		merge 1:1 zipcode year_month using "`instub'/baseline_`var'.dta", 	///
+		merge 1:1 zipcode year_month using "`temp'/baseline_`var'.dta", 	///
 			nogen keep(1 3)
 	}
-	add_covars, demo(yes) indemo(`instub') qcew(yes) inqcew(`inqcew') bps(yes) inbps(`inbps')
+	add_covars, demo(yes) indemo(`temp') qcew(yes) inqcew(`inqcew') bps(yes) inbps(`inbps') lodes(yes) inlodes(`inlodes') 
 	save_data "`outstub'/baseline_listing_panel.dta", key(zipcode year_month) ///
 		log(`logfile') replace
 
 
 	* Baseline all
-	use "`instub'/zipcode_yearmonth_panel.dta", clear
-	add_covars, demo(yes) indemo(`instub') qcew(no) inqcew(`inqcew') bps(no) inbps(`inbps') lodes(no) inlodes(`inlodes')
+	use "`temp'/zipcode_yearmonth_panel.dta", clear
+	add_covars, demo(yes) indemo(`temp') qcew(no) inqcew(`inqcew') bps(no) inbps(`inbps') lodes(no) inlodes(`inlodes')
 	save_data "`outstub'/zipcode_yearmonth_panel_all.dta", key(zipcode year_month) ///
 		log(`logfile') replace */
 end
 
+program prepare_aux_data
+	syntax, instub(str) outstub(str)
+
+	import delim using `instub'/zip_demo.csv, clear
+	save_data `outstub'/zip_ready.dta, replace key(zipcode) log(none)
+	use `instub'/exp_mw.dta, clear 
+	g year_month = mofd(yearmonth)
+	format year_month %tm
+	drop yearmonth
+	save_data `outstub'/exp_mw.dta, replace key(zipcode year_month) log(none)
+end
 
 program add_covars 
 	syntax, demo(str) indemo(str) qcew(str) inqcew(str) bps(str) inbps(str) lodes(str) inlodes(str)
@@ -85,12 +96,12 @@ program add_covars
 	}
 	if "`lodes'" == "yes" {
 		merge m:1 zipcode using `inlodes'/zip_lodes.dta, nogen assert(1 2 3) keep(1 3)
+		merge m:1 zipcode year_month using `indemo'/exp_mw.dta, nogen assert(1 2 3) keep(1 3)
 	}
 	
 	gen date = dofm(year_month)
 	format date %d
-		
-	gen year  = year(date)
+
 	gen month = month(date)
 
 	drop date
