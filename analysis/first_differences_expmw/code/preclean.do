@@ -14,10 +14,10 @@ program main
 		dactual_mw actual_mw medrentpricepsqft_* 							///
 		med_hhinc20105 renthouse_share2010 white_share2010 black_share2010			///
 		college_share20105 work_county_share20105 unemp_share20105 teen_share2010   ///
-		sh_treated* exp_mw*
+		sh_treated* exp_mw* ///
+		walall_29y_lowinc_ssh halall_29y_lowinc_ssh walall_29y_lowinc_zsh halall_29y_lowinc_zsh
 
-	local het_vars "med_hhinc20105 unemp_share20105 college_share20105 black_share2010"
-	local het_vars "`het_vars'  teen_share2010"
+	local het_vars "walall_29y_lowinc_ssh halall_29y_lowinc_ssh walall_29y_lowinc_zsh halall_29y_lowinc_zsh"
  
 
 	create_vars, 	log_vars(actual_mw medrentpricepsqft_sfcc exp_mw*) 	///
@@ -68,6 +68,7 @@ end
 program simplify_varnames
 	
 	cap rename ln_actual_mw                  ln_mw 
+	cap rename ln_exp_mw_totjob              ln_expmw	
 	cap rename ln_medrentpricepsqft_sfcc     ln_med_rent_psqft_sfcc
 	cap rename ln_medrentpricepsqft_2br      ln_med_rent_psqft_2br
 	cap rename ln_medrentpricepsqft_mfr5plus ln_med_rent_psqft_mfr5plus
