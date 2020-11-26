@@ -8,7 +8,7 @@ program main
 	local instub "../temp"
 	local outstub "../output"
 
-	use "`instub'/fd_rent_panel.dta", clear
+	use "`instub'/unbal_fd_rent_panel.dta", clear
 
 	build_coeff_plot_comp, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
 		cluster(statefips)
@@ -29,7 +29,7 @@ program build_coeff_plot_comp
 
 	*cumulative base
 	preserve 
-	qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls'), absorb(`absorb') vce(cluster `cluster') nocons
+	qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls') if basepanel, absorb(`absorb') vce(cluster `cluster') nocons
 	local w_halfspan = `w' + 1
 	matrix CUMBASE = J(`w_halfspan', 5, .)
 	matrix colname CUMBASE = "at" "cumsum_base_b" "cumsum_base_se" "cumsum_base_lb" "cumsum_base_ub"
@@ -44,7 +44,7 @@ program build_coeff_plot_comp
 	matrix CUMBASE[1,4] = b[1, 1] - `t_plot'*V[1, 1]^.5
 	matrix CUMBASE[1,5] = b[1, 1] + `t_plot'*V[1, 1]^.5
 	forval i = 1/`w' {
-		qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls'), absorb(`absorb') vce(cluster `cluster') nocons
+		qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls') if basepanel, absorb(`absorb') vce(cluster `cluster') nocons
 		local at = `i' + 1
 		local cumcoeff = `"`cumcoeff' + L`i'D.ln_mw"'
 		lincomest `cumcoeff'
@@ -64,7 +64,7 @@ program build_coeff_plot_comp
 	restore
 
 	*regular base
-	qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls'), absorb(`absorb') vce(cluster `cluster') nocons
+	qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls') if basepanel, absorb(`absorb') vce(cluster `cluster') nocons
 	preserve
 		coefplot, vertical base gen
 		keep __at __b __se
@@ -80,9 +80,9 @@ program build_coeff_plot_comp
 		save "../temp/plot_coeffs_base.dta", replace
 	restore
 
-	*cumsum reweighted 
+	*cumsum unbalanced 
 	preserve 
-	qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls') [pw = wgt_cbsa100], absorb(`absorb') vce(cluster `cluster') nocons
+	qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls'), absorb(`absorb' entry_sfcc#year_month) vce(cluster `cluster') nocons
 	local w_halfspan = `w' + 1
 	matrix CUMBASE = J(`w_halfspan', 5, .)
 	matrix colname CUMBASE = "at" "cumsum_wgt_b" "cumsum_wgt_se" "cumsum_wgt_lb" "cumsum_wgt_ub"
@@ -97,7 +97,7 @@ program build_coeff_plot_comp
 	matrix CUMBASE[1,4] = b[1, 1] - `t_plot'*V[1, 1]^.5
 	matrix CUMBASE[1,5] = b[1, 1] + `t_plot'*V[1, 1]^.5
 	forval i = 1/`w' {
-		qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls') [pw = wgt_cbsa100], absorb(`absorb') vce(cluster `cluster') nocons
+		qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls'), absorb(`absorb' entry_sfcc#year_month) vce(cluster `cluster') nocons
 		local at = `i' + 1
 		local cumcoeff = `"`cumcoeff' + L`i'D.ln_mw"'
 		lincomest `cumcoeff'
@@ -117,8 +117,8 @@ program build_coeff_plot_comp
 	restore
 
 
-	qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls') [pw = wgt_cbsa100], ///
-	absorb(`absorb') vce(cluster `cluster') nocons
+	qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls'), ///
+	absorb(`absorb' entry_sfcc#year_month) vce(cluster `cluster') nocons
 
 				
 	preserve
@@ -161,8 +161,8 @@ program build_coeff_plot_comp
 			   ylabel(-0.06(0.02).16, grid labsize(small)) ytitle("Coefficient") ///
 			   legend(order(1 "Baseline dynamic model" 3 "Reweighted dynamic model" 5 "Cumulative baseline" 8 "Cumulative Reweighted") size(vsmall)) ///
 			   graphregion(color(white)) bgcolor(white)
-		graph export "../output/fd_model_comparison_wgt.png", replace
-		graph export "../output/fd_model_comparison_wgt.eps", replace
+		graph export "../output/fd_model_comparison_unbal.png", replace
+		graph export "../output/fd_model_comparison_unbal.eps", replace
 
 	restore 
 end
