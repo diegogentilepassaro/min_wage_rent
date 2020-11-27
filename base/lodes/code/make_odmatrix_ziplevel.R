@@ -30,7 +30,6 @@ main <- function() {
   odzip <- lapply(state_list, function(y) {
     make_odmatrix_state(stabb = y, datadir = datadir_lodes, out = outdir, aux = aux_all, xwalk = tract_zip_xwalk, dest_threshold = .9)
   })
-    
 }
 
 make_xwalk <- function(instub) { #crosswalk function
@@ -100,12 +99,10 @@ make_odmatrix_state <- function(stabb, datadir, out, aux, xwalk, dest_threshold)
   this_state_zip <- this_state_zip[totjob_cumsh<=dest_threshold, ][, c('h_totjob', 'totjob_cum', 'totjob_cumsh'):=NULL] #keep only destination zipcode that make up to 90 percent of total workforce
   
   this_fips <- str_pad(this_fips, 2, pad = 0)
-  save_data(this_state_zip, filename = paste0(out, 'odzip_', this_fips, '.csv'), key = c('h_zipcode', 'w_zipcode'))
+  save_data(this_state_zip, key = c('h_zipcode', 'w_zipcode'), 
+            filename = paste0(out, 'odzip_', this_fips, '.csv'), 
+            logfile = "../output/odmatrix_data_manifest.log")
 }
 
 
 main() 
-
-
-
-

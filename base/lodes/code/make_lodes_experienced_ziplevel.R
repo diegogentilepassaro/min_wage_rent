@@ -10,6 +10,7 @@ main <- function(){
   datadir_mw    <- '../../../base/zillow_min_wage/output/'
   datadir_xwalk <- '../../../raw/crosswalk/'
   outdir        <- '../../../drive/base_large/output/'
+  log_file      <- '../output/data_file_manifest.log'
   
   mw_data <- load_mw(instub = datadir_mw)
   state_mw <- mw_data[['state_mw']]
@@ -38,6 +39,7 @@ main <- function(){
                                   .SDcols = c('totjob', 'job_young', 'job_lowinc'), 
                                   by = 'h_zipcode']
                        setorderv(this_state, cols = c('h_zipcode', 'w_zipcode'))
+
                        #share of treated and experienced MW for every date
                        p <- lapply(p, function(y, this_st = this_state, zip2 = zip) {
                          this_date_mw <- zip2[yearmonth==y,][, 'w_zipcode' := zipcode] #select the given date
@@ -62,18 +64,20 @@ main <- function(){
                                                                 exp_mw_job_lowinc = sum(actual_mw*sh_job_lowinc, na.rm = T)), by = c('h_zipcode', 'yearmonth')]
                          this_state_date <- this_state_date[!is.na(yearmonth),] #remove missings
                          return(this_state_date)
+                         
                        })
                        p <- rbindlist(p)
                        return(p)
                      }, mc.cores = 8)
+
   exp_mw <- rbindlist(exp_mw)
   setnames(exp_mw, old  = 'h_zipcode', new = 'zipcode')
   setorderv(exp_mw, c('zipcode', 'yearmonth'))
   
-  save_data(exp_mw, key = c('zipcode', 'yearmonth'), filename = paste0(outdir, 'exp_mw.dta'))
-  
+  save_data(exp_mw, key = c('zipcode', 'yearmonth'), 
+            filename = paste0(outdir, 'exp_mw.dta'),
+            logfile  = log_file)
 }
-
 
 
 load_mw <- function(instub) {
@@ -171,5 +175,6 @@ assemble_mw_US <- function(zcounty, zplaces, stmw, ctymw, locmw) {
   dfzip[, zipcode:=as.numeric(zipcode)] 
   return(dfzip)
 }
+
 
 main()
