@@ -16,7 +16,7 @@ program main
 
 
 	static_dynamic_comp, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
-		cluster(statefips)
+		cluster(statefips) add_unbal(yes)
 	esttab using "`outstub'/static_dynamic_comptable.tex", replace compress se substitute(\_ _) ///
 	keep(D.ln_mw) b(%9.4f) se(%9.4f) coeflabels(D.ln_mw "Static Effect") ///
 	stats(space cumsum_b cumsum_V space p_value_F ctrl_wage ctrl_emp ctrl_estab r2 N,  ///
@@ -24,14 +24,14 @@ program main
 	labels("\vspace{-1mm}" "Cumulative effect" " " "\hline" "P-value no pretrends" ///
 		"Wage controls" "Employment controls" "Establishment-count controls"  ///
 			"R-squared" "Observations")) ///
-	mtitles("Baseline" "Reweighted")  ///
+	mtitles("Baseline" "Reweighted" "Unbalanced")  ///
 	star(* 0.10 ** 0.05 *** 0.01) nonote
 
 end 
 
 
 program static_dynamic_comp 
-	syntax, depvar(str) absorb(str) cluster(str) [w(int 5) t_plot(real 1.645)]
+	syntax, depvar(str) absorb(str) cluster(str) [w(int 5) t_plot(real 1.645) add_unbal(str)] 
 
 	eststo clear 
 	define_controls
@@ -84,6 +84,28 @@ program static_dynamic_comp
 	estadd local space ""
 	estadd local cumsum_b "`cumsum_b'"
 	estadd local cumsum_V "`cumsum_V'"
+
+	if "`add_unbal'"=="yes" {
+		use "../../first_differences_unbal/temp/unbal_fd_rent_panel.dta", clear
+
+		*Unbalanced
+		qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls'), absorb(`absorb' entry_sfcc#year_month) vce(cluster `cluster') nocons	
+		test `pretrend_test'
+		local p_value_F = r(p)
+
+		add_cumsum, coefficients(`lincomest_coeffs') i(1)
+
+		local cumsum_b "`r(cumsum_b)'"
+		local cumsum_V "`r(cumsum_V)'"
+
+		eststo: qui reghdfe D.`depvar' D.ln_mw D.(`controls'), ///
+			absorb(`absorb' entry_sfcc#year_month) vce(cluster `cluster') nocons
+		comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing("No")
+		estadd scalar p_value_F `p_value_F'
+		estadd local space ""
+		estadd local cumsum_b "`cumsum_b'"
+		estadd local cumsum_V "`cumsum_V'"
+	}
 
 end 
 

@@ -64,6 +64,10 @@ program create_vars
 	}
 	g treat_dir = (dactual_mw>0)
 	bys zipcode (year_month): gegen ziptreated_dir = max(treat_dir)
+
+	g treat_ind = (dactual_mw==0 & Dexp_mw_totjob!=0)
+	bys zipcode (year_month): gegen ziptreated_ind = max(treat_ind)
+	replace ziptreated_ind = 0 if ziptreated_dir==1
 end
 
 program simplify_varnames
