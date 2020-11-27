@@ -13,18 +13,13 @@ program main
 	build_coeff_plot_comp, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
 		cluster(statefips)
 
-	foreach var in walall_29y_lowinc_zsh halall_29y_lowinc_zsh walall_29y_lowinc_ssh halall_29y_lowinc_ssh {
+	foreach var in walall_29y_lowinc_zsh halall_29y_lowinc_zsh walall_29y_lowinc_ssh halall_29y_lowinc_ssh walall_njob_29young_ssh walall_njob_29young_zsh halall_njob_29young_ssh halall_njob_29young_zsh {
 		plot_static_heterogeneity, depvar(ln_med_rent_psqft_sfcc) absorb(year_month zipcode) ///
 				het_var(`var'_st_qtl) cluster(statefips) outstub(`outstub')		
-
-		plot_static_heterogeneity, depvar(ln_med_rent_psqft_sfcc) absorb(year_month zipcode) ///
-				het_var(`var'_nat_qtl) cluster(statefips) outstub(`outstub')		
-
 	}	
 
 
 end 
-
 
 program build_coeff_plot_comp
 	syntax, depvar(str) absorb(str) cluster(str) [w(int 5) t_plot(real 1.645) offset(real 0.09)]

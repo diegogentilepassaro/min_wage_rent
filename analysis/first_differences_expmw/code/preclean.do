@@ -16,9 +16,11 @@ program main
 		college_share20105 work_county_share20105 unemp_share20105 teen_share2010   ///
 		sh_treated* exp_mw*  ///
 		estcount_* avgwwage_* emp_* u1* ///
-		walall_29y_lowinc_ssh halall_29y_lowinc_ssh walall_29y_lowinc_zsh halall_29y_lowinc_zsh
+		walall_29y_lowinc_ssh halall_29y_lowinc_ssh walall_29y_lowinc_zsh halall_29y_lowinc_zsh ///
+		walall_njob_29young_ssh walall_njob_29young_zsh halall_njob_29young_ssh halall_njob_29young_zsh
 
 	local het_vars "walall_29y_lowinc_ssh halall_29y_lowinc_ssh walall_29y_lowinc_zsh halall_29y_lowinc_zsh"
+	local het_vars `"`het_vars' walall_njob_29young_ssh walall_njob_29young_zsh halall_njob_29young_ssh halall_njob_29young_zsh"'
  
 
 	create_vars, 	log_vars(actual_mw medrentpricepsqft_sfcc exp_mw* emp_* estcount_* avgwwage_* u1*) 	///
