@@ -9,12 +9,11 @@ main <- function() {
   
   data_version <- "0053"
   
-  datadir <- paste0("../../../drive/raw_data/census/tract/nhgis", data_version, "_csv/")
-  
+  datadir  <- paste0("../../../drive/raw_data/census/tract/nhgis", data_version, "_csv/")
   xwalkdir <- "../../../raw/crosswalk/" 
-  # outdir  <- "../output/"
-  outdir <- "../../../drive/base_large/output/"
-  tempdir <- "../temp"
+  outdir   <- "../../../drive/base_large/output/"
+  tempdir  <- "../temp"
+  log_file <- "../output/data_file_manifest.log"
   
   table_list <- list.files(datadir, 
                            pattern = "*.csv")
@@ -47,16 +46,15 @@ main <- function() {
                    'hh_single_hunitsTOT', 'hh_couple_hunitsTOT', 'renthhinc_hunitsTOT', 
                    'mww_pt', 'mww_ft', 'mww', 'workers_ft', 'workers_pt')
 
-mww_varlist_tot <- c('tract_fips', 'county_fips', 'mw_annual_ft', 'mw_annual_ft2', 'mw_annual_pt', mww_varlist)     
-  
-table_final <- table_final[, ..mww_varlist_tot]  
+  mww_varlist_tot <- c('tract_fips', 'county_fips', 'mw_annual_ft', 'mw_annual_ft2', 'mw_annual_pt', mww_varlist)     
+    
+  table_final <- table_final[, ..mww_varlist_tot]  
 
-table_final <- table_final[xwalk, on = 'tract_fips']
+  table_final <- table_final[xwalk, on = 'tract_fips']
 
-table_final_zipshare <- table_final[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), by = 'zipcode', .SDcols = mww_varlist]
+  table_final_zipshare <- table_final[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), by = 'zipcode', .SDcols = mww_varlist]
 
-
-table_final_zipshare[, c('sh_mww_all2',
+  table_final_zipshare[, c('sh_mww_all2',
                          'sh_mww_all1',
                          'mww_shsub25_all2', 
                          'mww_shsub25_all1',
@@ -82,34 +80,34 @@ table_final_zipshare[, c('sh_mww_all2',
                          'sh_mww_ft', 
                          'sh_mww_pt', 
                          'sh_mww') := list(
-  (mww_all2/hhTOT), 
-  (mww_all1/hhTOT),
-  (mww_sub25_all2/hhinc_sub25TOT), 
-  (mww_sub25_all1/hhinc_sub25TOT), 
-  (mww_black_all1/hh_blackTOT),
-  (mww_black_all2/hh_blackTOT),
-  (mww_sub25_black_all1/hh_blackTOT), 
-  (mww_sub25_black_all2/hh_blackTOT),
-  (mww_renter_all1/hh_hunitsTOT),
-  (mww_renter_all2/hh_hunitsTOT), 
-  (mww_renter_all1/renthhinc_hunitsTOT),
-  (mww_renter_all2/renthhinc_hunitsTOT), 
-  (hh1/hhTOT), 
-  (hh2/hhTOT), 
-  (hh1_white/hh_whiteTOT), 
-  (hh2_white/hh_whiteTOT),
-  (hh1_black/hh_blackTOT),
-  (hh2_black/hh_blackTOT),
-  (hh_1worker/hh_workerTOT),
-  (hh_2worker/hh_workerTOT),
-  (renthh_single_hunitsTOT/renthh_hunitsTOT), 
-  (renthh_couple_hunitsTOT/renthh_hunitsTOT),
-  (renthh_hunitsTOT/hh_hunitsTOT), 
-  (mww_ft / workers_ft), 
-  (mww_pt / workers_pt), 
-  (mww / (workers_ft + workers_pt)))]
+                          (mww_all2/hhTOT), 
+                          (mww_all1/hhTOT),
+                          (mww_sub25_all2/hhinc_sub25TOT), 
+                          (mww_sub25_all1/hhinc_sub25TOT), 
+                          (mww_black_all1/hh_blackTOT),
+                          (mww_black_all2/hh_blackTOT),
+                          (mww_sub25_black_all1/hh_blackTOT), 
+                          (mww_sub25_black_all2/hh_blackTOT),
+                          (mww_renter_all1/hh_hunitsTOT),
+                          (mww_renter_all2/hh_hunitsTOT), 
+                          (mww_renter_all1/renthhinc_hunitsTOT),
+                          (mww_renter_all2/renthhinc_hunitsTOT), 
+                          (hh1/hhTOT), 
+                          (hh2/hhTOT), 
+                          (hh1_white/hh_whiteTOT), 
+                          (hh2_white/hh_whiteTOT),
+                          (hh1_black/hh_blackTOT),
+                          (hh2_black/hh_blackTOT),
+                          (hh_1worker/hh_workerTOT),
+                          (hh_2worker/hh_workerTOT),
+                          (renthh_single_hunitsTOT/renthh_hunitsTOT), 
+                          (renthh_couple_hunitsTOT/renthh_hunitsTOT),
+                          (renthh_hunitsTOT/hh_hunitsTOT), 
+                          (mww_ft / workers_ft), 
+                          (mww_pt / workers_pt), 
+                          (mww / (workers_ft + workers_pt)))]
 
-table_final_zipshare[, c('sh_mww_wmean1',
+  table_final_zipshare[, c('sh_mww_wmean1',
                          'sh_mww_wmean2',
                          'mww_shrenter_wmean1',
                          'mww_shrenter_wmean2',
@@ -123,11 +121,7 @@ table_final_zipshare[, c('sh_mww_wmean1',
                            (((mww_renter_all1*sh_hh1worker) + (mww_renter_all2*sh_hh2worker))/hh_hunitsTOT))]
 
 
-
-
-
-
-table_final_zipshare <- table_final_zipshare[, c('zipcode', 
+  table_final_zipshare <- table_final_zipshare[, c('zipcode',
                                                  'sh_mww_all1', 'sh_mww_all2', 'sh_mww_wmean1', 'sh_mww_wmean2', 
                                                  'mww_shsub25_all1', 'mww_shsub25_all2', 
                                                  'mww_shblack_all1', 'mww_shblack_all2', 'mww_sub25_shblack_all1', 'mww_sub25_shblack_all2', 
@@ -135,9 +129,9 @@ table_final_zipshare <- table_final_zipshare[, c('zipcode',
                                                  'mww_shrenter_all1', 'mww_shrenter_all2',  'mww_shrenter_wmean1', 'mww_shrenter_wmean2', 
                                                  'sh_mww_ft', 'sh_mww_pt', 'sh_mww', 'workers_pt', 'workers_ft')]
 
-save_data(df = table_final_zipshare, key = 'zipcode', 
-          filename = paste0(outdir, 'zip_mw.csv'))
-
+  save_data(df = table_final_zipshare, key = 'zipcode', 
+          filename = paste0(outdir, 'zip_mw.csv'),
+          logfile  = log_file)
 }
 
 compute_mw_workers <- function(data){

@@ -8,8 +8,8 @@ main <- function() {
   
   #only problem now is that the base/demographic folder must run AFTER the base/zillow_min_wage, as it uses its output 
   mw_datadir <- "../../../base/zillow_min_wage/output/"
-  outdir <- "../temp/"
-  
+  outdir     <- "../temp/"
+  log_file   <- "../output/data_file_manifest.log"
   
   df <- fread("../../../raw/crosswalk/tract_place_xwalk.csv", 
               select = c('state', 'county', 'cntyname', 'tract', 'stab', 'placefp', 'placenm', 'afact'), 
@@ -71,7 +71,8 @@ main <- function() {
   mw_avg1318[, c('mw_annual_ft', 'mw_annual_ft2', 'mw_annual_pt') := list(mw1318*40*4.35*12, mw1318*40*4.35*12*2, mw1318*20*4.35*12)]
   
   save_data(mw_avg1318, key = 'tract_fips', 
-            filename = paste0(outdir,'mw_avg1318.csv'))
+            filename = paste0(outdir,'mw_avg1318.csv'),
+            logfile  = log_file)
 }
 
 main()
