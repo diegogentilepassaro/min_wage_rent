@@ -8,7 +8,8 @@ load_packages(c('tidyverse', 'data.table', 'bit64', 'purrr', 'readxl'))
 main <- function() {
   datadir_lodes <- '../../../drive/raw_data/lodes/'
   datadir_xwalk <- '../../../raw/crosswalk/'
-  outdir <- '../../../drive/base_large/output/'
+  outdir        <- '../../../drive/base_large/output/'
+  log_file      <- '../output/data_file_manifest.log'
   
   xwalk <- make_xwalk(datadir_xwalk)
   
@@ -18,7 +19,6 @@ main <- function() {
   tract_zip_xwalk <- setDT(tract_zip_xwalk)
   tract_zip_xwalk[, c('res_ratio', 'bus_ratio', 'oth_ratio'):= NULL]
   tract_zip_xwalk <- tract_zip_xwalk[!is.na(zipcode), ]
-  
   
   #Datasets:
   # Point of View (pov) : statistics for either residents ('rac') or workers ('wac') in given geographies
@@ -68,45 +68,15 @@ main <- function() {
   
   lodes_final <- make_final_vars(lodes_final)
   
-  save_data(lodes_final, 
-            filename = paste0(outdir, 'zip_lodes.dta'), 
-            key = c('zipcode'))
-  
-  return(lodes_final)
-}
-
-make_final_vars <- function(data) {
-  data[, walall_29y_lowinc_zsh := welall_njob_29young / walall_tot]
-  data[, halall_29y_lowinc_zsh := helall_njob_29young / halall_tot]
-  
-  data[, c('w_sttot', 'h_sttot') :=lapply(.SD, function(x) sum(x, na.rm = T)), by = 'st', .SDcols = c('welall_njob_29young', 'helall_njob_29young')]
-
-  data[, walall_29y_lowinc_ssh := lapply(.SD, function(x) x / w_sttot), .SDcols = c('welall_njob_29young')]
-  data[, halall_29y_lowinc_ssh := lapply(.SD, function(x) x / h_sttot), .SDcols = c('helall_njob_29young')]
-  
-  data[, c('w_sttot', 'h_sttot') := NULL]
-  
-  vars <- c('walall_njob_29young_zsh', 
-            'walall_njob_29young_ssh', 
-            'halall_njob_29young_zsh', 
-            'halall_njob_29young_ssh', 
-            'welall_njob_29young_zsh', 
-            'welall_njob_29young_ssh', 
-            'walall_29y_lowinc_zsh', 
-            'walall_29y_lowinc_ssh', 
-            'halall_29y_lowinc_zsh', 
-            'halall_29y_lowinc_ssh')
-  
-  vars <- c('zipcode', vars)
-  
-  data <- data[, ..vars]
-  return(data)
-  
+  save_data(lodes_final, key = c('zipcode'),
+            filename = paste0(outdir, 'zip_lodes.dta'),
+            logfile = log_file)
 }
 
 make_xwalk <- function(instub) {
   xwalk_files <- list.files(paste0(instub, 'lodes/'), full.names = T)
   xwalk <- rbindlist(lapply(xwalk_files, function(x) fread(x)))
+  
   setnames(xwalk, old = c('tabblk2010', 'trct'), new = c('blockfips', 'tract_fips'))
   target_xwalk <- c('blockfips', 'tract_fips', 'st')
   xwalk[, tract_fips := as.numeric(tract_fips)]
@@ -119,6 +89,8 @@ format_lodes <- function(pov, seg, type, vintage, instub, xw, xw_tractzip) {
   
   files <- list.files(paste0(instub, pov, '/', seg, '/', type, '/', vintage), full.names = T)
   files <- files[!grepl("Icon\r$", files)]
+  files <- files[!grepl("pr", files)]          # Ignore Puerto Rico
+  files <- files[!grepl("desktop.ini", files)] # Ignore desktop.ini
   
   df <- rbindlist(lapply(files, function(x) fread(x)))
   
@@ -202,6 +174,34 @@ set_prefix <- function(p, s, t) {
   
   
   return(prefix) 
+}
+
+make_final_vars <- function(data) {
+  data[, walall_29y_lowinc_zsh := welall_njob_29young / walall_tot]
+  data[, halall_29y_lowinc_zsh := helall_njob_29young / halall_tot]
+  
+  data[, c('w_sttot', 'h_sttot') :=lapply(.SD, function(x) sum(x, na.rm = T)), by = 'st', .SDcols = c('welall_njob_29young', 'helall_njob_29young')]
+
+  data[, walall_29y_lowinc_ssh := lapply(.SD, function(x) x / w_sttot), .SDcols = c('welall_njob_29young')]
+  data[, halall_29y_lowinc_ssh := lapply(.SD, function(x) x / h_sttot), .SDcols = c('helall_njob_29young')]
+  
+  data[, c('w_sttot', 'h_sttot') := NULL]
+  
+  vars <- c('walall_njob_29young_zsh', 
+            'walall_njob_29young_ssh', 
+            'halall_njob_29young_zsh', 
+            'halall_njob_29young_ssh', 
+            'welall_njob_29young_zsh', 
+            'welall_njob_29young_ssh', 
+            'walall_29y_lowinc_zsh', 
+            'walall_29y_lowinc_ssh', 
+            'halall_29y_lowinc_zsh', 
+            'halall_29y_lowinc_ssh')
+  
+  vars <- c('zipcode', vars)
+  
+  data <- data[, ..vars]
+  return(data)
 }
 
 
