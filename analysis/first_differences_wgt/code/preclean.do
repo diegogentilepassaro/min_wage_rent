@@ -57,7 +57,6 @@ program create_vars
 	gen trend_times2 = 2*trend
 
 	foreach var in `heterogeneity_vars' {
-
 		gquantiles `var'_nat_qtl = `var', xtile nq(4)
 
 		gquantiles `var'_st_qtl  = `var', xtile nq(4) by(statefips)
