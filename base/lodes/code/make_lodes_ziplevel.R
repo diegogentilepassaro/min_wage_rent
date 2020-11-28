@@ -192,17 +192,6 @@ make_final_vars <- function(data) {
   
   data[, c('w_sttot', 'h_sttot') := NULL]
   
-  # vars <- c('walall_njob_29young_zsh', 
-  #           'walall_njob_29young_ssh', 
-  #           'halall_njob_29young_zsh', 
-  #           'halall_njob_29young_ssh', 
-  #           'welall_njob_29young_zsh', 
-  #           'welall_njob_29young_ssh', 
-  #           'walall_29y_lowinc_zsh', 
-  #           'walall_29y_lowinc_ssh', 
-  #           'halall_29y_lowinc_zsh', 
-  #           'halall_29y_lowinc_ssh')
-
     vars <- c('walall_njob_29young_zsh', 
             'walall_njob_29young_ssh', 
             'halall_njob_29young_zsh', 
