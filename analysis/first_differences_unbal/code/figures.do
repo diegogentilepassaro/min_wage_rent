@@ -152,9 +152,9 @@ program build_coeff_plot_comp
 		make_plot_xlabels, w(`w')
 		local xlab "`r(xlab)'"
 
-		twoway (scatter b_full at_base, mcol(gs10)) (rcap b_full_lb b_full_ub at_base, lcol(gs10) lw(thin)) ///
+		twoway (scatter b_full at_base, mcol(maroon)) (rcap b_full_lb b_full_ub at_base, lcol(maroon) lw(thin)) ///
 			   (scatter b_wgt at_full, mcol(navy)) (rcap b_wgt_lb b_wgt_ub at_full, col(navy) lw(thin)) ///
-			   (line cumsum_base_b at_base, col(gs10)) (line cumsum_base_lb at_base, col(gs10) lw(thin) lp(dash)) (line cumsum_base_ub at_base, col(gs10) lw(thin) lp(dash)) ///
+			   (line cumsum_base_b at_base, col(maroon)) (line cumsum_base_lb at_base, col(maroon) lw(thin) lp(dash)) (line cumsum_base_ub at_base, col(maroon) lw(thin) lp(dash)) ///
    			   (line cumsum_wgt_b at_full, col(navy)) (line cumsum_wgt_lb at_full, col(navy) lw(thin) lp(dash)) (line cumsum_wgt_ub at_full, col(navy) lw(thin) lp(dash)), ///
 			   yline(0, lcol(black)) ///
 			   xlabel(`xlab', labsize(small)) xtitle("") ///

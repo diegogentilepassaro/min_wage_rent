@@ -48,7 +48,7 @@ program plot_dynamic_placebo
 
 		make_plot_xlabels, w(`w')
 
-		twoway (connected b_placebo1 at, mc(edkblue) lc(edkblue) lw(thin)) (rcap b_placebo1_lb b_placebo1_ub at, lc(edkblue) lp(dash) lw(vthin)), /// 
+		twoway (connected b_placebo1 at, mc(edkblue) lc(navy) lw(thin)) (rcap b_placebo1_lb b_placebo1_ub at, lc(navy) lw(vthin)), /// 
 			graphregion(color(white)) bgcolor(white) ///
 			xlabel(`r(xlab)', labsize(vsmall)) xtitle(" ") ///
 			ytitle("Coefficient") ylabel(-0.3(0.1).5, grid labsize(small))	///

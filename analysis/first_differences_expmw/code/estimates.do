@@ -24,7 +24,7 @@ program main
 	labels("\vspace{-1mm}" "Cumulative effect" " " "\hline" "P-value no pretrends" ///
 		"Wage controls" "Employment controls" "Establishment-count controls"  ///
 			"R-squared" "Observations")) ///
-	mtitles("Baseline" "\Delta \ln{Exp.MW}")  ///
+	mtitles("Baseline" "Experienced MW")  ///
 	star(* 0.10 ** 0.05 *** 0.01) nonote
 
 end 

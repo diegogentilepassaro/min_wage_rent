@@ -156,9 +156,9 @@ program build_coeff_plot_comp
 		make_plot_xlabels, w(`w')
 		local xlab "`r(xlab)'"
 
-		twoway (scatter b_full at_base, mcol(gs10)) (rcap b_full_lb b_full_ub at_base, lcol(gs10) lw(thin)) ///
+		twoway (scatter b_full at_base, mcol(maroon)) (rcap b_full_lb b_full_ub at_base, lcol(maroon) lw(thin)) ///
 			   (scatter b_exp at_full, mcol(navy)) (rcap b_exp_lb b_exp_ub at_full, col(navy) lw(thin)) ///
-			   (line cumsum_base_b at_base, col(gs10)) (line cumsum_base_lb at_base, col(gs10) lw(thin) lp(dash)) (line cumsum_base_ub at_base, col(gs10) lw(thin) lp(dash)) ///
+			   (line cumsum_base_b at_base, col(maroon)) (line cumsum_base_lb at_base, col(maroon) lw(thin) lp(dash)) (line cumsum_base_ub at_base, col(maroon) lw(thin) lp(dash)) ///
    			   (line cumsum_exp_b at_full, col(navy)) (line cumsum_exp_lb at_full, col(navy) lw(thin) lp(dash)) (line cumsum_exp_ub at_full, col(navy) lw(thin) lp(dash)), ///
 			   yline(0, lcol(black)) ///
 			   xlabel(`xlab', labsize(small)) xtitle("") ///
@@ -189,7 +189,7 @@ program plot_static_heterogeneity
 	coefplot, keep(*#c.d_ln_mw) base graphregion(color(white)) bgcolor(white) level(90) ///
 		ylabel(1 "First quartile" 2 "Second quartile" 3 "Third quartile" 4 "Fourth quartile") ///
 		ytitle(" ") xtitle("Estimated rent elasticity to the MW")	///
-		xline(0, lcol(black)) mcolor(navy) ciopts(recast(rcap) lc(navy) lw(vthin))
+		xline(0, lcol(black)) mcolor(navy) xlabel(-.04(0.02).1) ciopts(recast(rcap) lc(navy) lw(vthin))
 	graph export `outstub'/fd_static_heter_`het_var'.png, replace 
 	graph export `outstub'/fd_static_heter_`het_var'.eps, replace 
 end
