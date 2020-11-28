@@ -22,8 +22,8 @@ DESCRIPTION
 
 ROOT/drive/raw_data/LODES/*	Downloaded files
 
-IMPORTANT NOTE: The states Alaska (AK) and South Dakota (sd) do not have files for 2017. We manually downloaded the 2016 files 
-and changed the name appropriately.
+IMPORTANT NOTE: The states of Alaska (AK) and South Dakota (SD) do not have files for 2017. We manually downloaded the 2016 
+files and changed the name appropriately.
 
 
 
