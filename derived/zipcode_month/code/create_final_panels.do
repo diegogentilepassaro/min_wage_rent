@@ -60,14 +60,14 @@ program main
 	}
 	add_covars, demo(yes) indemo(`temp') qcew(yes) inqcew(`inqcew') bps(yes) inbps(`inbps') lodes(yes) inlodes(`inlodes') 
 	save_data "`outstub'/baseline_listing_panel.dta", key(zipcode year_month) ///
-		log(`logfile') replace
+		log(`logfile') replace */
 
 
 	* Baseline all
 	use "`temp'/zipcode_yearmonth_panel.dta", clear
 	add_covars, demo(yes) indemo(`temp') qcew(no) inqcew(`inqcew') bps(no) inbps(`inbps') lodes(no) inlodes(`inlodes')
 	save_data "`outstub'/zipcode_yearmonth_panel_all.dta", key(zipcode year_month) ///
-		log(`logfile') replace */
+		log(`logfile') replace
 end
 
 program prepare_aux_data
