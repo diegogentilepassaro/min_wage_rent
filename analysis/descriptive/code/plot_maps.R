@@ -44,11 +44,11 @@ main <- function() {
 
   print(plot_sample(df_data = df, zipzcta = zip_zcta_xwalk,
                     out = outdir, zctamsa = zcta_msa_xwalk, zcta_map = zcta_map))
-  ggsave(filename = paste0(outdir, 'sample_map.png'), width = 15, height = 15)
+  ggsave(filename = paste0(outdir, 'sample_map.png'), width = 15, height = 12)
 
   print(plot_demo(out = outdir, zctamsa = zcta_msa_xwalk, zcta_map = zcta_map,
                   target_demo = 'urbpopden', legend_name = 'Urban Population Density (per Sq. Miles)'))
-  ggsave(filename = paste0(outdir, 'popurban_density_map.png'), width = 15, height = 15)
+  ggsave(filename = paste0(outdir, 'popurban_density_map.png'), width = 15, height = 12)
 
   city_list <- list(c('Los Angeles', 44000, '2019-07-01'),
                     c('Seattle', 63000,'2019-01-01'),
