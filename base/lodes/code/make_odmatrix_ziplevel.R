@@ -19,6 +19,8 @@ main <- function() {
   #Prepare states od matrices: 
   files <- list.files(datadir_lodes, full.names = T)
   files <- files[!grepl("Icon\r$", files)]
+  files <- files[!grepl("pr", files)]          # Ignore Puerto Rico
+  files <- files[!grepl("desktop.ini", files)] # Ignore desktop.ini
   files_main <- files[grepl("_main_", files)]
   files_aux <- files[grepl("_aux_", files)]
   

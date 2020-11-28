@@ -89,6 +89,8 @@ format_lodes <- function(pov, seg, type, vintage, instub, xw, xw_tractzip) {
   
   files <- list.files(paste0(instub, pov, '/', seg, '/', type, '/', vintage), full.names = T)
   files <- files[!grepl("Icon\r$", files)]
+  files <- files[!grepl("pr", files)]          # Ignore Puerto Rico
+  files <- files[!grepl("desktop.ini", files)] # Ignore desktop.ini
   
   df <- rbindlist(lapply(files, function(x) fread(x)))
   

@@ -12,6 +12,8 @@ main <- function(){
   outdir        <- '../../../drive/base_large/output/'
   log_file      <- '../output/data_file_manifest.log'
   
+  cores <- 1 ## Parallelization doesn't work in Windows
+
   mw_data <- load_mw(instub = datadir_mw)
   state_mw <- mw_data[['state_mw']]
   county_mw <- mw_data[['county_mw']]
@@ -32,7 +34,7 @@ main <- function(){
   #compute for, for each state, share of treated and experienced MW
   state_fips <- fips(c(tolower(state.abb), 'dc'))
   
-  exp_mw <- mclapply(state_fips, 
+  exp_mw <- mclapply(state_fips,
                      function(x, p = target_period, zip = zipmw_us) {
                        this_state <- fread(paste0(datadir_lodes, 'odzip_', x, '.csv'))
                        this_state[, c('h_totjob', 'h_job_young', 'h_job_lowinc') := lapply(.SD, sum, na.rm = T) , 
@@ -68,7 +70,7 @@ main <- function(){
                        })
                        p <- rbindlist(p)
                        return(p)
-                     }, mc.cores = 8)
+                     }, mc.cores = cores)   # mcapply parallels on Mac. On windows it supports one core only (error otherwise)
 
   exp_mw <- rbindlist(exp_mw)
   setnames(exp_mw, old  = 'h_zipcode', new = 'zipcode')
