@@ -3,7 +3,7 @@ source("../../../lib/R/load_packages.R")
 source("../../../lib/R/save_data.R")
 
 options(scipen=999)
-load_packages(c('tidyverse', 'data.table', 'bit64', 'purrr', 'readxl'))
+load_packages(c('tidyverse', 'data.table', 'bit64', 'purrr', 'readxl', 'parallel'))
 
 main <- function() {
   datadir_lodes <- '../../../drive/raw_data/lodes/'
@@ -71,8 +71,6 @@ main <- function() {
   save_data(lodes_final, 
             filename = paste0(outdir, 'zip_lodes.dta'), 
             key = c('zipcode'))
-  
-  return(lodes_final)
 }
 
 make_final_vars <- function(data) {
@@ -86,12 +84,25 @@ make_final_vars <- function(data) {
   
   data[, c('w_sttot', 'h_sttot') := NULL]
   
+  # vars <- c('walall_njob_29young_zsh', 
+  #           'walall_njob_29young_ssh', 
+  #           'halall_njob_29young_zsh', 
+  #           'halall_njob_29young_ssh', 
+  #           'welall_njob_29young_zsh', 
+  #           'welall_njob_29young_ssh', 
+  #           'walall_29y_lowinc_zsh', 
+  #           'walall_29y_lowinc_ssh', 
+  #           'halall_29y_lowinc_zsh', 
+  #           'halall_29y_lowinc_ssh')
+  
   vars <- c('walall_njob_29young_zsh', 
             'walall_njob_29young_ssh', 
             'halall_njob_29young_zsh', 
             'halall_njob_29young_ssh', 
-            'welall_njob_29young_zsh', 
-            'welall_njob_29young_ssh', 
+            'walall_njob_lowinc_zsh', 
+            'walall_njob_lowinc_ssh', 
+            'halall_njob_lowinc_zsh', 
+            'halall_njob_lowinc_ssh',
             'walall_29y_lowinc_zsh', 
             'walall_29y_lowinc_ssh', 
             'halall_29y_lowinc_zsh', 
@@ -106,7 +117,7 @@ make_final_vars <- function(data) {
 
 make_xwalk <- function(instub) {
   xwalk_files <- list.files(paste0(instub, 'lodes/'), full.names = T)
-  xwalk <- rbindlist(lapply(xwalk_files, function(x) fread(x)))
+  xwalk <- rbindlist(mclapply(xwalk_files, mc.cores = 8, function(x) fread(x)))
   setnames(xwalk, old = c('tabblk2010', 'trct'), new = c('blockfips', 'tract_fips'))
   target_xwalk <- c('blockfips', 'tract_fips', 'st')
   xwalk[, tract_fips := as.numeric(tract_fips)]
@@ -120,7 +131,8 @@ format_lodes <- function(pov, seg, type, vintage, instub, xw, xw_tractzip) {
   files <- list.files(paste0(instub, pov, '/', seg, '/', type, '/', vintage), full.names = T)
   files <- files[!grepl("Icon\r$", files)]
   
-  df <- rbindlist(lapply(files, function(x) fread(x)))
+  df <- rbindlist(mclapply(files, mc.cores = 8, function(x) fread(x)))
+  
   
   target_vars <- c('C000', 'CA01', 'CE01', 'CR02', 'CD01', 'CD02')
   target_names <- c('tot', 'njob_29young', 'njob_lowinc', 'njob_black', 'njob_nohs', 'njob_hs')
@@ -136,9 +148,12 @@ format_lodes <- function(pov, seg, type, vintage, instub, xw, xw_tractzip) {
   target_names <- c(target_names[1:(length(target_names)-2)], 'njob_lowedu')
   
   dftract <- xw[df, on = 'blockfips'][, 'blockfips':= NULL]
-  dftract <- dftract[, lapply(.SD,sum, na.rm = T),by=c('tract_fips', 'st')]
+  
+  dftract <- dftract[, lapply(.SD, sum, na.rm = T),by=c('tract_fips', 'st')]
+  
   
   dfzip <- dftract[xw_tractzip, on = 'tract_fips']
+  
   dfzip <- dfzip[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), 
                   by = c('zipcode', 'st'), .SDcols = target_names]
   
