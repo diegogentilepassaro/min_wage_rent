@@ -1,14 +1,14 @@
 
- make.py started: 2020-09-03 09:54:34 /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/base/demographics/code 
+ make.py started: 2020-11-26 16:32:08 C:\Users\shermo\Documents\GitHub\min_wage_rent\base\demographics\code 
 
 
 
 
-Execute:  R CMD BATCH --no-save "./make_demographics_ziplevel.R" make_demographics_ziplevel.Rout
+Execute:  R CMD BATCH --no-save "./tract_avgMW_13_18.R" tract_avgMW_13_18.Rout
 
-R version 4.0.2 (2020-06-22) -- "Taking Off Again"
+R version 3.6.3 (2020-02-29) -- "Holding the Windsock"
 Copyright (C) 2020 The R Foundation for Statistical Computing
-Platform: x86_64-apple-darwin17.0 (64-bit)
+Platform: x86_64-w64-mingw32/x64 (64-bit)
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
 You are welcome to redistribute it under certain conditions.
@@ -34,53 +34,214 @@ Please cite as:
  R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
 
 
-Attaching package: ‘dplyr’
+Attaching package: 'dplyr'
 
-The following objects are masked from ‘package:stats’:
+The following objects are masked from 'package:stats':
 
     filter, lag
 
-The following objects are masked from ‘package:base’:
+The following objects are masked from 'package:base':
 
     intersect, setdiff, setequal, union
 
 
-Attaching package: ‘data.table’
+Attaching package: 'data.table'
 
-The following objects are masked from ‘package:dplyr’:
+The following objects are masked from 'package:dplyr':
 
     between, first, last
 
 > 
-> load_packages(c('tidyverse', 'data.table', 'tidycensus', 'bit64', 'readxl'))
-── Attaching packages ─────────────────────────────────────── tidyverse 1.3.0 ──
-✔ ggplot2 3.3.2     ✔ purrr   0.3.4
-✔ tibble  3.0.3     ✔ stringr 1.4.0
-✔ tidyr   1.1.2     ✔ forcats 0.5.0
-✔ readr   1.3.1     
-── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
-✖ data.table::between() masks dplyr::between()
-✖ dplyr::filter()       masks stats::filter()
-✖ data.table::first()   masks dplyr::first()
-✖ dplyr::lag()          masks stats::lag()
-✖ data.table::last()    masks dplyr::last()
-✖ purrr::transpose()    masks data.table::transpose()
+> load_packages(c('tidyverse', 'data.table', 'matrixStats'))
+-- Attaching packages --------------------------------------- tidyverse 1.3.0 --
+v ggplot2 3.3.0     v purrr   0.3.4
+v tibble  3.0.4     v stringr 1.4.0
+v tidyr   1.0.2     v forcats 0.5.0
+v readr   1.4.0     
+-- Conflicts ------------------------------------------ tidyverse_conflicts() --
+x data.table::between() masks dplyr::between()
+x dplyr::filter()       masks stats::filter()
+x data.table::first()   masks dplyr::first()
+x dplyr::lag()          masks stats::lag()
+x data.table::last()    masks dplyr::last()
+x purrr::transpose()    masks data.table::transpose()
+
+Attaching package: 'matrixStats'
+
+The following object is masked from 'package:dplyr':
+
+    count
+
+> 
+> main <- function() {
++   
++   #only problem now is that the base/demographic folder must run AFTER the base/zillow_min_wage, as it uses its output 
++   mw_datadir <- "../../../base/zillow_min_wage/output/"
++   outdir     <- "../temp/"
++   log_file   <- "../output/data_file_manifest.log"
++   
++   df <- fread("../../../raw/crosswalk/tract_place_xwalk.csv", 
++               select = c('state', 'county', 'cntyname', 'tract', 'stab', 'placefp', 'placenm', 'afact'), 
++               colClasses = c('character', 'character', 'character', 'character', 'character', 'character', 'character', 'numeric', 'numeric'))
++   setnames(df, old = c('state', 'county', 'cntyname', 'stab', 'placefp', 'placenm'), 
++            new = c('state_fips', 'county_fips', 'county', 'stateabb', 'place_fips', 'place'))
++   df[, c('state_fips', 'county_fips', 'tract') := .(str_pad(as.character(state_fips), 2, pad = 0), 
++                                                     str_pad(as.character(county_fips), 5, pad = 0), 
++                                                     str_pad(as.character(as.numeric(tract)*100), 6, pad = 0))]
++   df[, 'tract_fips' := paste0(county_fips, tract)]
++   setorderv(df, c('state_fips', 'county_fips', 'tract', 'place_fips'))
++   df <- df[df[, .I[which.max(afact)], by=tract_fips]$V1]
++   df[, place := gsub("(.*),.*", "\\1", place)][, place := gsub("\\s*\\w*$", "", place)]
++   df[, county := gsub("\\s*\\w*$", "", county)][, county := paste0(county, " County")]
++   dfp <- CJ(df[['tract_fips']], c(2013:2018))
++   setnames(dfp, new = c('tract_fips', 'year'))
++   dfp <- dfp[df, on = 'tract_fips']
++ 
++   mw_state <- fread(paste0(mw_datadir, "VZ_state_annual.csv"), 
++                     select = c('statefips', 'year', 'fed_mw', 'mw'))
++   setnames(mw_state, old = c('statefips', 'mw'), new = c('state_fips', 'state_mw'))
++   mw_state[, state_fips := str_pad(as.character(state_fips), 2, pad = 0)]
++   
++   mw_substate <- fread(paste0(mw_datadir, "VZ_substate_annual.csv"))
++   mw_substate[, locality := str_to_title(locality)]
++   setnames(mw_substate, old = c('statefips'), new = c('state_fips'))
++   mw_substate[, state_fips := str_pad(as.character(state_fips), 2, pad = 0)]
++   mw_substate[,iscounty := str_extract_all(locality, " County")][,
++                                                                iscounty := ifelse(iscounty == " County", 1, 0)]
++   
++   mw_vars <- names(mw_substate)
++   mw_vars <- mw_vars[grepl("mw", mw_vars)]
++   county_mw_vars <- paste0("county_", mw_vars)
++   local_mw_vars <- paste0("local_", mw_vars)
++   
++   dfCountymw <- mw_substate[iscounty == 1,][,iscounty := NULL]
++   setnames(dfCountymw, old = c('locality', mw_vars), 
++            new = c('county', county_mw_vars))
++   dfCountymw[, c('statename', 'stateabb') := NULL]
++   
++   
++   dfLocalmw <- mw_substate[iscounty == 0,][,iscounty := NULL]
++   setnames(dfLocalmw, old = c('locality', mw_vars),
++            new = c('place', local_mw_vars))
++   dfLocalmw[, c('statename', 'stateabb') := NULL]
++   
++ 
++   dfp <- mw_state[dfp, on = c('state_fips', 'year')]
++   dfp <- dfCountymw[dfp, on = c('state_fips', 'county', 'year')]
++   dfp <- dfLocalmw[dfp, on = c('state_fips', 'place', 'year')]
++   
++   mw_vars <- c('local_mw', 'county_mw', 'state_mw', 'fed_mw')
++   
++   dfp[,actual_mw := rowMaxs(as.matrix(dfp[,..mw_vars]), na.rm = T)]
++   # [,actual_mw:= fifelse(actual_mw == -Inf, NA, actual_mw)]
++   
++   mw_avg1318 <- dfp[, .(mw1318 = mean(actual_mw, na.rm = T)), by = 'tract_fips']
++   
++   mw_avg1318[, c('mw_annual_ft', 'mw_annual_ft2', 'mw_annual_pt') := list(mw1318*40*4.35*12, mw1318*40*4.35*12*2, mw1318*20*4.35*12)]
++   
++   save_data(mw_avg1318, key = 'tract_fips', 
++             filename = paste0(outdir,'mw_avg1318.csv'),
++             logfile  = log_file)
++ }
+> 
+> main()
+[1] "File '../temp/mw_avg1318.csv' saved successfully."
+[1] "Log file generated successfully."
+Warning message:
+In `[.data.table`(dfp, , ..mw_vars) :
+  Both 'mw_vars' and '..mw_vars' exist in calling scope. Please remove the '..mw_vars' variable in calling scope for clarity.
+> 
+> 
+> proc.time()
+   user  system elapsed 
+   5.32    1.50    6.95 
+
+
+Execute:  R CMD BATCH --no-save "./make_MWrenters_ziplevel.R" make_MWrenters_ziplevel.Rout
+
+R version 3.6.3 (2020-02-29) -- "Holding the Windsock"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list = ls())
+> source("../../../lib/R/load_packages.R")
+> source("../../../lib/R/save_data.R")
+
+Please cite as: 
+
+ Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+ R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
+
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+
+Attaching package: 'data.table'
+
+The following objects are masked from 'package:dplyr':
+
+    between, first, last
+
+> 
+> load_packages(c('tidyverse', 'data.table', 'tidycensus', 'bit64', 'readxl', 'lfe', 'ggplot2'))
+-- Attaching packages --------------------------------------- tidyverse 1.3.0 --
+v ggplot2 3.3.0     v purrr   0.3.4
+v tibble  3.0.4     v stringr 1.4.0
+v tidyr   1.0.2     v forcats 0.5.0
+v readr   1.4.0     
+-- Conflicts ------------------------------------------ tidyverse_conflicts() --
+x data.table::between() masks dplyr::between()
+x dplyr::filter()       masks stats::filter()
+x data.table::first()   masks dplyr::first()
+x dplyr::lag()          masks stats::lag()
+x data.table::last()    masks dplyr::last()
+x purrr::transpose()    masks data.table::transpose()
 Loading required package: bit
+Attaching package bit
+package:bit (c) 2008-2012 Jens Oehlschlaegel (GPL-2)
+creators: bit bitwhich
+coercion: as.logical as.integer as.bit as.bitwhich which
+operator: ! & | xor != ==
+querying: print length any all min max range sum summary
+bit access: length<- [ [<- [[ [[<-
+for more help type ?bit
 
-Attaching package: ‘bit’
+Attaching package: 'bit'
 
-The following object is masked from ‘package:data.table’:
+The following object is masked from 'package:data.table':
 
     setattr
 
-The following object is masked from ‘package:base’:
+The following object is masked from 'package:base':
 
     xor
 
 Attaching package bit64
-package:bit64 (c) 2011-2017 Jens Oehlschlaegel
-creators: integer64 runif64 seq :
-coercion: as.integer64 as.vector as.logical as.integer as.double as.character as.bitstring
+package:bit64 (c) 2011-2012 Jens Oehlschlaegel
+creators: integer64 seq :
+coercion: as.integer64 as.vector as.logical as.integer as.double as.character as.bin
 logical operator: ! & | xor != == < <= >= >
 arithmetic operator: + - * / %/% %% ^
 math: sign abs sqrt log log2 log10
@@ -95,26 +256,784 @@ WARNING don't use as subscripts
 WARNING semantics differ from integer
 for more help type ?bit64
 
-Attaching package: ‘bit64’
+Attaching package: 'bit64'
 
-The following objects are masked from ‘package:base’:
+The following object is masked from 'package:bit':
 
-    :, %in%, is.double, match, order, rank
+    still.identical
+
+The following objects are masked from 'package:base':
+
+    %in%, :, is.double, match, order, rank
+
+Loading required package: Matrix
+
+Attaching package: 'Matrix'
+
+The following objects are masked from 'package:tidyr':
+
+    expand, pack, unpack
+
+> 
+> 
+> main <- function() {
++   
++   data_version <- "0053"
++   
++   datadir  <- paste0("../../../drive/raw_data/census/tract/nhgis", data_version, "_csv/")
++   xwalkdir <- "../../../raw/crosswalk/" 
++   outdir   <- "../../../drive/base_large/output/"
++   tempdir  <- "../temp"
++   log_file <- "../output/data_file_manifest.log"
++   
++   table_list <- list.files(datadir, 
++                            pattern = "*.csv")
++   
++   table_list <- str_remove_all(table_list, paste0("nhgis", data_version, "_"))
++   
++   table_clean <- lapply(table_list, format_tables, datadir = datadir, data_version = data_version)
++   table_final <- Reduce(function(x,y) merge(x,y, all = T, by = c('tract_fips', 'county_fips')), table_clean)
++ 
++   
++   xwalk <- read_excel(paste0(xwalkdir, "TRACT_ZIP_122018.xlsx"), 
++                       col_names = c('tract_fips', 'zipcode', 'res_ratio', 'bus_ratio', 'oth_ratio', 'tot_ratio'),
++                       col_types = c('numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric'))
++   xwalk <- setDT(xwalk)
++   xwalk[, c('res_ratio', 'bus_ratio', 'oth_ratio'):= NULL]
++   xwalk <- xwalk[!is.na(zipcode), ]
++   
++   mw_avg1318 <- fread(paste0(tempdir, '/mw_avg1318.csv'))
++   table_final <- mw_avg1318[table_final, on = 'tract_fips']
++ 
++   table_final <- compute_mw_workers(table_final)
++   
++   mww_varlist <- c('mww_all2', 'mww_all1', 'mww_sub25_all2', 'mww_sub25_all1', 'mww_black_all2', 'mww_black_all1',
++                    'mww_sub25_black_all1', 'mww_sub25_black_all2', 'mww_renter_all2', 'mww_renter_all1',
++                    'hh1', 'hh2', 'hhTOT', 'hh1_white', 'hh1_black', 'hh2_white', 'hh2_black', 
++                    'hh_blackTOT', 'hh_whiteTOT', 'hhincTOT', 'hhinc_sub25TOT', 'renthhTOT', 
++                    'hh_1worker', 'hh_2worker', 'hh_workerTOT', 'hhinc_blackTOT', 'hhinc_whiteTOT', 
++                    'hhinc_sub25_whiteTOT', 'hhinc_sub25_blackTOT', 'renthh_hunitsTOT', 'renthh_sub35_hunitsTOT', 
++                    'hh_hunitsTOT', 'hh_sub35_hunitsTOT', 'renthh_single_hunitsTOT', 'renthh_couple_hunitsTOT', 
++                    'hh_single_hunitsTOT', 'hh_couple_hunitsTOT', 'renthhinc_hunitsTOT', 
++                    'mww_pt', 'mww_ft', 'mww', 'workers_ft', 'workers_pt')
++ 
++   mww_varlist_tot <- c('tract_fips', 'county_fips', 'mw_annual_ft', 'mw_annual_ft2', 'mw_annual_pt', mww_varlist)     
++     
++   table_final <- table_final[, ..mww_varlist_tot]  
++ 
++   table_final <- table_final[xwalk, on = 'tract_fips']
++ 
++   table_final_zipshare <- table_final[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), by = 'zipcode', .SDcols = mww_varlist]
++ 
++   table_final_zipshare[, c('sh_mww_all2',
++                          'sh_mww_all1',
++                          'mww_shsub25_all2', 
++                          'mww_shsub25_all1',
++                          'mww_shblack_all1',
++                          'mww_shblack_all2', 
++                          'mww_sub25_shblack_all1', 
++                          'mww_sub25_shblack_all2',
++                          'sh_mww_renter_all1',
++                          'sh_mww_renter_all2', 
++                          'mww_shrenter_all1',
++                          'mww_shrenter_all2', 
++                          'sh_hh1', 
++                          'sh_hh2', 
++                          'sh_white_hh1', 
++                          'sh_white_hh2', 
++                          'sh_black_hh1', 
++                          'sh_black_hh2',
++                          'sh_hh1worker',
++                          'sh_hh2worker',
++                          'sh_renthh_single', 
++                          'sh_renthh_couple', 
++                          'sh_renthh', 
++                          'sh_mww_ft', 
++                          'sh_mww_pt', 
++                          'sh_mww') := list(
++                           (mww_all2/hhTOT), 
++                           (mww_all1/hhTOT),
++                           (mww_sub25_all2/hhinc_sub25TOT), 
++                           (mww_sub25_all1/hhinc_sub25TOT), 
++                           (mww_black_all1/hh_blackTOT),
++                           (mww_black_all2/hh_blackTOT),
++                           (mww_sub25_black_all1/hh_blackTOT), 
++                           (mww_sub25_black_all2/hh_blackTOT),
++                           (mww_renter_all1/hh_hunitsTOT),
++                           (mww_renter_all2/hh_hunitsTOT), 
++                           (mww_renter_all1/renthhinc_hunitsTOT),
++                           (mww_renter_all2/renthhinc_hunitsTOT), 
++                           (hh1/hhTOT), 
++                           (hh2/hhTOT), 
++                           (hh1_white/hh_whiteTOT), 
++                           (hh2_white/hh_whiteTOT),
++                           (hh1_black/hh_blackTOT),
++                           (hh2_black/hh_blackTOT),
++                           (hh_1worker/hh_workerTOT),
++                           (hh_2worker/hh_workerTOT),
++                           (renthh_single_hunitsTOT/renthh_hunitsTOT), 
++                           (renthh_couple_hunitsTOT/renthh_hunitsTOT),
++                           (renthh_hunitsTOT/hh_hunitsTOT), 
++                           (mww_ft / workers_ft), 
++                           (mww_pt / workers_pt), 
++                           (mww / (workers_ft + workers_pt)))]
++ 
++   table_final_zipshare[, c('sh_mww_wmean1',
++                          'sh_mww_wmean2',
++                          'mww_shrenter_wmean1',
++                          'mww_shrenter_wmean2',
++                          'sh_mww_renter_wmean1', 
++                          'sh_mww_renter_wmean2') := list(
++                            (((mww_all1*sh_hh1) + (mww_all2*sh_hh2))/hhTOT),
++                            (((mww_all1*sh_hh1worker) + (mww_all2*sh_hh2worker))/hhTOT),
++                            (((mww_renter_all1*sh_renthh_single) + (mww_renter_all2*sh_renthh_couple))/renthh_hunitsTOT),
++                            (((mww_renter_all1*sh_hh1worker) + (mww_renter_all2*sh_hh2worker))/renthh_hunitsTOT),
++                            (((mww_renter_all1*sh_renthh_single) + (mww_renter_all2*sh_renthh_couple))/hh_hunitsTOT), 
++                            (((mww_renter_all1*sh_hh1worker) + (mww_renter_all2*sh_hh2worker))/hh_hunitsTOT))]
++ 
++ 
++   table_final_zipshare <- table_final_zipshare[, c('zipcode',
++                                                  'sh_mww_all1', 'sh_mww_all2', 'sh_mww_wmean1', 'sh_mww_wmean2', 
++                                                  'mww_shsub25_all1', 'mww_shsub25_all2', 
++                                                  'mww_shblack_all1', 'mww_shblack_all2', 'mww_sub25_shblack_all1', 'mww_sub25_shblack_all2', 
++                                                  'sh_mww_renter_all1', 'sh_mww_renter_all2', 'sh_mww_renter_wmean1', 'sh_mww_renter_wmean2', 
++                                                  'mww_shrenter_all1', 'mww_shrenter_all2',  'mww_shrenter_wmean1', 'mww_shrenter_wmean2', 
++                                                  'sh_mww_ft', 'sh_mww_pt', 'sh_mww', 'workers_pt', 'workers_ft')]
++ 
++   save_data(df = table_final_zipshare, key = 'zipcode', 
++           filename = paste0(outdir, 'zip_mw.csv'),
++           logfile  = log_file)
++ }
+> 
+> compute_mw_workers <- function(data){
++   
++  data[mw_annual_ft<=3750, mww_ft := .(pinc_ft_0_25)][
++    mw_annual_ft>3750 & mw_annual_ft<=6250, mww_ft := .(pinc_ft_0_25 + pinc_ft_25_50)][
++      mw_annual_ft>6250 & mw_annual_ft<=8750, mww_ft := .(pinc_ft_0_25 + pinc_ft_25_50 + pinc_ft_50_75)][
++        mw_annual_ft>8750 & mw_annual_ft<=11250, mww_ft := .(pinc_ft_0_25 + pinc_ft_25_50 + pinc_ft_50_75 + pinc_ft_75_100)][
++          mw_annual_ft>11250 & mw_annual_ft<=13750, mww_ft := .(pinc_ft_0_25 + pinc_ft_25_50 + pinc_ft_50_75 + pinc_ft_75_100 + pinc_ft_100_125)][
++            mw_annual_ft>13750 & mw_annual_ft<=16250, mww_ft := .(pinc_ft_0_25 + pinc_ft_25_50 + pinc_ft_50_75 + pinc_ft_75_100 + pinc_ft_100_125 + pinc_ft_125_150)][
++              mw_annual_ft>16250 & mw_annual_ft<=18750, mww_ft := .(pinc_ft_0_25 + pinc_ft_25_50 + pinc_ft_50_75 + pinc_ft_75_100 + pinc_ft_100_125 + pinc_ft_125_150 + pinc_ft_150_175)][
++                mw_annual_ft>18750 & mw_annual_ft<=21250, mww_ft := .(pinc_ft_0_25 + pinc_ft_25_50 + pinc_ft_50_75 + pinc_ft_75_100 + pinc_ft_100_125 + pinc_ft_125_150 + pinc_ft_150_175 + pinc_ft_175_200)][
++                  mw_annual_ft>21250 & mw_annual_ft<=23750, mww_ft := .(pinc_ft_0_25 + pinc_ft_25_50 + pinc_ft_50_75 + pinc_ft_75_100 + pinc_ft_100_125 + pinc_ft_125_150 + pinc_ft_150_175 + pinc_ft_175_200 + pinc_ft_200_225)][
++                    mw_annual_ft>23750 & mw_annual_ft<=26250, mww_ft := .(pinc_ft_0_25 + pinc_ft_25_50 + pinc_ft_50_75 + pinc_ft_75_100 + pinc_ft_100_125 + pinc_ft_125_150 + pinc_ft_150_175 + pinc_ft_175_200 + pinc_ft_200_225 + pinc_ft_225_250)][
++                      mw_annual_ft>26250 , mww_ft := .(pinc_ft_0_25 + pinc_ft_25_50 + pinc_ft_50_75 + pinc_ft_75_100 + pinc_ft_100_125 + pinc_ft_125_150 + pinc_ft_150_175 + pinc_ft_175_200 + pinc_ft_200_225 + pinc_ft_225_250 + pinc_ft_250_300)] 
++  
++   data[mw_annual_pt<=3750, mww_pt := .(pinc_pt_0_25)][
++    mw_annual_pt>3750 & mw_annual_pt<=6250, mww_pt := .(pinc_pt_0_25 + pinc_pt_25_50)][
++      mw_annual_pt>6250 & mw_annual_pt<=8750, mww_pt := .(pinc_pt_0_25 + pinc_pt_25_50 + pinc_pt_50_75)][
++        mw_annual_pt>8750 & mw_annual_pt<=11250, mww_pt := .(pinc_pt_0_25 + pinc_pt_25_50 + pinc_pt_50_75 + pinc_pt_75_100)][
++          mw_annual_pt>11250 & mw_annual_pt<=13750, mww_pt := .(pinc_pt_0_25 + pinc_pt_25_50 + pinc_pt_50_75 + pinc_pt_75_100 + pinc_pt_100_125)][
++            mw_annual_pt>13750, mww_pt := .(pinc_pt_0_25 + pinc_pt_25_50 + pinc_pt_50_75 + pinc_pt_75_100 + pinc_pt_100_125 + pinc_pt_125_150)] 
++   
++   data[, 'mww' := .(mww_ft + mww_pt)]
++   
++   data[mw_annual_ft2<=17500 , mww_all2 := .(hhinc_0_15)][
++     mw_annual_ft2>17500 & mw_annual_ft2<=22500, mww_all2 := .(hhinc_0_15 + hhinc_15_20)][
++       mw_annual_ft2>22500 & mw_annual_ft2<=27500, mww_all2 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25)][
++         mw_annual_ft2>27500 & mw_annual_ft2<=32500, mww_all2 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30)][
++           mw_annual_ft2>32500 & mw_annual_ft2<=37500, mww_all2 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35)][
++             mw_annual_ft2>37500 & mw_annual_ft2<=42500, mww_all2 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40)][
++               mw_annual_ft2>42500 & mw_annual_ft2<=47500, mww_all2 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40 + hhinc_40_45)][
++                 mw_annual_ft2>47500 & mw_annual_ft2<=52500, mww_all2 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40 + hhinc_40_45 + hhinc_45_50)][
++                   mw_annual_ft2>52500 & mw_annual_ft2<=65000, mww_all2 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40 + hhinc_40_45 + hhinc_45_50 + hhinc_50_60)]
++ 
++   data[mw_annual_ft<=17500 , mww_all1 := .(hhinc_0_15)][
++     mw_annual_ft>17500 & mw_annual_ft<=22500, mww_all1 := .(hhinc_0_15 + hhinc_15_20)][
++       mw_annual_ft>22500 & mw_annual_ft<=27500, mww_all1 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25)][
++         mw_annual_ft>27500 & mw_annual_ft<=32500, mww_all1 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30)][
++           mw_annual_ft>32500 & mw_annual_ft<=37500, mww_all1 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35)][
++             mw_annual_ft>37500 & mw_annual_ft<=42500, mww_all1 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40)][
++               mw_annual_ft>42500 & mw_annual_ft<=47500, mww_all1 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40 + hhinc_40_45)][
++                 mw_annual_ft>47500 & mw_annual_ft<=52500, mww_all1 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40 + hhinc_40_45 + hhinc_45_50)][
++                   mw_annual_ft>52500 & mw_annual_ft<=65000, mww_all1 := .(hhinc_0_15 + hhinc_15_20 + hhinc_20_25 + hhinc_25_30 + hhinc_30_35 + hhinc_35_40 + hhinc_40_45 + hhinc_45_50 + hhinc_50_60)]
++   
++     
++   data[mw_annual_ft2<=17500 , mww_sub25_all2 := .(hhinc_sub25_0_15)][
++     mw_annual_ft2>17500 & mw_annual_ft2<=22500, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20)][
++       mw_annual_ft2>22500 & mw_annual_ft2<=27500, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25)][
++         mw_annual_ft2>27500 & mw_annual_ft2<=32500, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30)][
++           mw_annual_ft2>32500 & mw_annual_ft2<=37500, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35)][
++             mw_annual_ft2>37500 & mw_annual_ft2<=42500, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40)][
++               mw_annual_ft2>42500 & mw_annual_ft2<=47500, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40 + hhinc_sub25_40_45)][
++                 mw_annual_ft2>47500 & mw_annual_ft2<=52500, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40 + hhinc_sub25_40_45 + hhinc_sub25_45_50)][
++                   mw_annual_ft2>52500 & mw_annual_ft2<=65000, mww_sub25_all2 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40 + hhinc_sub25_40_45 + hhinc_sub25_45_50 + hhinc_sub25_50_60)]
++   
++   data[mw_annual_ft<=17500 , mww_sub25_all1 := .(hhinc_sub25_0_15)][
++     mw_annual_ft>17500 & mw_annual_ft<=22500, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20)][
++       mw_annual_ft>22500 & mw_annual_ft<=27500, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25)][
++         mw_annual_ft>27500 & mw_annual_ft<=32500, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30)][
++           mw_annual_ft>32500 & mw_annual_ft<=37500, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35)][
++             mw_annual_ft>37500 & mw_annual_ft<=42500, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40)][
++               mw_annual_ft>42500 & mw_annual_ft<=47500, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40 + hhinc_sub25_40_45)][
++                 mw_annual_ft>47500 & mw_annual_ft<=52500, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40 + hhinc_sub25_40_45 + hhinc_sub25_45_50)][
++                   mw_annual_ft>52500 & mw_annual_ft<=65000, mww_sub25_all1 := .(hhinc_sub25_0_15 + hhinc_sub25_15_20 + hhinc_sub25_20_25 + hhinc_sub25_25_30 + hhinc_sub25_30_35 + hhinc_sub25_35_40 + hhinc_sub25_40_45 + hhinc_sub25_45_50 + hhinc_sub25_50_60)]
++   
++   data[mw_annual_ft2<=17500 , mww_black_all2 := .(hhinc_black_0_15)][
++     mw_annual_ft2>17500 & mw_annual_ft2<=22500, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20)][
++       mw_annual_ft2>22500 & mw_annual_ft2<=27500, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25)][
++         mw_annual_ft2>27500 & mw_annual_ft2<=32500, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30)][
++           mw_annual_ft2>32500 & mw_annual_ft2<=37500, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35)][
++             mw_annual_ft2>37500 & mw_annual_ft2<=42500, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40)][
++               mw_annual_ft2>42500 & mw_annual_ft2<=47500, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40 + hhinc_black_40_45)][
++                 mw_annual_ft2>47500 & mw_annual_ft2<=52500, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40 + hhinc_black_40_45 + hhinc_black_45_50)][
++                   mw_annual_ft2>52500 & mw_annual_ft2<=65000, mww_black_all2 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40 + hhinc_black_40_45 + hhinc_black_45_50 + hhinc_black_50_60)]  
++ 
++   data[mw_annual_ft<=17500 , mww_black_all1 := .(hhinc_black_0_15)][
++     mw_annual_ft>17500 & mw_annual_ft<=22500, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20)][
++       mw_annual_ft>22500 & mw_annual_ft<=27500, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25)][
++         mw_annual_ft>27500 & mw_annual_ft<=32500, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30)][
++           mw_annual_ft>32500 & mw_annual_ft<=37500, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35)][
++             mw_annual_ft>37500 & mw_annual_ft<=42500, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40)][
++               mw_annual_ft>42500 & mw_annual_ft<=47500, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40 + hhinc_black_40_45)][
++                 mw_annual_ft>47500 & mw_annual_ft<=52500, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40 + hhinc_black_40_45 + hhinc_black_45_50)][
++                   mw_annual_ft>52500 & mw_annual_ft<=65000, mww_black_all1 := .(hhinc_black_0_15 + hhinc_black_15_20 + hhinc_black_20_25 + hhinc_black_25_30 + hhinc_black_30_35 + hhinc_black_35_40 + hhinc_black_40_45 + hhinc_black_45_50 + hhinc_black_50_60)]    
++   
++   data[mw_annual_ft<=17500 , mww_sub25_black_all1 := .(hhinc_sub25_black_0_15)][
++     mw_annual_ft>17500 & mw_annual_ft<=22500, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20)][
++       mw_annual_ft>22500 & mw_annual_ft<=27500, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25)][
++         mw_annual_ft>27500 & mw_annual_ft<=32500, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30)][
++           mw_annual_ft>32500 & mw_annual_ft<=37500, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35)][
++             mw_annual_ft>37500 & mw_annual_ft<=42500, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40)][
++               mw_annual_ft>42500 & mw_annual_ft<=47500, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40 + hhinc_sub25_black_40_45)][
++                 mw_annual_ft>47500 & mw_annual_ft<=52500, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40 + hhinc_sub25_black_40_45 + hhinc_sub25_black_45_50)][
++                   mw_annual_ft>52500 & mw_annual_ft<=65000, mww_sub25_black_all1 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40 + hhinc_sub25_black_40_45 + hhinc_sub25_black_45_50 + hhinc_sub25_black_50_60)]
++   
++   data[mw_annual_ft2<=17500 , mww_sub25_black_all2 := .(hhinc_sub25_black_0_15)][
++     mw_annual_ft2>17500 & mw_annual_ft2<=22500, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20)][
++       mw_annual_ft2>22500 & mw_annual_ft2<=27500, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25)][
++         mw_annual_ft2>27500 & mw_annual_ft2<=32500, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30)][
++           mw_annual_ft2>32500 & mw_annual_ft2<=37500, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35)][
++             mw_annual_ft2>37500 & mw_annual_ft2<=42500, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40)][
++               mw_annual_ft2>42500 & mw_annual_ft2<=47500, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40 + hhinc_sub25_black_40_45)][
++                 mw_annual_ft2>47500 & mw_annual_ft2<=52500, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40 + hhinc_sub25_black_40_45 + hhinc_sub25_black_45_50)][
++                   mw_annual_ft2>52500 & mw_annual_ft2<=65000, mww_sub25_black_all2 := .(hhinc_sub25_black_0_15 + hhinc_sub25_black_15_20 + hhinc_sub25_black_20_25 + hhinc_sub25_black_25_30 + hhinc_sub25_black_30_35 + hhinc_sub25_black_35_40 + hhinc_sub25_black_40_45 + hhinc_sub25_black_45_50 + hhinc_sub25_black_50_60)]
++   
++   
++   data[mw_annual_ft2<=17500 , mww_renter_all2 := .(hhinc_0_15)][
++     mw_annual_ft2>17500 & mw_annual_ft2<=22500, mww_renter_all2 := .(renthhinc_0_15 + renthhinc_15_20)][
++       mw_annual_ft2>22500 & mw_annual_ft2<=27500, mww_renter_all2 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25)][
++         mw_annual_ft2>27500 & mw_annual_ft2<=42500, mww_renter_all2 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25 + renthhinc_25_35)][
++           mw_annual_ft2>42500 & mw_annual_ft2<=57500, mww_renter_all2 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25 + renthhinc_25_35 + renthhinc_35_50)][
++             mw_annual_ft2>57500, mww_renter_all2 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25 + renthhinc_25_35 + renthhinc_35_50)]
++  
++   data[mw_annual_ft<=17500 , mww_renter_all1 := .(hhinc_0_15)][
++     mw_annual_ft>17500 & mw_annual_ft<=22500, mww_renter_all1 := .(renthhinc_0_15 + renthhinc_15_20)][
++       mw_annual_ft>22500 & mw_annual_ft<=27500, mww_renter_all1 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25)][
++         mw_annual_ft>27500 & mw_annual_ft<=42500, mww_renter_all1 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25 + renthhinc_25_35)][
++           mw_annual_ft>42500 & mw_annual_ft<=57500, mww_renter_all1 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25 + renthhinc_25_35 + renthhinc_35_50)][
++             mw_annual_ft>57500, mww_renter_all1 := .(renthhinc_0_15 + renthhinc_15_20 + renthhinc_20_25 + renthhinc_25_35 + renthhinc_35_50)]
++   
++    
++   return(data)
++ }
+> 
+> 
+> format_tables <- function(x, datadir, data_version) {
++   data <- fread(paste0(datadir, "nhgis", data_version, "_", x))
++   
++   make_geo <-  function(y) {
++     if (class(y)[1] != "data.table") y <- setDT(y)
++     
++     y[, c('tract_fips', 'county_fips') := list(
++       as.numeric(paste0(
++         str_pad(STATEA, 2, pad = "0"),
++         str_pad(COUNTYA, 3, pad = "0"),
++         str_pad(TRACTA, 6, pad = "0"))),
++       as.numeric(paste0(str_pad(STATEA, 2, pad = "0"),
++                         str_pad(COUNTYA, 3, pad = "0"))))]
++     setnames(y, old = "CBSAA", new = "cbsa")
++     
++     return(y)
++   }
++   data <- make_geo(data)
++   
++   if (x == "ds239_20185_2018_tract.csv") {
++     
++     data[, c('hh2', 
++              'hh1', 
++              'hhTOT', 
++              'hh2_black', 
++              'hh1_black', 
++              'hh_blackTOT', 
++              'hh2_white', 
++              'hh1_white', 
++              'hh_whiteTOT') := 
++            list((AJXKE003 + AJXKE009),
++                 (AJXKE004 + AJXKE008) , 
++                 (AJXKE001), 
++                 (AJXME003 + AJXME009),
++                 (AJXME004 + AJXME008) , 
++                 (AJXME001), 
++                 (AJXSE003 + AJXSE009),
++                 (AJXSE004 + AJXSE008) , 
++                 (AJXSE001))]
++     
++     data[, c('hhinc_0_15', 
++              'hhinc_15_20', 
++              'hhinc_20_25', 
++              'hhinc_25_30', 
++              'hhinc_30_35',
++              'hhinc_35_40', 
++              'hhinc_40_45',
++              'hhinc_45_50',
++              'hhinc_50_60',
++              'hhinc_60_', 
++              'hhincTOT') :=
++            list((AJY9E002 + AJY9E003), 
++                 (AJY9E004), 
++                 (AJY9E005),
++                 (AJY9E006), 
++                 (AJY9E007), 
++                 (AJY9E008), 
++                 (AJY9E009), 
++                 (AJY9E010), 
++                 (AJY9E011), 
++                 (AJY9E012 + AJY9E013 + AJY9E014 + AJY9E015 + AJY9E016 + AJY9E017), 
++                 (AJY9E001))]
++     
++     data[, c('hhinc_sub25_0_15', 
++              'hhinc_sub25_15_20', 
++              'hhinc_sub25_20_25', 
++              'hhinc_sub25_25_30', 
++              'hhinc_sub25_30_35', 
++              'hhinc_sub25_35_40', 
++              'hhinc_sub25_40_45', 
++              'hhinc_sub25_45_50', 
++              'hhinc_sub25_50_60', 
++              'hhinc_sub25_60_', 
++              'hhinc_sub25TOT') := 
++            list((AJZLE003 + AJZLE004), 
++                 (AJZLE005), 
++                 (AJZLE006),
++                 (AJZLE007), 
++                 (AJZLE008), 
++                 (AJZLE009), 
++                 (AJZLE010), 
++                 (AJZLE011), 
++                 (AJZLE012), 
++                 (AJZLE013 + AJZLE014 + AJZLE015 + AJZLE016 + AJZLE017 + AJZLE018), 
++                 (AJZLE002))]
++     
++     data[, c('workers_ft', 'workers_pt') := list((AJ1EE004 + AJ1EE009 + AJ1EE014 + AJ1EE019 + AJ1EE024 + AJ1EE029 + AJ1EE034), 
++                                                  (AJ1EE005 + AJ1EE010 + AJ1EE015 + AJ1EE020 + AJ1EE025 + AJ1EE030 + AJ1EE035))] 
++     
++     data[, c('pop_rent_share', 'pop_rent_shareD') := list(AJ17E003, AJ17E001)]
++     
++     data[, c('renthh_grent_incshare_0_10', 
++              'renthh_grent_incshare_10_15', 
++              'renthh_grent_incshare_15_20', 
++              'renthh_grent_incshare_20_25', 
++              'renthh_grent_incshare_25_30', 
++              'renthh_grent_incshare_30_35', 
++              'renthh_grent_incshare_35_40', 
++              'renthh_grent_incshare_40_50', 
++              'renthh_grent_incshare_50_', 
++              'renthhTOT') := 
++            list((AJ3KE002), 
++                 (AJ3KE003), 
++                 (AJ3KE004), 
++                 (AJ3KE005), 
++                 (AJ3KE006), 
++                 (AJ3KE007), 
++                 (AJ3KE008), 
++                 (AJ3KE009), 
++                 (AJ3KE010),
++                 (AJ3KE001))]
++     
++     data[, c('renthhinc_0_10_sh0_30', 
++              'renthhinc_0_10_sh30_', 
++              'renthhinc_10_20_sh0_30', 
++              'renthhinc_10_20_sh30_', 
++              'renthhinc_20_35_sh0_30', 
++              'renthhinc_20_35_sh30_', 
++              'renthhinc_35_50_sh0_30', 
++              'renthhinc_35_50_sh30_', 
++              'renthhinc_50_sh0_30', 
++              'renthhinc_50_sh30_') := 
++            list((AJ3NE003 + AJ3NE004 + AJ3NE005), 
++                 (AJ3NE006 + AJ3NE007 + AJ3NE008 + AJ3NE009), 
++                 (AJ3NE012 + AJ3NE013 + AJ3NE014), 
++                 (AJ3NE015 + AJ3NE016 + AJ3NE017 + AJ3NE018), 
++                 (AJ3NE021 + AJ3NE022 + AJ3NE023), 
++                 (AJ3NE024 + AJ3NE025 + AJ3NE026 + AJ3NE027), 
++                 (AJ3NE030 + AJ3NE031 + AJ3NE032),
++                 (AJ3NE033 + AJ3NE034 + AJ3NE035 + AJ3NE036), 
++                 (AJ3NE039 + AJ3NE040 + AJ3NE041 + AJ3NE048 + AJ3NE049 + AJ3NE050 + AJ3NE057 + AJ3NE058 + AJ3NE059), 
++                 (AJ3NE042 + AJ3NE043 + AJ3NE044 + AJ3NE045 + AJ3NE051 + AJ3NE052 + AJ3NE053  + AJ3NE054 + AJ3NE060 + AJ3NE061 + AJ3NE062 + AJ3NE063))]
++     
++     target_vars <- c('tract_fips', 'county_fips', 
++                      'hh2','hh1', 'hhTOT', 'hh2_black', 'hh1_black', 'hh_blackTOT', 'hh2_white', 'hh1_white', 'hh_whiteTOT', 
++                      'hhinc_0_15', 'hhinc_15_20', 'hhinc_20_25', 'hhinc_25_30', 'hhinc_30_35', 'hhinc_35_40', 
++                      'hhinc_40_45', 'hhinc_45_50', 'hhinc_50_60', 'hhinc_60_', 'hhincTOT', 
++                      'hhinc_sub25_0_15', 'hhinc_sub25_15_20', 'hhinc_sub25_20_25', 'hhinc_sub25_25_30', 
++                      'hhinc_sub25_30_35', 'hhinc_sub25_35_40', 'hhinc_sub25_40_45', 'hhinc_sub25_45_50', 
++                      'hhinc_sub25_50_60', 'hhinc_sub25_60_', 'hhinc_sub25TOT', 
++                      'workers_ft', 'workers_pt', 'pop_rent_share', 'pop_rent_shareD',
++                      'renthh_grent_incshare_0_10', 'renthh_grent_incshare_10_15', 'renthh_grent_incshare_15_20', 
++                      'renthh_grent_incshare_20_25', 'renthh_grent_incshare_25_30', 'renthh_grent_incshare_30_35', 
++                      'renthh_grent_incshare_35_40', 'renthh_grent_incshare_40_50', 'renthh_grent_incshare_50_', 
++                      'renthhTOT', 
++                      'renthhinc_0_10_sh0_30', 'renthhinc_0_10_sh30_', 'renthhinc_10_20_sh0_30', 
++                      'renthhinc_10_20_sh30_', 'renthhinc_20_35_sh0_30', 'renthhinc_20_35_sh30_', 
++                      'renthhinc_35_50_sh0_30', 'renthhinc_35_50_sh30_', 'renthhinc_50_sh0_30', 
++                      'renthhinc_50_sh30_') 
++     
++   }
++   
++   if (x == "ds240_20185_2018_tract.csv") {
++     
++     data[, c('worker_rent_share', 'worker_rent_shareD') := list(AKAXE003, AKAXE001)]
++     
++     data[, c('hh_1worker', 
++              'hh_2worker', 
++              'hh_workerTOT') := 
++            list((AKA0E003 + AKA0E002), 
++                 (AKA0E004 + AKA0E005), 
++                 (AKA0E001))]
++     
++     data[, c('hhinc_black_0_15', 
++              'hhinc_black_15_20', 
++              'hhinc_black_20_25', 
++              'hhinc_black_25_30', 
++              'hhinc_black_30_35',
++              'hhinc_black_35_40', 
++              'hhinc_black_40_45',
++              'hhinc_black_45_50',
++              'hhinc_black_50_60',
++              'hhinc_black_60_', 
++              'hhinc_blackTOT') :=
++            list((AKF1E002 + AKF1E003), 
++                 (AKF1E004), 
++                 (AKF1E005),
++                 (AKF1E006), 
++                 (AKF1E007), 
++                 (AKF1E008), 
++                 (AKF1E009), 
++                 (AKF1E010), 
++                 (AKF1E011), 
++                 (AKF1E012 + AKF1E013 + AKF1E014 + AKF1E015 + AKF1E016 + AKF1E017), 
++                 (AKF1E001))]
++     
++     data[, c('hhinc_white_0_15', 
++              'hhinc_white_15_20', 
++              'hhinc_white_20_25', 
++              'hhinc_white_25_30', 
++              'hhinc_white_30_35',
++              'hhinc_white_35_40', 
++              'hhinc_white_40_45',
++              'hhinc_white_45_50',
++              'hhinc_white_50_60',
++              'hhinc_white_60_', 
++              'hhinc_whiteTOT') :=
++            list((AKF7E002 + AKF7E003), 
++                 (AKF7E004), 
++                 (AKF7E005),
++                 (AKF7E006), 
++                 (AKF7E007), 
++                 (AKF7E008), 
++                 (AKF7E009), 
++                 (AKF7E010), 
++                 (AKF7E011), 
++                 (AKF7E012 + AKF7E013 + AKF7E014 + AKF7E015 + AKF7E016 + AKF7E017), 
++                 (AKF7E001))]
++     
++     data[, c('hhinc_sub25_black_0_15', 
++              'hhinc_sub25_black_15_20', 
++              'hhinc_sub25_black_20_25', 
++              'hhinc_sub25_black_25_30', 
++              'hhinc_sub25_black_30_35', 
++              'hhinc_sub25_black_35_40', 
++              'hhinc_sub25_black_40_45', 
++              'hhinc_sub25_black_45_50', 
++              'hhinc_sub25_black_50_60', 
++              'hhinc_sub25_black_60_', 
++              'hhinc_sub25_blackTOT') := 
++            list((AKGKE003 + AKGKE004), 
++                 (AKGKE005), 
++                 (AKGKE006),
++                 (AKGKE007), 
++                 (AKGKE008), 
++                 (AKGKE009), 
++                 (AKGKE010), 
++                 (AKGKE011), 
++                 (AKGKE012), 
++                 (AKGKE013 + AKGKE014 + AKGKE015 + AKGKE016 + AKGKE017 + AKGKE018), 
++                 (AKGKE002))]
++     
++     data[, c('hhinc_sub25_white_0_15', 
++              'hhinc_sub25_white_15_20', 
++              'hhinc_sub25_white_20_25', 
++              'hhinc_sub25_white_25_30', 
++              'hhinc_sub25_white_30_35', 
++              'hhinc_sub25_white_35_40', 
++              'hhinc_sub25_white_40_45', 
++              'hhinc_sub25_white_45_50', 
++              'hhinc_sub25_white_50_60', 
++              'hhinc_sub25_white_60_', 
++              'hhinc_sub25_whiteTOT') := 
++            list((AKGQE003 + AKGQE004), 
++                 (AKGQE005), 
++                 (AKGQE006),
++                 (AKGQE007), 
++                 (AKGQE008), 
++                 (AKGQE009), 
++                 (AKGQE010), 
++                 (AKGQE011), 
++                 (AKGQE012), 
++                 (AKGQE013 + AKGQE014 + AKGQE015 + AKGQE016 + AKGQE017 + AKGQE018), 
++                 (AKGQE002))]
++     
++     data[, c('pinc_ft_0_25', 
++              'pinc_ft_25_50', 
++              'pinc_ft_50_75', 
++              'pinc_ft_75_100', 
++              'pinc_ft_100_125', 
++              'pinc_ft_125_150', 
++              'pinc_ft_150_175', 
++              'pinc_ft_175_200', 
++              'pinc_ft_200_225', 
++              'pinc_ft_225_250', 
++              'pinc_ft_250_300', 
++              'pinc_ft_TOT', 
++              'pinc_pt_0_25', 
++              'pinc_pt_25_50', 
++              'pinc_pt_50_75', 
++              'pinc_pt_75_100', 
++              'pinc_pt_100_125', 
++              'pinc_pt_125_150', 
++              'pinc_pt_TOT') := list((AKH1E006 + AKH1E053), 
++                                      (AKH1E007 + AKH1E054), 
++                                      (AKH1E008 + AKH1E055), 
++                                      (AKH1E009 + AKH1E056), 
++                                      (AKH1E010 + AKH1E057), 
++                                      (AKH1E011 + AKH1E058), 
++                                      (AKH1E012 + AKH1E059), 
++                                      (AKH1E013 + AKH1E060), 
++                                      (AKH1E014 + AKH1E061), 
++                                      (AKH1E015 + AKH1E062), 
++                                      (AKH1E016 + AKH1E063), 
++                                      (AKH1E003 + AKH1E050), 
++                                      (AKH1E029 + AKH1E076), 
++                                      (AKH1E030 + AKH1E077), 
++                                      (AKH1E031 + AKH1E078), 
++                                      (AKH1E032 + AKH1E079),
++                                      (AKH1E033 + AKH1E080), 
++                                      (AKH1E034 + AKH1E081), 
++                                      (AKH1E028 + AKH1E075))]
++     
++     data[, c('renthh_sub35_single',
++              'renthh_sub35_couple', 
++              'renthh_hunitsTOT', 
++              'renthh_sub35_hunitsTOT',
++              'hh_hunitsTOT', 
++              'hh_sub35_hunitsTOT',
++              'renthh_single_hunitsTOT', 
++              'renthh_couple_hunitsTOT', 
++              'hh_single_hunitsTOT', 
++              'hh_couple_hunitsTOT') := 
++            list((AKKIE034 + AKKIE038 + AKKIE043), 
++                 (AKKIE029 + AKKIE047), 
++                 (AKKIE026), 
++                 (AKKIE029 + AKKIE047 + AKKIE034 + AKKIE038 + AKKIE043), 
++                 (AKKIE001), 
++                 (AKKIE029 + AKKIE047 + AKKIE034 + AKKIE038 + AKKIE043 + AKKIE005 + AKKIE010 + AKKIE014 + AKKIE019 + AKKIE023), 
++                 (AKKIE033 + AKKIE037 + AKKIE042), 
++                 (AKKIE028 + AKKIE046), 
++                 (AKKIE033 + AKKIE037 + AKKIE042 + AKKIE009 + AKKIE013 + AKKIE018), 
++                 (AKKIE028 + AKKIE046 + AKKIE004 + AKKIE022))]
++     
++     data[, c('renthhinc_0_15', 
++              'renthhinc_15_20', 
++              'renthhinc_20_25', 
++              'renthhinc_25_35', 
++              'renthhinc_35_50', 
++              'renthhinc_50_75',
++              'renthhinc_75_',
++              'renthhinc_hunitsTOT'
++              ) :=
++            list((AKLXE015 + AKLXE016 + AKLXE017), 
++                 (AKLXE018), 
++                 (AKLXE019),
++                 (AKLXE020), 
++                 (AKLXE021), 
++                 (AKLXE022), 
++                 (AKLXE023 + AKLXE024 +AKLXE025), 
++                 (AKLXE014))]
++     
++     target_vars <- c('tract_fips', 'county_fips', 
++                      'worker_rent_share', 'worker_rent_shareD',
++                      'hh_1worker', 'hh_2worker', 'hh_workerTOT', 
++                      'hhinc_black_0_15', 'hhinc_black_15_20', 'hhinc_black_20_25', 
++                      'hhinc_black_25_30', 'hhinc_black_30_35', 'hhinc_black_35_40', 
++                      'hhinc_black_40_45', 'hhinc_black_45_50', 'hhinc_black_50_60',
++                      'hhinc_black_60_', 'hhinc_blackTOT', 
++                      'hhinc_white_0_15', 'hhinc_white_15_20', 'hhinc_white_20_25', 
++                      'hhinc_white_25_30', 'hhinc_white_30_35', 'hhinc_white_35_40', 
++                      'hhinc_white_40_45', 'hhinc_white_45_50', 'hhinc_white_50_60',
++                      'hhinc_white_60_', 'hhinc_whiteTOT', 
++                      'hhinc_sub25_black_0_15', 'hhinc_sub25_black_15_20', 'hhinc_sub25_black_20_25', 
++                      'hhinc_sub25_black_25_30', 'hhinc_sub25_black_30_35', 'hhinc_sub25_black_35_40', 
++                      'hhinc_sub25_black_40_45', 'hhinc_sub25_black_45_50', 'hhinc_sub25_black_50_60', 
++                      'hhinc_sub25_black_60_', 'hhinc_sub25_blackTOT', 
++                      'hhinc_sub25_white_0_15', 'hhinc_sub25_white_15_20', 'hhinc_sub25_white_20_25', 
++                      'hhinc_sub25_white_25_30', 'hhinc_sub25_white_30_35', 'hhinc_sub25_white_35_40', 
++                      'hhinc_sub25_white_40_45', 'hhinc_sub25_white_45_50', 'hhinc_sub25_white_50_60', 
++                      'hhinc_sub25_white_60_', 'hhinc_sub25_whiteTOT', 
++                      'pinc_ft_0_25', 'pinc_ft_25_50', 'pinc_ft_50_75', 'pinc_ft_75_100', 'pinc_ft_100_125', 
++                      'pinc_ft_125_150', 'pinc_ft_150_175', 'pinc_ft_175_200', 'pinc_ft_200_225', 
++                      'pinc_ft_225_250', 'pinc_ft_250_300', 'pinc_ft_TOT', 'pinc_pt_0_25', 
++                      'pinc_pt_25_50', 'pinc_pt_50_75', 'pinc_pt_75_100', 'pinc_pt_100_125', 
++                      'pinc_pt_125_150', 'pinc_pt_TOT',
++                      'renthh_sub35_single', 'renthh_sub35_couple', 'renthh_hunitsTOT', 
++                      'renthh_sub35_hunitsTOT', 'hh_hunitsTOT', 'hh_sub35_hunitsTOT',
++                      'renthh_single_hunitsTOT', 'renthh_couple_hunitsTOT', 'hh_single_hunitsTOT', 
++                      'hh_couple_hunitsTOT', 
++                      'renthhinc_0_15', 'renthhinc_15_20', 'renthhinc_20_25', 'renthhinc_25_35', 
++                      'renthhinc_35_50', 'renthhinc_50_75', 'renthhinc_75_', 'renthhinc_hunitsTOT')
++   }
++   
++   data <- data[, ..target_vars]
++   
++   return(data)
++   
++ }
+> 
+> main()
+[1] "File '../../../drive/base_large/output/zip_mw.csv' saved successfully."
+[1] "Log file generated successfully."
+There were 50 or more warnings (use warnings() to see the first 50)
+> 
+> proc.time()
+   user  system elapsed 
+  46.42    2.32   41.92 
+
+
+Execute:  R CMD BATCH --no-save "./make_demographics_ziplevel.R" make_demographics_ziplevel.Rout
+
+R version 3.6.3 (2020-02-29) -- "Holding the Windsock"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list = ls())
+> source("../../../lib/R/load_packages.R")
+> source("../../../lib/R/save_data.R")
+
+Please cite as: 
+
+ Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+ R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
+
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+
+Attaching package: 'data.table'
+
+The following objects are masked from 'package:dplyr':
+
+    between, first, last
+
+> 
+> load_packages(c('tidyverse', 'data.table', 'tidycensus', 'bit64', 'readxl'))
+-- Attaching packages --------------------------------------- tidyverse 1.3.0 --
+v ggplot2 3.3.0     v purrr   0.3.4
+v tibble  3.0.4     v stringr 1.4.0
+v tidyr   1.0.2     v forcats 0.5.0
+v readr   1.4.0     
+-- Conflicts ------------------------------------------ tidyverse_conflicts() --
+x data.table::between() masks dplyr::between()
+x dplyr::filter()       masks stats::filter()
+x data.table::first()   masks dplyr::first()
+x dplyr::lag()          masks stats::lag()
+x data.table::last()    masks dplyr::last()
+x purrr::transpose()    masks data.table::transpose()
+Loading required package: bit
+Attaching package bit
+package:bit (c) 2008-2012 Jens Oehlschlaegel (GPL-2)
+creators: bit bitwhich
+coercion: as.logical as.integer as.bit as.bitwhich which
+operator: ! & | xor != ==
+querying: print length any all min max range sum summary
+bit access: length<- [ [<- [[ [[<-
+for more help type ?bit
+
+Attaching package: 'bit'
+
+The following object is masked from 'package:data.table':
+
+    setattr
+
+The following object is masked from 'package:base':
+
+    xor
+
+Attaching package bit64
+package:bit64 (c) 2011-2012 Jens Oehlschlaegel
+creators: integer64 seq :
+coercion: as.integer64 as.vector as.logical as.integer as.double as.character as.bin
+logical operator: ! & | xor != == < <= >= >
+arithmetic operator: + - * / %/% %% ^
+math: sign abs sqrt log log2 log10
+math: floor ceiling trunc round
+querying: is.integer64 is.vector [is.atomic} [length] format print str
+values: is.na is.nan is.finite is.infinite
+aggregation: any all min max range sum prod
+cumulation: diff cummin cummax cumsum cumprod
+access: length<- [ [<- [[ [[<-
+combine: c rep cbind rbind as.data.frame
+WARNING don't use as subscripts
+WARNING semantics differ from integer
+for more help type ?bit64
+
+Attaching package: 'bit64'
+
+The following object is masked from 'package:bit':
+
+    still.identical
+
+The following objects are masked from 'package:base':
+
+    %in%, :, is.double, match, order, rank
 
 > 
 > main <- function() {
 +    
-+    data_version <- "0043"
++    data_version <- "0052"
 +    
 +    datadir <- paste0("../../../drive/raw_data/census/tract/nhgis", data_version, "_csv/")
 +    xwalkdir <- "../../../raw/crosswalk/" 
 +    # outdir  <- "../output/"
 +    outdir <- "../../../drive/base_large/output/"
 +    tempdir <- "../temp"
++    log_file <- "../output/data_file_manifest.log"
 +          
 +    table_list <- list.files(datadir, 
 +                             pattern = "*.csv")
 +    
++    table_list <- table_list[table_list != "nhgis0043_ds176_20105_2010_tract.csv"] # We are not using this file
 +    table_list <- str_remove_all(table_list, paste0("nhgis", data_version, "_"))
 +    
 +    table_clean <- lapply(table_list, format_tables, datadir = datadir, data_version = data_version)
@@ -130,23 +1049,26 @@ The following objects are masked from ‘package:base’:
 + 
 +    
 +    table_final <- table_final[xwalk, on = 'tract_fips']
-+    
++    table_final[, tot_ratio_denom := sum(tot_ratio, na.rm = T), by = zipcode]
++    table_final[, rel_wgt := tot_ratio / tot_ratio_denom]
 +    
 +    start_geo <- 'tract_fips'
 +    target_geo <- 'zipcode'
 +    wgt <- 'tot_ratio'
-+    demovars <- setdiff(colnames(table_final), c(start_geo, target_geo, wgt, 'county_fips'))
++    med_demovars <- colnames(table_final)[str_detect(colnames(table_final), "^med")]
++    share_demovars <- setdiff(colnames(table_final), c(start_geo, target_geo, wgt, 'county_fips', med_demovars))
 +    
-+    table_final <- table_final[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), by = target_geo, .SDcols = demovars]
++    table_final_zipshare <- table_final[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), by = target_geo, .SDcols = share_demovars]
 +    
 +    
-+    table_final[, c('urb_share2010', 
++    table_final_zipshare[, c('urb_share2010', 
 +                    'white_share2010', 'black_share2010', 'hisp_share2010', 'asian_share2010', 'natam_share2010', 
 +                    'child_share2010', 'teen_share2010', 'youngadult_share2010', 'adult_share2010', 'elder_share2010', 
 +                    'hh_couple_share2010', 'hh_couple_child_share2010',
 +                    'renthouse_share2010',
 +                    'work_county_share20105', 'worktravel_10_share20105', 'worktravel_10_60_share20105', 'worktravel_60_share20105', 
-+                    'college_share20105', 'poor_share20105', 'lo_hhinc_share20105', 'hi_hhinc_share20105', 'unemp_share20105', 'employee_share20105') := list(
++                    'college_share20105', 'poor_share20105', 'lo_hhinc_share20105', 'hi_hhinc_share20105', 'unemp_share20105', 'employee_share20105', 
++                    'worker_food_share20105') := list(
 +                       (urb_share2010 / urb_share2010D), 
 +                       (white_share2010 / race_share2010D),
 +                       (black_share2010 / race_share2010D),
@@ -170,24 +1092,31 @@ The following objects are masked from ‘package:base’:
 +                       (lo_hhinc_share20105 / hhinc_share20105D),
 +                       (hi_hhinc_share20105 / hhinc_share20105D), 
 +                       (unemp_share20105 / unemp_share20105D), 
-+                       (employee_share20105 / employee_share20105D))]
++                       (employee_share20105 / employee_share20105D), 
++                       (worker_foodservice20105/worker_foodservice20105D))]
 +    
-+    denom_cols <- colnames(table_final)[str_detect(colnames(table_final), "D$")]
++    denom_cols <- colnames(table_final_zipshare)[str_detect(colnames(table_final_zipshare), "D$")]
 +    
-+    table_final[, (denom_cols):= NULL]
++    table_final_zipshare[, (denom_cols):= NULL]
 +    
-+    save_data(table_final,
++    table_final_med <- table_final[, lapply(.SD, function(x, w) weighted.mean(x,w, na.rm = T), w=rel_wgt), 
++                                  by = target_geo, .SDcols = med_demovars]
++    
++    table_final_all <- table_final_zipshare[table_final_med, on = 'zipcode']
++    
++    zip_mw <- fread(paste0(outdir,'zip_mw.csv'))
++    
++    table_final_all <- zip_mw[table_final_all, on = 'zipcode']
++    
++    save_data(table_final_all, key = c('zipcode'),
 +              filename = paste0(outdir, 'zip_demo.csv'),
-+              key = c('zipcode'))
++              logfile = log_file)
 + }
-> 
-> 
 > 
 > 
 > format_tables <- function(x, datadir, data_version) {
 +    data <- fread(paste0(datadir, "nhgis", data_version, "_", x))
 + 
-+    
 +    make_geo <-  function(y) {
 +       if (class(y)[1] != "data.table") y <- setDT(y)
 + 
@@ -198,6 +1127,7 @@ The following objects are masked from ‘package:base’:
 +             str_pad(TRACTA, 6, pad = "0"))),
 +          as.numeric(paste0(str_pad(STATEA, 2, pad = "0"),
 +                            str_pad(COUNTYA, 3, pad = "0"))))]
++       setnames(y, old = "CBSAA", new = "cbsa")
 + 
 +       return(y)
 +    }
@@ -223,14 +1153,14 @@ The following objects are masked from ‘package:base’:
 +                    H7Z001)]
 +       
 +       data[, c('child_share2010',      #0-14
-+                'teen_share2010',       #15-21
-+                'youngadult_share2010', #22-34
++                'teen_share2010',       #15-24
++                'youngadult_share2010', #25-34
 +                'adult_share2010',      #35-64
 +                'elder_share2010', 
 +                'age_share2010D') :=   #65-
 +               list((H76003 + H76004 + H76005 + H76027 + H76028 + H76029), 
-+                    (H76006 + H76007 + H76008 + H76009 + H76030 + H76031 + H76032 + H76033), 
-+                    (H76010 + H76011 + H76012 + H76034 + H76035 + H76036), 
++                    (H76006 + H76007 + H76008 + H76009 + H76010  + H76030 + H76031 + H76032 + H76033 + H76034), 
++                    (H76011 + H76012 + H76035 + H76036), 
 +                    (H76013 + H76014 + H76015 + H76016 + H76017 + H76018 + H76019 + H76037 + H76038 + H76039 + H76040 + H76041 + H76042 + H76043),
 +                    (H76020 + H76021 + H76022 + H76023 + H76024 + H76025 + H76044 + H76045 + H76046 + H76047 + H76048 + H76049), 
 +                    H76001)]
@@ -245,9 +1175,7 @@ The following objects are masked from ‘package:base’:
 +                        'child_share2010', 'teen_share2010', 'youngadult_share2010', 'adult_share2010', 'elder_share2010', 'age_share2010D', 
 +                        'housing_units2010')
 +       
-+       
-+    }
-+    
++    } 
 +    else if (x == 'ds173_2010_tract.csv') {
 +       
 +       data[, c('hh_couple_share2010', 'hh_couple_share2010D',           #share of couples (married or partners) out of household population
@@ -258,9 +1186,7 @@ The following objects are masked from ‘package:base’:
 +       target_vars <- c('tract_fips', 'county_fips', 
 +                        'hh_couple_share2010', 'hh_couple_share2010D', 'hh_couple_child_share2010', 'hh_couple_child_share2010D')
 +       
-+       data <- data[ ,..target_vars]
-+    }
-+    
++    } 
 +    else if (x == 'ds181_2010_tract.csv') {
 +       data[, c('renthouse_share2010', 'renthouse_share2010D') :=  #share of housing units that are renter-occupied 
 +               list(LHT004,LHT001)]
@@ -268,9 +1194,12 @@ The following objects are masked from ‘package:base’:
 +       target_vars <- c('tract_fips', 'county_fips', 
 +                        'renthouse_share2010', 'renthouse_share2010D')
 +       
-+    }
-+    
++    } 
 +    else if (x == 'ds191_20125_2012_tract.csv') {
++ 
++       data[, 'workers20105' := QS6E001]
++ 
++       data[, 'workers_prsal20105' := QX5E004 + QX5E005 + QX5E006 + QX5E014 + QX5E015 + QX5E016]
 +       
 +       data[, c('work_county_share20105', 'work_county_share20105D'):= list(QS6E003, QS6E001)]
 +       
@@ -293,26 +1222,31 @@ The following objects are masked from ‘package:base’:
 +                    (QU0E014 + QU0E015 + QU0E016 + QU0E017), QU0E001)]
 +       
 +       data[, 'med_hhinc20105' := QU1E001]
++ 
++       data[, 'med_pinc20105' := QXFE001]
 +       
 +       data[, c('unemp_share20105', 'unemp_share20105D') := list(QXSE005, QXSE002)]
 +       
 +       data[, c('employee_share20105', 'employee_share20105D') := list((QX5E004 + QX5E014 + QX5E006 + QX5E016 + QX5E007 + QX5E008 + QX5E009 + QX5E017 + QX5E018 + QX5E019),QX5E001)]
 +       
-+       target_vars <- c('tract_fips', 'county_fips', 
++       data[, c('worker_foodservice20105', 'worker_foodservice20105D') := list((QXTE024 + QXTE060), QXTE001)]
++ 
++       data[, c('tot_pinc20105', 'tot_pinc_ft20105') := list(QXGE001, (QXGE003 + QXGE006))]
++       
++       target_vars <- c('tract_fips', 'county_fips',
++                        'workers20105', 'workers_prsal20105',
 +                        'work_county_share20105', 
 +                        'worktravel_10_share20105', 'worktravel_10_60_share20105', 'worktravel_60_share20105', 
 +                        'college_share20105', 
 +                        'poor_share20105', 
 +                        'lo_hhinc_share20105', 'hi_hhinc_share20105',
-+                        'med_hhinc20105',
++                        'med_hhinc20105', 'med_pinc20105',
 +                        'unemp_share20105', 
 +                        'employee_share20105', 
-+                        'work_county_share20105D', 'worktravel_share_20105D', 'college_share20105D', 'poor_share20105D', 'hhinc_share20105D', 'unemp_share20105D', 'employee_share20105D')
-+       
-+       
-+       
-+    }
-+    
++                        'work_county_share20105D', 'worktravel_share_20105D', 'college_share20105D', 'poor_share20105D', 'hhinc_share20105D', 'unemp_share20105D', 'employee_share20105D', 
++                        'worker_foodservice20105', 'worker_foodservice20105D', 
++                        'tot_pinc20105', 'tot_pinc_ft20105')      
++    } 
 +    else if (x == 'ds192_20125_2012_tract.csv') {
 +       
 +       data[, c('med_earn_healthsup_20105',       #median earnings (USD 2012) for healthcare support occup.
@@ -329,10 +1263,11 @@ The following objects are masked from ‘package:base’:
 +                    REPE033)]
 +       
 +       target_vars <- c('tract_fips', 'county_fips', 
-+                        'med_earn_healthsup_20105', 'med_earn_protectserv_20105', 'med_earn_foodserv_20105', 'med_earn_cleaning_20105', 'med_earn_perscare_20105', 'med_earn_prodtransp_20105')
-+       
++                        paste0('med_earn_', c('healthsup_20105', 'protectserv_20105', 'foodserv_20105', 
++                                              'cleaning_20105', 'perscare_20105', 'prodtransp_20105')))
 +       
 +    }
++    
 +    data <- data[, ..target_vars]
 +    
 + 
@@ -346,6 +1281,6 @@ There were 50 or more warnings (use warnings() to see the first 50)
 > 
 > proc.time()
    user  system elapsed 
- 41.509   0.994  51.288 
+  86.85    2.64   82.84 
 
- make.py ended: 2020-09-03 09:55:26
+ make.py ended: 2020-11-26 16:34:21

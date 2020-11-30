@@ -1,0 +1,902 @@
+
+ make.py started: 2020-11-27 19:15:59 C:\Users\shermo\Documents\GitHub\min_wage_rent\base\lodes\code 
+
+
+
+
+Execute:  R CMD BATCH --no-save "./make_lodes_ziplevel.R" make_lodes_ziplevel.Rout
+
+R version 3.6.3 (2020-02-29) -- "Holding the Windsock"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list = ls())
+> source("../../../lib/R/load_packages.R")
+> source("../../../lib/R/save_data.R")
+
+Please cite as: 
+
+ Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+ R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
+
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+
+Attaching package: 'data.table'
+
+The following objects are masked from 'package:dplyr':
+
+    between, first, last
+
+> 
+> options(scipen=999)
+> load_packages(c('tidyverse', 'data.table', 'bit64', 'purrr', 'readxl'))
+-- Attaching packages --------------------------------------- tidyverse 1.3.0 --
+v ggplot2 3.3.0     v purrr   0.3.4
+v tibble  3.0.4     v stringr 1.4.0
+v tidyr   1.0.2     v forcats 0.5.0
+v readr   1.4.0     
+-- Conflicts ------------------------------------------ tidyverse_conflicts() --
+x data.table::between() masks dplyr::between()
+x dplyr::filter()       masks stats::filter()
+x data.table::first()   masks dplyr::first()
+x dplyr::lag()          masks stats::lag()
+x data.table::last()    masks dplyr::last()
+x purrr::transpose()    masks data.table::transpose()
+Loading required package: bit
+Attaching package bit
+package:bit (c) 2008-2012 Jens Oehlschlaegel (GPL-2)
+creators: bit bitwhich
+coercion: as.logical as.integer as.bit as.bitwhich which
+operator: ! & | xor != ==
+querying: print length any all min max range sum summary
+bit access: length<- [ [<- [[ [[<-
+for more help type ?bit
+
+Attaching package: 'bit'
+
+The following object is masked from 'package:data.table':
+
+    setattr
+
+The following object is masked from 'package:base':
+
+    xor
+
+Attaching package bit64
+package:bit64 (c) 2011-2012 Jens Oehlschlaegel
+creators: integer64 seq :
+coercion: as.integer64 as.vector as.logical as.integer as.double as.character as.bin
+logical operator: ! & | xor != == < <= >= >
+arithmetic operator: + - * / %/% %% ^
+math: sign abs sqrt log log2 log10
+math: floor ceiling trunc round
+querying: is.integer64 is.vector [is.atomic} [length] format print str
+values: is.na is.nan is.finite is.infinite
+aggregation: any all min max range sum prod
+cumulation: diff cummin cummax cumsum cumprod
+access: length<- [ [<- [[ [[<-
+combine: c rep cbind rbind as.data.frame
+WARNING don't use as subscripts
+WARNING semantics differ from integer
+for more help type ?bit64
+
+Attaching package: 'bit64'
+
+The following object is masked from 'package:bit':
+
+    still.identical
+
+The following objects are masked from 'package:base':
+
+    %in%, :, is.double, match, order, rank
+
+> 
+> main <- function() {
++   datadir_lodes <- '../../../drive/raw_data/lodes/'
++   datadir_xwalk <- '../../../raw/crosswalk/'
++   outdir        <- '../../../drive/base_large/output/'
++   log_file      <- '../output/data_file_manifest.log'
++   
++   xwalk <- make_xwalk(datadir_xwalk)
++   
++   tract_zip_xwalk <- read_excel(paste0(datadir_xwalk, "TRACT_ZIP_122012.xlsx"), 
++                                 col_names = c('tract_fips', 'zipcode', 'res_ratio', 'bus_ratio', 'oth_ratio', 'tot_ratio'),
++                                 col_types = c('numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric'))
++   tract_zip_xwalk <- setDT(tract_zip_xwalk)
++   tract_zip_xwalk[, c('res_ratio', 'bus_ratio', 'oth_ratio'):= NULL]
++   tract_zip_xwalk <- tract_zip_xwalk[!is.na(zipcode), ]
++   
++   #Datasets:
++   # Point of View (pov) : statistics for either residents ('rac') or workers ('wac') in given geographies
++   # Segment (seg)       : job earnings
++   # Type (type)         : all jobs
++   
++   # Zipcode as workplace: all workers
++   lodes_wac_all_all <- format_lodes(pov = 'wac', 
++                                     seg = 'S000', 
++                                     type = 'JT00', 
++                                     vintage = '2017', 
++                                     instub = datadir_lodes, 
++                                     xw = xwalk, 
++                                     xw_tractzip = tract_zip_xwalk)
++   
++   # Zipcode as residence: all workers
++   lodes_rac_all_all <- format_lodes(pov = 'rac', 
++                                     seg = 'S000', 
++                                     type = 'JT00', 
++                                     vintage = '2017', 
++                                     instub = datadir_lodes, 
++                                     xw = xwalk, 
++                                     xw_tractzip = tract_zip_xwalk)
++   
++   # Zipcode as workplace: low income workers
++   lodes_wac_el_all <- format_lodes(pov = 'wac', 
++                                    seg = 'SE01', 
++                                    type = 'JT00', 
++                                    vintage = '2017', 
++                                    instub = datadir_lodes, 
++                                    xw = xwalk, 
++                                    xw_tractzip = tract_zip_xwalk)
++   
++   # Zipcode as residence: low income workers
++   lodes_rac_el_all <- format_lodes(pov = 'rac', 
++                                    seg = 'SE01', 
++                                    type = 'JT00', 
++                                    vintage = '2017', 
++                                    instub = datadir_lodes, 
++                                    xw = xwalk, 
++                                    xw_tractzip = tract_zip_xwalk)
++   
++   
++   lodes_list <- list(lodes_wac_all_all, lodes_rac_all_all, lodes_wac_el_all, lodes_rac_el_all)
++   
++   lodes_final <- Reduce(function(x,y) merge(x,y, all = T, by = c('zipcode')), lodes_list)
++   
++   lodes_final <- make_final_vars(lodes_final)
++   
++   save_data(lodes_final, key = c('zipcode'),
++             filename = paste0(outdir, 'zip_lodes.dta'),
++             logfile = log_file)
++ }
+> 
+> make_xwalk <- function(instub) {
++   xwalk_files <- list.files(paste0(instub, 'lodes/'), full.names = T)
++   xwalk <- rbindlist(lapply(xwalk_files, function(x) fread(x)))
++   
++   setnames(xwalk, old = c('tabblk2010', 'trct'), new = c('blockfips', 'tract_fips'))
++   target_xwalk <- c('blockfips', 'tract_fips', 'st')
++   xwalk[, tract_fips := as.numeric(tract_fips)]
++   xwalk <- xwalk[, ..target_xwalk]
++   
++   return(xwalk)
++ }
+> 
+> format_lodes <- function(pov, seg, type, vintage, instub, xw, xw_tractzip) {
++   
++   files <- list.files(paste0(instub, pov, '/', seg, '/', type, '/', vintage), full.names = T)
++   files <- files[!grepl("Icon\r$", files)]
++   files <- files[!grepl("pr", files)]          # Ignore Puerto Rico
++   files <- files[!grepl("desktop.ini", files)] # Ignore desktop.ini
++   
++   df <- rbindlist(lapply(files, function(x) fread(x)))
++   
++   target_vars <- c('C000', 'CA01', 'CE01', 'CR02', 'CD01', 'CD02')
++   target_names <- c('tot', 'njob_29young', 'njob_lowinc', 'njob_black', 'njob_nohs', 'njob_hs')
++   final_names <- c('blockfips', target_names)
++   if (pov=='rac') {
++     setnames(df, old = c('h_geocode', target_vars), new = final_names)
++   } else if (pov=='wac') {
++     setnames(df, old = c('w_geocode', target_vars), new = final_names)
++   }
++   df <- df[, ..final_names]
++   
++   df[, 'njob_lowedu' := njob_nohs + njob_hs][, c('njob_nohs', 'njob_hs'):= NULL]
++   target_names <- c(target_names[1:(length(target_names)-2)], 'njob_lowedu')
++   
++   dftract <- xw[df, on = 'blockfips'][, 'blockfips':= NULL]
++   dftract <- dftract[, lapply(.SD,sum, na.rm = T),by=c('tract_fips', 'st')]
++   
++   dfzip <- dftract[xw_tractzip, on = 'tract_fips']
++   dfzip <- dfzip[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), 
++                   by = c('zipcode', 'st'), .SDcols = target_names]
++   
++   pr <- set_prefix(p = pov, s = seg, t = type)
++   setnames(dfzip, old = target_names, new = paste(pr, target_names, sep = '_'))
++   
++   dfzip <- make_shares(data = dfzip, 
++                         vnames = paste(pr, target_names, sep = '_'))
++   
++   sortvar <- names(dfzip)[grepl("tot$", names(dfzip))]
++   setorderv(dfzip, c('zipcode',sortvar))
++   dfzip <-  dfzip[dfzip[, .I[.N], zipcode]$V1]
++   
++   if ((pov!='rac') | (pov=='rac' & (seg!='S000' | type!='JT00'))) {
++     dfzip[, st := NULL]
++   }
++   
++   return(dfzip)
++ }
+> 
+> make_shares <- function(data, vnames, state.share = TRUE) {
++   
++   denom <- vnames[grepl("tot$", vnames)]
++   vnames <- vnames[!grepl("tot$", vnames)]
++   
++   zsh_names <- paste0(vnames, '_zsh')
++   
++   data[, (zsh_names) := lapply(.SD, function(x) x / data[[denom]]), .SDcols = vnames]
++   
++   if (state.share == TRUE) {
++     data[, st_tot:=lapply(.SD, function(x) sum(x, na.rm = T)), by = 'st', .SDcols = denom]
++     ssh_names <- paste0(vnames, '_ssh')
++     data[, (ssh_names) := lapply(.SD, function(x) x / st_tot), .SDcols = vnames]
++     data[, st_tot := NULL]
++   }
++   #data[, (vnames) := NULL]
++   
++   return(data)
++ }
+> 
+> set_prefix <- function(p, s, t) {
++   if (p=='rac') prefix <- 'h' else if (p=='wac') prefix <- 'w'
++   
++   if (s=='S000') {prefix <- paste0(prefix, 'al')}      # all jobs
++   else if (s=="SE01") {prefix <- paste0(prefix, 'el')} # earnings lo w
++   else if (s=='SE02') {prefix <- paste0(prefix, 'em')} # earnings med
++   else if (s=='SE03') {prefix <- paste0(prefix, 'eh')} # earnings high
++   else if (s=='SA01') {prefix <- paste0(prefix, 'ay')} # age young
++   else if (s=='SA02') {prefix <- paste0(prefix, 'am')} # age med
++   else if (s=='SA03') {prefix <- paste0(prefix, 'ao')} # age old
++   else if (s=='SI01') {prefix <- paste0(prefix, 'ip')} # industry product, goods
++   else if (s=='SI02') {prefix <- paste0(prefix, 'it')} # industry trade, transports
++   else if (s=='SI03') {prefix <- paste0(prefix, 'io')} # industry other
++   
++   if (t=='JT00') {prefix <- paste0(prefix, 'all')}        # all jobs
++   else if (t=='JT01') {prefix <- paste0(prefix, 'main')}  # main job s
++   else if (t=='JT02') {prefix <- paste0(prefix, 'priv')}  # all private jobs
++   else if (t=='JT03') {prefix <- paste0(prefix, 'mpriv')} # main private jobs
++   else if (t=='JT04') {prefix <- paste0(prefix, 'fed')}   # federal job
++   else if (t=='JT05') {prefix <- paste0(prefix, 'mfed')}  # main federal job
++   
++   
++   return(prefix) 
++ }
+> 
+> make_final_vars <- function(data) {
++   data[, walall_29y_lowinc_zsh := welall_njob_29young / walall_tot]
++   data[, halall_29y_lowinc_zsh := helall_njob_29young / halall_tot]
++   
++   data[, c('w_sttot', 'h_sttot') :=lapply(.SD, function(x) sum(x, na.rm = T)), by = 'st', .SDcols = c('welall_njob_29young', 'helall_njob_29young')]
++ 
++   data[, walall_29y_lowinc_ssh := lapply(.SD, function(x) x / w_sttot), .SDcols = c('welall_njob_29young')]
++   data[, halall_29y_lowinc_ssh := lapply(.SD, function(x) x / h_sttot), .SDcols = c('helall_njob_29young')]
++   
++   data[, c('w_sttot', 'h_sttot') := NULL]
++   
++   vars <- c('walall_njob_29young_zsh', 
++             'walall_njob_29young_ssh', 
++             'halall_njob_29young_zsh', 
++             'halall_njob_29young_ssh', 
++             'welall_njob_29young_zsh', 
++             'welall_njob_29young_ssh', 
++             'walall_29y_lowinc_zsh', 
++             'walall_29y_lowinc_ssh', 
++             'halall_29y_lowinc_zsh', 
++             'halall_29y_lowinc_ssh')
++   
++   vars <- c('zipcode', vars)
++   
++   data <- data[, ..vars]
++   return(data)
++ }
+> 
+> 
+> #Execute
+> main()
+[1] "File '../../../drive/base_large/output/zip_lodes.dta' saved successfully."
+[1] "Log file generated successfully."
+There were 50 or more warnings (use warnings() to see the first 50)
+> 
+> proc.time()
+   user  system elapsed 
+ 229.54   35.60  447.62 
+
+
+Execute:  R CMD BATCH --no-save "./make_odmatrix_ziplevel.R" make_odmatrix_ziplevel.Rout
+
+R version 3.6.3 (2020-02-29) -- "Holding the Windsock"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list = ls())
+> source("../../../lib/R/load_packages.R")
+> source("../../../lib/R/save_data.R")
+
+Please cite as: 
+
+ Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+ R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
+
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+
+Attaching package: 'data.table'
+
+The following objects are masked from 'package:dplyr':
+
+    between, first, last
+
+> 
+> options(scipen=999)
+> load_packages(c('tidyverse', 'data.table', 'bit64', 'purrr', 'readxl', 'parallel'))
+-- Attaching packages --------------------------------------- tidyverse 1.3.0 --
+v ggplot2 3.3.0     v purrr   0.3.4
+v tibble  3.0.4     v stringr 1.4.0
+v tidyr   1.0.2     v forcats 0.5.0
+v readr   1.4.0     
+-- Conflicts ------------------------------------------ tidyverse_conflicts() --
+x data.table::between() masks dplyr::between()
+x dplyr::filter()       masks stats::filter()
+x data.table::first()   masks dplyr::first()
+x dplyr::lag()          masks stats::lag()
+x data.table::last()    masks dplyr::last()
+x purrr::transpose()    masks data.table::transpose()
+Loading required package: bit
+Attaching package bit
+package:bit (c) 2008-2012 Jens Oehlschlaegel (GPL-2)
+creators: bit bitwhich
+coercion: as.logical as.integer as.bit as.bitwhich which
+operator: ! & | xor != ==
+querying: print length any all min max range sum summary
+bit access: length<- [ [<- [[ [[<-
+for more help type ?bit
+
+Attaching package: 'bit'
+
+The following object is masked from 'package:data.table':
+
+    setattr
+
+The following object is masked from 'package:base':
+
+    xor
+
+Attaching package bit64
+package:bit64 (c) 2011-2012 Jens Oehlschlaegel
+creators: integer64 seq :
+coercion: as.integer64 as.vector as.logical as.integer as.double as.character as.bin
+logical operator: ! & | xor != == < <= >= >
+arithmetic operator: + - * / %/% %% ^
+math: sign abs sqrt log log2 log10
+math: floor ceiling trunc round
+querying: is.integer64 is.vector [is.atomic} [length] format print str
+values: is.na is.nan is.finite is.infinite
+aggregation: any all min max range sum prod
+cumulation: diff cummin cummax cumsum cumprod
+access: length<- [ [<- [[ [[<-
+combine: c rep cbind rbind as.data.frame
+WARNING don't use as subscripts
+WARNING semantics differ from integer
+for more help type ?bit64
+
+Attaching package: 'bit64'
+
+The following object is masked from 'package:bit':
+
+    still.identical
+
+The following objects are masked from 'package:base':
+
+    %in%, :, is.double, match, order, rank
+
+> 
+> main <- function() {
++   datadir_lodes <- '../../../drive/raw_data/lodes/od/JT00/2017/'
++   datadir_xwalk <- '../../../raw/crosswalk/'
++   outdir        <- '../../../drive/base_large/output/'
++   
++   #prepare crosswalks 
++   xwalk_list <- make_xwalk(datadir_xwalk)
++   blc_tract_xwalk <- xwalk_list[[1]]
++   tract_zip_xwalk <- xwalk_list[[2]]
++   rm(xwalk_list)
++   
++   #Prepare states od matrices: 
++   files <- list.files(datadir_lodes, full.names = T)
++   files <- files[!grepl("Icon\r$", files)]
++   files <- files[!grepl("pr", files)]          # Ignore Puerto Rico
++   files <- files[!grepl("desktop.ini", files)] # Ignore desktop.ini
++   files_main <- files[grepl("_main_", files)]
++   files_aux <- files[grepl("_aux_", files)]
++   
++   state_list <- c(tolower(state.abb), 'dc')
++   
++   aux_all <- rbindlist(lapply(files_aux, function(x) fread(x)))
++   aux_all[, h_statefips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0),1 , 2))]
++   
++   odzip <- lapply(state_list, function(y) {
++     make_odmatrix_state(stabb = y, datadir = datadir_lodes, out = outdir, aux = aux_all, xwalk = tract_zip_xwalk, dest_threshold = .9)
++   })
++ }
+> 
+> make_xwalk <- function(instub) { #crosswalk function
++   xwalk_files <- list.files(paste0(instub, 'lodes/'), full.names = T)
++   xwalk <- rbindlist(lapply(xwalk_files, function(x) fread(x)))
++   setnames(xwalk, old = c('tabblk2010', 'trct'), new = c('blockfips', 'tract_fips'))
++   target_xwalk <- c('blockfips', 'tract_fips', 'st')
++   xwalk[, tract_fips := as.numeric(tract_fips)]
++   xwalk <- xwalk[, ..target_xwalk]
++   
++   tract_zip_xwalk <- read_excel(paste0(instub, "TRACT_ZIP_122012.xlsx"), 
++                                 col_names = c('tract_fips', 'zipcode', 'res_ratio', 'bus_ratio', 'oth_ratio', 'tot_ratio'),
++                                 col_types = c('numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric'))
++   tract_zip_xwalk <- setDT(tract_zip_xwalk)
++   tract_zip_xwalk[, c('res_ratio', 'bus_ratio', 'oth_ratio'):= NULL]
++   tract_zip_xwalk <- tract_zip_xwalk[!is.na(zipcode), ]
++   
++   return(list(xwalk, tract_zip_xwalk))
++ }
+> 
+> make_odmatrix_state <- function(stabb, datadir, out, aux, xwalk, dest_threshold) {
++   #for each state (lapply): 
++   this_state <- fread(paste0(datadir, stabb, '_od_main_JT00_2017.csv.gz'))
++   this_fips <- as.numeric(substr(str_pad(this_state$h_geocode[1], 15, pad = 0),1 , 2))
++   this_aux <- aux[h_statefips==this_fips,][, h_statefips:=NULL]
++   this_state <- rbindlist(list(this_state, this_aux))
++   
++   this_state <- this_state[, c('w_geocode', 'h_geocode', 'S000', 'SA01', 'SE01')]
++   setnames(this_state, old = c('S000', 'SA01', 'SE01'), new = c('totjob', 'job_young', 'job_lowinc'))
++   
++   #collapse at tract level
++   this_state[, w_tractfips := as.numeric(substr(str_pad(w_geocode, 15, pad = 0), 1, 11))]
++   this_state <- this_state[, lapply(.SD, sum, na.rm = T), 
++                            .SDcols = c('totjob', 'job_young', 'job_lowinc'), 
++                            by = c('h_geocode', 'w_tractfips')]
++   this_state[, h_tractfips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0), 1, 11))]
++   this_state <- this_state[, lapply(.SD, sum, na.rm = T), 
++                            .SDcols = c('totjob', 'job_young', 'job_lowinc'), 
++                            by = c('h_tractfips', 'w_tractfips')]
++   
++   #define function to crosswalk destination tract to zipcode for each origin tract separately
++   tract_to_zip_work <- function(data, xwlk = xwalk) {
++     data <- data[xwlk, on = c('w_tractfips' = 'tract_fips'), nomatch = 0]
++     data <- data[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), 
++                  by = c('h_tractfips', 'zipcode'), .SDcols = c('totjob', 'job_young', 'job_lowinc')]
++     setnames(data, old = 'zipcode', new = 'w_zipcode')
++     return(data)
++   }
++   #define function to crosswalk origin tract to zipcode for each destination zipcode separately
++   tract_to_zip_home <- function(data, xwlk = xwalk) {
++     data <- data[xwlk, on = c('h_tractfips' = 'tract_fips'), nomatch = 0]
++     data <- data[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), 
++                  by = c('w_zipcode', 'zipcode'), .SDcols = c('totjob', 'job_young', 'job_lowinc')]
++     setnames(data, old = 'zipcode', new = 'h_zipcode')
++     return(data)
++   }
++   
++   this_state_zip <- split(this_state, by = 'h_tractfips')
++   this_state_zip <- rbindlist(lapply(this_state_zip, tract_to_zip_work))
++   this_state_zip <- split(this_state_zip, by = 'w_zipcode')
++   this_state_zip <- rbindlist(lapply(this_state_zip, tract_to_zip_home))
++   
++   this_state_zip <- this_state_zip[order(h_zipcode, - totjob)]
++   this_state_zip[, 'h_totjob' := sum(totjob, na.rm = T), by = 'h_zipcode']
++   this_state_zip[, 'totjob_cum' := cumsum(totjob), by = 'h_zipcode'] 
++   this_state_zip[, 'totjob_cumsh' := totjob_cum / h_totjob]
++   this_state_zip <- this_state_zip[totjob_cumsh<=dest_threshold, ][, c('h_totjob', 'totjob_cum', 'totjob_cumsh'):=NULL] #keep only destination zipcode that make up to 90 percent of total workforce
++   
++   this_fips <- str_pad(this_fips, 2, pad = 0)
++   save_data(this_state_zip, key = c('h_zipcode', 'w_zipcode'), 
++             filename = paste0(out, 'odzip_', this_fips, '.csv'), 
++             logfile = "../output/odmatrix_data_manifest.log")
++ }
+> 
+> 
+> main() 
+[1] "File '../../../drive/base_large/output/odzip_01.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_02.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_04.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_05.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_06.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_08.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_09.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_10.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_12.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_13.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_15.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_16.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_17.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_18.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_19.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_20.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_21.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_22.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_23.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_24.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_25.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_26.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_27.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_28.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_29.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_30.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_31.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_32.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_33.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_34.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_35.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_36.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_37.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_38.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_39.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_40.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_41.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_42.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_44.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_45.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_46.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_47.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_48.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_49.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_50.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_51.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_53.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_54.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_55.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_56.csv' saved successfully."
+[1] "File '../../../drive/base_large/output/odzip_11.csv' saved successfully."
+There were 50 or more warnings (use warnings() to see the first 50)
+> 
+> proc.time()
+    user   system  elapsed 
+18129.04  2038.84 10221.43 
+
+
+Execute:  R CMD BATCH --no-save "./make_lodes_experienced_ziplevel.R" make_lodes_experienced_ziplevel.Rout
+
+R version 3.6.3 (2020-02-29) -- "Holding the Windsock"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list = ls())
+> source("../../../lib/R/load_packages.R")
+> source("../../../lib/R/save_data.R")
+
+Please cite as: 
+
+ Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+ R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
+
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+
+Attaching package: 'data.table'
+
+The following objects are masked from 'package:dplyr':
+
+    between, first, last
+
+> 
+> options(scipen=999)
+> load_packages(c('tidyverse', 'data.table', 'bit64', 'purrr', 'readxl', 'parallel', 'matrixStats', 'usmap'))
+-- Attaching packages --------------------------------------- tidyverse 1.3.0 --
+v ggplot2 3.3.0     v purrr   0.3.4
+v tibble  3.0.4     v stringr 1.4.0
+v tidyr   1.0.2     v forcats 0.5.0
+v readr   1.4.0     
+-- Conflicts ------------------------------------------ tidyverse_conflicts() --
+x data.table::between() masks dplyr::between()
+x dplyr::filter()       masks stats::filter()
+x data.table::first()   masks dplyr::first()
+x dplyr::lag()          masks stats::lag()
+x data.table::last()    masks dplyr::last()
+x purrr::transpose()    masks data.table::transpose()
+Loading required package: bit
+Attaching package bit
+package:bit (c) 2008-2012 Jens Oehlschlaegel (GPL-2)
+creators: bit bitwhich
+coercion: as.logical as.integer as.bit as.bitwhich which
+operator: ! & | xor != ==
+querying: print length any all min max range sum summary
+bit access: length<- [ [<- [[ [[<-
+for more help type ?bit
+
+Attaching package: 'bit'
+
+The following object is masked from 'package:data.table':
+
+    setattr
+
+The following object is masked from 'package:base':
+
+    xor
+
+Attaching package bit64
+package:bit64 (c) 2011-2012 Jens Oehlschlaegel
+creators: integer64 seq :
+coercion: as.integer64 as.vector as.logical as.integer as.double as.character as.bin
+logical operator: ! & | xor != == < <= >= >
+arithmetic operator: + - * / %/% %% ^
+math: sign abs sqrt log log2 log10
+math: floor ceiling trunc round
+querying: is.integer64 is.vector [is.atomic} [length] format print str
+values: is.na is.nan is.finite is.infinite
+aggregation: any all min max range sum prod
+cumulation: diff cummin cummax cumsum cumprod
+access: length<- [ [<- [[ [[<-
+combine: c rep cbind rbind as.data.frame
+WARNING don't use as subscripts
+WARNING semantics differ from integer
+for more help type ?bit64
+
+Attaching package: 'bit64'
+
+The following object is masked from 'package:bit':
+
+    still.identical
+
+The following objects are masked from 'package:base':
+
+    %in%, :, is.double, match, order, rank
+
+
+Attaching package: 'matrixStats'
+
+The following object is masked from 'package:dplyr':
+
+    count
+
+> 
+> main <- function(){
++   datadir_lodes <- '../../../drive/base_large/output/'
++   datadir_mw    <- '../../../base/zillow_min_wage/output/'
++   datadir_xwalk <- '../../../raw/crosswalk/'
++   outdir        <- '../../../drive/base_large/output/'
++   log_file      <- '../output/data_file_manifest.log'
++   
++   cores <- 1 ## Parallelization doesn't work in Windows
++ 
++   mw_data <- load_mw(instub = datadir_mw)
++   state_mw <- mw_data[['state_mw']]
++   county_mw <- mw_data[['county_mw']]
++   local_mw <- mw_data[['local_mw']]
++   
++   xwalks <- make_xwalks(instub = datadir_mw)
++   zip_county <- xwalks[['zip_county']]
++   zip_places <- xwalks[['zip_places']]
++   
++   zipmw_us <- assemble_mw_US(zcounty = zip_county, 
++                              zplaces = zip_places, 
++                              stmw    = state_mw, 
++                              ctymw   = county_mw, 
++                              locmw   = local_mw)
++   
++   target_period <- unique(zipmw_us[['yearmonth']])
++   
++   #compute for, for each state, share of treated and experienced MW
++   state_fips <- fips(c(tolower(state.abb), 'dc'))
++   
++   exp_mw <- mclapply(state_fips,
++                      function(x, p = target_period, zip = zipmw_us) {
++                        this_state <- fread(paste0(datadir_lodes, 'odzip_', x, '.csv'))
++                        this_state[, c('h_totjob', 'h_job_young', 'h_job_lowinc') := lapply(.SD, sum, na.rm = T) , 
++                                   .SDcols = c('totjob', 'job_young', 'job_lowinc'), 
++                                   by = 'h_zipcode']
++                        setorderv(this_state, cols = c('h_zipcode', 'w_zipcode'))
++ 
++                        #share of treated and experienced MW for every date
++                        p <- lapply(p, function(y, this_st = this_state, zip2 = zip) {
++                          this_date_mw <- zip2[yearmonth==y,][, 'w_zipcode' := zipcode] #select the given date
++                          this_state_date <- this_date_mw[, .(w_zipcode, actual_mw, treated_mw, yearmonth)][this_st, on = 'w_zipcode'] #merge od matrix and MW
++                          this_state_date[treated_mw==1, c('sh_treated_totjob', 'sh_treated_job_young', 'sh_treated_job_lowinc') := lapply(.SD, sum, na.rm = T)
++                                          , .SDcols = c('totjob', 'job_young', 'job_lowinc'), by = 'h_zipcode'][
++                                            , c('sh_treated_totjob', 'sh_treated_job_young', 'sh_treated_job_lowinc') := lapply(.SD, max, na.rm = T)
++                                            , .SDcols = c('sh_treated_totjob', 'sh_treated_job_young', 'sh_treated_job_lowinc'), by = 'h_zipcode'][
++                                              , c('sh_treated_totjob', 'sh_treated_job_young', 'sh_treated_job_lowinc') := replace(.SD, .SD==-Inf, 0)
++                                              , .SDcols = c('sh_treated_totjob', 'sh_treated_job_young', 'sh_treated_job_lowinc')] #compute share of treated numerator for each zip
++                          this_state_date[, c('sh_treated_totjob', 'sh_treated_job_young', 'sh_treated_job_lowinc') := 
++                                            .((sh_treated_totjob / h_totjob), (sh_treated_job_young / h_job_young), (sh_treated_job_lowinc / h_job_lowinc))]
++                          
++                          this_state_date[, c('sh_totjob', 'sh_job_young', 'sh_job_lowinc') := 
++                                            .((totjob / h_totjob), (job_young / h_job_young), (job_lowinc / h_job_lowinc))] #compute share of job for each destination
++                          
++                          this_state_date <- this_state_date[, .(sh_treated_totjob = first(sh_treated_totjob), 
++                                                                 sh_treated_job_young = first(sh_treated_job_young), 
++                                                                 sh_treated_job_lowinc = first(sh_treated_job_lowinc), 
++                                                                 exp_mw_totjob = sum(actual_mw*sh_totjob, na.rm = T), 
++                                                                 exp_mw_job_young = sum(actual_mw*sh_job_young, na.rm = T), 
++                                                                 exp_mw_job_lowinc = sum(actual_mw*sh_job_lowinc, na.rm = T)), by = c('h_zipcode', 'yearmonth')]
++                          this_state_date <- this_state_date[!is.na(yearmonth),] #remove missings
++                          return(this_state_date)
++                          
++                        })
++                        p <- rbindlist(p)
++                        return(p)
++                      }, mc.cores = cores)   # mcapply parallels on Mac. On windows it supports one core only (error otherwise)
++ 
++   exp_mw <- rbindlist(exp_mw)
++   setnames(exp_mw, old  = 'h_zipcode', new = 'zipcode')
++   setorderv(exp_mw, c('zipcode', 'yearmonth'))
++   
++   save_data(exp_mw, key = c('zipcode', 'yearmonth'), 
++             filename = paste0(outdir, 'exp_mw.dta'),
++             logfile  = log_file)
++ }
+> 
+> 
+> load_mw <- function(instub) {
++   #load MW data
++   state_mw <- fread(paste0(instub, 'VZ_state_monthly.csv'))
++   setnames(state_mw, old = c('monthly_date', 'mw'), new = c('date', 'state_mw'))
++   state_mw[,date := str_replace_all(date, "m", "_")][
++     ,yearmonth := as.Date(paste0(date, "_01"), "%Y_%m_%d")][
++       ,c('date', 'statename'):=NULL]
++   state_mw[,statefips := str_pad(as.character(statefips), 2, pad = 0)]
++   
++   local_mw <- fread(paste0(instub, 'VZ_substate_monthly.csv'))
++   setnames(local_mw, old = c('monthly_date'), new = c('date'))
++   local_mw[,date := str_replace_all(date, "m", "_")][
++     ,yearmonth := as.Date(paste0(date, "_01"), "%Y_%m_%d")][
++       ,date:=NULL]
++   local_mw[,statefips := str_pad(as.character(statefips), 2, pad = 0)]
++   local_mw[,iscounty := str_extract_all(locality, " County")][,
++                                                               iscounty := ifelse(iscounty == " County", 1, 0)]
++   mw_vars <- names(local_mw)
++   mw_vars <- mw_vars[grepl("mw", mw_vars)]
++   
++   county_mw_vars <- paste0("county_", mw_vars)
++   local_mw_vars <- paste0("local_", mw_vars)
++   
++   
++   county_mw <- local_mw[iscounty == 1,][,iscounty := NULL]
++   setnames(county_mw, old = c('locality', mw_vars), 
++            new = c('county', county_mw_vars))
++   county_mw <- county_mw[, .(county, statefips, stateabb, county_mw, county_abovestate_mw, yearmonth)]
++   
++   local_mw <- local_mw[iscounty == 0,][,iscounty := NULL]
++   setnames(local_mw, old = c('locality', mw_vars),
++            new = c('placename', local_mw_vars))
++   local_mw <- local_mw[, .(placename, stateabb, statefips, local_mw, local_abovestate_mw, yearmonth)]
++   
++   return(list('state_mw' = state_mw, 'county_mw' = county_mw, 'local_mw' = local_mw))
++ }
+> 
+> make_xwalks <- function(instub) {
++   #create crosswalks for all MW files to usps zipcode
++   zip_to_zcta <- readxl::read_excel('../../../raw/crosswalk/zip_to_zcta_2019.xlsx')
++   setnames(zip_to_zcta, old = c('ZIP_CODE', 'ZCTA'), new = c('zipcode', 'zcta'))
++   zip_to_zcta <- zip_to_zcta[,c('zipcode', 'zcta')]
++   
++   place <- fread(paste0(instub, 'places10.csv'))
++   setnames(place, old = c("state"), new = c("statefips"))
++   place[,statefips := str_pad(as.character(statefips), 2, pad = 0)]
++   place[,place_code := str_pad(as.character(place_code), 5, pad = 0)]
++   zip_places <- fread(paste0(instub, 'zip_places10.csv'), 
++                       colClasses = c("place_code" = "character", "zcta" = "character",
++                                      "statefips"  = "character"))
++   setorder(zip_places, zcta)
++   zip_places <- place[zip_places, on = c('statefips', 'place_code')]
++   zip_places <- zip_places[pct_zip_houses_inplace >= 50,]
++   zip_places <- left_join(zip_places, zip_to_zcta, by = c('zcta'))
++   
++   zip_county <- fread(paste0(instub, 'zip_county10.csv'), 
++                       colClasses = c("zcta" = "character", "statefips" = "character",
++                                      "county_code" = "character", "countyfips" = "character"))
++   setorder(zip_county, zcta)
++   
++   zip_county <- zip_county[pct_zip_houses_incounty >= 50,]
++   zip_county[,ind := max(pct_zip_pop_incounty, na.rm = T),by = 'zcta'][,
++                                                                        ind := ifelse(ind == pct_zip_pop_incounty, 1, 0)]
++   
++   zip_county <- zip_county[ind == 1,]
++   zip_county <- zip_county[,ind := NULL]
++   zip_county <- left_join(zip_county, zip_to_zcta, by = c('zcta'))
++   
++   return(list('zip_county' = zip_county, 'zip_places' = zip_places))
++ }
+> 
+> assemble_mw_US <- function(zcounty, zplaces, stmw, ctymw, locmw) {
++   # assemble MW for all US zipcodes 
++   dfzip <- zcounty[, .(zipcode, countyfips, county, statefips, stateabb)]
++   dfzip <- zplaces[, .(zipcode, placename, statefips)][dfzip, on = c('zipcode', 'statefips')]
++   dfzip[, c('from', 'to') := .(as.Date('2010-01-01'), as.Date('2019-12-01'))]
++   
++   dfzip <- dfzip[, list(zipcode, placename, countyfips, county, statefips, stateabb, yearmonth = seq(from, to, by = 'month')), 
++                  by = 1:nrow(dfzip)][, nrow :=NULL]
++   dfzip <- stmw[dfzip, on = c('stateabb', 'statefips', 'yearmonth')]
++   dfzip <- ctymw[dfzip, on = c('county', 'statefips', 'stateabb', 'yearmonth')]
++   dfzip <- locmw[dfzip, on = c('placename', 'statefips', 'stateabb', 'yearmonth')]
++   
++   #compute actual MW
++   mw_vars <- names(dfzip)
++   mw_vars <- mw_vars[grepl("mw", mw_vars)]
++   mw_vars <- mw_vars[!grepl("abovestate", mw_vars)]
++   
++   dfzip[,actual_mw := rowMaxs(as.matrix(dfzip[,..mw_vars]), na.rm = T)][
++     ,actual_mw := ifelse(actual_mw == -Inf, NA, actual_mw)]
++   dfzip[, dactual_mw := actual_mw - shift(actual_mw, type = 'lag'), by = 'zipcode']
++   dfzip[, treated_mw := fifelse(dactual_mw>0, 1, 0, na = 0)]
++   dfzip[, zipcode:=as.numeric(zipcode)] 
++   return(dfzip)
++ }
+> 
+> 
+> main()
+[1] "File '../../../drive/base_large/output/exp_mw.dta' saved successfully."
+[1] "Log file generated successfully."
+There were 50 or more warnings (use warnings() to see the first 50)
+> 
+> proc.time()
+   user  system elapsed 
+1999.37  167.23 1899.92 
+
+ make.py ended: 2020-11-27 22:45:31

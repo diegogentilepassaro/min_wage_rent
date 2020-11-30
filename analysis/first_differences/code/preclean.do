@@ -14,12 +14,15 @@ program main
 		dactual_mw actual_mw medrentpricepsqft_* 							///
 		med_hhinc20105 renthouse_share2010 white_share2010 black_share2010			///
 		college_share20105 work_county_share20105 unemp_share20105 teen_share2010   ///
-		estcount_* avgwwage_* emp_* u1*
+		estcount_* avgwwage_* emp_* u1*                                             ///
+		walall_njob_29young_ssh halall_njob_29young_ssh walall_29y_lowinc_ssh halall_29y_lowinc_ssh
 
 	
 
-	local het_vars "med_hhinc20105 renthouse_share2010 college_share20105 black_share2010"
-	local het_vars "`het_vars' unemp_share20105 teen_share2010" 
+	local het_vars "med_hhinc20105 unemp_share20105 college_share20105 black_share2010"
+	local het_vars "`het_vars' renthouse_share2010 teen_share2010"
+	local het_vars "`het_vars' walall_njob_29young_ssh halall_njob_29young_ssh walall_29y_lowinc_ssh halall_29y_lowinc_ssh" 
+ 
 
 	create_vars, 	log_vars(actual_mw medrentpricepsqft_sfcc emp_* estcount_* avgwwage_* u1*) 	///
 					heterogeneity_vars(`het_vars')

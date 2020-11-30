@@ -34,9 +34,10 @@ elif "Stata15" in envir_vars:
 
 start_make_logging()
 
-#run_rbatch(program = "zillow_descriptive.R")
-run_stata(program = 'desc_stats_general.do', executable = stata)
-#run_stata(program = 'wage_rent_motivation.do', executable = stata)
+run_rbatch(program = "zillow_descriptive.R")
+run_rbatch(program = 'build_summary_tables.R')
+run_stata(program = 'wage_rent_motivation.do', executable = stata)
+run_rbatch(program = "plot_maps.R")
 
 
 end_make_logging()
