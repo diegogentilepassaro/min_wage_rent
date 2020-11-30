@@ -34,8 +34,7 @@ elif "Stata15" in envir_vars:
 
 start_make_logging()
 
-run_rbatch(program = 'build_summary_tables.R')
-run_stata(program = 'plot_mw.do', executable = stata)
+run_rbatch(program = "plot_maps.R")
 
 end_make_logging()
 

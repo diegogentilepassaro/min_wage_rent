@@ -2,26 +2,28 @@ remove(list = ls())
 source("../../../lib/R/load_packages.R")
 source("../../../lib/R/save_data.R")
 
-load_packages(c('tidyverse', 'DescTools', 'data.table', 'matrixStats', 'knitr', 'sf', 'sfheaders', 'remotes', 'rgdal',
+load_packages(c('tidyverse', 'DescTools', 'data.table', 'matrixStats', 'knitr', 'sf', 'sfheaders', 'rgdal',
                 'kableExtra', 'ggplot2', 'png', 'readxl', 'readstata13', 'unikn', 'RColorBrewer', 'maps', 'stringr', 'tidycensus'))
 
 theme_set(theme_minimal())
 options(scipen=999)
 
-
-datadir <- "../../../drive/derived_large/output/"
-outdir <- "../output/"
-tempdir <- "../temp/"
-
 options(tigris_class = "sf")
 
-remotes::install_github("jrnold/stataXml") #need this to process stata dates
+## INSTALL FOLLOWING PACKAGES FROM GITHUB
+#library('remotes')
+#remotes::install_github("jrnold/stataXml") #need this to process stata dates
+#remotes::install_github('arilamstein/choroplethrZip@v1.4.0')
 library('stataXml')
-remotes::install_github('arilamstein/choroplethrZip@v1.4.0')
 library('choroplethrZip')
   
 
 main <- function() {
+  
+  datadir <- "../../../drive/derived_large/output/"
+  outdir <- "../output/"
+  tempdir <- "../temp/"
+  
   df <- read.dta13(paste0(datadir, 'unbal_rent_panel.dta'))
   df <- setDT(df)
   df[, countyfips := str_pad(as.character(countyfips), 5, pad = 0)]
@@ -38,17 +40,19 @@ main <- function() {
   zip_county <- xwalks[['zip_county']]
   
   data(zip.map)
-  zcta_map <- sfheaders::sf_multipolygon(zip.map, x = 'long', y = 'lat', multipolygon_id = 'id', polygon_id = 'piece', keep = T)
-  
-  
+  zcta_map <- sfheaders::sf_multipolygon(zip.map, x = 'long', y = 'lat', 
+                                         multipolygon_id = 'id', polygon_id = 'piece', keep = T)
+  rm(zip.map)
 
-  print(plot_sample(df_data = df, zipzcta = zip_zcta_xwalk,
-                    out = outdir, zctamsa = zcta_msa_xwalk, zcta_map = zcta_map))
-  ggsave(filename = paste0(outdir, 'sample_map.png'), width = 15, height = 12)
+  plt <- plot_sample(df_data = df, zipzcta = zip_zcta_xwalk,
+                    out = outdir, zctamsa = zcta_msa_xwalk, zcta_map = zcta_map)
+  ggsave(filename = paste0(outdir, 'sample_map.png'), plot = plt,
+         width = 15, height = 12)
 
-  print(plot_demo(out = outdir, zctamsa = zcta_msa_xwalk, zcta_map = zcta_map,
-                  target_demo = 'urbpopden', legend_name = 'Urban Population Density (per Sq. Miles)'))
-  ggsave(filename = paste0(outdir, 'popurban_density_map.png'), width = 15, height = 12)
+  plt <- plot_demo(out = outdir, zctamsa = zcta_msa_xwalk, zcta_map = zcta_map,
+                  target_demo = 'urbpopden', legend_name = 'Urban Population Density (per Sq. Miles)')
+  ggsave(filename = paste0(outdir, 'popurban_density_map.png'), plot = plt,
+         width = 15, height = 12)
 
   city_list <- list(c('Los Angeles', 44000, '2019-07-01'),
                     c('Seattle', 63000,'2019-01-01'),
@@ -57,14 +61,14 @@ main <- function() {
                     c('San Diego', 66000, '2019-01-01'))
   varplot <- c('medrentpricepsqft_sfcc', 'actual_mw', 'exp_mw_totjob')
 
-  make_city_plots <- function(x, vars = varplot) {
+  make_city_plots <- function(x, vars) {
 
     lapply(vars, function(y) {
       if (y=='actual_mw') this_file_name <- paste0(gsub(' ', '_', x[1]), '_mw_msa.png')
       else if (y=='exp_mw_totjob') this_file_name <- paste0(gsub(' ', '_', x[1]), '_expmw_msa.png')
       else this_file_name <- paste0(gsub(' ', '_', x[1]), '_rent_msa.png')
 
-      print(plot_changes_city(target_var = y,
+      plt <- plot_changes_city(target_var = y,
                               target_msa = x[1],
                               nmon = 6,
                               df_data = df,
@@ -73,14 +77,15 @@ main <- function() {
                               zctamsa = zcta_msa_xwalk,
                               zctaplace = zcta_place_xwalk,
                               zcta_map = zcta_map,
-                              out = outdir))
-      ggsave(filename = paste0(outdir,this_file_name), width = 15, height = 15)
-
+                              out = outdir)
+      ggsave(filename = paste0(outdir, this_file_name), plot = plt,
+             width = 15, height = 15)
     })
   }
 
-  lapply(city_list, make_city_plots)
-  
+  for (city_stats in city_list) {
+    make_city_plots(city_stats, varplot)
+  }
 }
 
 make_xwalks <- function() {
@@ -137,8 +142,8 @@ plot_sample <- function(df_data,
   us_boundary <- sfheaders::sf_multipolygon(map_data('state'), x = 'long', y = 'lat', multipolygon_id = 'group')
   st_crs(us_boundary) <-4326
   
-  if (plotmsa == T) {
-    plot<- ggplot() + 
+  if (plotmsa) {
+    plt <- ggplot() + 
       geom_sf(data = msa_map, color = 'transparent', aes(fill = 'msafill')) +
       geom_sf(data = zcta_sample_map, color = 'transparent', aes(fill = 'samplefill')) + 
       geom_sf(data = us_boundary, fill= NA, size = 0.5) +
@@ -155,8 +160,8 @@ plot_sample <- function(df_data,
             plot.title = element_text(size=180),
             plot.subtitle = element_text(size = 140), 
             legend.text = element_text(size = 60))
-  } else if (plotmsa==F) {
-      plot<- ggplot() + 
+  } else {
+      plt <- ggplot() + 
         geom_sf(data = zcta_sample_map, color = 'transparent', aes(fill = 'samplefill')) + 
         geom_sf(data = us_boundary, fill= NA, size = 0.5) +
         theme_void() + 
@@ -173,7 +178,7 @@ plot_sample <- function(df_data,
               plot.subtitle = element_text(size = 140), 
               legend.text = element_text(size = 30))
   }
-  return(plot)
+  return(plt)
 }
 
 plot_demo <- function(target_demo,
@@ -208,7 +213,7 @@ plot_demo <- function(target_demo,
   us_boundary <- sfheaders::sf_multipolygon(map_data('state'), x = 'long', y = 'lat', multipolygon_id = 'group')
   st_crs(us_boundary) <-4326
   
-  plot <- ggplot() + 
+  plt <- ggplot() + 
     geom_sf(data = zcta_map, color = 'transparent', aes(fill = get(target_demo))) + 
     geom_sf(data = us_boundary, fill= NA, size = .5) +
     theme_void() + 
@@ -230,7 +235,7 @@ plot_demo <- function(target_demo,
     theme(legend.position = "bottom", 
           legend.title = element_text(size = 30),
           legend.text = element_text(size = 30))
-  return(plot)
+  return(plt)
 }
 
 
@@ -292,7 +297,7 @@ plot_changes_city <- function(target_var,
     legend_width <- 8.5
   }
   
-  plot <- ggplot() + 
+  plt <- ggplot() + 
     geom_sf(data = msa_map, color = 'black', fill = 'transparent', size = .3) +  
     geom_sf(data = zcta_sample_map, aes(fill=pct_target), color="white", size = .3) +
     #geom_sf(data = mw_map, color = 'darkred', fill = 'transparent', size = 5) +
@@ -319,20 +324,10 @@ plot_changes_city <- function(target_var,
           legend.title = element_text(size = 20),
           legend.text = element_text(size = 15))
 
-  return(plot)
+  return(plt)
 }
 
   
 
-
-
 main()
-
-
-
-
-
-
-
-
 
