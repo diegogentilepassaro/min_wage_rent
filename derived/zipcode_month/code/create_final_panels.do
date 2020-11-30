@@ -103,6 +103,7 @@ program add_covars
 	format date %d
 
 	gen month = month(date)
+	gen year = year(date)
 
 	drop date
 end 
