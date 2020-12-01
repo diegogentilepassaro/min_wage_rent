@@ -21,6 +21,7 @@ program load_data
 		using `instub'/unbal_rent_panel.dta, clear
 
 	bys zipcode (year_month): gen pct_ch_MW = 100*(actual_mw/L.actual_mw - 1)
+	drop if missing(pct_ch_MW)
 end
 
 program plot_mw_dist
