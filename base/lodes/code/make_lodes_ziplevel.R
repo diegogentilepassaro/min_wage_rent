@@ -3,7 +3,8 @@ source("../../../lib/R/load_packages.R")
 source("../../../lib/R/save_data.R")
 
 options(scipen=999)
-load_packages(c('tidyverse', 'data.table', 'bit64', 'purrr', 'readxl', 'parallel'))
+load_packages(c('tidyverse', 'data.table', 'bit64', 
+                'purrr', 'readxl', 'parallel', 'R.utils'))
 
 main <- function() {
   datadir_lodes <- '../../../drive/raw_data/lodes/'
@@ -93,7 +94,8 @@ format_lodes <- function(pov, seg, type, vintage, instub, xw, xw_tractzip) {
   files <- files[!grepl("pr", files)]          # Ignore Puerto Rico
   files <- files[!grepl("desktop.ini", files)] # Ignore desktop.ini
   
-  df <- rbindlist(mclapply(files, mc.cores = 8, function(x) fread(x)))
+  cores <- 1 ## Parallelization doesn't work in Windows
+  df <- rbindlist(mclapply(files, mc.cores = cores, function(x) fread(x)))
   
   
   target_vars <- c('C000', 'CA01', 'CE01', 'CR02', 'CD01', 'CD02')

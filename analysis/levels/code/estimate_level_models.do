@@ -25,7 +25,7 @@ program main
 		"State FE" "State FE" "State FE") nonote
 end
 
-program horse_race_models
+program compare_level_with_baseline
     syntax, depvar(str) w(int) cluster(str) 
 	
     eststo clear
@@ -41,6 +41,23 @@ program horse_race_models
 		absorb(year_month zipcode) 											///
 		vce(cluster `cluster') nocons
 		
+    eststo clear
+	eststo: qui reghdfe D.`depvar' D.ln_mw,							///
+		absorb(year_month) 												///
+		vce(cluster `cluster') nocons
+		
+	eststo: qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw, 			///
+		absorb(year_month) 											///
+		vce(cluster `cluster') nocons
+		
+	eststo: qui reghdfe D.`depvar' L(0/`w').D.ln_mw, 			///
+		absorb(year_month) 											///
+		vce(cluster `cluster') nocons
+end
+
+program levels_with_county_or_state_fe
+    syntax, depvar(str) w(int) cluster(str) 
+
 	eststo: qui reghdfe `depvar' ln_mw,							///
 		absorb(year_month county) 												///
 		vce(cluster `cluster') nocons
