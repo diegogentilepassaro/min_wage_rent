@@ -73,6 +73,7 @@ program simplify_varnames
 	
 	cap rename ln_actual_mw                  ln_mw 
 	cap rename ln_exp_mw_totjob              ln_expmw	
+	cap rename Dln_exp_mw_totjob             d_ln_expmw
 	cap rename ln_medrentpricepsqft_sfcc     ln_med_rent_psqft_sfcc
 	cap rename ln_medrentpricepsqft_2br      ln_med_rent_psqft_2br
 	cap rename ln_medrentpricepsqft_mfr5plus ln_med_rent_psqft_mfr5plus

@@ -10,39 +10,39 @@ program main
 
 	use "`instub'/fd_rent_panel.dta", clear
 
-	local demovars       "med_hhinc20105 unemp_share20105 college_share20105 black_share2010"
-	local demovars_extra "teen_share2010 urb_share2010 youngadult_share2010 worktravel_10_share20105 worker_foodservice20105"
+	local demovars       "med_hhinc20105 unemp_share20105 college_share20105 black_share2010 teen_share2010"
+	local demovars_extra "teen_share2010 work_county_share20105 renthouse_share2010"
 	local workvars       "walall_29y_lowinc_ssh halall_29y_lowinc_ssh walall_29y_lowinc_zsh halall_29y_lowinc_zsh"
 	
 	* Heterogeneity plot - demographics and workers' type
-	foreach var in `demovars' `workvars' `demovars_extra'{
+	/* foreach var in `demovars' `workvars' `demovars_extra'{
 
 		build_ytitle, var(`var')
 
 		plot_dd_static_heterogeneity, depvar(ln_med_rent_psqft_sfcc) absorb(year_month zipcode) ///
 			het_var(`var'_st_qtl) cluster(statefips) ytitle(`r(title)')
-		graph export "`outstub'/fd_static_heter_`var'.png", replace
-	}
+		graph export "`outstub'/fd_static_heter_`var'.eps", replace
+	} */
 
 	*table - demographics 
 	make_table_titles, hetlist(`demovars')
 	local het_titles "`r(title_list)'"
 	make_dd_static_heterogeneity, depvar(ln_med_rent_psqft_sfcc) absorb(year_month zipcode) cluster(statefips) hetlist(`demovars')
 	esttab * using "`outstub'/fd_table_het.tex", compress se replace 	///
-		mtitles(`het_titles') substitute(\_ _)  ///
+		keep(*.qtl*) mtitles(`het_titles') substitute(\_ _)  ///
 		coeflabels(1.qtl#c.d_ln_mw "$\Delta \ln(MW) \times 1^{st} qtl$" ///
 				   2.qtl#c.d_ln_mw "$\Delta \ln(MW) \times 2^{nd} qtl$" ///
 				   3.qtl#c.d_ln_mw "$\Delta \ln(MW) \times 3^{rd} qtl$" ///
 				   4.qtl#c.d_ln_mw "$\Delta \ln(MW) \times 4^{th} qtl$") /// 
 		stats(r2 N, fmt(%9.3f %9.0gc) labels("R-squared" "Observations")) ///
 		star(* 0.10 ** 0.05 *** 0.01)  nonote
-
+sTOP 
 	*table - workers' type 
 	make_table_titles, hetlist(`workvars')
 	local het_titles "`r(title_list)'"
 	make_dd_static_heterogeneity, depvar(ln_med_rent_psqft_sfcc) absorb(year_month zipcode) cluster(statefips) hetlist(`workvars')
 	esttab * using "`outstub'/fd_table_workers.tex", compress se replace 	///
-		mtitles(`het_titles') substitute(\_ _)  ///
+		keep(*.qtl*) mtitles(`het_titles') substitute(\_ _)  ///
 		coeflabels(1.qtl#c.d_ln_mw "$\Delta \ln(MW) \times 1^{st} qtl$" ///
 				   2.qtl#c.d_ln_mw "$\Delta \ln(MW) \times 2^{nd} qtl$" ///
 				   3.qtl#c.d_ln_mw "$\Delta \ln(MW) \times 3^{rd} qtl$" ///
@@ -56,11 +56,17 @@ program plot_static_heterogeneity
 	syntax, depvar(str) absorb(str) cluster(str) het_var(str) ytitle(str) [qtles(int 4)]
 
 	eststo clear
-	reghdfe D.`depvar' c.d_ln_mw#i.`het_var', ///
+	define_controls
+	local emp_ctrls "`r(emp_ctrls)'"
+	local estcount_ctrls "`r(estcount_ctrls)'"
+	local avgwwage_ctrls "`r(avgwwage_ctrls)'"
+	local controls `"`emp_ctrls' `estcount_ctrls' `avgwwage_ctrls'"'
+
+	reghdfe D.`depvar' c.d_ln_mw#i.`het_var' D.(`controls'), ///
 		absorb(`absorb') ///
 		vce(cluster `cluster') nocons
 
-	coefplot, base graphregion(color(white)) bgcolor(white) ///
+	coefplot, base graphregion(color(white)) bgcolor(white) keep(*.`het_var') ///
 		ylabel(1 "First quartile" 2 "Second quartile" 3 "Third quartile" 4 "Fourth quartile") ///
 		ytitle(`ytitle') xtitle("Elasticity of rents to the MW")	///
 		xline(0, lcol(black)) mcolor(edkblue) ciopts(recast(rcap) lc(edkblue) lw(vthin))
@@ -133,19 +139,23 @@ program build_ytitle, rclass
 	if "`var'" == "halall_29y_lowinc_zsh" {
 		return local title "Low income workers 29 yrs or younger - residence zipcode-level share"
 	}
-
-
 end
 
 program plot_dd_static_heterogeneity
 	syntax, depvar(str) absorb(str) cluster(str) het_var(str) ytitle(str) [qtles(int 4)]
 
 	eststo clear
-	reghdfe D.`depvar' c.d_ln_mw#i.`het_var', ///
+	define_controls
+	local emp_ctrls "`r(emp_ctrls)'"
+	local estcount_ctrls "`r(estcount_ctrls)'"
+	local avgwwage_ctrls "`r(avgwwage_ctrls)'"
+	local controls `"`emp_ctrls' `estcount_ctrls' `avgwwage_ctrls'"'
+
+	reghdfe D.`depvar' c.d_ln_mw#i.`het_var' D.(`controls'), ///
 		absorb(`absorb') ///
 		vce(cluster `cluster') nocons
 
-	coefplot, base graphregion(color(white)) bgcolor(white) ///
+	coefplot, base graphregion(color(white)) bgcolor(white) keep(*.`het_var'*) ///
 	ylabel(1 "1" 2 "2" 3 "3" 4 "4") levels(90) ///
 	ytitle(`ytitle', size(small)) ///
 	xtitle("Estimated effect of ln MW on ln rents", size(small)) xlabel(-.05(.02).1)	///
@@ -155,6 +165,12 @@ end
 program make_dd_static_heterogeneity
 	syntax, depvar(str) absorb(str) cluster(str) hetlist(str) [qtles(int 4)]
 
+	define_controls
+	local emp_ctrls "`r(emp_ctrls)'"
+	local estcount_ctrls "`r(estcount_ctrls)'"
+	local avgwwage_ctrls "`r(avgwwage_ctrls)'"
+	local controls `"`emp_ctrls' `estcount_ctrls' `avgwwage_ctrls'"'
+
 	local hetlist_qtl ""
 	foreach var in `hetlist' {
 		local hetlist_qtl `"`hetlist_qtl' `var'_st_qtl"'
@@ -163,7 +179,7 @@ program make_dd_static_heterogeneity
 	eststo clear
 	foreach var in `hetlist_qtl' {
 		rename `var' qtl
-		eststo: reghdfe D.`depvar' c.d_ln_mw#i.qtl, ///
+		eststo: reghdfe D.`depvar' c.d_ln_mw#i.qtl D.(`controls'), ///
 			absorb(`absorb') ///
 			vce(cluster `cluster') nocons	
 		rename qtl `var'
@@ -195,6 +211,9 @@ program make_table_titles, rclass
 		}
 		if "`var'" == "unemp_share20105" {
 			local title_list `"`title_list' "Unemp. rate (\%)""'
+		}
+		if "`var'" == "teen_share2010" {
+			local title_list `"`title_list' "15-24 Years old (\%)""'
 		}
 		if "`var'" == "walall_njob_29young_ssh" {
 			local title_list `"`title_list' "\shortstack{Young worker,  \\ workplace}""'		

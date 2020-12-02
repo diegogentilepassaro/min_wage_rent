@@ -14,6 +14,19 @@ program main
 	local estlabels_dyn "`r(estlabels_dyn)'"
 	local estlabels_static "`r(estlabels_static)'"
 
+	static_dynamic_comp_test, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
+		cluster(statefips)
+	esttab using "`outstub'/static_dynamic_comptable_test.tex", replace compress se substitute(\_ _) ///
+	rename(D.ln_expmw D.ln_mw) keep(D.ln_mw) b(%9.4f) se(%9.4f) coeflabels(D.ln_mw "Static Effect") ///
+	stats(space cumsum_b cumsum_V space trdir trind r2 N,  ///
+	fmt(%s1 %s7 %s7 %s1 %s3 %s3 %9.3f %9.0gc) ///
+	labels("\vspace{-1mm}" "Cumulative effect" " " "\hline" ///
+		"$\Delta$ Direct MW ind." "$\Delta$ Indirect MW ind." ///
+			"R-squared" "Observations")) ///
+	mgroups("Baseline" "Experienced MW", pattern(1 1 0 0) prefix(\multicolumn{@span}{c}{) suffix(}) span erepeat(\cmidrule(lr){@span}))  ///
+	nomtitles ///
+	star(* 0.10 ** 0.05 *** 0.01) nonote
+
 
 	static_dynamic_comp, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
 		cluster(statefips)
@@ -27,7 +40,106 @@ program main
 	mtitles("Baseline" "Experienced MW")  ///
 	star(* 0.10 ** 0.05 *** 0.01) nonote
 
+
+
 end 
+
+program static_dynamic_comp_test
+	syntax, depvar(str) absorb(str) cluster(str) [w(int 5) t_plot(real 1.645)]
+
+	eststo clear 
+	define_controls
+
+	local emp_ctrls "`r(emp_ctrls)'"
+	local estcount_ctrls "`r(estcount_ctrls)'"
+	local avgwwage_ctrls "`r(avgwwage_ctrls)'"
+
+	local controls `"`emp_ctrls' `estcount_ctrls' `avgwwage_ctrls'"'
+
+	local lincomest_coeffs "D1.ln_mw + LD.ln_mw"
+	local pretrend_test "(F1D.ln_mw = 0)"
+	local lincomest_coeffs_exp "D1.ln_expmw + LD.ln_expmw"
+	local pretrend_test_exp "(F1D.ln_expmw = 0)"
+	forvalues i = 2(1)`w'{
+		local lincomest_coeffs "`lincomest_coeffs' + L`i'D.ln_mw"
+	    local pretrend_test " `pretrend_test' (F`i'D.ln_mw = 0)"
+		local lincomest_coeffs_exp "`lincomest_coeffs_exp' + L`i'D.ln_expmw"
+	    local pretrend_test_exp " `pretrend_test_exp' (F`i'D.ln_expmw = 0)"
+
+	}
+
+
+	*baseline 
+	qui reghdfe D.`depvar' L(-0/`w').D.ln_mw D.(`controls'), absorb(`absorb') vce(cluster `cluster') nocons	
+
+	add_cumsum, coefficients(`lincomest_coeffs') i(1)
+
+	local cumsum_b "`r(cumsum_b)'"
+	local cumsum_V "`r(cumsum_V)'"
+
+	eststo: qui reghdfe D.`depvar' D.ln_mw D.(`controls'), ///
+		absorb(`absorb') vce(cluster `cluster') nocons
+	comment_table_treatindicator, treat_dir("No") treat_ind("No")
+	estadd local space ""
+	estadd local cumsum_b "`cumsum_b'"
+	estadd local cumsum_V "`cumsum_V'" 
+
+	*experienced 
+	qui reghdfe D.`depvar' L(0/`w').D.ln_expmw D.(`controls'), absorb(`absorb') vce(cluster `cluster') nocons	
+
+	add_cumsum, coefficients(`lincomest_coeffs_exp') i(1)
+
+	local cumsum_b "`r(cumsum_b)'"
+	local cumsum_V "`r(cumsum_V)'"
+
+	/* reghdfe D.`depvar' c.Dln_exp_mw_totjob##i.ziptreated_ind D.(`controls'), ///
+		absorb(`absorb') vce(cluster `cluster') nocons */
+
+	eststo: qui reghdfe D.`depvar' D.ln_expmw D.(`controls'), ///
+		absorb(`absorb') vce(cluster `cluster') nocons
+	comment_table_treatindicator, treat_dir("No") treat_ind("No")
+	estadd local space ""
+	estadd local cumsum_b "`cumsum_b'"
+	estadd local cumsum_V "`cumsum_V'"
+
+	*experienced with direct treated indicator
+	qui reghdfe D.`depvar' L(0/`w').D.ln_expmw L(0/`w').i.treat_dir D.(`controls'), absorb(`absorb') vce(cluster `cluster') nocons	
+
+	add_cumsum, coefficients(`lincomest_coeffs_exp') i(1)
+
+	local cumsum_b "`r(cumsum_b)'"
+	local cumsum_V "`r(cumsum_V)'"
+
+	/* reghdfe D.`depvar' c.Dln_exp_mw_totjob##i.ziptreated_ind D.(`controls'), ///
+		absorb(`absorb') vce(cluster `cluster') nocons */
+
+	eststo: qui reghdfe D.`depvar' D.ln_expmw i.treat_dir D.(`controls'), ///
+		absorb(`absorb') vce(cluster `cluster') nocons
+	comment_table_treatindicator, treat_dir("Yes") treat_ind("No")
+	estadd local space ""
+	estadd local cumsum_b "`cumsum_b'"
+	estadd local cumsum_V "`cumsum_V'"	
+
+	*experienced with indirect treated indicator
+	qui reghdfe D.`depvar' L(0/`w').D.ln_expmw L(0/`w').i.treat_ind D.(`controls'), absorb(`absorb') vce(cluster `cluster') nocons	
+
+	add_cumsum, coefficients(`lincomest_coeffs_exp') i(1)
+
+	local cumsum_b "`r(cumsum_b)'"
+	local cumsum_V "`r(cumsum_V)'"
+
+	/* reghdfe D.`depvar' c.Dln_exp_mw_totjob##i.ziptreated_ind D.(`controls'), ///
+		absorb(`absorb') vce(cluster `cluster') nocons */
+
+	eststo: qui reghdfe D.`depvar' D.ln_expmw i.treat_ind D.(`controls'), ///
+		absorb(`absorb') vce(cluster `cluster') nocons
+	comment_table_treatindicator, treat_dir("No") treat_ind("Yes")
+	estadd local space ""
+	estadd local cumsum_b "`cumsum_b'"
+	estadd local cumsum_V "`cumsum_V'"	
+
+end 
+
 
 
 program static_dynamic_comp 
@@ -135,5 +247,11 @@ program comment_table_control
 	estadd local ctrl_building "`housing'"
 end
 
+program comment_table_treatindicator
+	syntax, treat_dir(str) treat_ind(str)
+
+	estadd local trdir   "`treat_dir'"
+	estadd local trind "`treat_ind'"
+end
 
 main 
