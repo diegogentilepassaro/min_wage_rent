@@ -14,7 +14,7 @@ program main
 	esttab * using "`outstub'/baseline_vs_level.tex", compress se replace substitute(\_ _) 	///
 		stats(p_val_auto N, fmt(%9.4f %9.0gc) labels("P-value autocorrelation test" "Observations")) ////
 		star(* 0.10 ** 0.05 *** 0.01) nonote ///
-		coeflabels(ln_mw "$\ln(MW)$" D.ln_mw "$\Delta\ln(MW)$") ///
+		coeflabels(ln_mw "$\ln \underline{w}_{it}$" D.ln_mw "$\Delta \underline{w}_{it}$") ///
 		mtitles("Level" "First Difference")
 		
     levels_with_county_or_state_fe, depvar(ln_med_rent_psqft_sfcc) cluster(statefips)
@@ -22,7 +22,7 @@ program main
 		stats(zs_trend N, labels("Zipcode-specific linear trends" "Observations")) ///
 		mtitles("Zipcode FE" "County FE" "State FE" "State FE") ////
 		star(* 0.10 ** 0.05 *** 0.01) nonote ///
-		coeflabels(ln_mw "$\ln(MW)$")
+		coeflabels(ln_mw "$\ln \underline{w}_{it}$")
 
 end
 
@@ -30,12 +30,12 @@ program compare_level_with_baseline
     syntax, depvar(str) cluster(str) 
 	
     eststo clear
-	eststo: qui reghdfe `depvar' ln_mw,							///
-		absorb(year_month zipcode) 												///
+	eststo: qui reghdfe `depvar' ln_mw,	///
+		absorb(year_month zipcode) 	///
 		vce(cluster `cluster') nocons
 		
-	eststo fd: qui reghdfe D.`depvar' D.ln_mw,							///
-		absorb(year_month) 												///
+	eststo fd: qui reghdfe D.`depvar' D.ln_mw, ///
+		absorb(year_month) ///
 		vce(cluster `cluster') nocons ///
 		residuals(fd_res)
 	qui reg fd_res L.fd_res, cluster(statefip)
@@ -48,26 +48,26 @@ program levels_with_county_or_state_fe
     syntax, depvar(str) cluster(str) 
 
 	eststo clear
-	eststo: qui reghdfe `depvar' ln_mw,							///
-		absorb(year_month zipcode) 												///
+	eststo: qui reghdfe `depvar' ln_mw,	///
+		absorb(year_month zipcode) ///
 		vce(cluster `cluster') nocons
-	qui estadd local zs_trend 		"No"
+	qui estadd local zs_trend "No"
 
 
-	eststo: qui reghdfe `depvar' ln_mw,							///
-		absorb(year_month county) 												///
+	eststo: qui reghdfe `depvar' ln_mw,	///
+		absorb(year_month county) ///
 		vce(cluster `cluster') nocons
-	qui estadd local zs_trend 		"No"
+	qui estadd local zs_trend "No"
 
-	eststo: qui reghdfe `depvar' ln_mw,							///
-		absorb(year_month statefip) 												///
+	eststo: qui reghdfe `depvar' ln_mw,	///
+		absorb(year_month statefip) ///
 		vce(cluster `cluster') nocons
-	qui estadd local zs_trend 		"No"
+	qui estadd local zs_trend "No"
 
-	eststo: qui reghdfe `depvar' ln_mw,							///
-		absorb(year_month statefip zipcode#c.trend) 												///
+	eststo: qui reghdfe `depvar' ln_mw, ///
+		absorb(year_month statefip zipcode#c.trend) ///
 		vce(cluster `cluster') nocons
-	qui estadd local zs_trend 		"Yes"
+	qui estadd local zs_trend "Yes"
 end
 
 main
