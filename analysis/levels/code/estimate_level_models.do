@@ -14,7 +14,7 @@ program main
 	esttab * using "`outstub'/baseline_vs_level.tex", compress se replace substitute(\_ _) 	///
 		stats(p_val_auto N, fmt(%9.4f %9.0gc) labels("P-value autocorrelation test" "Observations")) ////
 		star(* 0.10 ** 0.05 *** 0.01) nonote ///
-		coeflabels(ln_mw "$\ln \underline{w}_{it}$" D.ln_mw "$\Delta \underline{w}_{it}$") ///
+		coeflabels(ln_mw "$\ln \underline{w}_{it}$" D.ln_mw "$\Delta \ln \underline{w}_{it}$") ///
 		mtitles("Level" "First Difference")
 		
     levels_with_county_or_state_fe, depvar(ln_med_rent_psqft_sfcc) cluster(statefips)
