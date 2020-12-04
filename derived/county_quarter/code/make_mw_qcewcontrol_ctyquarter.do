@@ -88,6 +88,19 @@ program prepare_panel
 	unab quartervar : estcount_* avgwwage_* avgmwage_* ln_wwage_* ln_mwage_* ln_est_*
 	unab monthvar : emp_* ln_emp_*	
 
+	preserve 
+	xtset countyfips year_month
+	foreach var in ln_mw ln_expmw `monthvar' {
+		bys countyfips (year_month): g d_`var' = D.`var'
+	}
+	g statefips = string(countyfips, "%05.0f")
+	replace statefips = substr(statefips, 1, 2)
+	destring statefips, replace
+	order statefips, after(countyfips)	
+	
+	save ../output/qcew_controls_countymonth.dta, replace 
+	restore
+
 	gcollapse (first) `quartervar' ///
 	          (mean) actual_mw dactual_mw treated_mw ln_mw exp_mw ln_expmw `monthvar', by(countyfips quarter) 
 
