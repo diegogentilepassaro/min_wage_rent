@@ -27,7 +27,7 @@ program main
 		star(* 0.10 ** 0.05 *** 0.01) 	///
 		mtitles("\shortstack{Static \\ model}" "\shortstack{Dynamic \\ model}" "\shortstack{Distributed \\ Lags model}" ///
 		"\shortstack{AB Dynamic \\ model}" "\shortstack{AB Distributed \\ Lags model}") nonote
-
+		
 		* "\shortstack{MW Dynamic \\ model}" "\shortstack{MW Distributed \\ Lags model}"
 end
 
@@ -47,8 +47,6 @@ program horse_race_models
 		local lincomest_coeffs "`lincomest_coeffs' + L`i'D.ln_mw"
 	    local pretrend_test " `pretrend_test' (F`i'D.ln_mw = 0)"
 	}
-
-	local "`w_plus1'" = `w' + 1
 
 	eststo: reghdfe D.`depvar' D.ln_mw D.(`controls'),	///
 		absorb(`absorb') vce(cluster `cluster') nocons
@@ -77,6 +75,7 @@ program horse_race_models
 	add_long_run, depvar(`depvar') est_i(5)
 
 	/*
+	local w_plus1 = `w' + 1
 	eststo: ivreghdfe D.`depvar' L(-`w'/`w').D.ln_mw (L.D.`depvar' = L`w_plus1'.D.ln_mw) D.(`controls'), ///
 		absorb(`absorb') cluster (`cluster') nocons
 	test `pretrend_test'

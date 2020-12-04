@@ -197,7 +197,29 @@ program build_cumsum_plot
 	
 	*qui reghdfe D5.`depvar' D5.ln_mw, absorb(`absorb') vce(cluster `cluster') nocons
 	
-	use "../temp/cumsum_coeffs_full.dta", clear
+	qui ivreghdfe D.`depvar' L(0/`w').D.ln_mw (L.D.`depvar' = L2.D.`depvar'), ///
+		absorb(`absorb') cluster(`cluster') nocons
+	
+	nlcom (_b[D1.ln_mw] + _b[LD.ln_mw])/(1 - _b[LD.`depvar'])
+	mat b = r(b)
+	mat V = r(V)
+
+	matrix COEFF = J(`w_span', 5, .)
+	matrix colname COEFF = "at" "longrun_b" "longrun_sd" "longrun_lb" "longrun_hb"
+
+	forvalues i = 1/`w_span' {
+		mat COEFF[`i', 1] = `i'
+	}
+	mat COEFF[`w_span', 2] = b[1,1]
+	mat COEFF[`w_span', 3] = V[1, 1]^.5
+	mat COEFF[`w_span', 4] = b[1, 1] - `t_plot'*V[1, 1]^.5
+	mat COEFF[`w_span', 5] = b[1, 1] + `t_plot'*V[1, 1]^.5
+
+	svmat double COEFF, name(col)
+	keep at longrun_b longrun_sd longrun_lb longrun_hb
+	drop if missing(at)
+
+	merge 1:1 at using "../temp/cumsum_coeffs_full.dta", nogen
 	merge 1:1 at using "../temp/cumsum_coeffs_lags.dta", nogen
 	sort at
 
@@ -213,11 +235,13 @@ program build_cumsum_plot
 			(connected cumsum_full_b at, mcol(navy) lcol(navy)) ///
 			(line b_cumsum_lags_lb at, col(maroon) lpat(dash)) ///
 			(line b_cumsum_lags_hb at, col(maroon) lpat(dash)) ///			
-			(connected cumsum_lags_b at, mcol(maroon) lcol(maroon)), ///
+			(connected cumsum_lags_b at, mcol(maroon) lcol(maroon)) ///
+			(scatter longrun_b at, mcol(orange)) ///
+			(rcap longrun_lb longrun_hb at, col(orange) lw(vthin)), ///
 		yline(0, lcol(black)) ///
 		xlabel(`r(xlab)', labsize(small))  xtitle(" ") ///
 		ylabel(-0.06(0.02).1, grid labsize(small)) ytitle("Cumulative sum of effects") ///
-		legend(order(3 "Full dynamic model" 6 "Distributed lags model") size(small)) ///
+		legend(order(3 "Full dynamic model" 6 "Distributed lags model" 7 "AB long-run effect") size(small)) ///
 		graphregion(color(white)) bgcolor(white)
 	
 	graph export "`outstub'/fd_models_cumsum.png", replace

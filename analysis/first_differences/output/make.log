@@ -1,5 +1,5 @@
 
- make.py started: 2020-12-03 15:40:33 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\first_differences\code 
+ make.py started: 2020-12-03 18:47:59 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\first_differences\code 
 
 
 
@@ -1708,17 +1708,41 @@ Notes:
 .         *qui reghdfe D5.`depvar' D5.ln_mw, absorb(`absorb') vce(cluster `clus
 > ter') nocons
 .         
-.         use "../temp/cumsum_coeffs_full.dta", clear
- 56.         merge 1:1 at using "../temp/cumsum_coeffs_lags.dta", nogen
- 57.         sort at
- 58. 
+.         qui ivreghdfe D.`depvar' L(0/`w').D.ln_mw (L.D.`depvar' = L2.D.`depva
+> r'), ///
+>                 absorb(`absorb') cluster(`cluster') nocons
+ 56.         
+.         nlcom (_b[D1.ln_mw] + _b[LD.ln_mw])/(1 - _b[LD.`depvar'])
+ 57.         mat b = r(b)
+ 58.         mat V = r(V)
+ 59. 
+.         matrix COEFF = J(`w_span', 5, .)
+ 60.         matrix colname COEFF = "at" "longrun_b" "longrun_sd" "longrun_lb" 
+> "longrun_hb"
+ 61. 
+.         forvalues i = 1/`w_span' {
+ 62.                 mat COEFF[`i', 1] = `i'
+ 63.         }
+ 64.         mat COEFF[`w_span', 2] = b[1,1]
+ 65.         mat COEFF[`w_span', 3] = V[1, 1]^.5
+ 66.         mat COEFF[`w_span', 4] = b[1, 1] - `t_plot'*V[1, 1]^.5
+ 67.         mat COEFF[`w_span', 5] = b[1, 1] + `t_plot'*V[1, 1]^.5
+ 68. 
+.         svmat double COEFF, name(col)
+ 69.         keep at longrun_b longrun_sd longrun_lb longrun_hb
+ 70.         drop if missing(at)
+ 71. 
+.         merge 1:1 at using "../temp/cumsum_coeffs_full.dta", nogen
+ 72.         merge 1:1 at using "../temp/cumsum_coeffs_lags.dta", nogen
+ 73.         sort at
+ 74. 
 .         // Figure
 .         make_plot_xlabels, w(`w')
- 59.         
+ 75.         
 .         replace cumsum_lags_b = 0 if missing(cumsum_lags_b)
- 60.         replace b_cumsum_lags_lb = 0 if missing(b_cumsum_lags_lb)
- 61.         replace b_cumsum_lags_hb = 0 if missing(b_cumsum_lags_hb)
- 62. 
+ 76.         replace b_cumsum_lags_lb = 0 if missing(b_cumsum_lags_lb)
+ 77.         replace b_cumsum_lags_hb = 0 if missing(b_cumsum_lags_hb)
+ 78. 
 .         twoway  (line b_cumsum_full_lb at, col(navy) lpat(dash)) ///
 >                         (line b_cumsum_full_hb at, col(navy) lpat(dash)) ///
 >                         (connected cumsum_full_b at, mcol(navy) lcol(navy)) /
@@ -1728,18 +1752,21 @@ Notes:
 >                         (line b_cumsum_lags_hb at, col(maroon) lpat(dash)) //
 > /                  
 >                         (connected cumsum_lags_b at, mcol(maroon) lcol(maroon
-> )), ///
+> )) ///
+>                         (scatter longrun_b at, mcol(orange)) ///
+>                         (rcap longrun_lb longrun_hb at, col(orange) lw(vthin)
+> ), ///
 >                 yline(0, lcol(black)) ///
 >                 xlabel(`r(xlab)', labsize(small))  xtitle(" ") ///
 >                 ylabel(-0.06(0.02).1, grid labsize(small)) ytitle("Cumulative
 >  sum of effects") ///
 >                 legend(order(3 "Full dynamic model" 6 "Distributed lags model
-> ") size(small)) ///
+> " 7 "AB long-run effect") size(small)) ///
 >                 graphregion(color(white)) bgcolor(white)
- 63.         
+ 79.         
 .         graph export "`outstub'/fd_models_cumsum.png", replace
- 64.         graph export "`outstub'/fd_models_cumsum.eps", replace
- 65. end
+ 80.         graph export "`outstub'/fd_models_cumsum.eps", replace
+ 81. end
 
 . 
 . program build_coeff_plot_controls
@@ -2371,6 +2398,23 @@ ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 (156,589 observations deleted)
 (note: file ../temp/cumsum_coeffs_lags.dta not found)
 file ../temp/cumsum_coeffs_lags.dta saved
+
+       _nl_1:  (_b[D1.ln_mw] + _b[LD.ln_mw])/(1 - _b[LD.ln_med_rent_psqft_sfcc]
+> )
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~c |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       _nl_1 |   .0580381    .024441     2.37   0.018     .0101346    .1059417
+------------------------------------------------------------------------------
+(156,589 observations deleted)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                11  
+    -----------------------------------------
 
     Result                           # of obs.
     -----------------------------------------
@@ -3510,36 +3554,36 @@ Notes:
  11.                 local lincomest_coeffs "`lincomest_coeffs' + L`i'D.ln_mw"
  12.             local pretrend_test " `pretrend_test' (F`i'D.ln_mw = 0)"
  13.         }
- 14.         di "`lincomest_coeffs'"
- 15. 
+ 14. 
 .         eststo: reghdfe D.`depvar' D.ln_mw D.(`controls'),      ///
 >                 absorb(`absorb') vce(cluster `cluster') nocons
- 16. 
+ 15. 
 .         eststo: reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls'), ///
 >                 absorb(`absorb') vce(cluster `cluster') nocons
- 17.         test `pretrend_test'
- 18.         estadd scalar p_value_F = r(p)
- 19.         estadd local k ""
- 20.         add_cumsum, coefficients(`lincomest_coeffs') est_i(2)
- 21.                 
+ 16.         test `pretrend_test'
+ 17.         estadd scalar p_value_F = r(p)
+ 18.         estadd local k ""
+ 19.         add_cumsum, coefficients(`lincomest_coeffs') est_i(2)
+ 20.                 
 .         eststo: reghdfe D.`depvar' L(0/`w').D.ln_mw D.(`controls'), ///
 >                 absorb(`absorb') vce(cluster `cluster') nocons
- 22.         estadd local k ""
- 23.         add_cumsum, coefficients(`lincomest_coeffs') est_i(3)
- 24.         
+ 21.         estadd local k ""
+ 22.         add_cumsum, coefficients(`lincomest_coeffs') est_i(3)
+ 23.         
 .         eststo: ivreghdfe D.`depvar' L(-`w'/`w').D.ln_mw (L.D.`depvar' = L2.D
 > .`depvar') D.(`controls'), ///
 >                 absorb(`absorb') cluster (`cluster') nocons
- 25.         test `pretrend_test'
- 26.         estadd scalar p_value_F = r(p)
- 27.         estadd local k ""
- 28.         add_long_run, depvar(`depvar') est_i(4)
- 29. 
+ 24.         test `pretrend_test'
+ 25.         estadd scalar p_value_F = r(p)
+ 26.         estadd local k ""
+ 27.         add_long_run, depvar(`depvar') est_i(4)
+ 28. 
 .         eststo: ivreghdfe D.`depvar' L(0/`w').D.ln_mw (L.D.`depvar' = L2.D.`d
 > epvar') D.(`controls'), ///
 >                 absorb(`absorb') cluster (`cluster') nocons
- 30.         add_long_run, depvar(`depvar') est_i(5)
- 31. end
+ 29.         add_long_run, depvar(`depvar') est_i(5)
+ 30. 
+. end
 
 . 
 . program comment_table_control
@@ -3599,7 +3643,6 @@ Notes:
 . 
 . 
 . main
-D1.ln_mw + LD.ln_mw + L2D.ln_mw + L3D.ln_mw + L4D.ln_mw + L5D.ln_mw
 (MWFE estimator converged in 1 iterations)
 
 HDFE Linear regression                            Number of obs   =    107,814
@@ -4045,4 +4088,4 @@ ln_med_ren~c |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
 . 
 end of do-file
 
- make.py ended: 2020-12-03 15:42:33
+ make.py ended: 2020-12-03 18:50:32
