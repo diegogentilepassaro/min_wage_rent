@@ -23,7 +23,8 @@ program main
 	nogen assert(1 2 3) keep(3)
 	merge m:1 countyfips year_month using `instub_wages'/tot_emp_wage_countymonth.dta, ///
 	nogen assert(1 2 3) keep(3)	
-	prepare_panel, sectors(bizserv fin info tot)
+	
+	prepare_panel, sectors(bizserv fin info const eduhe leis manu natres transp tot)
 	
 
 

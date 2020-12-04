@@ -34,7 +34,7 @@ program plot_dynamic
 
 	local depvar_emp "d_ln_emp_`ind'"
 	reghdfe `depvar_emp' L(-`w'/`w').D.`treatvar' avg_d_ln_est_tot avg_d_ln_wwage_tot d_ln_emp_tot, ///
-		absorb(`absorb')        ///
+		absorb(`absorb' countyfips)        ///
 		vce(cluster `cluster') nocons
 
 	preserve
@@ -51,7 +51,7 @@ program plot_dynamic
 
 	local depvar_wage "avg_d_ln_wwage_`ind'"
 	reghdfe `depvar_wage' L(-`w'/`w').D.`treatvar' avg_d_ln_est_tot avg_d_ln_wwage_tot d_ln_emp_tot, ///
-		absorb(`absorb')        ///
+		absorb(`absorb' countyfips)        ///
 		vce(cluster `cluster') nocons
 
 	preserve
@@ -69,7 +69,7 @@ program plot_dynamic
 
 	local depvar_est "avg_d_ln_est_`ind'"
 	reghdfe `depvar_est' L(-`w'/`w').D.`treatvar' d_ln_emp_tot avg_d_ln_wwage_tot avg_d_ln_est_tot, ///
-		absorb(`absorb')        ///
+		absorb(`absorb' countyfips)        ///
 		vce(cluster `cluster') nocons
 
 	preserve
