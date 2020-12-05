@@ -32,7 +32,7 @@ program main
 	restore
 	
 	preserve
-	keep if enter_date <= tm(2010m12)
+	keep if enter_date <= tm(2011m12)
 	collapse (count) year_month, by(zipcode)
 	keep zipcode 
 	save "../temp/early_zipcodes.dta", replace
