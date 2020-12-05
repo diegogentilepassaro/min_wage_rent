@@ -102,12 +102,12 @@ program prepare_panel
 	restore
 
 	gcollapse (first) `quartervar' ///
-	          (mean) actual_mw dactual_mw treated_mw ln_mw exp_mw ln_expmw `monthvar', by(countyfips quarter) 
+	          (last) actual_mw dactual_mw treated_mw ln_mw exp_mw ln_expmw `monthvar', by(countyfips quarter) 
 
   	xtset countyfips quarter
 
 	foreach var in ln_mw ln_expmw `monthvar' {
-		bys countyfips (quarter): g d_`var' = D.`var'
+		bys countyfips (quarter): g d_`var' = (1/3)*D.`var'
 	}
 	foreach var in `quartervar' {
 		bys countyfips (quarter): g avg_d_`var' = (1/3)*D.`var'

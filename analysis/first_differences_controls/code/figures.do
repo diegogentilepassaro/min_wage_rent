@@ -22,7 +22,7 @@ program plot_dynamic
 	syntax, ind(str) treatvar(str) absorb(str) cluster(str) instub(str) outstub(str) [w(int 5) t_plot(real 1.645) offset(real 0.2)]
 
 	local depvar_wage "avg_d_ln_wwage_`ind'"
-	reghdfe `depvar_wage' L(-`w'/`w').D.`treatvar' avg_d_ln_est_tot avg_d_ln_wwage_tot d_ln_emp_tot, ///
+	reghdfe `depvar_wage' L(-`w'/`w').D.`treatvar', ///
 		absorb(`absorb')        ///
 		vce(cluster `cluster') nocons
 
@@ -41,7 +41,7 @@ program plot_dynamic
 
 
 	local depvar_est "avg_d_ln_est_`ind'"
-	reghdfe `depvar_est' L(-`w'/`w').D.`treatvar' d_ln_emp_tot avg_d_ln_wwage_tot avg_d_ln_est_tot, ///
+	reghdfe `depvar_est' L(-`w'/`w').D.`treatvar' , ///
 		absorb(`absorb')        ///
 		vce(cluster `cluster') nocons
 
@@ -63,7 +63,7 @@ program plot_dynamic
 	use `instub'/qcew_controls_countymonth.dta, clear
 	local mw = `w'*3
 	local depvar_emp "d_ln_emp_`ind'"
-	reghdfe `depvar_emp' L(-`mw'/`mw').D.`treatvar' D.ln_est_tot D.ln_mwage_tot D.ln_emp_tot, ///
+	reghdfe `depvar_emp' L(-`mw'/`mw').D.`treatvar', ///
 		absorb(year_month)        ///
 		vce(cluster `cluster') nocons
 
