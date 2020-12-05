@@ -12,7 +12,6 @@ program main
 
 	build_coeff_plot_comp, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
 		cluster(statefips)
-
 end
 
 
