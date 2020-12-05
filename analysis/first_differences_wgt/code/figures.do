@@ -18,7 +18,7 @@ end
 
 
 program build_coeff_plot_comp
-	syntax, depvar(str) absorb(str) cluster(str) [w(int 5) t_plot(real 1.645) offset(real 0.09)]
+	syntax, depvar(str) absorb(str) cluster(str) [w(int 5) t_plot(real 1.645) offset(real 0.095)]
 
 	define_controls estcount avgwwage
 	local emp_ctrls "`r(emp_ctrls)'"
@@ -116,11 +116,9 @@ program build_coeff_plot_comp
 	save "../temp/cumsum_wgt.dta", replace 
 	restore
 
-
 	qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls') [pw = wgt_cbsa100], ///
 	absorb(`absorb') vce(cluster `cluster') nocons
 
-				
 	preserve
 		coefplot, vertical base gen
 		keep __at __b __se
@@ -154,12 +152,14 @@ program build_coeff_plot_comp
 
 		twoway (scatter b_full at_base, mcol(navy)) (rcap b_full_lb b_full_ub at_base, lcol(navy) lw(thin)) ///
 			   (scatter b_wgt at_full, mcol(maroon)) (rcap b_wgt_lb b_wgt_ub at_full, col(maroon) lw(thin)) ///
-			   (line cumsum_base_b at_base, col(navy)) (line cumsum_base_lb at_base, col(navy) lw(thin) lp(dash)) (line cumsum_base_ub at_base, col(navy) lw(thin) lp(dash)) ///
-   			   (line cumsum_wgt_b at_full, col(maroon)) (line cumsum_wgt_lb at_full, col(maroon) lw(thin) lp(dash)) (line cumsum_wgt_ub at_full, col(maroon) lw(thin) lp(dash)), ///
+			   (line cumsum_base_b at, col(navy)) ///
+			   		(line cumsum_base_lb at, col(navy) lw(thin) lp(dash)) (line cumsum_base_ub at, col(navy) lw(thin) lp(dash)) ///
+   			   (line cumsum_wgt_b at, col(maroon)) ///
+				  	(line cumsum_wgt_lb at, col(maroon) lw(thin) lp(dash)) (line cumsum_wgt_ub at, col(maroon) lw(thin) lp(dash)), ///
 			   yline(0, lcol(black)) ///
 			   xlabel(`xlab', labsize(small)) xtitle("") ///
 			   ylabel(-0.06(0.02).16, grid labsize(small)) ytitle("Coefficient") ///
-			   legend(order(1 "Baseline dynamic model" 3 "Reweighted dynamic model" 5 "Cumulative baseline" 8 "Cumulative Reweighted") size(vsmall)) ///
+			   legend(order(1 "Baseline dynamic model" 3 "Reweighted dynamic model" 5 "Cumulative baseline" 8 "Cumulative reweighted") size(vsmall)) ///
 			   graphregion(color(white)) bgcolor(white)
 		graph export "../output/fd_model_comparison_wgt.png", replace
 		graph export "../output/fd_model_comparison_wgt.eps", replace

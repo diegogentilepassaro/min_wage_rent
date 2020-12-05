@@ -24,32 +24,32 @@ program main
 		graph export "`outstub'/fd_static_heter_`var'.eps", replace
 	} */
 
-	*table - demographics 
+	*Table - demographics 
 	make_table_titles, hetlist(`demovars')
 	local het_titles "`r(title_list)'"
-	make_dd_static_heterogeneity, depvar(ln_med_rent_psqft_sfcc) absorb(year_month zipcode) cluster(statefips) hetlist(`demovars')
+
+	make_dd_static_heterogeneity, depvar(ln_med_rent_psqft_sfcc) ///
+		absorb(year_month zipcode) cluster(statefips) hetlist(`demovars')
+
 	esttab * using "`outstub'/fd_table_het.tex", compress se replace 	///
 		keep(*.qtl*) mtitles(`het_titles') substitute(\_ _)  ///
-		coeflabels(1.qtl#c.d_ln_mw "$\Delta \ln(MW) \times 1^{st} qtl$" ///
-				   2.qtl#c.d_ln_mw "$\Delta \ln(MW) \times 2^{nd} qtl$" ///
-				   3.qtl#c.d_ln_mw "$\Delta \ln(MW) \times 3^{rd} qtl$" ///
-				   4.qtl#c.d_ln_mw "$\Delta \ln(MW) \times 4^{th} qtl$") /// 
-		stats(r2 N, fmt(%9.3f %9.0gc) labels("R-squared" "Observations")) ///
-		star(* 0.10 ** 0.05 *** 0.01)  nonote
-sTOP 
+		coeflabels(1.qtl#c.d_ln_mw "First quartile" ///
+				   2.qtl#c.d_ln_mw "Second quartile" ///
+				   3.qtl#c.d_ln_mw "Third quartile" ///
+				   4.qtl#c.d_ln_mw "Fourth quartile") /// 
+		stats(N, fmt(%9.0gc) labels("Observations")) star(* 0.10 ** 0.05 *** 0.01) nonote
+
 	*table - workers' type 
 	make_table_titles, hetlist(`workvars')
 	local het_titles "`r(title_list)'"
 	make_dd_static_heterogeneity, depvar(ln_med_rent_psqft_sfcc) absorb(year_month zipcode) cluster(statefips) hetlist(`workvars')
 	esttab * using "`outstub'/fd_table_workers.tex", compress se replace 	///
 		keep(*.qtl*) mtitles(`het_titles') substitute(\_ _)  ///
-		coeflabels(1.qtl#c.d_ln_mw "$\Delta \ln(MW) \times 1^{st} qtl$" ///
-				   2.qtl#c.d_ln_mw "$\Delta \ln(MW) \times 2^{nd} qtl$" ///
-				   3.qtl#c.d_ln_mw "$\Delta \ln(MW) \times 3^{rd} qtl$" ///
-				   4.qtl#c.d_ln_mw "$\Delta \ln(MW) \times 4^{th} qtl$") /// 
-		stats(r2 N, fmt(%9.3f %9.0gc) labels("R-squared" "Observations")) ///
-		star(* 0.10 ** 0.05 *** 0.01)  nonote
-
+		coeflabels(1.qtl#c.d_ln_mw "First quartile" ///
+				   2.qtl#c.d_ln_mw "Second quartile" ///
+				   3.qtl#c.d_ln_mw "Third quartile" ///
+				   4.qtl#c.d_ln_mw "Fourth quartile") /// 
+		stats(N, fmt(%9.0gc) labels("Observations")) star(* 0.10 ** 0.05 *** 0.01)  nonote
 end
 
 program plot_static_heterogeneity
@@ -156,10 +156,10 @@ program plot_dd_static_heterogeneity
 		vce(cluster `cluster') nocons
 
 	coefplot, base graphregion(color(white)) bgcolor(white) keep(*.`het_var'*) ///
-	ylabel(1 "1" 2 "2" 3 "3" 4 "4") levels(90) ///
-	ytitle(`ytitle', size(small)) ///
-	xtitle("Estimated effect of ln MW on ln rents", size(small)) xlabel(-.05(.02).1)	///
-	xline(0, lcol(black)) mc(edkblue) ciopts(recast(rcap) lc(edkblue) lp(dash) lw(vthin))
+		ylabel(1 "1" 2 "2" 3 "3" 4 "4") levels(90) ///
+		ytitle(`ytitle', size(small)) ///
+		xtitle("Estimated effect of ln MW on ln rents", size(small)) xlabel(-.05(.02).1)	///
+		xline(0, lcol(black)) mc(edkblue) ciopts(recast(rcap) lc(edkblue) lp(dash) lw(vthin))
 end
 
 program make_dd_static_heterogeneity
@@ -201,7 +201,7 @@ program make_table_titles, rclass
 			local title_list `"`title_list' "College Grad. (\%)""'
 		}
 		if "`var'" == "black_share2010" {
-			local title_list `"`title_list' "African Am. (\%)""'
+			local title_list `"`title_list' "African-Am. (\%)""'
 		}
 		if "`var'" == "nonwhite_share2010" {
 			local title_list `"`title_list' "Non-white pop. (\%)""'
@@ -227,11 +227,9 @@ program make_table_titles, rclass
 		if "`var'" == "halall_29y_lowinc_ssh" {
 			local title_list `"`title_list' "\shortstack{Young low-income worker,  \\ residence}""'		
 		}
-
 	}
 
 	return local title_list "`title_list'" 
-
 end 
 
 

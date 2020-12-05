@@ -28,7 +28,7 @@ program main
 		b(%9.4f) se(%9.4f) coeflabels(`estlabels_static') ///
 		stats(zs_trend zs_trend_sq r2 N, fmt(%s3 %s3 %9.3f %9.0gc) ///
 		labels("Zipcode-specifc linear trend" "Zipcode-specific quadratic trend" ///
-			"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) nonote nomtitles 
+			"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) nonote nomtitles
 
 	* Dynamic Model
 	run_dynamic_model, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
