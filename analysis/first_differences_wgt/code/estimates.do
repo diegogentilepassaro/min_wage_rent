@@ -27,7 +27,6 @@ program main
 				"R-squared" "Observations")) ///
 		mtitles("Baseline" "Reweighted" "Unbalanced")  ///
 		star(* 0.10 ** 0.05 *** 0.01) nonote
-
 end 
 
 
@@ -160,8 +159,8 @@ program compute_longrun, rclass
 	nlcom (_b[D1.ln_mw] + _b[LD.ln_mw])/(1 - _b[LD.`depvar'])
 	mat b = r(b)
 	mat V = r(V)
-	local b_digits = round(b[1,1], 0.001)
-	local se_digits = round(V[1,1]^.5, 0.001)
+	local b_digits = round(b[1,1], 0.0001)
+	local se_digits = round(V[1,1]^.5, 0.0001)
 	if abs(b[1,1]/(V[1,1]^.5)) > 1.96 {
 		local star = "\sym{**}"
 	}
