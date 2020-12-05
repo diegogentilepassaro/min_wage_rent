@@ -20,11 +20,11 @@ program main
 	
 	esttab using "`outstub'/static_dynamic_comptable.tex", replace compress se substitute(\_ _) ///
 		keep(D.ln_mw) b(%9.4f) se(%9.4f) coeflabels(D.ln_mw "Static Effect") ///
-		stats(space cumsum_b cumsum_V longrun_b longrun_V space ctrl_wage ctrl_emp ctrl_estab r2 N,  ///
-		fmt(%s1 %s7 %s7 %s7 %s7 %s1 %s3 %s3 %s3 %9.3f %9.0gc) ///
+		stats(space cumsum_b cumsum_V longrun_b longrun_V space ctrl_wage ctrl_emp ctrl_estab N,  ///
+		fmt(%s1 %s7 %s7 %s7 %s7 %s1 %s3 %s3 %s3 %9.0gc) ///
 		labels("\vspace{-2mm}" "Cumulative effect" " " "Long-run effect" " " "\hline" ///
 			"Wage controls" "Employment controls" "Establishment-count controls"  ///
-				"R-squared" "Observations")) ///
+			"Observations (dynamic models)")) ///
 		mtitles("Baseline" "Reweighted" "Unbalanced")  ///
 		star(* 0.10 ** 0.05 *** 0.01) nonote
 end 
