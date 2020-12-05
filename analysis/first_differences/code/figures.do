@@ -34,21 +34,23 @@ end
 program build_coeff_plot
 	syntax, depvar(str) absorb(str) cluster(str) outstub(str) [w(int 5) t_plot(real 1.645) offset(real 0.09)]
 
-	eststo clear
-	reghdfe D.`depvar' D.ln_mw,	absorb(`absorb') vce(cluster `cluster') nocons
-
-	scalar static_effect = _b[D.ln_mw]
-	scalar static_effect_se = _se[D.ln_mw]
-
 	define_controls estcount avgwwage
 	local emp_ctrls "`r(emp_ctrls)'"
 	local estcount_ctrls "`r(estcount_ctrls)'"
 	local avgwwage_ctrls "`r(avgwwage_ctrls)'"
+	local controls `"`emp_ctrls' `estcount_ctrls' `avgwwage_ctrls'"'
 
-	qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw, absorb(`absorb') vce(cluster `cluster') nocons
+	eststo clear
+	reghdfe D.`depvar' D.ln_mw D.(`controls'),	absorb(`absorb') vce(cluster `cluster') nocons
+
+	scalar static_effect = _b[D.ln_mw]
+	scalar static_effect_se = _se[D.ln_mw]
+
+
+	qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls'), absorb(`absorb') vce(cluster `cluster') nocons
 	
 	preserve
-		coefplot, vertical base gen
+		coefplot, vertical base gen keep(*.ln_mw)
 		keep __at __b __se
 		rename (__at __b __se) (at b_full se_full)
 		
@@ -63,9 +65,9 @@ program build_coeff_plot
 		save "../temp/plot_coeffs.dta", replace
 	restore
 
-	qui reghdfe D.`depvar' L(0/`w').D.ln_mw, absorb(`absorb') vce(cluster `cluster') nocons
+	qui reghdfe D.`depvar' L(0/`w').D.ln_mw D.(`controls'), absorb(`absorb') vce(cluster `cluster') nocons
 	
-	coefplot, vertical base gen
+	coefplot, vertical base gen keep(*.ln_mw)
 	keep __at __b __se
 	rename (__at __b __se) (at b_lags se_lags)
 	tset at
@@ -134,7 +136,8 @@ program build_cumsum_plot
 	local emp_ctrls "`r(emp_ctrls)'"
 	local estcount_ctrls "`r(estcount_ctrls)'"
 	local avgwwage_ctrls "`r(avgwwage_ctrls)'"
-	
+	local controls `"`emp_ctrls' `estcount_ctrls' `avgwwage_ctrls'"'
+
 	local w_minus1 = `w' - 1
 	local w_span = 2*`w' + 1
 	
@@ -176,7 +179,7 @@ program build_cumsum_plot
 					local cumsum_coeffs "`cumsum_coeffs' + `ll'"
 				}
 			
-				qui reghdfe D.`depvar' L(`start_lag'/`w').D.ln_mw, absorb(`absorb') vce(cluster `cluster') nocons
+				qui reghdfe D.`depvar' L(`start_lag'/`w').D.ln_mw D.(`controls'), absorb(`absorb') vce(cluster `cluster') nocons
 				lincomest `cumsum_coeffs'
 				mat b = e(b)
 				mat V = e(V)
@@ -197,7 +200,7 @@ program build_cumsum_plot
 	
 	*qui reghdfe D5.`depvar' D5.ln_mw, absorb(`absorb') vce(cluster `cluster') nocons
 	
-	qui ivreghdfe D.`depvar' L(0/`w').D.ln_mw (L.D.`depvar' = L2.D.`depvar'), ///
+	qui ivreghdfe D.`depvar' L(0/`w').D.ln_mw (L.D.`depvar' = L2.D.`depvar') D.(`controls'), ///
 		absorb(`absorb') cluster(`cluster') nocons
 	
 	nlcom (_b[D1.ln_mw] + _b[LD.ln_mw])/(1 - _b[LD.`depvar'])
@@ -241,7 +244,7 @@ program build_cumsum_plot
 		yline(0, lcol(black)) ///
 		xlabel(`r(xlab)', labsize(small))  xtitle(" ") ///
 		ylabel(-0.06(0.02).1, grid labsize(small)) ytitle("Cumulative sum of effects") ///
-		legend(order(3 "Full dynamic model" 6 "Distributed lags model" 7 "AB long-run effect") size(small)) ///
+		legend(order(3 "Full dynamic model" 6 "Distributed lags model" 7 "AB long-run effect") rows(1) size(small)) ///
 		graphregion(color(white)) bgcolor(white)
 	
 	graph export "`outstub'/fd_models_cumsum.png", replace
