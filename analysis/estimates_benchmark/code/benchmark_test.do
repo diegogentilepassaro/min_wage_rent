@@ -13,12 +13,8 @@ program main
 	use "`instub'/fd_rent_panel.dta", clear
 
 	
-	
 
 	//benchmark_plot, depvar(ln_med_rent_psqft) w(5) absorb(year_month) cluster(statefips) outstub(`outstub') 
-					
-
-
 	
 	incidence_formula_avg, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_mw) absorb(year_month) cluster(statefips) mww_share_stub(sh_mww) outstub(`outstub')
 	incidence_formula_avg_reg, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_mw) absorb(year_month) cluster(statefips) wagevar(avg_d_ln_mwage) instub_wage(`instub_wage') outstub(`outstub')
@@ -37,7 +33,7 @@ program main
 
 	
 
-	
+	****OLD STUFF
 	//incidence_formula_dist, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_mw) absorb(year_month) cluster(statefips) mww_share_stub(sh_mww) outstub(`outstub')
 
 
@@ -110,8 +106,8 @@ program incidence_formula_avg_reg
 	use `instub_wage'/mw_wage_panel.dta, clear 
 	merge m:1 countyfips using `samplecty', nogen assert(1 2 3) keep(3)
 	sort countyfips quarter
-	reghdfe `wagevar' D.`treatvar', absorb(quarter countyfips statefips) nocons
-	local effect_wage = _b[D.`treatvar']
+	reghdfe `wagevar' d_`treatvar', absorb(quarter countyfips statefips) nocons
+	local effect_wage = _b[d_`treatvar']
 	if "`dynamic'"=="yes" {
 		qui reghdfe `wagevar' L(-2/1).D.`treatvar', absorb(quarter countyfips statefips) nocons	
 		qui lincomest D1.`treatvar' + LD.`treatvar'
@@ -166,18 +162,31 @@ program incidence_formula_avg
 	local avg_Dmmw_ft = `avg_Dmw' * 40 * 4.35
 	local avg_Dmmw_pt = `avg_Dmw' * 20 * 4.35
 
-	foreach mww_type in ft pt {
+	/* foreach mww_type in ft pt {
 		qui g mww_`mww_type' = `mww_share_stub'_`mww_type' * workers_`mww_type' 
 		qui sum mww_`mww_type' if `eventsample'
 		local avg_mww_`mww_type' r(mean)
 		local avg_Dincome_`mww_type' = `avg_Dmmw_`mww_type'' * `avg_mww_`mww_type''		
-	}
-
+	} */
 	cap g tot_pinc_month    = tot_pinc20105 / 12 
 	qui sum tot_pinc_month if F.`treatsamp'>0 & estsample==1
 	local avg_tot_pinc20105 = r(mean)
 
-	local avg_Dincome_pct = ((`avg_Dincome_ft' + `avg_Dincome_pt') / `avg_tot_pinc20105')*100
+	//local avg_Dincome_pct = ((`avg_Dincome_ft' + `avg_Dincome_pt') / `avg_tot_pinc20105')*100
+
+	*instead of averaging all quantities first, I compute the pct change in total wage bill at the zipcode level, and take only one avg in the end
+	qui g Dmmw_ft = dactual_mw * 40 * 4.35
+	qui g Dmmw_pt = dactual_mw * 20 * 4.35
+	foreach mww_type in ft pt {
+		qui g mww_`mww_type' = `mww_share_stub'_`mww_type' * workers_`mww_type' 
+		qui g Dincome_`mww_type' = Dmmw_`mww_type' * mww_`mww_type'
+		qui sum Dincome_`mww_type' if `eventsample'
+		local avg_Dincome_`mww_type' = r(mean)
+	}
+	g Dincome_pct = ((Dincome_ft + Dincome_pt) / tot_pinc_month)*100
+	sum Dincome_pct if `eventsample'
+	local avg_Dincome_pct = r(mean)
+	
 
 	sum d_`treatvar' if `eventsample'
 	local avg_Dmw_pct = r(mean)*100
@@ -215,7 +224,7 @@ program incidence_formula_avg1pct
 	qui sum Dmw_1pct if `eventsample'
 	local avg_Dmw    = r(mean)
 
-	local avg_Dmmw_ft = `avg_Dmw' * 40 * 4.35
+	/* local avg_Dmmw_ft = `avg_Dmw' * 40 * 4.35
 	local avg_Dmmw_pt = `avg_Dmw' * 20 * 4.35
 
 	foreach mww_type in ft pt {
@@ -223,13 +232,24 @@ program incidence_formula_avg1pct
 		qui sum mww_`mww_type' if `eventsample'
 		local avg_mww_`mww_type' r(mean)
 		local avg_Dincome_`mww_type' = `avg_Dmmw_`mww_type'' * `avg_mww_`mww_type''		
-	}
-
+	} */
 	cap g tot_pinc_month    = tot_pinc20105 / 12 
 	qui sum tot_pinc_month  if F.`treatsamp'>0 & estsample==1
 	local avg_tot_pinc20105 = r(mean)
 
-	local avg_Dincome_pct = ((`avg_Dincome_ft' + `avg_Dincome_pt') / `avg_tot_pinc20105')*100
+	qui g Dmmw_ft = Dmw_1pct * 40 * 4.35
+	qui g Dmmw_pt = Dmw_1pct * 20 * 4.35
+	foreach mww_type in ft pt {
+		qui g mww_`mww_type' = `mww_share_stub'_`mww_type' * workers_`mww_type' 
+		qui g Dincome_`mww_type' = Dmmw_`mww_type' * mww_`mww_type'
+		qui sum Dincome_`mww_type' if `eventsample'
+		local avg_Dincome_`mww_type' = r(mean)
+	}
+	g Dincome_pct = ((Dincome_ft + Dincome_pt) / tot_pinc_month)*100
+	sum Dincome_pct if `eventsample'
+	local avg_Dincome_pct = r(mean)
+
+	//local avg_Dincome_pct = ((`avg_Dincome_ft' + `avg_Dincome_pt') / `avg_tot_pinc20105')*100
 
 	local avg_ratio = `r' / `avg_Dincome_pct'
 
