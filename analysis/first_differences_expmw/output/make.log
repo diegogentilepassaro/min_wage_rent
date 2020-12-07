@@ -1,5 +1,5 @@
 
- make.py started: 2020-11-30 19:22:10 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\first_differences_expmw\code 
+ make.py started: 2020-12-07 13:05:53 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\first_differences_expmw\code 
 
 
 
@@ -128,11 +128,12 @@ Notes:
   1.         
 .         cap rename ln_actual_mw                  ln_mw 
   2.         cap rename ln_exp_mw_totjob              ln_expmw       
-  3.         cap rename ln_medrentpricepsqft_sfcc     ln_med_rent_psqft_sfcc
-  4.         cap rename ln_medrentpricepsqft_2br      ln_med_rent_psqft_2br
-  5.         cap rename ln_medrentpricepsqft_mfr5plus ln_med_rent_psqft_mfr5plu
+  3.         cap rename Dln_exp_mw_totjob             d_ln_expmw
+  4.         cap rename ln_medrentpricepsqft_sfcc     ln_med_rent_psqft_sfcc
+  5.         cap rename ln_medrentpricepsqft_2br      ln_med_rent_psqft_2br
+  6.         cap rename ln_medrentpricepsqft_mfr5plus ln_med_rent_psqft_mfr5plu
 > s
-  6. 
+  7. 
 . end
 
 . 
@@ -202,7 +203,7 @@ performance warning: -by- prefix may be slower than -by()-
 File: ../temp/fd_rent_panel.dta
 Key: zipcode year_month
 ============================================================================
-  156600:141(77553):3017670085:3531971674
+  156600:141(59484):3017670085:3531971674
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -303,7 +304,7 @@ Dexp_mw_jo~c |    155,295    .0154317    .1049299  -1.071968       1.95
 ln_med_ren~c |    113,375    .0472541    .4493362  -.8722228   1.906781
 -------------+---------------------------------------------------------
     ln_expmw |    156,600    2.076924    .1336937   1.838962   2.706536
-Dln_exp_mw~b |    155,295    .0016898    .0111907  -.1092541    .216913
+  d_ln_expmw |    155,295    .0016898    .0111907  -.1092541    .216913
 ln_exp_mw_~g |    156,600    2.076951    .1331873   1.823215   2.712524
 ln_exp_mw_~c |    156,600    2.077413     .133066   1.760324   2.709219
 ln_emp_biz~v |    152,334     11.1079    1.386833   5.796058   13.37047
@@ -448,12 +449,23 @@ Notes:
   5.         local estlabels_dyn "`r(estlabels_dyn)'"
   6.         local estlabels_static "`r(estlabels_static)'"
   7. 
-. 
-.         static_dynamic_comp, depvar(ln_med_rent_psqft_sfcc) absorb(year_month
-> ) ///
+.         run_models, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
 >                 cluster(statefips)
-  8.         esttab using "`outstub'/static_dynamic_comptable.tex", replace com
-> press se substitute(\_ _) ///
+  8.         esttab using "`outstub'/static_dynamic_comptable_test.tex", replac
+> e compress se substitute(\_ _) ///
+>                 keep(D.ln_mw D.ln_expmw) b(%9.4f) se(%9.4f) coeflabels(D.ln_m
+> w "Statutory MW" D.ln_expmw "Experienced MW") ///
+>                 stats(space r2 N, fmt(%s1 %9.3f %9.0gc) ///
+>                 labels("\vspace{-2mm}" "R-squared" "Observations")) ///
+>                 nomtitles ///
+>                 star(* 0.10 ** 0.05 *** 0.01) nonote
+  9. 
+. 
+.         /* static_dynamic_comp, depvar(ln_med_rent_psqft_sfcc) absorb(year_mo
+> nth) ///
+>                 cluster(statefips)
+>         esttab using "`outstub'/static_dynamic_comptable.tex", replace compre
+> ss se substitute(\_ _) ///
 >         rename(D.ln_expmw D.ln_mw) keep(D.ln_mw) b(%9.4f) se(%9.4f) coeflabel
 > s(D.ln_mw "Static Effect") ///
 >         stats(space cumsum_b cumsum_V space p_value_F ctrl_wage ctrl_emp ctrl
@@ -465,13 +477,14 @@ Notes:
 > ntrols"  ///
 >                         "R-squared" "Observations")) ///
 >         mtitles("Baseline" "Experienced MW")  ///
->         star(* 0.10 ** 0.05 *** 0.01) nonote
-  9. 
+>         star(* 0.10 ** 0.05 *** 0.01) nonote */
+. 
+. 
+. 
 . end 
 
 . 
-. 
-. program static_dynamic_comp 
+. program other_stuff
   1.         syntax, depvar(str) absorb(str) cluster(str) [w(int 5) t_plot(real
 >  1.645)]
   2. 
@@ -499,32 +512,39 @@ Notes:
 .         }
  18. 
 .         *baseline 
-.         qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls'), absorb(`ab
-> sorb') vce(cluster `cluster') nocons       
- 19.         test `pretrend_test'
- 20.         local p_value_F = r(p)
- 21. 
-.         add_cumsum, coefficients(`lincomest_coeffs') i(1)
- 22. 
-.         local cumsum_b "`r(cumsum_b)'"
- 23.         local cumsum_V "`r(cumsum_V)'"
- 24. 
+. 
 .         eststo: qui reghdfe D.`depvar' D.ln_mw D.(`controls'), ///
 >                 absorb(`absorb') vce(cluster `cluster') nocons
- 25.         comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing
-> ("No")
- 26.         estadd scalar p_value_F `p_value_F'
- 27.         estadd local space ""
- 28.         estadd local cumsum_b "`cumsum_b'"
- 29.         estadd local cumsum_V "`cumsum_V'" 
- 30. 
+ 19.         comment_table_treatindicator, treat_dir("No") treat_ind("No")
+ 20.         estadd local space ""
+ 21.         estadd local cumsum_b "`cumsum_b'"
+ 22.         estadd local cumsum_V "`cumsum_V'" 
+ 23. 
 .         *experienced 
-.         qui reghdfe D.`depvar' L(-`w'/`w').D.ln_expmw D.(`controls'), absorb(
-> `absorb') vce(cluster `cluster') nocons    
- 31. 
-.         test `pretrend_test_exp'
- 32.         local p_value_F = r(p)
- 33.         add_cumsum, coefficients(`lincomest_coeffs_exp') i(1)
+.         qui reghdfe D.`depvar' L(0/`w').D.ln_expmw D.(`controls'), absorb(`ab
+> sorb') vce(cluster `cluster') nocons       
+ 24. 
+.         add_cumsum, coefficients(`lincomest_coeffs_exp') i(1)
+ 25. 
+.         local cumsum_b "`r(cumsum_b)'"
+ 26.         local cumsum_V "`r(cumsum_V)'"
+ 27. 
+.         /* reghdfe D.`depvar' c.Dln_exp_mw_totjob##i.ziptreated_ind D.(`contr
+> ols'), ///
+>                 absorb(`absorb') vce(cluster `cluster') nocons */
+. 
+.         eststo: qui reghdfe D.`depvar' D.ln_expmw D.(`controls'), ///
+>                 absorb(`absorb') vce(cluster `cluster') nocons
+ 28.         comment_table_treatindicator, treat_dir("No") treat_ind("No")
+ 29.         estadd local space ""
+ 30.         estadd local cumsum_b "`cumsum_b'"
+ 31.         estadd local cumsum_V "`cumsum_V'"
+ 32. 
+.         *experienced with direct treated indicator
+.         qui reghdfe D.`depvar' L(0/`w').D.ln_expmw L(0/`w').i.treat_dir D.(`c
+> ontrols'), absorb(`absorb') vce(cluster `cluster') nocons  
+ 33. 
+.         add_cumsum, coefficients(`lincomest_coeffs_exp') i(1)
  34. 
 .         local cumsum_b "`r(cumsum_b)'"
  35.         local cumsum_V "`r(cumsum_V)'"
@@ -533,48 +553,172 @@ Notes:
 > ols'), ///
 >                 absorb(`absorb') vce(cluster `cluster') nocons */
 . 
-.         eststo: qui reghdfe D.`depvar' D.ln_expmw D.(`controls'), ///
+.         eststo: qui reghdfe D.`depvar' D.ln_expmw i.treat_dir D.(`controls'),
+>  ///
 >                 absorb(`absorb') vce(cluster `cluster') nocons
- 37.         comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing
-> ("No")
- 38.         estadd scalar p_value_F `p_value_F'
- 39.         estadd local space ""
- 40.         estadd local cumsum_b "`cumsum_b'"
- 41.         estadd local cumsum_V "`cumsum_V'"
+ 37.         comment_table_treatindicator, treat_dir("Yes") treat_ind("No")
+ 38.         estadd local space ""
+ 39.         estadd local cumsum_b "`cumsum_b'"
+ 40.         estadd local cumsum_V "`cumsum_V'"      
+ 41. 
+.         *experienced with indirect treated indicator
+.         qui reghdfe D.`depvar' L(0/`w').D.ln_expmw L(0/`w').i.treat_ind D.(`c
+> ontrols'), absorb(`absorb') vce(cluster `cluster') nocons  
  42. 
+.         add_cumsum, coefficients(`lincomest_coeffs_exp') i(1)
+ 43. 
+.         local cumsum_b "`r(cumsum_b)'"
+ 44.         local cumsum_V "`r(cumsum_V)'"
+ 45. 
+.         /* reghdfe D.`depvar' c.Dln_exp_mw_totjob##i.ziptreated_ind D.(`contr
+> ols'), ///
+>                 absorb(`absorb') vce(cluster `cluster') nocons */
+. 
+.         eststo: qui reghdfe D.`depvar' D.ln_expmw i.treat_ind D.(`controls'),
+>  ///
+>                 absorb(`absorb') vce(cluster `cluster') nocons
+ 46.         comment_table_treatindicator, treat_dir("No") treat_ind("Yes")
+ 47.         estadd local space ""
+ 48.         estadd local cumsum_b "`cumsum_b'"
+ 49.         estadd local cumsum_V "`cumsum_V'"      
+ 50. 
 . end 
 
 . 
+. program run_models 
+  1.         syntax, depvar(str) absorb(str) cluster(str) [w(int 5)]
+  2. 
+.         eststo clear 
+  3.         define_controls
+  4. 
+.         local emp_ctrls "`r(emp_ctrls)'"
+  5.         local estcount_ctrls "`r(estcount_ctrls)'"
+  6.         local avgwwage_ctrls "`r(avgwwage_ctrls)'"
+  7. 
+.         local controls `"`emp_ctrls' `estcount_ctrls' `avgwwage_ctrls'"'
+  8. 
+.         local lincomest_coeffs "D1.ln_mw + LD.ln_mw"
+  9.         local pretrend_test "(F1D.ln_mw = 0)"
+ 10.         local lincomest_coeffs_exp "D1.ln_expmw + LD.ln_expmw"
+ 11.         local pretrend_test_exp "(F1D.ln_expmw = 0)"
+ 12.         forvalues i = 2(1)`w'{
+ 13.                 local lincomest_coeffs "`lincomest_coeffs' + L`i'D.ln_mw"
+ 14.             local pretrend_test " `pretrend_test' (F`i'D.ln_mw = 0)"
+ 15.                 local lincomest_coeffs_exp "`lincomest_coeffs_exp' + L`i'D
+> .ln_expmw"
+ 16.             local pretrend_test_exp " `pretrend_test_exp' (F`i'D.ln_expmw 
+> = 0)"
+ 17. 
+.         }
+ 18. 
+.         /* reghdfe D.`depvar' L(0/`w').D.ln_mw D.(`controls'), ///
+>                 absorb(`absorb') vce(cluster `cluster') nocons  
+>         compute_cumsum, coefficients(`lincomest_coeffs')
+> 
+>         local cumsum_b "`r(cumsum_b)'"
+>         local cumsum_V "`r(cumsum_V)'"
+> 
+>         ivreghdfe D.`depvar' L(0/`w').D.ln_mw (L.D.`depvar' = L2.D.`depvar') 
+> D.(`controls'), ///
+>                 absorb(`absorb') cluster(`cluster') nocons
+>         compute_longrun, depvar(`depvar')
+> 
+>         local longrun_b "`r(longrun_b)'"
+>         local longrun_V "`r(longrun_V)'" */
+. 
+.         *baseline
+. 
+.         eststo: qui reghdfe D.`depvar' D.ln_mw D.(`controls'), ///
+>                 absorb(`absorb') vce(cluster `cluster') nocons
+ 19.         comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing
+> ("No")
+ 20.         
+.         /* estadd local space ""
+>         estadd local cumsum_b "`cumsum_b'"
+>         estadd local cumsum_V "`cumsum_V'"
+>         estadd local longrun_b "`longrun_b'"
+>         estadd local longrun_V "`longrun_V'" */
+. 
+.         *experienced
+. 
+.         eststo: qui reghdfe D.`depvar' D.ln_expmw D.(`controls'), ///
+>                 absorb(`absorb') vce(cluster `cluster') nocons
+ 21.         comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing
+> ("No")
+ 22. 
+.         estadd local space ""
+ 23. 
+.         /* reghdfe D.`depvar' c.Dln_exp_mw_totjob##i.ziptreated_ind D.(`contr
+> ols'), ///
+>                 absorb(`absorb') vce(cluster `cluster') nocons */
 . 
 . 
+.         *both 
+.         eststo: qui reghdfe D.`depvar' D.ln_mw D.ln_expmw D.(`controls'), ///
+>                 absorb(`absorb') vce(cluster `cluster') nocons
+ 24.         comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing
+> ("No")
+ 25. 
+.         estadd local space ""
+ 26. end 
+
 . 
 . 
-. 
-. 
-. program add_cumsum, rclass
-  1.         syntax, coefficients(str) i(int)
+. program compute_cumsum, rclass
+  1.         syntax, coefficients(str)
   2.         lincomest `coefficients'
   3.         mat b = e(b)
   4.         mat V = e(V)
-  5.         local b_digits = round(b[1,1], 0.001)
-  6.         local se_digits = round(V[1,1]^.5, 0.001)
-  7.         if abs(b[1,1]/(V[1,1]^.5)) > 1.96 {
-  8.                 local star = "\sym{**}"
+  5.         local b_digits = round(b[1,1], 0.0001)
+  6.         local se_digits = round(V[1,1]^.5, 0.0001)
+  7.         if abs(b[1,1]/(V[1,1]^.5)) > 2.576 {
+  8.                 local star = "\sym{***}"
   9.         }
- 10.         else if abs(b[1,1]/(V[1,1]^.5)) > 1.65 {
- 11.                 local star = "\sym{*}"
+ 10.         else if abs(b[1,1]/(V[1,1]^.5)) > 1.96 {
+ 11.                 local star = "\sym{**}"
  12.         }
- 13.         else {
- 14.                 local star = ""
+ 13.         else if abs(b[1,1]/(V[1,1]^.5)) > 1.645 {
+ 14.                 local star = "\sym{*}"
  15.         }
- 16. 
+ 16.         else {
+ 17.                 local star = ""
+ 18.         }
+ 19. 
 .         local cumsum_b = "0`b_digits'`star'"
- 17.         local cumsum_V = "(0`se_digits')"
- 18. 
+ 20.         local cumsum_V = "(0`se_digits')"
+ 21. 
 .         return local cumsum_b `cumsum_b'
- 19.         return local cumsum_V `cumsum_V'
- 20.         *estadd scalar cumsum_V = V[1,1]^.5: reg_`i'
-. end
+ 22.         return local cumsum_V `cumsum_V'
+ 23. end
+
+. 
+. program compute_longrun, rclass
+  1.         syntax, depvar(str)
+  2.         
+.         nlcom (_b[D1.ln_mw] + _b[LD.ln_mw])/(1 - _b[LD.`depvar'])
+  3.         mat b = r(b)
+  4.         mat V = r(V)
+  5.         local b_digits = round(b[1,1], 0.0001)
+  6.         local se_digits = round(V[1,1]^.5, 0.0001)
+  7.         if abs(b[1,1]/(V[1,1]^.5)) > 2.576 {
+  8.                 local star = "\sym{***}"
+  9.         }
+ 10.         else if abs(b[1,1]/(V[1,1]^.5)) > 1.96 {
+ 11.                 local star = "\sym{**}"
+ 12.         }
+ 13.         else if abs(b[1,1]/(V[1,1]^.5)) > 1.645 {
+ 14.                 local star = "\sym{*}"
+ 15.         }
+ 16.         else {
+ 17.                 local star = ""
+ 18.         }
+ 19. 
+.         local longrun_b = "0`b_digits'`star'"
+ 20.         local longrun_V = "(0`se_digits')"
+ 21. 
+.         return local longrun_b `longrun_b'
+ 22.         return local longrun_V `longrun_V'
+ 23. end
 
 . 
 . program comment_table_control
@@ -587,26 +731,14 @@ Notes:
   6. end
 
 . 
+. *program comment_table_treatindicator
+. *       syntax, treat_dir(str) treat_ind(str)
+. *
+. *       estadd local trdir   "`treat_dir'"
+. *       estadd local trind "`treat_ind'"
+. *end
 . 
 . main 
-
- ( 1)  FD.ln_mw = 0
- ( 2)  F2D.ln_mw = 0
- ( 3)  F3D.ln_mw = 0
- ( 4)  F4D.ln_mw = 0
- ( 5)  F5D.ln_mw = 0
-
-       F(  5,    40) =    0.70
-            Prob > F =    0.6292
-Confidence interval for formula:
-D1.ln_mw+LD.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw+L5D.ln_mw
-
-------------------------------------------------------------------------------
-D.           |
-ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-         (1) |   .0575442   .0341687     1.68   0.100    -.0115134    .1266017
-------------------------------------------------------------------------------
 (est1 stored)
 
 added macro:
@@ -620,36 +752,6 @@ added macro:
 
 added macro:
       e(ctrl_building) : "No"
-
-added scalar:
-          e(p_value_F) =  .62918515
-
-added macro:
-              e(space) : ""
-
-added macro:
-           e(cumsum_b) : "0.058\sym"
-
-added macro:
-           e(cumsum_V) : "(0.034)"
-
- ( 1)  FD.ln_expmw = 0
- ( 2)  F2D.ln_expmw = 0
- ( 3)  F3D.ln_expmw = 0
- ( 4)  F4D.ln_expmw = 0
- ( 5)  F5D.ln_expmw = 0
-
-       F(  5,    40) =    0.73
-            Prob > F =    0.6055
-Confidence interval for formula:
-D1.ln_expmw+LD.ln_expmw+L2D.ln_expmw+L3D.ln_expmw+L4D.ln_expmw+L5D.ln_expmw
-
-------------------------------------------------------------------------------
-D.           |
-ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-         (1) |    .062806   .0368292     1.71   0.096    -.0116286    .1372406
-------------------------------------------------------------------------------
 (est2 stored)
 
 added macro:
@@ -664,19 +766,26 @@ added macro:
 added macro:
       e(ctrl_building) : "No"
 
-added scalar:
-          e(p_value_F) =  .60550806
+added macro:
+              e(space) : ""
+(est3 stored)
+
+added macro:
+           e(ctrl_emp) : "Yes"
+
+added macro:
+         e(ctrl_estab) : "Yes"
+
+added macro:
+          e(ctrl_wage) : "Yes"
+
+added macro:
+      e(ctrl_building) : "No"
 
 added macro:
               e(space) : ""
-
-added macro:
-           e(cumsum_b) : "0.063\sym"
-
-added macro:
-           e(cumsum_V) : "(0.037)"
-(note: file ../output/static_dynamic_comptable.tex not found)
-(output written to ../output/static_dynamic_comptable.tex)
+(note: file ../output/static_dynamic_comptable_test.tex not found)
+(output written to ../output/static_dynamic_comptable_test.tex)
 
 . 
 end of do-file
@@ -740,18 +849,20 @@ Notes:
   3. 
 .         use "`instub'/fd_rent_panel.dta", clear
   4. 
+. 
 .         build_coeff_plot_comp, depvar(ln_med_rent_psqft_sfcc) absorb(year_mon
 > th) ///
 >                 cluster(statefips)
   5. 
 .         foreach var in walall_29y_lowinc_zsh halall_29y_lowinc_zsh walall_29y
 > _lowinc_ssh halall_29y_lowinc_ssh {
-  6.                 plot_static_heterogeneity, depvar(ln_med_rent_psqft_sfcc) 
+  6.                 plot_vardist, hetvar(`var') outstub(`outstub')
+  7.                 plot_static_heterogeneity, depvar(ln_med_rent_psqft_sfcc) 
 > absorb(year_month zipcode) ///
 >                                 het_var(`var'_st_qtl) cluster(statefips) outs
 > tub(`outstub')             
-  7.         }       
-  8. 
+  8.         }       
+  9.         
 . 
 . end 
 
@@ -958,6 +1069,21 @@ Notes:
  10.         graph export `outstub'/fd_static_heter_`het_var'.png, replace 
  11.         graph export `outstub'/fd_static_heter_`het_var'.eps, replace 
  12. end
+
+. 
+. program plot_vardist 
+  1.         syntax, hetvar(str) outstub(str)
+  2. 
+.         preserve 
+  3.         replace `hetvar' = `hetvar'*100
+  4.         twoway(hist `hetvar', color(navy%80) lcolor(white) lw(vthin)), ///
+>         ylabel(, labsize(small)) xlabel(, labsize(small)) xtitle("Share (%)",
+>  size(small)) ///
+>         graphregion(color(white)) bgcolor(white) 
+  5.         graph export `outstub'/`hetvar'_dist.eps, replace 
+  6.         restore 
+  7. 
+. end 
 
 . 
 . program make_plot_xlabels, rclass 
@@ -1177,6 +1303,9 @@ __ul1           float   %9.0g                 CI1: upper limit
 (file ../output/fd_model_comparison_expmw.png written in PNG format)
 (note: file ../output/fd_model_comparison_expmw.eps not found)
 (file ../output/fd_model_comparison_expmw.eps written in EPS format)
+(156,240 real changes made)
+(note: file ../output/walall_29y_lowinc_zsh_dist.eps not found)
+(file ../output/walall_29y_lowinc_zsh_dist.eps written in EPS format)
 (MWFE estimator converged in 5 iterations)
 
 HDFE Linear regression                            Number of obs   =    107,601
@@ -1243,6 +1372,9 @@ Absorbed degrees of freedom:
 > d)
 (file ../output/fd_static_heter_walall_29y_lowinc_zsh_st_qtl.eps written in EPS
 >  format)
+(156,480 real changes made)
+(note: file ../output/halall_29y_lowinc_zsh_dist.eps not found)
+(file ../output/halall_29y_lowinc_zsh_dist.eps written in EPS format)
 (MWFE estimator converged in 5 iterations)
 
 HDFE Linear regression                            Number of obs   =    107,740
@@ -1309,6 +1441,9 @@ Absorbed degrees of freedom:
 > d)
 (file ../output/fd_static_heter_halall_29y_lowinc_zsh_st_qtl.eps written in EPS
 >  format)
+(156,240 real changes made)
+(note: file ../output/walall_29y_lowinc_ssh_dist.eps not found)
+(file ../output/walall_29y_lowinc_ssh_dist.eps written in EPS format)
 (MWFE estimator converged in 5 iterations)
 
 HDFE Linear regression                            Number of obs   =    107,601
@@ -1375,6 +1510,9 @@ Absorbed degrees of freedom:
 > d)
 (file ../output/fd_static_heter_walall_29y_lowinc_ssh_st_qtl.eps written in EPS
 >  format)
+(156,480 real changes made)
+(note: file ../output/halall_29y_lowinc_ssh_dist.eps not found)
+(file ../output/halall_29y_lowinc_ssh_dist.eps written in EPS format)
 (MWFE estimator converged in 5 iterations)
 
 HDFE Linear regression                            Number of obs   =    107,740
@@ -1445,4 +1583,4 @@ Absorbed degrees of freedom:
 . 
 end of do-file
 
- make.py ended: 2020-11-30 19:23:20
+ make.py ended: 2020-12-07 13:06:53
