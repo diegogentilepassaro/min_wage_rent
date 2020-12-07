@@ -14,21 +14,17 @@ program main
 	local estlabels_dyn "`r(estlabels_dyn)'"
 	local estlabels_static "`r(estlabels_static)'"
 
-	static_dynamic_comp_test, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
+	run_models, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
 		cluster(statefips)
 	esttab using "`outstub'/static_dynamic_comptable_test.tex", replace compress se substitute(\_ _) ///
-	rename(D.ln_expmw D.ln_mw) keep(D.ln_mw) b(%9.4f) se(%9.4f) coeflabels(D.ln_mw "Static Effect") ///
-	stats(space cumsum_b cumsum_V space trdir trind r2 N,  ///
-	fmt(%s1 %s7 %s7 %s1 %s3 %s3 %9.3f %9.0gc) ///
-	labels("\vspace{-1mm}" "Cumulative effect" " " "\hline" ///
-		"$\Delta$ Direct MW ind." "$\Delta$ Indirect MW ind." ///
-			"R-squared" "Observations")) ///
-	mgroups("Baseline" "Experienced MW", pattern(1 1 0 0) prefix(\multicolumn{@span}{c}{) suffix(}) span erepeat(\cmidrule(lr){@span}))  ///
-	nomtitles ///
-	star(* 0.10 ** 0.05 *** 0.01) nonote
+		keep(D.ln_mw D.ln_expmw) b(%9.4f) se(%9.4f) coeflabels(D.ln_mw "Statutory MW" D.ln_expmw "Experienced MW") ///
+		stats(space r2 N, fmt(%s1 %9.3f %9.0gc) ///
+		labels("\vspace{-2mm}" "R-squared" "Observations")) ///
+		nomtitles ///
+		star(* 0.10 ** 0.05 *** 0.01) nonote
 
 
-	static_dynamic_comp, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
+	/* static_dynamic_comp, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
 		cluster(statefips)
 	esttab using "`outstub'/static_dynamic_comptable.tex", replace compress se substitute(\_ _) ///
 	rename(D.ln_expmw D.ln_mw) keep(D.ln_mw) b(%9.4f) se(%9.4f) coeflabels(D.ln_mw "Static Effect") ///
@@ -38,13 +34,13 @@ program main
 		"Wage controls" "Employment controls" "Establishment-count controls"  ///
 			"R-squared" "Observations")) ///
 	mtitles("Baseline" "Experienced MW")  ///
-	star(* 0.10 ** 0.05 *** 0.01) nonote
+	star(* 0.10 ** 0.05 *** 0.01) nonote */
 
 
 
 end 
 
-program static_dynamic_comp_test
+program other_stuff
 	syntax, depvar(str) absorb(str) cluster(str) [w(int 5) t_plot(real 1.645)]
 
 	eststo clear 
@@ -68,14 +64,7 @@ program static_dynamic_comp_test
 
 	}
 
-
 	*baseline 
-	qui reghdfe D.`depvar' L(-0/`w').D.ln_mw D.(`controls'), absorb(`absorb') vce(cluster `cluster') nocons	
-
-	add_cumsum, coefficients(`lincomest_coeffs') i(1)
-
-	local cumsum_b "`r(cumsum_b)'"
-	local cumsum_V "`r(cumsum_V)'"
 
 	eststo: qui reghdfe D.`depvar' D.ln_mw D.(`controls'), ///
 		absorb(`absorb') vce(cluster `cluster') nocons
@@ -140,10 +129,8 @@ program static_dynamic_comp_test
 
 end 
 
-
-
-program static_dynamic_comp 
-	syntax, depvar(str) absorb(str) cluster(str) [w(int 5) t_plot(real 1.645)]
+program run_models 
+	syntax, depvar(str) absorb(str) cluster(str) [w(int 5)]
 
 	eststo clear 
 	define_controls
@@ -166,64 +153,67 @@ program static_dynamic_comp
 
 	}
 
-	*baseline 
-	qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls'), absorb(`absorb') vce(cluster `cluster') nocons	
-	test `pretrend_test'
-	local p_value_F = r(p)
-
-	add_cumsum, coefficients(`lincomest_coeffs') i(1)
+	/* reghdfe D.`depvar' L(0/`w').D.ln_mw D.(`controls'), ///
+		absorb(`absorb') vce(cluster `cluster') nocons	
+	compute_cumsum, coefficients(`lincomest_coeffs')
 
 	local cumsum_b "`r(cumsum_b)'"
 	local cumsum_V "`r(cumsum_V)'"
+
+	ivreghdfe D.`depvar' L(0/`w').D.ln_mw (L.D.`depvar' = L2.D.`depvar') D.(`controls'), ///
+		absorb(`absorb') cluster(`cluster') nocons
+	compute_longrun, depvar(`depvar')
+
+	local longrun_b "`r(longrun_b)'"
+	local longrun_V "`r(longrun_V)'" */
+
+	*baseline
 
 	eststo: qui reghdfe D.`depvar' D.ln_mw D.(`controls'), ///
 		absorb(`absorb') vce(cluster `cluster') nocons
 	comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing("No")
-	estadd scalar p_value_F `p_value_F'
-	estadd local space ""
+	
+	/* estadd local space ""
 	estadd local cumsum_b "`cumsum_b'"
-	estadd local cumsum_V "`cumsum_V'" 
+	estadd local cumsum_V "`cumsum_V'"
+	estadd local longrun_b "`longrun_b'"
+	estadd local longrun_V "`longrun_V'" */
 
-	*experienced 
-	qui reghdfe D.`depvar' L(-`w'/`w').D.ln_expmw D.(`controls'), absorb(`absorb') vce(cluster `cluster') nocons	
-
-	test `pretrend_test_exp'
-	local p_value_F = r(p)
-	add_cumsum, coefficients(`lincomest_coeffs_exp') i(1)
-
-	local cumsum_b "`r(cumsum_b)'"
-	local cumsum_V "`r(cumsum_V)'"
-
-	/* reghdfe D.`depvar' c.Dln_exp_mw_totjob##i.ziptreated_ind D.(`controls'), ///
-		absorb(`absorb') vce(cluster `cluster') nocons */
+	*experienced
 
 	eststo: qui reghdfe D.`depvar' D.ln_expmw D.(`controls'), ///
 		absorb(`absorb') vce(cluster `cluster') nocons
 	comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing("No")
-	estadd scalar p_value_F `p_value_F'
-	estadd local space ""
-	estadd local cumsum_b "`cumsum_b'"
-	estadd local cumsum_V "`cumsum_V'"
 
+	estadd local space ""
+
+	/* reghdfe D.`depvar' c.Dln_exp_mw_totjob##i.ziptreated_ind D.(`controls'), ///
+		absorb(`absorb') vce(cluster `cluster') nocons */
+
+
+	*both 
+	eststo: qui reghdfe D.`depvar' D.ln_mw D.ln_expmw D.(`controls'), ///
+		absorb(`absorb') vce(cluster `cluster') nocons
+	comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing("No")
+
+	estadd local space ""
 end 
 
 
-
-
-
-
-
-program add_cumsum, rclass
-	syntax, coefficients(str) i(int)
+program compute_cumsum, rclass
+	syntax, coefficients(str)
 	lincomest `coefficients'
 	mat b = e(b)
 	mat V = e(V)
-	local b_digits = round(b[1,1], 0.001)
-	local se_digits = round(V[1,1]^.5, 0.001)
-	if abs(b[1,1]/(V[1,1]^.5)) > 1.96 {
+	local b_digits = round(b[1,1], 0.0001)
+	local se_digits = round(V[1,1]^.5, 0.0001)
+	if abs(b[1,1]/(V[1,1]^.5)) > 2.576 {
+		local star = "\sym{***}"
+	}
+	else if abs(b[1,1]/(V[1,1]^.5)) > 1.96 {
 		local star = "\sym{**}"
 	}
-	else if abs(b[1,1]/(V[1,1]^.5)) > 1.65 {
+	else if abs(b[1,1]/(V[1,1]^.5)) > 1.645 {
 		local star = "\sym{*}"
 	}
 	else {
@@ -235,7 +225,34 @@ program add_cumsum, rclass
 
 	return local cumsum_b `cumsum_b'
 	return local cumsum_V `cumsum_V'
-	*estadd scalar cumsum_V = V[1,1]^.5: reg_`i'
+end
+
+program compute_longrun, rclass
+	syntax, depvar(str)
+	
+	nlcom (_b[D1.ln_mw] + _b[LD.ln_mw])/(1 - _b[LD.`depvar'])
+	mat b = r(b)
+	mat V = r(V)
+	local b_digits = round(b[1,1], 0.0001)
+	local se_digits = round(V[1,1]^.5, 0.0001)
+	if abs(b[1,1]/(V[1,1]^.5)) > 2.576 {
+		local star = "\sym{***}"
+	}
+	else if abs(b[1,1]/(V[1,1]^.5)) > 1.96 {
+		local star = "\sym{**}"
+	}
+	else if abs(b[1,1]/(V[1,1]^.5)) > 1.645 {
+		local star = "\sym{*}"
+	}
+	else {
+		local star = ""
+	}
+
+	local longrun_b = "0`b_digits'`star'"
+	local longrun_V = "(0`se_digits')"
+
+	return local longrun_b `longrun_b'
+	return local longrun_V `longrun_V'
 end
 
 program comment_table_control
@@ -247,11 +264,11 @@ program comment_table_control
 	estadd local ctrl_building "`housing'"
 end
 
-program comment_table_treatindicator
-	syntax, treat_dir(str) treat_ind(str)
-
-	estadd local trdir   "`treat_dir'"
-	estadd local trind "`treat_ind'"
-end
+*program comment_table_treatindicator
+*	syntax, treat_dir(str) treat_ind(str)
+*
+*	estadd local trdir   "`treat_dir'"
+*	estadd local trind "`treat_ind'"
+*end
 
 main 
