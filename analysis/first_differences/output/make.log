@@ -1,5 +1,5 @@
 
- make.py started: 2020-12-04 19:15:39 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\first_differences\code 
+ make.py started: 2020-12-06 20:22:44 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\first_differences\code 
 
 
 
@@ -1520,69 +1520,71 @@ Notes:
   1.         syntax, depvar(str) absorb(str) cluster(str) outstub(str) [w(int 5
 > ) t_plot(real 1.645) offset(real 0.09)]
   2. 
-.         eststo clear
-  3.         reghdfe D.`depvar' D.ln_mw,     absorb(`absorb') vce(cluster `clus
-> ter') nocons
-  4. 
-.         scalar static_effect = _b[D.ln_mw]
-  5.         scalar static_effect_se = _se[D.ln_mw]
-  6. 
 .         define_controls estcount avgwwage
-  7.         local emp_ctrls "`r(emp_ctrls)'"
-  8.         local estcount_ctrls "`r(estcount_ctrls)'"
-  9.         local avgwwage_ctrls "`r(avgwwage_ctrls)'"
- 10. 
-.         qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw, absorb(`absorb') vce(clus
-> ter `cluster') nocons
- 11.         
+  3.         local emp_ctrls "`r(emp_ctrls)'"
+  4.         local estcount_ctrls "`r(estcount_ctrls)'"
+  5.         local avgwwage_ctrls "`r(avgwwage_ctrls)'"
+  6.         local controls `"`emp_ctrls' `estcount_ctrls' `avgwwage_ctrls'"'
+  7. 
+.         eststo clear
+  8.         reghdfe D.`depvar' D.ln_mw D.(`controls'),      absorb(`absorb') v
+> ce(cluster `cluster') nocons
+  9. 
+.         scalar static_effect = _b[D.ln_mw]
+ 10.         scalar static_effect_se = _se[D.ln_mw]
+ 11. 
+. 
+.         qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls'), absorb(`ab
+> sorb') vce(cluster `cluster') nocons
+ 12.         
 .         preserve
- 12.                 coefplot, vertical base gen
- 13.                 keep __at __b __se
- 14.                 rename (__at __b __se) (at b_full se_full)
- 15.                 
+ 13.                 coefplot, vertical base gen keep(*.ln_mw)
+ 14.                 keep __at __b __se
+ 15.                 rename (__at __b __se) (at b_full se_full)
+ 16.                 
 .                 keep if !missing(at)
- 16. 
+ 17. 
 .                 gen b_full_lb = b_full - `t_plot'*se_full
- 17.                 gen b_full_ub = b_full + `t_plot'*se_full
- 18. 
+ 18.                 gen b_full_ub = b_full + `t_plot'*se_full
+ 19. 
 .                 gen static_path = . 
- 19.                 replace static_path = scalar(static_effect) if at > `w'
- 20. 
+ 20.                 replace static_path = scalar(static_effect) if at > `w'
+ 21. 
 .                 save "../temp/plot_coeffs.dta", replace
- 21.         restore
- 22. 
-.         qui reghdfe D.`depvar' L(0/`w').D.ln_mw, absorb(`absorb') vce(cluster
->  `cluster') nocons
- 23.         
-.         coefplot, vertical base gen
- 24.         keep __at __b __se
- 25.         rename (__at __b __se) (at b_lags se_lags)
- 26.         tset at
- 27. 
-.         keep if !missing(at)
+ 22.         restore
+ 23. 
+.         qui reghdfe D.`depvar' L(0/`w').D.ln_mw D.(`controls'), absorb(`absor
+> b') vce(cluster `cluster') nocons
+ 24.         
+.         coefplot, vertical base gen keep(*.ln_mw)
+ 25.         keep __at __b __se
+ 26.         rename (__at __b __se) (at b_lags se_lags)
+ 27.         tset at
  28. 
+.         keep if !missing(at)
+ 29. 
 .         gen b_lags_lb = b_lags - 1.645*se_lags
- 29.         gen b_lags_ub = b_lags + 1.645*se_lags
- 30. 
+ 30.         gen b_lags_ub = b_lags + 1.645*se_lags
+ 31. 
 .         gen cumsum_b_lags = b_lags[1]
- 31.         replace cumsum_b_lags = cumsum_b_lags[_n-1] + b_lags[_n] if _n > 1
- 32. 
+ 32.         replace cumsum_b_lags = cumsum_b_lags[_n-1] + b_lags[_n] if _n > 1
+ 33. 
 .         replace at = at + `w'
- 33.         save "../temp/plot_coeffs_lags.dta", replace
- 34.                 
+ 34.         save "../temp/plot_coeffs_lags.dta", replace
+ 35.                 
 .         merge 1:1 at using "../temp/plot_coeffs.dta", nogen
- 35.         sort at
- 36. 
+ 36.         sort at
+ 37. 
 .         gen at_full = at - (`w'/5)*`offset'                 // To prevent lin
 > es from overlapping perfectly
- 37.         gen at_lags = at + (`w'/5)*`offset'
- 38.         replace at_full = at if _n <= `w'
- 39.         replace at_lags = at if _n <= `w'
- 40.         replace cumsum_b_lags = . if at < `w' - 1
- 41. 
+ 38.         gen at_lags = at + (`w'/5)*`offset'
+ 39.         replace at_full = at if _n <= `w'
+ 40.         replace at_lags = at if _n <= `w'
+ 41.         replace cumsum_b_lags = . if at < `w' - 1
+ 42. 
 .         // Figure
 .         make_plot_xlabels, w(`w')
- 42. 
+ 43. 
 .         twoway  (scatter b_full at_full, mcol(navy)) ///
 >                                 (rcap b_full_lb b_full_ub at_full, col(navy) 
 > lw(vthin)) ///
@@ -1593,15 +1595,15 @@ Notes:
 >                 xlabel(`r(xlab)', labsize(small)) xtitle(" ") ///
 >                 ylabel(-0.06(0.02).08, grid labsize(small)) ytitle("Coefficie
 > nt") ///
->                 legend(order(1 "Full dynamic model" 3 "Distributed lags model
-> ") size(small)) ///
+>                 legend(order(1 "Fully dynamic model" 3 "Distributed lags mode
+> l") size(small)) ///
 >                 graphregion(color(white)) bgcolor(white)
- 43.         graph export "`outstub'/fd_models_coeffs_w`w'.png", replace
- 44.         graph export "`outstub'/fd_models_coeffs_w`w'.eps", replace
- 45. 
+ 44.         graph export "`outstub'/fd_models_coeffs_w`w'.png", replace
+ 45.         graph export "`outstub'/fd_models_coeffs_w`w'.eps", replace
+ 46. 
 .         if `w' == 5 {
- 46.                 make_plot_xlabels, w(`w')
- 47. 
+ 47.                 make_plot_xlabels, w(`w')
+ 48. 
 .                 twoway  (scatter b_full at_full, mcol(navy)) ///
 >                                         (rcap b_full_lb b_full_ub at_full, co
 > l(navy) lw(vthin)) ///
@@ -1616,15 +1618,15 @@ Notes:
 >                         xlabel(`r(xlab)', labsize(small)) xtitle(" ") ///
 >                         ylabel(-0.06(0.02).08, grid labsize(small)) ytitle("C
 > oefficient") ///
->                         legend(order(1 "Full dynamic model" 3 "Distributed la
-> gs model" ///
+>                         legend(order(1 "Fully dynamic model" 3 "Distributed l
+> ags model" ///
 >                                 5 "Effects path static model" 6 "Effects path
 >  distributed lags model") size(small)) ///
 >                         graphregion(color(white)) bgcolor(white)
- 48.                 graph export "`outstub'/fd_models_everything.png", replace
- 49.                 graph export "`outstub'/fd_models_everything.eps", replace
- 50.         }
- 51. end
+ 49.                 graph export "`outstub'/fd_models_everything.png", replace
+ 50.                 graph export "`outstub'/fd_models_everything.eps", replace
+ 51.         }
+ 52. end
 
 . 
 . program build_cumsum_plot
@@ -1637,112 +1639,113 @@ Notes:
   4.         local emp_ctrls "`r(emp_ctrls)'"
   5.         local estcount_ctrls "`r(estcount_ctrls)'"
   6.         local avgwwage_ctrls "`r(avgwwage_ctrls)'"
-  7.         
+  7.         local controls `"`emp_ctrls' `estcount_ctrls' `avgwwage_ctrls'"'
+  8. 
 .         local w_minus1 = `w' - 1
-  8.         local w_span = 2*`w' + 1
-  9.         
+  9.         local w_span = 2*`w' + 1
+ 10.         
 .         local names "full lags"
- 10.         mat define start = (-`w', 0)
- 11. 
+ 11.         mat define start = (-`w', 0)
+ 12. 
 .         forvalues i = 1/2 {
- 12.                 local name: word `i' of `names'
- 13.                 local start_lag = start[1, `i']
- 14. 
+ 13.                 local name: word `i' of `names'
+ 14.                 local start_lag = start[1, `i']
+ 15. 
 .                 local coeffs_list "D1.ln_mw LD.ln_mw"
- 15.                 forvalues i = 2/`w' {
- 16.                         local coeffs_list "`coeffs_list' L`i'D.ln_mw"
- 17.                 }
- 18.                 local coeffs_list "`coeffs_list' L`w'D.ln_mw"
- 19.                 
+ 16.                 forvalues i = 2/`w' {
+ 17.                         local coeffs_list "`coeffs_list' L`i'D.ln_mw"
+ 18.                 }
+ 19.                 local coeffs_list "`coeffs_list' L`w'D.ln_mw"
+ 20.                 
 .                 if `start_lag' < 0 {
- 20.                         forvalues i = 1/`w' {
- 21.                                 local coeffs_list "F`i'D.ln_mw `coeffs_lis
+ 21.                         forvalues i = 1/`w' {
+ 22.                                 local coeffs_list "F`i'D.ln_mw `coeffs_lis
 > t'"
- 22.                         }
- 23.                 }
- 24.                 matrix COEFF = J(`w_span', 5, .)
- 25.                 matrix colname COEFF = "at" "cumsum_`name'_b" "cumsum_`nam
+ 23.                         }
+ 24.                 }
+ 25.                 matrix COEFF = J(`w_span', 5, .)
+ 26.                 matrix colname COEFF = "at" "cumsum_`name'_b" "cumsum_`nam
 > e'_sd" "b_cumsum_`name'_lb" "b_cumsum_`name'_hb"
- 26.                 
+ 27.                 
 .                 forvalues i = 1/`w_span' {
- 27.                         matrix COEFF[`i',1] = `i'
- 28.                         
-.                         local this_lag = `i' - `w' - 1
+ 28.                         matrix COEFF[`i',1] = `i'
  29.                         
+.                         local this_lag = `i' - `w' - 1
+ 30.                         
 .                         if `this_lag' >= `start_lag' {
- 30.                                 local j = `this_lag' - `start_lag' + 1
- 31.                                 
-.                                 local ll: word `j' of `coeffs_list'
+ 31.                                 local j = `this_lag' - `start_lag' + 1
  32.                                 
+.                                 local ll: word `j' of `coeffs_list'
+ 33.                                 
 .                                 if `j' == 1 {
- 33.                                         local cumsum_coeffs "`ll'"
- 34.                                 }
- 35.                                 else {
- 36.                                         local cumsum_coeffs "`cumsum_coeff
+ 34.                                         local cumsum_coeffs "`ll'"
+ 35.                                 }
+ 36.                                 else {
+ 37.                                         local cumsum_coeffs "`cumsum_coeff
 > s' + `ll'"
- 37.                                 }
- 38.                         
+ 38.                                 }
+ 39.                         
 .                                 qui reghdfe D.`depvar' L(`start_lag'/`w').D.l
-> n_mw, absorb(`absorb') vce(cluster `cluster') nocons
- 39.                                 lincomest `cumsum_coeffs'
- 40.                                 mat b = e(b)
- 41.                                 mat V = e(V)
- 42. 
+> n_mw D.(`controls'), absorb(`absorb') vce(cluster `cluster') nocons
+ 40.                                 lincomest `cumsum_coeffs'
+ 41.                                 mat b = e(b)
+ 42.                                 mat V = e(V)
+ 43. 
 .                                 matrix COEFF[`i',2] = b[1, 1]
- 43.                                 matrix COEFF[`i',3] = V[1, 1]^.5
- 44.                                 matrix COEFF[`i',4] = b[1, 1] - `t_plot'*V
+ 44.                                 matrix COEFF[`i',3] = V[1, 1]^.5
+ 45.                                 matrix COEFF[`i',4] = b[1, 1] - `t_plot'*V
 > [1, 1]^.5
- 45.                                 matrix COEFF[`i',5] = b[1, 1] + `t_plot'*V
+ 46.                                 matrix COEFF[`i',5] = b[1, 1] + `t_plot'*V
 > [1, 1]^.5
- 46.                         }
- 47.                 }
- 48.                 preserve
- 49.                         svmat double COEFF, name(col)
- 50.                         keep at cumsum_`name'_b cumsum_`name'_sd b_cumsum_
+ 47.                         }
+ 48.                 }
+ 49.                 preserve
+ 50.                         svmat double COEFF, name(col)
+ 51.                         keep at cumsum_`name'_b cumsum_`name'_sd b_cumsum_
 > `name'_lb b_cumsum_`name'_hb
- 51.                         drop if missing(at)
- 52.                         save "../temp/cumsum_coeffs_`name'.dta", replace
- 53.                 restore
- 54.         }
- 55.         
+ 52.                         drop if missing(at)
+ 53.                         save "../temp/cumsum_coeffs_`name'.dta", replace
+ 54.                 restore
+ 55.         }
+ 56.         
 .         *qui reghdfe D5.`depvar' D5.ln_mw, absorb(`absorb') vce(cluster `clus
 > ter') nocons
 .         
 .         qui ivreghdfe D.`depvar' L(0/`w').D.ln_mw (L.D.`depvar' = L2.D.`depva
-> r'), ///
+> r') D.(`controls'), ///
 >                 absorb(`absorb') cluster(`cluster') nocons
- 56.         
+ 57.         
 .         nlcom (_b[D1.ln_mw] + _b[LD.ln_mw])/(1 - _b[LD.`depvar'])
- 57.         mat b = r(b)
- 58.         mat V = r(V)
- 59. 
+ 58.         mat b = r(b)
+ 59.         mat V = r(V)
+ 60. 
 .         matrix COEFF = J(`w_span', 5, .)
- 60.         matrix colname COEFF = "at" "longrun_b" "longrun_sd" "longrun_lb" 
+ 61.         matrix colname COEFF = "at" "longrun_b" "longrun_sd" "longrun_lb" 
 > "longrun_hb"
- 61. 
+ 62. 
 .         forvalues i = 1/`w_span' {
- 62.                 mat COEFF[`i', 1] = `i'
- 63.         }
- 64.         mat COEFF[`w_span', 2] = b[1,1]
- 65.         mat COEFF[`w_span', 3] = V[1, 1]^.5
- 66.         mat COEFF[`w_span', 4] = b[1, 1] - `t_plot'*V[1, 1]^.5
- 67.         mat COEFF[`w_span', 5] = b[1, 1] + `t_plot'*V[1, 1]^.5
- 68. 
+ 63.                 mat COEFF[`i', 1] = `i'
+ 64.         }
+ 65.         mat COEFF[`w_span', 2] = b[1,1]
+ 66.         mat COEFF[`w_span', 3] = V[1, 1]^.5
+ 67.         mat COEFF[`w_span', 4] = b[1, 1] - `t_plot'*V[1, 1]^.5
+ 68.         mat COEFF[`w_span', 5] = b[1, 1] + `t_plot'*V[1, 1]^.5
+ 69. 
 .         svmat double COEFF, name(col)
- 69.         keep at longrun_b longrun_sd longrun_lb longrun_hb
- 70.         drop if missing(at)
- 71. 
+ 70.         keep at longrun_b longrun_sd longrun_lb longrun_hb
+ 71.         drop if missing(at)
+ 72. 
 .         merge 1:1 at using "../temp/cumsum_coeffs_full.dta", nogen
- 72.         merge 1:1 at using "../temp/cumsum_coeffs_lags.dta", nogen
- 73.         sort at
- 74. 
+ 73.         merge 1:1 at using "../temp/cumsum_coeffs_lags.dta", nogen
+ 74.         sort at
+ 75. 
 .         // Figure
 .         make_plot_xlabels, w(`w')
- 75.         
+ 76.         
 .         replace cumsum_lags_b = 0 if missing(cumsum_lags_b)
- 76.         replace b_cumsum_lags_lb = 0 if missing(b_cumsum_lags_lb)
- 77.         replace b_cumsum_lags_hb = 0 if missing(b_cumsum_lags_hb)
- 78. 
+ 77.         replace b_cumsum_lags_lb = 0 if missing(b_cumsum_lags_lb)
+ 78.         replace b_cumsum_lags_hb = 0 if missing(b_cumsum_lags_hb)
+ 79. 
 .         twoway  (line b_cumsum_full_lb at, col(navy) lpat(dash)) ///
 >                         (line b_cumsum_full_hb at, col(navy) lpat(dash)) ///
 >                         (connected cumsum_full_b at, mcol(navy) lcol(navy)) /
@@ -1760,13 +1763,13 @@ Notes:
 >                 xlabel(`r(xlab)', labsize(small))  xtitle(" ") ///
 >                 ylabel(-0.06(0.02).1, grid labsize(small)) ytitle("Cumulative
 >  sum of effects") ///
->                 legend(order(3 "Full dynamic model" 6 "Distributed lags model
-> " 7 "AB long-run effect") size(small)) ///
+>                 legend(order(3 "Fully dynamic model" 6 "Distributed lags mode
+> l" 7 "AB long-run effect") rows(1) size(small)) ///
 >                 graphregion(color(white)) bgcolor(white)
- 79.         
+ 80.         
 .         graph export "`outstub'/fd_models_cumsum.png", replace
- 80.         graph export "`outstub'/fd_models_cumsum.eps", replace
- 81. end
+ 81.         graph export "`outstub'/fd_models_cumsum.eps", replace
+ 82. end
 
 . 
 . program build_coeff_plot_controls
@@ -1884,13 +1887,13 @@ Notes:
 . main
 (MWFE estimator converged in 1 iterations)
 
-HDFE Linear regression                            Number of obs   =    112,232
-Absorbing 1 HDFE group                            F(   1,     40) =       4.13
-Statistics robust to heteroskedasticity           Prob > F        =     0.0488
-                                                  R-squared       =     0.0218
-                                                  Adj R-squared   =     0.0208
-                                                  Within R-sq.    =     0.0001
-Number of clusters (statefips) =         41       Root MSE        =     0.0279
+HDFE Linear regression                            Number of obs   =    107,814
+Absorbing 1 HDFE group                            F(  10,     40) =       4.35
+Statistics robust to heteroskedasticity           Prob > F        =     0.0004
+                                                  R-squared       =     0.0223
+                                                  Adj R-squared   =     0.0212
+                                                  Within R-sq.    =     0.0002
+Number of clusters (statefips) =         41       Root MSE        =     0.0280
 
                              (Std. Err. adjusted for 41 clusters in statefips)
 ------------------------------------------------------------------------------
@@ -1898,14 +1901,41 @@ D.           |               Robust
 ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
        ln_mw |
-         D1. |   .0260395   .0128154     2.03   0.049     .0001386    .0519404
+         D1. |   .0257812   .0123764     2.08   0.044     .0007676    .0507949
+             |
+ln_emp_biz~v |
+         D1. |   .0048894   .0044078     1.11   0.274    -.0040191    .0137978
+             |
+ ln_emp_info |
+         D1. |   .0013594    .004352     0.31   0.756    -.0074363    .0101552
+             |
+  ln_emp_fin |
+         D1. |   .0135134   .0054729     2.47   0.018     .0024522    .0245747
+             |
+ln_estcou~rv |
+         D1. |   .0173782   .0140102     1.24   0.222    -.0109374    .0456938
+             |
+ln_estcoun~o |
+         D1. |   .0038631   .0054499     0.71   0.483    -.0071515    .0148776
+             |
+ln_estcoun~n |
+         D1. |  -.0011414   .0095598    -0.12   0.906    -.0204624    .0181796
+             |
+ln_avgwwa~rv |
+         D1. |   .0027297   .0024821     1.10   0.278    -.0022868    .0077462
+             |
+ln_avgwwag~o |
+         D1. |   .0011917   .0017988     0.66   0.511    -.0024439    .0048272
+             |
+ln_avgwwag~n |
+         D1. |  -.0019759   .0012783    -1.55   0.130    -.0045594    .0006075
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
 -----------------------------------------------------+
  Absorbed FE | Categories  - Redundant  = Num. Coefs |
 -------------+---------------------------------------|
-  year_month |       118           0         118     |
+  year_month |       115           0         115     |
 -----------------------------------------------------+
 
 Generated variables:
@@ -1977,13 +2007,13 @@ file ../temp/plot_coeffs_lags.dta saved
 (file ../output/fd_models_everything.eps written in EPS format)
 (MWFE estimator converged in 1 iterations)
 
-HDFE Linear regression                            Number of obs   =    112,232
-Absorbing 1 HDFE group                            F(   1,     40) =       4.13
-Statistics robust to heteroskedasticity           Prob > F        =     0.0488
-                                                  R-squared       =     0.0218
-                                                  Adj R-squared   =     0.0208
-                                                  Within R-sq.    =     0.0001
-Number of clusters (statefips) =         41       Root MSE        =     0.0279
+HDFE Linear regression                            Number of obs   =    107,814
+Absorbing 1 HDFE group                            F(  10,     40) =       4.35
+Statistics robust to heteroskedasticity           Prob > F        =     0.0004
+                                                  R-squared       =     0.0223
+                                                  Adj R-squared   =     0.0212
+                                                  Within R-sq.    =     0.0002
+Number of clusters (statefips) =         41       Root MSE        =     0.0280
 
                              (Std. Err. adjusted for 41 clusters in statefips)
 ------------------------------------------------------------------------------
@@ -1991,14 +2021,41 @@ D.           |               Robust
 ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
        ln_mw |
-         D1. |   .0260395   .0128154     2.03   0.049     .0001386    .0519404
+         D1. |   .0257812   .0123764     2.08   0.044     .0007676    .0507949
+             |
+ln_emp_biz~v |
+         D1. |   .0048894   .0044078     1.11   0.274    -.0040191    .0137978
+             |
+ ln_emp_info |
+         D1. |   .0013594    .004352     0.31   0.756    -.0074363    .0101552
+             |
+  ln_emp_fin |
+         D1. |   .0135134   .0054729     2.47   0.018     .0024522    .0245747
+             |
+ln_estcou~rv |
+         D1. |   .0173782   .0140102     1.24   0.222    -.0109374    .0456938
+             |
+ln_estcoun~o |
+         D1. |   .0038631   .0054499     0.71   0.483    -.0071515    .0148776
+             |
+ln_estcoun~n |
+         D1. |  -.0011414   .0095598    -0.12   0.906    -.0204624    .0181796
+             |
+ln_avgwwa~rv |
+         D1. |   .0027297   .0024821     1.10   0.278    -.0022868    .0077462
+             |
+ln_avgwwag~o |
+         D1. |   .0011917   .0017988     0.66   0.511    -.0024439    .0048272
+             |
+ln_avgwwag~n |
+         D1. |  -.0019759   .0012783    -1.55   0.130    -.0045594    .0006075
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
 -----------------------------------------------------+
  Absorbed FE | Categories  - Redundant  = Num. Coefs |
 -------------+---------------------------------------|
-  year_month |       118           0         118     |
+  year_month |       115           0         115     |
 -----------------------------------------------------+
 
 Generated variables:
@@ -2064,13 +2121,13 @@ file ../temp/plot_coeffs_lags.dta saved
 (file ../output/fd_models_coeffs_w3.eps written in EPS format)
 (MWFE estimator converged in 1 iterations)
 
-HDFE Linear regression                            Number of obs   =    112,232
-Absorbing 1 HDFE group                            F(   1,     40) =       4.13
-Statistics robust to heteroskedasticity           Prob > F        =     0.0488
-                                                  R-squared       =     0.0218
-                                                  Adj R-squared   =     0.0208
-                                                  Within R-sq.    =     0.0001
-Number of clusters (statefips) =         41       Root MSE        =     0.0279
+HDFE Linear regression                            Number of obs   =    107,814
+Absorbing 1 HDFE group                            F(  10,     40) =       4.35
+Statistics robust to heteroskedasticity           Prob > F        =     0.0004
+                                                  R-squared       =     0.0223
+                                                  Adj R-squared   =     0.0212
+                                                  Within R-sq.    =     0.0002
+Number of clusters (statefips) =         41       Root MSE        =     0.0280
 
                              (Std. Err. adjusted for 41 clusters in statefips)
 ------------------------------------------------------------------------------
@@ -2078,14 +2135,41 @@ D.           |               Robust
 ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
        ln_mw |
-         D1. |   .0260395   .0128154     2.03   0.049     .0001386    .0519404
+         D1. |   .0257812   .0123764     2.08   0.044     .0007676    .0507949
+             |
+ln_emp_biz~v |
+         D1. |   .0048894   .0044078     1.11   0.274    -.0040191    .0137978
+             |
+ ln_emp_info |
+         D1. |   .0013594    .004352     0.31   0.756    -.0074363    .0101552
+             |
+  ln_emp_fin |
+         D1. |   .0135134   .0054729     2.47   0.018     .0024522    .0245747
+             |
+ln_estcou~rv |
+         D1. |   .0173782   .0140102     1.24   0.222    -.0109374    .0456938
+             |
+ln_estcoun~o |
+         D1. |   .0038631   .0054499     0.71   0.483    -.0071515    .0148776
+             |
+ln_estcoun~n |
+         D1. |  -.0011414   .0095598    -0.12   0.906    -.0204624    .0181796
+             |
+ln_avgwwa~rv |
+         D1. |   .0027297   .0024821     1.10   0.278    -.0022868    .0077462
+             |
+ln_avgwwag~o |
+         D1. |   .0011917   .0017988     0.66   0.511    -.0024439    .0048272
+             |
+ln_avgwwag~n |
+         D1. |  -.0019759   .0012783    -1.55   0.130    -.0045594    .0006075
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
 -----------------------------------------------------+
  Absorbed FE | Categories  - Redundant  = Num. Coefs |
 -------------+---------------------------------------|
-  year_month |       118           0         118     |
+  year_month |       115           0         115     |
 -----------------------------------------------------+
 
 Generated variables:
@@ -2151,13 +2235,13 @@ file ../temp/plot_coeffs_lags.dta saved
 (file ../output/fd_models_coeffs_w6.eps written in EPS format)
 (MWFE estimator converged in 1 iterations)
 
-HDFE Linear regression                            Number of obs   =    112,232
-Absorbing 1 HDFE group                            F(   1,     40) =       4.13
-Statistics robust to heteroskedasticity           Prob > F        =     0.0488
-                                                  R-squared       =     0.0218
-                                                  Adj R-squared   =     0.0208
-                                                  Within R-sq.    =     0.0001
-Number of clusters (statefips) =         41       Root MSE        =     0.0279
+HDFE Linear regression                            Number of obs   =    107,814
+Absorbing 1 HDFE group                            F(  10,     40) =       4.35
+Statistics robust to heteroskedasticity           Prob > F        =     0.0004
+                                                  R-squared       =     0.0223
+                                                  Adj R-squared   =     0.0212
+                                                  Within R-sq.    =     0.0002
+Number of clusters (statefips) =         41       Root MSE        =     0.0280
 
                              (Std. Err. adjusted for 41 clusters in statefips)
 ------------------------------------------------------------------------------
@@ -2165,14 +2249,41 @@ D.           |               Robust
 ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
        ln_mw |
-         D1. |   .0260395   .0128154     2.03   0.049     .0001386    .0519404
+         D1. |   .0257812   .0123764     2.08   0.044     .0007676    .0507949
+             |
+ln_emp_biz~v |
+         D1. |   .0048894   .0044078     1.11   0.274    -.0040191    .0137978
+             |
+ ln_emp_info |
+         D1. |   .0013594    .004352     0.31   0.756    -.0074363    .0101552
+             |
+  ln_emp_fin |
+         D1. |   .0135134   .0054729     2.47   0.018     .0024522    .0245747
+             |
+ln_estcou~rv |
+         D1. |   .0173782   .0140102     1.24   0.222    -.0109374    .0456938
+             |
+ln_estcoun~o |
+         D1. |   .0038631   .0054499     0.71   0.483    -.0071515    .0148776
+             |
+ln_estcoun~n |
+         D1. |  -.0011414   .0095598    -0.12   0.906    -.0204624    .0181796
+             |
+ln_avgwwa~rv |
+         D1. |   .0027297   .0024821     1.10   0.278    -.0022868    .0077462
+             |
+ln_avgwwag~o |
+         D1. |   .0011917   .0017988     0.66   0.511    -.0024439    .0048272
+             |
+ln_avgwwag~n |
+         D1. |  -.0019759   .0012783    -1.55   0.130    -.0045594    .0006075
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
 -----------------------------------------------------+
  Absorbed FE | Categories  - Redundant  = Num. Coefs |
 -------------+---------------------------------------|
-  year_month |       118           0         118     |
+  year_month |       115           0         115     |
 -----------------------------------------------------+
 
 Generated variables:
@@ -2243,7 +2354,7 @@ F5D.ln_mw
 D.           |
 ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |  -.0148356   .0090279    -1.64   0.108    -.0330816    .0034104
+         (1) |   -.014367    .008907    -1.61   0.115    -.0323687    .0036347
 ------------------------------------------------------------------------------
 Confidence interval for formula:
 F5D.ln_mw+F4D.ln_mw
@@ -2252,7 +2363,7 @@ F5D.ln_mw+F4D.ln_mw
 D.           |
 ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |  -.0172091   .0179255    -0.96   0.343    -.0534378    .0190196
+         (1) |   -.016317   .0176741    -0.92   0.361    -.0520377    .0194038
 ------------------------------------------------------------------------------
 Confidence interval for formula:
 F5D.ln_mw+F4D.ln_mw+F3D.ln_mw
@@ -2261,7 +2372,7 @@ F5D.ln_mw+F4D.ln_mw+F3D.ln_mw
 D.           |
 ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |  -.0161033   .0225818    -0.71   0.480    -.0617428    .0295363
+         (1) |  -.0164792   .0220701    -0.75   0.460    -.0610845     .028126
 ------------------------------------------------------------------------------
 Confidence interval for formula:
 F5D.ln_mw+F4D.ln_mw+F3D.ln_mw+F2D.ln_mw
@@ -2270,7 +2381,7 @@ F5D.ln_mw+F4D.ln_mw+F3D.ln_mw+F2D.ln_mw
 D.           |
 ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |  -.0100757   .0223365    -0.45   0.654    -.0552195    .0350681
+         (1) |  -.0100704   .0217675    -0.46   0.646    -.0540641    .0339234
 ------------------------------------------------------------------------------
 Confidence interval for formula:
 F5D.ln_mw+F4D.ln_mw+F3D.ln_mw+F2D.ln_mw+F1D.ln_mw
@@ -2279,7 +2390,7 @@ F5D.ln_mw+F4D.ln_mw+F3D.ln_mw+F2D.ln_mw+F1D.ln_mw
 D.           |
 ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |  -.0102974   .0212103    -0.49   0.630     -.053165    .0325702
+         (1) |  -.0105651   .0210619    -0.50   0.619    -.0531328    .0320027
 ------------------------------------------------------------------------------
 Confidence interval for formula:
 F5D.ln_mw+F4D.ln_mw+F3D.ln_mw+F2D.ln_mw+F1D.ln_mw+D1.ln_mw
@@ -2288,7 +2399,7 @@ F5D.ln_mw+F4D.ln_mw+F3D.ln_mw+F2D.ln_mw+F1D.ln_mw+D1.ln_mw
 D.           |
 ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |   .0167726   .0211133     0.79   0.432     -.025899    .0594441
+         (1) |   .0153762   .0211916     0.73   0.472    -.0274535     .058206
 ------------------------------------------------------------------------------
 Confidence interval for formula:
 F5D.ln_mw+F4D.ln_mw+F3D.ln_mw+F2D.ln_mw+F1D.ln_mw+D1.ln_mw+LD.ln_mw
@@ -2297,7 +2408,7 @@ F5D.ln_mw+F4D.ln_mw+F3D.ln_mw+F2D.ln_mw+F1D.ln_mw+D1.ln_mw+LD.ln_mw
 D.           |
 ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |   .0303531   .0226043     1.34   0.187    -.0153319     .076038
+         (1) |   .0299335   .0225297     1.33   0.192    -.0156008    .0754678
 ------------------------------------------------------------------------------
 Confidence interval for formula:
 F5D.ln_mw+F4D.ln_mw+F3D.ln_mw+F2D.ln_mw+F1D.ln_mw+D1.ln_mw+LD.ln_mw+L2D.ln_mw
@@ -2306,7 +2417,7 @@ F5D.ln_mw+F4D.ln_mw+F3D.ln_mw+F2D.ln_mw+F1D.ln_mw+D1.ln_mw+LD.ln_mw+L2D.ln_mw
 D.           |
 ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |   .0233299   .0287011     0.81   0.421    -.0346771    .0813369
+         (1) |   .0235446   .0283113     0.83   0.411    -.0336747    .0807639
 ------------------------------------------------------------------------------
 Confidence interval for formula:
 F5D.ln_mw+F4D.ln_mw+F3D.ln_mw+F2D.ln_mw+F1D.ln_mw+D1.ln_mw+LD.ln_mw+L2D.ln_mw+L
@@ -2316,7 +2427,7 @@ F5D.ln_mw+F4D.ln_mw+F3D.ln_mw+F2D.ln_mw+F1D.ln_mw+D1.ln_mw+LD.ln_mw+L2D.ln_mw+L
 D.           |
 ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |   .0269561   .0304571     0.89   0.381       -.0346    .0885123
+         (1) |   .0274947   .0298741     0.92   0.363     -.032883    .0878725
 ------------------------------------------------------------------------------
 Confidence interval for formula:
 F5D.ln_mw+F4D.ln_mw+F3D.ln_mw+F2D.ln_mw+F1D.ln_mw+D1.ln_mw+LD.ln_mw+L2D.ln_mw+L
@@ -2326,7 +2437,7 @@ F5D.ln_mw+F4D.ln_mw+F3D.ln_mw+F2D.ln_mw+F1D.ln_mw+D1.ln_mw+LD.ln_mw+L2D.ln_mw+L
 D.           |
 ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |   .0377488   .0326681     1.16   0.255     -.028276    .1037735
+         (1) |   .0371206   .0322044     1.15   0.256    -.0279669     .102208
 ------------------------------------------------------------------------------
 Confidence interval for formula:
 F5D.ln_mw+F4D.ln_mw+F3D.ln_mw+F2D.ln_mw+F1D.ln_mw+D1.ln_mw+LD.ln_mw+L2D.ln_mw+L
@@ -2336,7 +2447,7 @@ F5D.ln_mw+F4D.ln_mw+F3D.ln_mw+F2D.ln_mw+F1D.ln_mw+D1.ln_mw+LD.ln_mw+L2D.ln_mw+L
 D.           |
 ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |   .0463697   .0329062     1.41   0.167    -.0201362    .1128756
+         (1) |   .0469791   .0322914     1.45   0.154    -.0182842    .1122424
 ------------------------------------------------------------------------------
 (156,589 observations deleted)
 (note: file ../temp/cumsum_coeffs_full.dta not found)
@@ -2348,7 +2459,7 @@ D1.ln_mw
 D.           |
 ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |    .026255   .0129005     2.04   0.048     .0001821    .0523278
+         (1) |   .0260073   .0124548     2.09   0.043     .0008353    .0511792
 ------------------------------------------------------------------------------
 Confidence interval for formula:
 D1.ln_mw+LD.ln_mw
@@ -2357,7 +2468,7 @@ D1.ln_mw+LD.ln_mw
 D.           |
 ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |   .0422103    .016636     2.54   0.015     .0085877     .075833
+         (1) |   .0433222   .0160937     2.69   0.010     .0107958    .0758487
 ------------------------------------------------------------------------------
 Confidence interval for formula:
 D1.ln_mw+LD.ln_mw+L2D.ln_mw
@@ -2366,7 +2477,7 @@ D1.ln_mw+LD.ln_mw+L2D.ln_mw
 D.           |
 ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |   .0357295   .0268873     1.33   0.191    -.0186118    .0900709
+         (1) |   .0371505    .026346     1.41   0.166    -.0160967    .0903977
 ------------------------------------------------------------------------------
 Confidence interval for formula:
 D1.ln_mw+LD.ln_mw+L2D.ln_mw+L3D.ln_mw
@@ -2375,7 +2486,7 @@ D1.ln_mw+LD.ln_mw+L2D.ln_mw+L3D.ln_mw
 D.           |
 ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |   .0391075    .032332     1.21   0.234    -.0262378    .1044529
+         (1) |   .0411325   .0316989     1.30   0.202    -.0229333    .1051984
 ------------------------------------------------------------------------------
 Confidence interval for formula:
 D1.ln_mw+LD.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw
@@ -2384,7 +2495,7 @@ D1.ln_mw+LD.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw
 D.           |
 ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |    .049739   .0346227     1.44   0.159     -.020236     .119714
+         (1) |   .0503774   .0340582     1.48   0.147    -.0184569    .1192117
 ------------------------------------------------------------------------------
 Confidence interval for formula:
 D1.ln_mw+LD.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw+L5D.ln_mw
@@ -2393,7 +2504,7 @@ D1.ln_mw+LD.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw+L5D.ln_mw
 D.           |
 ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |   .0559579   .0351085     1.59   0.119     -.014999    .1269148
+         (1) |    .059398   .0342699     1.73   0.091     -.009864      .12866
 ------------------------------------------------------------------------------
 (156,589 observations deleted)
 (note: file ../temp/cumsum_coeffs_lags.dta not found)
@@ -2406,7 +2517,7 @@ file ../temp/cumsum_coeffs_lags.dta saved
 D.           |
 ln_med_ren~c |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-       _nl_1 |   .0580381    .024441     2.37   0.018     .0101346    .1059417
+       _nl_1 |   .0600426   .0236818     2.54   0.011      .013627    .1064581
 ------------------------------------------------------------------------------
 (156,589 observations deleted)
 
@@ -2856,13 +2967,15 @@ Notes:
   3. 
 .         use "`instub'/fd_rent_panel.dta", clear
   4. 
-.         local demovars       "med_hhinc20105 unemp_share20105 college_share20
-> 105 black_share2010 teen_share2010"
-  5.         local demovars_extra "teen_share2010 work_county_share20105 rentho
+.         local tablevars      "med_hhinc20105 college_share20105 black_share20
+> 10 walall_29y_lowinc_ssh halall_29y_lowinc_ssh"
+  5.         local demovars       "med_hhinc20105 unemp_share20105 college_shar
+> e20105 black_share2010 teen_share2010"
+  6.         local demovars_extra "teen_share2010 work_county_share20105 rentho
 > use_share2010"
-  6.         local workvars       "walall_29y_lowinc_ssh halall_29y_lowinc_ssh 
+  7.         local workvars       "walall_29y_lowinc_ssh halall_29y_lowinc_ssh 
 > walall_29y_lowinc_zsh halall_29y_lowinc_zsh"
-  7.         
+  8.         
 .         * Heterogeneity plot - demographics and workers' type
 .         /* foreach var in `demovars' `workvars' `demovars_extra'{
 > 
@@ -2876,13 +2989,13 @@ Notes:
 >         } */
 . 
 .         *Table - demographics 
-.         make_table_titles, hetlist(`demovars')
-  8.         local het_titles "`r(title_list)'"
-  9. 
-.         make_dd_static_heterogeneity, depvar(ln_med_rent_psqft_sfcc) ///
->                 absorb(year_month zipcode) cluster(statefips) hetlist(`demova
-> rs')
+.         make_table_titles, hetlist(`tablevars')
+  9.         local het_titles "`r(title_list)'"
  10. 
+.         make_dd_static_heterogeneity, depvar(ln_med_rent_psqft_sfcc) ///
+>                 absorb(year_month zipcode) cluster(statefips) hetlist(`tablev
+> ars')
+ 11. 
 .         esttab * using "`outstub'/fd_table_het.tex", compress se replace     
 >    ///
 >                 keep(*.qtl*) mtitles(`het_titles') substitute(\_ _)  ///
@@ -2892,13 +3005,13 @@ Notes:
 >                                    4.qtl#c.d_ln_mw "Fourth quartile") /// 
 >                 stats(N, fmt(%9.0gc) labels("Observations")) star(* 0.10 ** 0
 > .05 *** 0.01) nonote
- 11. 
+ 12. 
 .         *table - workers' type 
 .         make_table_titles, hetlist(`workvars')
- 12.         local het_titles "`r(title_list)'"
- 13.         make_dd_static_heterogeneity, depvar(ln_med_rent_psqft_sfcc) absor
+ 13.         local het_titles "`r(title_list)'"
+ 14.         make_dd_static_heterogeneity, depvar(ln_med_rent_psqft_sfcc) absor
 > b(year_month zipcode) cluster(statefips) hetlist(`workvars')
- 14.         esttab * using "`outstub'/fd_table_workers.tex", compress se repla
+ 15.         esttab * using "`outstub'/fd_table_workers.tex", compress se repla
 > ce    ///
 >                 keep(*.qtl*) mtitles(`het_titles') substitute(\_ _)  ///
 >                 coeflabels(1.qtl#c.d_ln_mw "First quartile" ///
@@ -2907,7 +3020,7 @@ Notes:
 >                                    4.qtl#c.d_ln_mw "Fourth quartile") /// 
 >                 stats(N, fmt(%9.0gc) labels("Observations")) star(* 0.10 ** 0
 > .05 *** 0.01)  nonote
- 15. end
+ 16. end
 
 . 
 . program plot_static_heterogeneity
@@ -3084,51 +3197,52 @@ Notes:
 .         local title_list "" 
   3.         foreach var in `hetlist' {
   4.                 if "`var'" == "med_hhinc20105" {
-  5.                         local title_list `"`title_list' "Median Income""'
+  5.                         local title_list `"`title_list' "\shortstack{Media
+> n \\ income}""'
   6.                 }
   7.                 if "`var'" == "renthouse_share2010" {
-  8.                         local title_list `"`title_list' "Rental House (\%)
-> ""'
+  8.                         local title_list `"`title_list' "\shortstack{Rent 
+> \\ house (\%)}""'
   9.                 }
  10.                 if "`var'" == "college_share20105" {
- 11.                         local title_list `"`title_list' "College Grad. (\%
-> )""'
+ 11.                         local title_list `"`title_list' "\shortstack{Colle
+> ge \\ grad. (\%)}""'
  12.                 }
  13.                 if "`var'" == "black_share2010" {
- 14.                         local title_list `"`title_list' "African-Am. (\%)"
-> "'
+ 14.                         local title_list `"`title_list' "\shortstack{Afric
+> an- \\ am. (\%)}""'
  15.                 }
  16.                 if "`var'" == "nonwhite_share2010" {
- 17.                         local title_list `"`title_list' "Non-white pop. (\
-> %)""'
+ 17.                         local title_list `"`title_list' "\shortstack{Non-w
+> hite \\ pop. (\%)}""'
  18.                 }
  19.                 if "`var'" == "work_county_share20105" {
- 20.                         local title_list `"`title_list' "Work in county (\
-> %)""'
+ 20.                         local title_list `"`title_list' "\shortstack{Work 
+> in \\ county (\%)}""'
  21.                 }
  22.                 if "`var'" == "unemp_share20105" {
- 23.                         local title_list `"`title_list' "Unemp. rate (\%)"
-> "'
+ 23.                         local title_list `"`title_list' "\shortstack{Unemp
+> . \\ rate (\%)}""'
  24.                 }
  25.                 if "`var'" == "teen_share2010" {
- 26.                         local title_list `"`title_list' "15-24 Years old (
-> \%)""'
+ 26.                         local title_list `"`title_list' "\shortstack{15-24
+>  years \\ old (\%)}""'
  27.                 }
  28.                 if "`var'" == "walall_njob_29young_ssh" {
  29.                         local title_list `"`title_list' "\shortstack{Young
->  worker,  \\ workplace}""'            
+>  worker, \\ workplace}""'             
  30.                 }
  31.                 if "`var'" == "halall_njob_29young_ssh" {
  32.                         local title_list `"`title_list' "\shortstack{Young
->  worker,  \\ residence}""'            
+>  worker, \\ residence}""'             
  33.                 }
  34.                 if "`var'" == "walall_29y_lowinc_ssh" {
  35.                         local title_list `"`title_list' "\shortstack{Young
->  low-income worker,  \\ workplace}""'         
+>  low-income \\ worker, workplace}""'          
  36.                 }
  37.                 if "`var'" == "halall_29y_lowinc_ssh" {
  38.                         local title_list `"`title_list' "\shortstack{Young
->  low-income worker,  \\ residence}""'         
+>  low-income \\ worker, residence}""'          
  39.                 }
  40.         }
  41. 
@@ -3201,65 +3315,6 @@ Absorbed degrees of freedom:
 (MWFE estimator converged in 5 iterations)
 
 HDFE Linear regression                            Number of obs   =    107,814
-Absorbing 2 HDFE groups                           F(  13,     40) =       3.25
-Statistics robust to heteroskedasticity           Prob > F        =     0.0020
-                                                  R-squared       =     0.0243
-                                                  Adj R-squared   =     0.0127
-                                                  Within R-sq.    =     0.0002
-Number of clusters (statefips) =         41       Root MSE        =     0.0281
-
-                             (Std. Err. adjusted for 41 clusters in statefips)
-------------------------------------------------------------------------------
-D.           |               Robust
-ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-         qtl#|
-   c.d_ln_mw |
-          1  |   .0036807   .0096736     0.38   0.706    -.0158703    .0232317
-          2  |   .0346514    .022596     1.53   0.133    -.0110168    .0803196
-          3  |   .0255234   .0246641     1.03   0.307    -.0243245    .0753713
-          4  |   .0433137    .017467     2.48   0.017     .0080115    .0786159
-             |
-ln_emp_biz~v |
-         D1. |   .0032246   .0045349     0.71   0.481    -.0059407    .0123899
-             |
- ln_emp_info |
-         D1. |   .0008166   .0044527     0.18   0.855    -.0081825    .0098158
-             |
-  ln_emp_fin |
-         D1. |   .0109829   .0059757     1.84   0.074    -.0010945    .0230603
-             |
-ln_estcou~rv |
-         D1. |   .0145089   .0138889     1.04   0.302    -.0135616    .0425795
-             |
-ln_estcoun~o |
-         D1. |   .0034384    .005322     0.65   0.522    -.0073178    .0141945
-             |
-ln_estcoun~n |
-         D1. |  -.0042471   .0086753    -0.49   0.627    -.0217806    .0132863
-             |
-ln_avgwwa~rv |
-         D1. |   .0027568   .0024924     1.11   0.275    -.0022804     .007794
-             |
-ln_avgwwag~o |
-         D1. |   .0011421   .0017975     0.64   0.529    -.0024908     .004775
-             |
-ln_avgwwag~n |
-         D1. |  -.0019584   .0012679    -1.54   0.130    -.0045209     .000604
-------------------------------------------------------------------------------
-
-Absorbed degrees of freedom:
------------------------------------------------------+
- Absorbed FE | Categories  - Redundant  = Num. Coefs |
--------------+---------------------------------------|
-  year_month |       115           0         115     |
-     zipcode |      1140        1140           0    *|
------------------------------------------------------+
-* = FE nested within cluster; treated as redundant for DoF computation
-(est2 stored)
-(MWFE estimator converged in 5 iterations)
-
-HDFE Linear regression                            Number of obs   =    107,814
 Absorbing 2 HDFE groups                           F(  13,     40) =       2.72
 Statistics robust to heteroskedasticity           Prob > F        =     0.0077
                                                   R-squared       =     0.0243
@@ -3315,7 +3370,7 @@ Absorbed degrees of freedom:
      zipcode |      1140        1140           0    *|
 -----------------------------------------------------+
 * = FE nested within cluster; treated as redundant for DoF computation
-(est3 stored)
+(est2 stored)
 (MWFE estimator converged in 5 iterations)
 
 HDFE Linear regression                            Number of obs   =    107,814
@@ -3374,55 +3429,55 @@ Absorbed degrees of freedom:
      zipcode |      1140        1140           0    *|
 -----------------------------------------------------+
 * = FE nested within cluster; treated as redundant for DoF computation
-(est4 stored)
+(est3 stored)
 (MWFE estimator converged in 5 iterations)
 
-HDFE Linear regression                            Number of obs   =    107,814
-Absorbing 2 HDFE groups                           F(  13,     40) =       3.20
-Statistics robust to heteroskedasticity           Prob > F        =     0.0023
-                                                  R-squared       =     0.0243
-                                                  Adj R-squared   =     0.0127
+HDFE Linear regression                            Number of obs   =    107,601
+Absorbing 2 HDFE groups                           F(  13,     38) =       3.48
+Statistics robust to heteroskedasticity           Prob > F        =     0.0013
+                                                  R-squared       =     0.0241
+                                                  Adj R-squared   =     0.0125
                                                   Within R-sq.    =     0.0002
-Number of clusters (statefips) =         41       Root MSE        =     0.0281
+Number of clusters (statefips) =         39       Root MSE        =     0.0281
 
-                             (Std. Err. adjusted for 41 clusters in statefips)
+                             (Std. Err. adjusted for 39 clusters in statefips)
 ------------------------------------------------------------------------------
 D.           |               Robust
 ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
          qtl#|
    c.d_ln_mw |
-          1  |   .0196279    .013911     1.41   0.166    -.0084872     .047743
-          2  |   .0187628    .015537     1.21   0.234    -.0126387    .0501643
-          3  |   .0211858   .0149159     1.42   0.163    -.0089603    .0513318
-          4  |   .0413395   .0143698     2.88   0.006     .0122972    .0703819
+          1  |   .0214231   .0131272     1.63   0.111    -.0051516    .0479979
+          2  |   .0340557   .0194309     1.75   0.088    -.0052801    .0733914
+          3  |   .0196489   .0186332     1.05   0.298    -.0180721    .0573698
+          4  |   .0248099   .0330415     0.75   0.457    -.0420791    .0916988
              |
 ln_emp_biz~v |
-         D1. |   .0032308   .0045151     0.72   0.478    -.0058945    .0123562
+         D1. |   .0030218   .0045159     0.67   0.507    -.0061201    .0121637
              |
  ln_emp_info |
-         D1. |   .0008333   .0044497     0.19   0.852    -.0081599    .0098264
+         D1. |   .0009709   .0044111     0.22   0.827    -.0079588    .0099007
              |
   ln_emp_fin |
-         D1. |   .0107187   .0059891     1.79   0.081    -.0013856    .0228231
+         D1. |   .0109334   .0060003     1.82   0.076    -.0012136    .0230803
              |
 ln_estcou~rv |
-         D1. |   .0145704   .0138542     1.05   0.299    -.0134299    .0425707
+         D1. |   .0141374   .0138693     1.02   0.314    -.0139397    .0422144
              |
 ln_estcoun~o |
-         D1. |   .0034446   .0052865     0.65   0.518    -.0072398     .014129
+         D1. |   .0037132   .0053399     0.70   0.491     -.007097    .0145233
              |
 ln_estcoun~n |
-         D1. |  -.0044155   .0086232    -0.51   0.611    -.0218435    .0130126
+         D1. |  -.0044866   .0087336    -0.51   0.610    -.0221669    .0131936
              |
 ln_avgwwa~rv |
-         D1. |   .0027504   .0024982     1.10   0.278    -.0022987    .0077994
+         D1. |   .0026665   .0024942     1.07   0.292    -.0023827    .0077157
              |
 ln_avgwwag~o |
-         D1. |   .0011502   .0017963     0.64   0.526    -.0024803    .0047807
+         D1. |   .0010957   .0017989     0.61   0.546     -.002546    .0047374
              |
 ln_avgwwag~n |
-         D1. |  -.0019928   .0012743    -1.56   0.126    -.0045683    .0005826
+         D1. |  -.0019519   .0012666    -1.54   0.132     -.004516    .0006122
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
@@ -3430,7 +3485,66 @@ Absorbed degrees of freedom:
  Absorbed FE | Categories  - Redundant  = Num. Coefs |
 -------------+---------------------------------------|
   year_month |       115           0         115     |
-     zipcode |      1140        1140           0    *|
+     zipcode |      1137        1137           0    *|
+-----------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+(est4 stored)
+(MWFE estimator converged in 5 iterations)
+
+HDFE Linear regression                            Number of obs   =    107,740
+Absorbing 2 HDFE groups                           F(  13,     39) =       4.82
+Statistics robust to heteroskedasticity           Prob > F        =     0.0001
+                                                  R-squared       =     0.0242
+                                                  Adj R-squared   =     0.0126
+                                                  Within R-sq.    =     0.0003
+Number of clusters (statefips) =         40       Root MSE        =     0.0281
+
+                             (Std. Err. adjusted for 40 clusters in statefips)
+------------------------------------------------------------------------------
+D.           |               Robust
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         qtl#|
+   c.d_ln_mw |
+          1  |   -.003122   .0097598    -0.32   0.751     -.022863     .016619
+          2  |    .030414   .0128158     2.37   0.023     .0044917    .0563363
+          3  |   .0498625   .0200196     2.49   0.017     .0093691     .090356
+          4  |   .0267992   .0197335     1.36   0.182    -.0131155     .066714
+             |
+ln_emp_biz~v |
+         D1. |   .0031423   .0045241     0.69   0.491    -.0060087    .0122932
+             |
+ ln_emp_info |
+         D1. |   .0010135   .0043946     0.23   0.819    -.0078754    .0099024
+             |
+  ln_emp_fin |
+         D1. |    .011316   .0059433     1.90   0.064    -.0007055    .0233374
+             |
+ln_estcou~rv |
+         D1. |   .0140057   .0138741     1.01   0.319    -.0140573    .0420688
+             |
+ln_estcoun~o |
+         D1. |   .0036845   .0053213     0.69   0.493    -.0070788    .0144478
+             |
+ln_estcoun~n |
+         D1. |  -.0042574   .0086625    -0.49   0.626    -.0217789    .0132641
+             |
+ln_avgwwa~rv |
+         D1. |    .002646   .0024901     1.06   0.294    -.0023906    .0076826
+             |
+ln_avgwwag~o |
+         D1. |   .0010637   .0017942     0.59   0.557    -.0025654    .0046928
+             |
+ln_avgwwag~n |
+         D1. |  -.0019499   .0012826    -1.52   0.137    -.0045442    .0006445
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       115           0         115     |
+     zipcode |      1139        1139           0    *|
 -----------------------------------------------------+
 * = FE nested within cluster; treated as redundant for DoF computation
 (est5 stored)
@@ -4332,4 +4446,4 @@ ln_med_ren~c |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
 . 
 end of do-file
 
- make.py ended: 2020-12-04 19:17:57
+ make.py ended: 2020-12-06 20:25:34

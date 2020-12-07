@@ -24,8 +24,8 @@ program main
 		fmt(%s1 %s7 %s7 %s7 %s7 %s1 %s3 %s3 %s3 %9.0gc) ///
 		labels("\vspace{-2mm}" "Cumulative effect" " " "Long-run effect" " " "\hline" ///
 			"Wage controls" "Employment controls" "Establishment-count controls"  ///
-			"Observations (dynamic models)")) ///
-		mtitles("Baseline" "Reweighted" "Unbalanced")  ///
+			"Observations (static model)")) ///
+		mtitles("Baseline" "Reweighted" "Unbalanced") ///
 		star(* 0.10 ** 0.05 *** 0.01) nonote
 end 
 

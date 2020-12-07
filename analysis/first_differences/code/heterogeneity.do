@@ -10,6 +10,7 @@ program main
 
 	use "`instub'/fd_rent_panel.dta", clear
 
+	local tablevars      "med_hhinc20105 college_share20105 black_share2010 walall_29y_lowinc_ssh halall_29y_lowinc_ssh"
 	local demovars       "med_hhinc20105 unemp_share20105 college_share20105 black_share2010 teen_share2010"
 	local demovars_extra "teen_share2010 work_county_share20105 renthouse_share2010"
 	local workvars       "walall_29y_lowinc_ssh halall_29y_lowinc_ssh walall_29y_lowinc_zsh halall_29y_lowinc_zsh"
@@ -25,11 +26,11 @@ program main
 	} */
 
 	*Table - demographics 
-	make_table_titles, hetlist(`demovars')
+	make_table_titles, hetlist(`tablevars')
 	local het_titles "`r(title_list)'"
 
 	make_dd_static_heterogeneity, depvar(ln_med_rent_psqft_sfcc) ///
-		absorb(year_month zipcode) cluster(statefips) hetlist(`demovars')
+		absorb(year_month zipcode) cluster(statefips) hetlist(`tablevars')
 
 	esttab * using "`outstub'/fd_table_het.tex", compress se replace 	///
 		keep(*.qtl*) mtitles(`het_titles') substitute(\_ _)  ///
@@ -192,40 +193,40 @@ program make_table_titles, rclass
 	local title_list "" 
 	foreach var in `hetlist' {
 		if "`var'" == "med_hhinc20105" {
-			local title_list `"`title_list' "Median Income""'
+			local title_list `"`title_list' "\shortstack{Median \\ income}""'
 		}
 		if "`var'" == "renthouse_share2010" {
-			local title_list `"`title_list' "Rental House (\%)""'
+			local title_list `"`title_list' "\shortstack{Rent \\ house (\%)}""'
 		}
 		if "`var'" == "college_share20105" {
-			local title_list `"`title_list' "College Grad. (\%)""'
+			local title_list `"`title_list' "\shortstack{College \\ grad. (\%)}""'
 		}
 		if "`var'" == "black_share2010" {
-			local title_list `"`title_list' "African-Am. (\%)""'
+			local title_list `"`title_list' "\shortstack{African- \\ am. (\%)}""'
 		}
 		if "`var'" == "nonwhite_share2010" {
-			local title_list `"`title_list' "Non-white pop. (\%)""'
+			local title_list `"`title_list' "\shortstack{Non-white \\ pop. (\%)}""'
 		}
 		if "`var'" == "work_county_share20105" {
-			local title_list `"`title_list' "Work in county (\%)""'
+			local title_list `"`title_list' "\shortstack{Work in \\ county (\%)}""'
 		}
 		if "`var'" == "unemp_share20105" {
-			local title_list `"`title_list' "Unemp. rate (\%)""'
+			local title_list `"`title_list' "\shortstack{Unemp. \\ rate (\%)}""'
 		}
 		if "`var'" == "teen_share2010" {
-			local title_list `"`title_list' "15-24 Years old (\%)""'
+			local title_list `"`title_list' "\shortstack{15-24 years \\ old (\%)}""'
 		}
 		if "`var'" == "walall_njob_29young_ssh" {
-			local title_list `"`title_list' "\shortstack{Young worker,  \\ workplace}""'		
+			local title_list `"`title_list' "\shortstack{Young worker, \\ workplace}""'		
 		}
 		if "`var'" == "halall_njob_29young_ssh" {
-			local title_list `"`title_list' "\shortstack{Young worker,  \\ residence}""'		
+			local title_list `"`title_list' "\shortstack{Young worker, \\ residence}""'		
 		}
 		if "`var'" == "walall_29y_lowinc_ssh" {
-			local title_list `"`title_list' "\shortstack{Young low-income worker,  \\ workplace}""'		
+			local title_list `"`title_list' "\shortstack{Young low-income \\ worker, workplace}""'		
 		}
 		if "`var'" == "halall_29y_lowinc_ssh" {
-			local title_list `"`title_list' "\shortstack{Young low-income worker,  \\ residence}""'		
+			local title_list `"`title_list' "\shortstack{Young low-income \\ worker, residence}""'		
 		}
 	}
 

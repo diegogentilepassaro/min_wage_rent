@@ -151,10 +151,10 @@ program build_coeff_plot_comp
 
 		twoway (scatter b_full at_base, mcol(navy)) (rcap b_full_lb b_full_ub at_base, lcol(navy) lw(thin)) ///
 			   (scatter b_wgt at_full, mcol(maroon)) (rcap b_wgt_lb b_wgt_ub at_full, col(maroon) lw(thin)) ///
-			   (line cumsum_base_b at_base, col(navy)) ///
-			   		(line cumsum_base_lb at_base, col(navy) lw(thin) lp(dash)) (line cumsum_base_ub at_base, col(navy) lw(thin) lp(dash)) ///
-   			   (line cumsum_wgt_b at_full, col(maroon)) ///
-				  	(line cumsum_wgt_lb at_full, col(maroon) lw(thin) lp(dash)) (line cumsum_wgt_ub at_full, col(maroon) lw(thin) lp(dash)), ///
+			   (line cumsum_base_b at, col(navy)) ///
+			   		(line cumsum_base_lb at, col(navy) lw(thin) lp(dash)) (line cumsum_base_ub at, col(navy) lw(thin) lp(dash)) ///
+   			   (line cumsum_wgt_b at, col(maroon)) ///
+				  	(line cumsum_wgt_lb at, col(maroon) lw(thin) lp(dash)) (line cumsum_wgt_ub at, col(maroon) lw(thin) lp(dash)), ///
 			   yline(0, lcol(black)) ///
 			   xlabel(`xlab', labsize(small)) xtitle("") ///
 			   ylabel(-0.06(0.02).14, grid labsize(small)) ytitle("Coefficient") ///
