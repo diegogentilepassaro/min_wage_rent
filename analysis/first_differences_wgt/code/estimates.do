@@ -136,10 +136,13 @@ program compute_cumsum, rclass
 	mat V = e(V)
 	local b_digits = round(b[1,1], 0.0001)
 	local se_digits = round(V[1,1]^.5, 0.0001)
-	if abs(b[1,1]/(V[1,1]^.5)) > 1.96 {
+	if abs(b[1,1]/(V[1,1]^.5)) > 2.576 {
+		local star = "\sym{***}"
+	}
+	else if abs(b[1,1]/(V[1,1]^.5)) > 1.96 {
 		local star = "\sym{**}"
 	}
-	else if abs(b[1,1]/(V[1,1]^.5)) > 1.65 {
+	else if abs(b[1,1]/(V[1,1]^.5)) > 1.645 {
 		local star = "\sym{*}"
 	}
 	else {
@@ -161,10 +164,13 @@ program compute_longrun, rclass
 	mat V = r(V)
 	local b_digits = round(b[1,1], 0.0001)
 	local se_digits = round(V[1,1]^.5, 0.0001)
-	if abs(b[1,1]/(V[1,1]^.5)) > 1.96 {
+	if abs(b[1,1]/(V[1,1]^.5)) > 2.576 {
+		local star = "\sym{***}"
+	}
+	else if abs(b[1,1]/(V[1,1]^.5)) > 1.96 {
 		local star = "\sym{**}"
 	}
-	else if abs(b[1,1]/(V[1,1]^.5)) > 1.65 {
+	else if abs(b[1,1]/(V[1,1]^.5)) > 1.645 {
 		local star = "\sym{*}"
 	}
 	else {
