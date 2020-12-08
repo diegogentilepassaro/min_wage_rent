@@ -18,10 +18,10 @@ program main
 		cluster(statefips)
 	esttab using "`outstub'/expmw_static_results.tex", replace compress se substitute(\_ _) ///
 		keep(D.ln_mw D.ln_expmw) b(%9.4f) se(%9.4f) ///
-		coeflabels(D.ln_mw "$\Delta \ln \underline{w}_{itc}$" D.ln_expmw "$\Delta \ln \underline{w}_{itc}^{\text{exp}}$") ///
+		coeflabels(D.ln_mw "$\Delta \ln \underline{w}_{ict}$" D.ln_expmw "$\Delta \ln \underline{w}_{ict}^{\text{exp}}$") ///
 		stats(space ctrl_wage ctrl_emp ctrl_estab r2 N, fmt(%s1 %s3 %s3 %s3 %9.3f %9.0gc) ///
 		labels("\vspace{-2mm}" "Wage controls" "Employment controls" "Establishment-count controls" "R-squared" "Observations")) ///
-		mgroups("$\Delta \ln \underline{w}_{itc}^{\text{exp}}$" "$\Delta \ln y_{itc}$", ///
+		mgroups("$\Delta \ln \underline{w}_{ict}^{\text{exp}}$" "$\Delta \ln y_{ict}$", ///
 			pattern(1 1 0 0) prefix(\multicolumn{@span}{c}{) suffix(}) span erepeat(\cmidrule(lr){@span})) ///
 		nomtitles star(* 0.10 ** 0.05 *** 0.01) nonote
 
