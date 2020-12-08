@@ -222,7 +222,7 @@ program plot_residuals
 				xtitle("Number of events") ytitle("Std. Dev. residuals experienced MW") ///
 				graphregion(color(white)) bgcolor(white) legend(off)
 			graph export "../output/resid_expmw_`event_type'_event.png", replace
-			graph export "../output/resid_expmw_`event_type'_event.eps", replace
+			graph export "../output/resid_expmw_`event_type'_event.pdf", replace
 		}
 	restore
 end
