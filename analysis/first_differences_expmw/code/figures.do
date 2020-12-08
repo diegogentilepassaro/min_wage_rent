@@ -214,7 +214,14 @@ program plot_residuals
 	predict resid_expmw, resid
 
 	preserve
-		collapse (sd) resid_expmw (sum) *_event, by(zipcode)
+		collapse (sd) resid_expmw (sum) *_event (last) actual_mw, by(zipcode)
+
+		twoway (scatter resid_expmw actual_mw, mcol(maroon%50)) ///
+			   	(lfit resid_expmw actual_mw, lcol(black) lp(dash)), ///
+			xtitle("MW as of December 2019") ytitle("Std. Dev. residuals experienced MW") ///
+			graphregion(color(white)) bgcolor(white) legend(off)
+		graph export "../output/resid_expmw_lastmw.png", replace
+		graph export "../output/resid_expmw_lastmw.pdf", replace
 
 		foreach event_type in mw state local {
 			twoway (scatter resid_expmw `event_type'_event, mcol(maroon%50)) ///
