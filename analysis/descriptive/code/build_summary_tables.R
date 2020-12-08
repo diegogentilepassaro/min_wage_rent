@@ -82,7 +82,7 @@ main <- function() {
                                    year_month = as.factor(year_month)))
   
   var_labels = c("Statutory MW", paste("Experienced MW", c("(total jobs)", "(low inc.)", "(young)")),
-                 paste0("Median rent psqft.", c(" 2BR", " MFR5plus", "SFCC")), "Median rent SFCC",
+                 paste0("Median rent psqft.", c(" 2BR", " MFR5plus", " SFCC")), "Median rent SFCC",
                  paste0(c("Avg. wage", "Employment", "Estab. count"), " Fin. activities"),
                  paste0(c("Avg. wage", "Employment", "Estab. count"), " Prof. and bus. serv."),
                  paste0(c("Avg. wage", "Employment", "Estab. count"), " Information"))
