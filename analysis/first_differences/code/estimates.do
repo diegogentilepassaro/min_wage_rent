@@ -75,20 +75,43 @@ program run_static_model
 end 
 
 program run_static_model_trend
-	syntax, depvar(str) absorb(str) cluster(str)
+	syntax, depvar(str) absorb(str) cluster(str) [control(str)]
+
+	define_controls
+	local emp_ctrls "`r(emp_ctrls)'"
+	local estcount_ctrls "`r(estcount_ctrls)'"
+	local avgwwage_ctrls "`r(avgwwage_ctrls)'"
+	local controls `"`emp_ctrls' `estcount_ctrls' `avgwwage_ctrls'"'
 
 	eststo clear
 	eststo: reghdfe D.`depvar' D.ln_mw, ///
 		vce(cluster `cluster') nocons absorb(`absorb') 
-	comment_table, trend_lin("No") trend_sq("No")
+	comment_table, trend_lin("No") trend_sq("No") econ_con("No")
 
 	eststo: reghdfe D.`depvar' D.ln_mw,	///
 		vce(cluster `cluster') nocons absorb(`absorb' i.zipcode) 
-	comment_table, trend_lin("Yes") trend_sq("No")
+	comment_table, trend_lin("Yes") trend_sq("No") econ_con("No")
 
 	eststo: reghdfe D.`depvar' D.ln_mw, ///
 		vce(cluster `cluster') nocons absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) 
-	comment_table, trend_lin("Yes") trend_sq("Yes")
+	comment_table, trend_lin("Yes") trend_sq("Yes") econ_con("No")
+
+	if "`control'"=="yes" {
+		eststo: reghdfe D.`depvar' D.ln_mw D.(`controls'), ///
+			vce(cluster `cluster') nocons absorb(`absorb') 
+		comment_table, trend_lin("No") trend_sq("No") econ_con("Yes")
+
+		eststo: reghdfe D.`depvar' D.ln_mw D.(`controls'),	///
+			vce(cluster `cluster') nocons absorb(`absorb' i.zipcode) 
+		comment_table, trend_lin("Yes") trend_sq("No") econ_con("Yes")
+
+		eststo: reghdfe D.`depvar' D.ln_mw D.(`controls'), ///
+			vce(cluster `cluster') nocons absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) 
+		comment_table, trend_lin("Yes") trend_sq("Yes") econ_con("Yes")
+	}
+
+
+
 end
 
 program run_dynamic_model
@@ -191,10 +214,11 @@ program add_cumsum
 end
 
 program comment_table
-	syntax, trend_lin(str) trend_sq(str)
+	syntax, trend_lin(str) trend_sq(str) econ_con(str)
 
 	estadd local zs_trend 		"`trend_lin'"
 	estadd local zs_trend_sq 	"`trend_sq'"
+	estadd local econ_con       "`econ_con'"
 end
 
 
