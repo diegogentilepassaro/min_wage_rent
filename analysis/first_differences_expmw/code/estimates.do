@@ -19,9 +19,10 @@ program main
 	esttab using "`outstub'/expmw_static_results.tex", replace compress se substitute(\_ _) ///
 		keep(D.ln_mw D.ln_expmw) b(%9.4f) se(%9.4f) ///
 		coeflabels(D.ln_mw "$\Delta \ln \underline{w}_{itc}$" D.ln_expmw "$\Delta \ln \underline{w}_{itc}^{\text{exp}}$") ///
-		stats(space r2 N, fmt(%s1 %9.3f %9.0gc) ///
-		labels("\vspace{-2mm}" "R-squared" "Observations")) ///
-		mgroups("$\Delta \ln \underline{w}_{itc}^{\text{exp}}$" "$\Delta \ln y_{itc}$", pattern(1 1 0 0) prefix(\multicolumn{@span}{c}{) suffix(}) span erepeat(\cmidrule(lr){@span})) ///
+		stats(space ctrl_wage ctrl_emp ctrl_estab r2 N, fmt(%s1 %s3 %s3 %s3 %9.3f %9.0gc) ///
+		labels("\vspace{-2mm}" "Wage controls" "Employment controls" "Establishment-count controls" "R-squared" "Observations")) ///
+		mgroups("$\Delta \ln \underline{w}_{itc}^{\text{exp}}$" "$\Delta \ln y_{itc}$", ///
+			pattern(1 1 0 0) prefix(\multicolumn{@span}{c}{) suffix(}) span erepeat(\cmidrule(lr){@span})) ///
 		nomtitles star(* 0.10 ** 0.05 *** 0.01) nonote
 
 
@@ -51,12 +52,16 @@ program run_models
 		absorb(`absorb') vce(cluster `cluster') nocons
 	comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing("No")
 
+	estadd local space ""
+
 	*baseline
 
 	eststo: reghdfe D.`depvar' D.ln_mw D.(`controls'), ///
 		absorb(`absorb') vce(cluster `cluster') nocons
 	comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing("No")
 	
+	estadd local space ""
+
 	*experienced
 
 	eststo: reghdfe D.`depvar' D.ln_expmw D.(`controls'), ///
