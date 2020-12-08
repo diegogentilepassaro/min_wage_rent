@@ -16,12 +16,13 @@ program main
 
 	run_models, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
 		cluster(statefips)
-	esttab using "`outstub'/static_dynamic_comptable_test.tex", replace compress se substitute(\_ _) ///
-		keep(D.ln_mw D.ln_expmw) b(%9.4f) se(%9.4f) coeflabels(D.ln_mw "Statutory MW" D.ln_expmw "Experienced MW") ///
+	esttab using "`outstub'/expmw_static_results.tex", replace compress se substitute(\_ _) ///
+		keep(D.ln_mw D.ln_expmw) b(%9.4f) se(%9.4f) ///
+		coeflabels(D.ln_mw "$\Delta \ln \underline{w}_{itc}$" D.ln_expmw "$\Delta \ln \underline{w}_{itc}^{\text{exp}}$") ///
 		stats(space r2 N, fmt(%s1 %9.3f %9.0gc) ///
 		labels("\vspace{-2mm}" "R-squared" "Observations")) ///
-		nomtitles ///
-		star(* 0.10 ** 0.05 *** 0.01) nonote
+		mgroups("$\Delta \ln \underline{w}_{itc}^{\text{exp}}$" "$\Delta \ln y_{itc}$", pattern(1 0 0 0) prefix(\multicolumn{@span}{c}{) suffix(}) span erepeat(\cmidrule(lr){@span})) ///
+		nomtitles star(* 0.10 ** 0.05 *** 0.01) nonote
 
 
 	/* static_dynamic_comp, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
@@ -35,153 +36,30 @@ program main
 			"R-squared" "Observations")) ///
 	mtitles("Baseline" "Experienced MW")  ///
 	star(* 0.10 ** 0.05 *** 0.01) nonote */
-
-
-
-end 
-
-program other_stuff
-	syntax, depvar(str) absorb(str) cluster(str) [w(int 5) t_plot(real 1.645)]
-
-	eststo clear 
-	define_controls
-
-	local emp_ctrls "`r(emp_ctrls)'"
-	local estcount_ctrls "`r(estcount_ctrls)'"
-	local avgwwage_ctrls "`r(avgwwage_ctrls)'"
-
-	local controls `"`emp_ctrls' `estcount_ctrls' `avgwwage_ctrls'"'
-
-	local lincomest_coeffs "D1.ln_mw + LD.ln_mw"
-	local pretrend_test "(F1D.ln_mw = 0)"
-	local lincomest_coeffs_exp "D1.ln_expmw + LD.ln_expmw"
-	local pretrend_test_exp "(F1D.ln_expmw = 0)"
-	forvalues i = 2(1)`w'{
-		local lincomest_coeffs "`lincomest_coeffs' + L`i'D.ln_mw"
-	    local pretrend_test " `pretrend_test' (F`i'D.ln_mw = 0)"
-		local lincomest_coeffs_exp "`lincomest_coeffs_exp' + L`i'D.ln_expmw"
-	    local pretrend_test_exp " `pretrend_test_exp' (F`i'D.ln_expmw = 0)"
-
-	}
-
-	*baseline 
-
-	eststo: qui reghdfe D.`depvar' D.ln_mw D.(`controls'), ///
-		absorb(`absorb') vce(cluster `cluster') nocons
-	comment_table_treatindicator, treat_dir("No") treat_ind("No")
-	estadd local space ""
-	estadd local cumsum_b "`cumsum_b'"
-	estadd local cumsum_V "`cumsum_V'" 
-
-	*experienced 
-	qui reghdfe D.`depvar' L(0/`w').D.ln_expmw D.(`controls'), absorb(`absorb') vce(cluster `cluster') nocons	
-
-	add_cumsum, coefficients(`lincomest_coeffs_exp') i(1)
-
-	local cumsum_b "`r(cumsum_b)'"
-	local cumsum_V "`r(cumsum_V)'"
-
-	/* reghdfe D.`depvar' c.Dln_exp_mw_totjob##i.ziptreated_ind D.(`controls'), ///
-		absorb(`absorb') vce(cluster `cluster') nocons */
-
-	eststo: qui reghdfe D.`depvar' D.ln_expmw D.(`controls'), ///
-		absorb(`absorb') vce(cluster `cluster') nocons
-	comment_table_treatindicator, treat_dir("No") treat_ind("No")
-	estadd local space ""
-	estadd local cumsum_b "`cumsum_b'"
-	estadd local cumsum_V "`cumsum_V'"
-
-	*experienced with direct treated indicator
-	qui reghdfe D.`depvar' L(0/`w').D.ln_expmw L(0/`w').i.treat_dir D.(`controls'), absorb(`absorb') vce(cluster `cluster') nocons	
-
-	add_cumsum, coefficients(`lincomest_coeffs_exp') i(1)
-
-	local cumsum_b "`r(cumsum_b)'"
-	local cumsum_V "`r(cumsum_V)'"
-
-	/* reghdfe D.`depvar' c.Dln_exp_mw_totjob##i.ziptreated_ind D.(`controls'), ///
-		absorb(`absorb') vce(cluster `cluster') nocons */
-
-	eststo: qui reghdfe D.`depvar' D.ln_expmw i.treat_dir D.(`controls'), ///
-		absorb(`absorb') vce(cluster `cluster') nocons
-	comment_table_treatindicator, treat_dir("Yes") treat_ind("No")
-	estadd local space ""
-	estadd local cumsum_b "`cumsum_b'"
-	estadd local cumsum_V "`cumsum_V'"	
-
-	*experienced with indirect treated indicator
-	qui reghdfe D.`depvar' L(0/`w').D.ln_expmw L(0/`w').i.treat_ind D.(`controls'), absorb(`absorb') vce(cluster `cluster') nocons	
-
-	add_cumsum, coefficients(`lincomest_coeffs_exp') i(1)
-
-	local cumsum_b "`r(cumsum_b)'"
-	local cumsum_V "`r(cumsum_V)'"
-
-	/* reghdfe D.`depvar' c.Dln_exp_mw_totjob##i.ziptreated_ind D.(`controls'), ///
-		absorb(`absorb') vce(cluster `cluster') nocons */
-
-	eststo: qui reghdfe D.`depvar' D.ln_expmw i.treat_ind D.(`controls'), ///
-		absorb(`absorb') vce(cluster `cluster') nocons
-	comment_table_treatindicator, treat_dir("No") treat_ind("Yes")
-	estadd local space ""
-	estadd local cumsum_b "`cumsum_b'"
-	estadd local cumsum_V "`cumsum_V'"	
-
 end 
 
 program run_models 
 	syntax, depvar(str) absorb(str) cluster(str) [w(int 5)]
 
-	eststo clear 
+	eststo clear
+
 	define_controls
+	local controls "`r(economic_controls)'"
 
-	local emp_ctrls "`r(emp_ctrls)'"
-	local estcount_ctrls "`r(estcount_ctrls)'"
-	local avgwwage_ctrls "`r(avgwwage_ctrls)'"
-
-	local controls `"`emp_ctrls' `estcount_ctrls' `avgwwage_ctrls'"'
-
-	local lincomest_coeffs "D1.ln_mw + LD.ln_mw"
-	local pretrend_test "(F1D.ln_mw = 0)"
-	local lincomest_coeffs_exp "D1.ln_expmw + LD.ln_expmw"
-	local pretrend_test_exp "(F1D.ln_expmw = 0)"
-	forvalues i = 2(1)`w'{
-		local lincomest_coeffs "`lincomest_coeffs' + L`i'D.ln_mw"
-	    local pretrend_test " `pretrend_test' (F`i'D.ln_mw = 0)"
-		local lincomest_coeffs_exp "`lincomest_coeffs_exp' + L`i'D.ln_expmw"
-	    local pretrend_test_exp " `pretrend_test_exp' (F`i'D.ln_expmw = 0)"
-
-	}
-
-	/* reghdfe D.`depvar' L(0/`w').D.ln_mw D.(`controls'), ///
-		absorb(`absorb') vce(cluster `cluster') nocons	
-	compute_cumsum, coefficients(`lincomest_coeffs')
-
-	local cumsum_b "`r(cumsum_b)'"
-	local cumsum_V "`r(cumsum_V)'"
-
-	ivreghdfe D.`depvar' L(0/`w').D.ln_mw (L.D.`depvar' = L2.D.`depvar') D.(`controls'), ///
-		absorb(`absorb') cluster(`cluster') nocons
-	compute_longrun, depvar(`depvar')
-
-	local longrun_b "`r(longrun_b)'"
-	local longrun_V "`r(longrun_V)'" */
+	* exp_mw vs actual_mw
+	eststo: reghdfe D.ln_expmw D.ln_mw D.(`controls') if !missing(D.ln_med_rent_psqft_sfcc), ///
+		absorb(`absorb') vce(cluster `cluster') nocons
+	comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing("No")
 
 	*baseline
 
-	eststo: qui reghdfe D.`depvar' D.ln_mw D.(`controls'), ///
+	eststo: reghdfe D.`depvar' D.ln_mw D.(`controls'), ///
 		absorb(`absorb') vce(cluster `cluster') nocons
 	comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing("No")
 	
-	/* estadd local space ""
-	estadd local cumsum_b "`cumsum_b'"
-	estadd local cumsum_V "`cumsum_V'"
-	estadd local longrun_b "`longrun_b'"
-	estadd local longrun_V "`longrun_V'" */
-
 	*experienced
 
-	eststo: qui reghdfe D.`depvar' D.ln_expmw D.(`controls'), ///
+	eststo: reghdfe D.`depvar' D.ln_expmw D.(`controls'), ///
 		absorb(`absorb') vce(cluster `cluster') nocons
 	comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing("No")
 
@@ -197,6 +75,38 @@ program run_models
 	comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing("No")
 
 	estadd local space ""
+
+	
+	/* 	local lincomest_coeffs "D1.ln_mw + LD.ln_mw"
+	local pretrend_test "(F1D.ln_mw = 0)"
+	local lincomest_coeffs_exp "D1.ln_expmw + LD.ln_expmw"
+	local pretrend_test_exp "(F1D.ln_expmw = 0)"
+	forvalues i = 2(1)`w'{
+		local lincomest_coeffs "`lincomest_coeffs' + L`i'D.ln_mw"
+	    local pretrend_test " `pretrend_test' (F`i'D.ln_mw = 0)"
+		local lincomest_coeffs_exp "`lincomest_coeffs_exp' + L`i'D.ln_expmw"
+	    local pretrend_test_exp " `pretrend_test_exp' (F`i'D.ln_expmw = 0)"
+
+	}
+	reghdfe D.`depvar' L(0/`w').D.ln_mw D.(`controls'), ///
+		absorb(`absorb') vce(cluster `cluster') nocons	
+	compute_cumsum, coefficients(`lincomest_coeffs')
+
+	local cumsum_b "`r(cumsum_b)'"
+	local cumsum_V "`r(cumsum_V)'"
+
+	ivreghdfe D.`depvar' L(0/`w').D.ln_mw (L.D.`depvar' = L2.D.`depvar') D.(`controls'), ///
+		absorb(`absorb') cluster(`cluster') nocons
+	compute_longrun, depvar(`depvar')
+
+	local longrun_b "`r(longrun_b)'"
+	local longrun_V "`r(longrun_V)'" */
+	
+	/* estadd local space ""
+	estadd local cumsum_b "`cumsum_b'"
+	estadd local cumsum_V "`cumsum_V'"
+	estadd local longrun_b "`longrun_b'"
+	estadd local longrun_V "`longrun_V'" */
 end 
 
 

@@ -50,7 +50,8 @@ program static_dynamic_comp
 	}
 
 	*baseline 
-	reghdfe D.`depvar' L(0/`w').D.ln_mw D.(`controls'), absorb(`absorb') vce(cluster `cluster') nocons	
+	reghdfe D.`depvar' L(0/`w').D.ln_mw D.(`controls'), ///
+		absorb(`absorb') vce(cluster `cluster') nocons	
 	compute_cumsum, coefficients(`lincomest_coeffs')
 
 	local cumsum_b "`r(cumsum_b)'"
