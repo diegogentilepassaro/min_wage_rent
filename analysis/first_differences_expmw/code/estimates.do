@@ -21,7 +21,7 @@ program main
 		coeflabels(D.ln_mw "$\Delta \ln \underline{w}_{itc}$" D.ln_expmw "$\Delta \ln \underline{w}_{itc}^{\text{exp}}$") ///
 		stats(space r2 N, fmt(%s1 %9.3f %9.0gc) ///
 		labels("\vspace{-2mm}" "R-squared" "Observations")) ///
-		mgroups("$\Delta \ln \underline{w}_{itc}^{\text{exp}}$" "$\Delta \ln y_{itc}$", pattern(1 0 0 0) prefix(\multicolumn{@span}{c}{) suffix(}) span erepeat(\cmidrule(lr){@span})) ///
+		mgroups("$\Delta \ln \underline{w}_{itc}^{\text{exp}}$" "$\Delta \ln y_{itc}$", pattern(1 1 0 0) prefix(\multicolumn{@span}{c}{) suffix(}) span erepeat(\cmidrule(lr){@span})) ///
 		nomtitles star(* 0.10 ** 0.05 *** 0.01) nonote
 
 
