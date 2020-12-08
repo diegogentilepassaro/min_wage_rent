@@ -14,23 +14,25 @@ program main
 
 	
 
-	//benchmark_plot, depvar(ln_med_rent_psqft) w(5) absorb(year_month) cluster(statefips) outstub(`outstub') 
-	
-	incidence_formula_avg, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_mw) absorb(year_month) cluster(statefips) mww_share_stub(sh_mww) outstub(`outstub')
-	incidence_formula_avg_reg, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_mw) absorb(year_month) cluster(statefips) wagevar(avg_d_ln_mwage) instub_wage(`instub_wage') outstub(`outstub')
-	incidence_formula_avg_reg, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_expmw) absorb(year_month) cluster(statefips) wagevar(avg_d_ln_mwage) instub_wage(`instub_wage') outstub(`outstub')
-	incidence_comparison_dube2019, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_expmw) absorb(year_month) mww_share_stub(sh_mww) cluster(statefips) outstub(`outstub')
-	
-	esttab * using "`outstub'/incidence_table.tex", cells(none) noobs replace substitute(\_ _) ///
-	stats(effect_rent effect_wage avg_ratio, fmt(%9.3f %9.3f %9.3f) ///
-		labels("Effect on Rents" "Effect on Wages" "Pass-Through")) ///
-	mtitles("\shortstack{r}" ///
-		    "\shortstack{QCEW \\ regression}" ///
-		    "\shortstack{QCEW Regression + \\ Experienced MW}" ///
-		    "\shortstack{Dube et al. (2019) + \\ Experienced MW}") ///
+	make_qcew_regression_col, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) cluster(statefips) wagevar(avg_d_ln_mwage) instub_wage(`instub_wage') outstub(`outstub')
+	make_dube_col, depvar(ln_med_rent_psqft_sfcc) treatvar(ln_expmw) absorb(year_month) mww_share_stub(sh_mww) cluster(statefips) outstub(`outstub')
+	esttab * using "`outstub'/incidence_table.tex", cells(none) noobs replace substitute(\_ _) posthead("") ///
+		stats(space space space ///
+			  effect_rent_mw effect_wage_mw avg_ratio_mw ///
+			  space space space     ///
+			  effect_rent_expmw effect_wage_expmw avg_ratio_expmw, ///
+			  fmt(%s1 %s1 %s1 ///
+			  	%9.3f %9.3f %9.3f ///
+				%s1 %s1 %s1 ///
+			  	%9.3f %9.3f %9.3f) ///
+			  labels("\vspace{-2mm}" "\textit{\textbb{Panel A: Statutory MW}}" "\hline" ///
+			  	"Rent Elasticity" "Avg. Wage Elasticity" "Pass-Through" ///
+			  	"\vspace{1mm}" "\textit{\textbb{Panel B: Experienced MW}}" "\hline" ///
+			  	"Rent Elasticity" "Avg. Wage Elasticity" "Pass-Through")) ///
+		mtitles("\shortstack{QCEW \\ regression}" ///
+		    "\shortstack{Dube et \\al. (2019)}") ///
 	star(* 0.10 ** 0.05 *** 0.01)
-	
-
+ 
 	
 
 	****OLD STUFF
@@ -48,21 +50,56 @@ program main
 	} */	
 end 
 
+
+program make_dube_col 
+	syntax, depvar(str) treatvar(str) absorb(str) cluster(str) mww_share_stub(str) outstub(str) [w(int 5) dynamic(str)]
+	
+	*PANEL A: ACTUAL MW 
+	incidence_comparison_dube2019, depvar(ln_med_rent_psqft_sfcc) ///
+	treatvar(ln_mw) absorb(year_month) mww_share_stub(sh_mww) ///
+	cluster(statefips) outstub(`outstub')
+   	
+   	*PANEL B: EXPERIENCED MW 	
+	incidence_comparison_dube2019, depvar(ln_med_rent_psqft_sfcc) ///
+	treatvar(ln_expmw) absorb(year_month) mww_share_stub(sh_mww) ///
+	cluster(statefips) outstub(`outstub')
+
+	estadd local space ""
+
+end
+
+
+program make_qcew_regression_col
+	syntax, depvar(str) absorb(str) cluster(str) wagevar(str) instub_wage(str) outstub(str) [w(int 5) dynamic(str)]	
+
+	*PANEL A: ACTUAL MW 
+	incidence_formula_avg_reg, depvar(`depvar') treatvar(ln_mw) ///
+							   absorb(`absorb') cluster(`cluster') wagevar(`wagevar') ///
+							   instub_wage(`instub_wage') outstub(`outstub')
+	
+   	*PANEL B: EXPERIENCED MW 
+	incidence_formula_avg_reg, depvar(`depvar') treatvar(ln_expmw) ///
+							   absorb(`absorb') cluster(`cluster') wagevar(`wagevar') ///
+							   instub_wage(`instub_wage') outstub(`outstub')
+
+   	estadd local space ""
+end
+
 program incidence_comparison_dube2019
 	syntax, depvar(str) treatvar(str) absorb(str) cluster(str) mww_share_stub(str) outstub(str) [w(int 5) dynamic(str)]
 
-	eststo: qui reghdfe D.`depvar' D.`treatvar', ///
-			absorb(`absorb')        ///
-			vce(cluster `cluster') nocons
-	local r = _b[D.`treatvar']
-	 if "`dynamic'"=="yes" {
-		eststo: qui reghdfe D.`depvar' L(0/`w').D.`treatvar', ///
-			absorb(`absorb') ///
-			vce(cluster `cluster') nocons		
-		qui lincomest D1.`treatvar' + LD.`treatvar' + L2D.`treatvar' + L3D.`treatvar' + L4D.`treatvar' + L5D.`treatvar' 
-		matrix A = e(b)
-		local r = A[1,1]	
+	if "`treatvar'"=="ln_mw" {
+		eststo dube: qui reghdfe D.`depvar' D.`treatvar', ///
+				absorb(`absorb')        ///
+				vce(cluster `cluster') nocons		
 	}
+	else {
+		qui reghdfe D.`depvar' D.`treatvar', ///
+				absorb(`absorb')        ///
+				vce(cluster `cluster') nocons				
+	}
+	local r = _b[D.`treatvar']
+
 	cap g estsample = e(sample)
 	local treatsamp   = subinstr("`treatvar'", "ln_", "", .)
 	local eventsample = "D.`treatsamp'>0 & estsample==1"
@@ -77,9 +114,16 @@ program incidence_comparison_dube2019
 	local effect_wage = ((`Daffected_wages' / `avg_Dmw')*`avg_sh_mww') * 100
 	local avg_ratio = `r' / `effect_wage'
 
-	estadd scalar effect_rent `r'
-	estadd scalar effect_wage `effect_wage'
-	estadd scalar avg_ratio `avg_ratio'
+	if "`treatvar'"=="ln_mw" {
+		estadd scalar effect_rent_mw `r' : dube
+		estadd scalar effect_wage_mw `effect_wage' : dube 
+		estadd scalar avg_ratio_mw `avg_ratio' : dube
+	}
+	else if "`treatvar'"=="ln_expmw" {
+		estadd scalar effect_rent_expmw `r' : dube
+		estadd scalar effect_wage_expmw `effect_wage' : dube
+		estadd scalar avg_ratio_expmw `avg_ratio' : dube
+	}
 end 
 
 program incidence_formula_avg_reg
@@ -90,14 +134,6 @@ program incidence_formula_avg_reg
 			vce(cluster `cluster') nocons
 	local r = _b[D.`treatvar']
 
-	if "`dynamic'"=="yes" {
-		qui reghdfe D.`depvar' L(-2/1).D.`treatvar', ///
-			absorb(`absorb') ///
-			vce(cluster `cluster') nocons		
-		lincomest D1.`treatvar' + LD.`treatvar'  
-		matrix A = e(b)
-		local r = A[1,1]	
-	}
 	preserve
 	keep countyfips 
 	duplicates drop 
@@ -108,29 +144,30 @@ program incidence_formula_avg_reg
 	sort countyfips quarter
 	reghdfe `wagevar' d_`treatvar', absorb(quarter countyfips statefips) nocons
 	local effect_wage = _b[d_`treatvar']
-	if "`dynamic'"=="yes" {
-		qui reghdfe `wagevar' L(-2/1).D.`treatvar', absorb(quarter countyfips statefips) nocons	
-		qui lincomest D1.`treatvar' + LD.`treatvar'
-		matrix A = e(b)
-		local effect_wage = A[1,1]
-	}
 	restore
+
 	local avg_ratio = `r' / `effect_wage'
 
-
-	eststo: qui reghdfe D.`depvar' D.`treatvar', ///
-			absorb(`absorb')        ///
-			vce(cluster `cluster') nocons
-
-	if "`dynamic'"=="yes" {
-		eststo: qui reghdfe D.`depvar' L(-2/1).D.`treatvar', ///
-			absorb(`absorb') ///
-			vce(cluster `cluster') nocons		
+	if "`treatvar'"=="ln_mw" {
+		eststo qcew_reg: qui reghdfe D.`depvar' D.`treatvar', ///
+				absorb(`absorb')        ///
+				vce(cluster `cluster') nocons		
 	}
-
-	estadd scalar effect_rent `r'
-	estadd scalar effect_wage `effect_wage'
-	estadd scalar avg_ratio `avg_ratio'
+	else {
+		qui reghdfe D.`depvar' D.`treatvar', ///
+				absorb(`absorb')        ///
+				vce(cluster `cluster') nocons				
+	}
+	if "`treatvar'"=="ln_mw" {	
+		estadd scalar effect_rent_mw `r' : qcew_reg
+		estadd scalar effect_wage_mw `effect_wage' : qcew_reg
+		estadd scalar avg_ratio_mw `avg_ratio' : qcew_reg
+	}
+	else if "`treatvar'"=="ln_expmw" {
+		estadd scalar effect_rent_expmw `r' : qcew_reg
+		estadd scalar effect_wage_expmw `effect_wage' : qcew_reg
+		estadd scalar avg_ratio_expmw `avg_ratio' : qcew_reg
+	}
 end 
 
 
