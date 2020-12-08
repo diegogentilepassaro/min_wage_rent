@@ -80,8 +80,16 @@ program run_models
 	comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing("No")
 
 	estadd local space ""
-
 	
+	
+	file open myfile using "../output/test_coefficients_static.log", write replace
+	file write myfile "Static model when including both actual and exp MW" _n
+
+	test (D.ln_mw = D.ln_expmw)
+	file write myfile "P-value static coefficients are the same: `r(p)'" _n
+	
+	file close myfile
+
 	/* 	local lincomest_coeffs "D1.ln_mw + LD.ln_mw"
 	local pretrend_test "(F1D.ln_mw = 0)"
 	local lincomest_coeffs_exp "D1.ln_expmw + LD.ln_expmw"
