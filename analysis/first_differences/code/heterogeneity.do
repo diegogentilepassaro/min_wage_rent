@@ -10,8 +10,8 @@ program main
 
 	use "`instub'/fd_rent_panel.dta", clear
 
-	local tablevars      "med_hhinc20105 college_share20105 black_share2010 walall_29y_lowinc_ssh halall_29y_lowinc_ssh"
-	local demovars       "med_hhinc20105 unemp_share20105 college_share20105 black_share2010 teen_share2010"
+	local tablevars      "med_hhinc20105 college_share20105 teen_share2010 black_share2010 walall_29y_lowinc_ssh halall_29y_lowinc_ssh"
+	local demovars       "med_hhinc20105 unemp_share20105 unemp_share20105 college_share20105 black_share2010 teen_share2010"
 	local demovars_extra "teen_share2010 work_county_share20105 renthouse_share2010"
 	local workvars       "walall_29y_lowinc_ssh halall_29y_lowinc_ssh walall_29y_lowinc_zsh halall_29y_lowinc_zsh"
 	
@@ -112,6 +112,9 @@ program build_ytitle, rclass
 	if "`var'" == "worker_foodservice20105" {
 		return local title "Quartiles of 2010 share of food and service industry workers"
 	}
+	if "`var'" == "lo_hhinc_share20105" {
+		return local title "Quartiles of 2010 share of low-income workers (<$45,000/yr)"
+	}	
 	if "`var'" == "sh_mww_wmean2" {
 		return local title "Quartiles of 2010 share of MW workers (ACS)"
 	}
@@ -216,6 +219,9 @@ program make_table_titles, rclass
 		if "`var'" == "teen_share2010" {
 			local title_list `"`title_list' "\shortstack{15-24 years \\ old (\%)}""'
 		}
+		if "`var'" == "lo_hhinc_share20105" {
+			local title_list `"`title_list' "\shortstack{< 45,000USD/yr \\ (\%)}""'
+		}		
 		if "`var'" == "walall_njob_29young_ssh" {
 			local title_list `"`title_list' "\shortstack{Young worker, \\ workplace}""'		
 		}
@@ -223,10 +229,10 @@ program make_table_titles, rclass
 			local title_list `"`title_list' "\shortstack{Young worker, \\ residence}""'		
 		}
 		if "`var'" == "walall_29y_lowinc_ssh" {
-			local title_list `"`title_list' "\shortstack{Young low-income \\ worker, workplace}""'		
+			local title_list `"`title_list' "\shortstack{Young \\ low-income worker,\\ workplace}""'		
 		}
 		if "`var'" == "halall_29y_lowinc_ssh" {
-			local title_list `"`title_list' "\shortstack{Young low-income \\ worker, residence}""'		
+			local title_list `"`title_list' "\shortstack{Young \\ low-income worker,\\ residence}""'		
 		}
 	}
 

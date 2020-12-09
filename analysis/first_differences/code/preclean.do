@@ -12,7 +12,7 @@ program main
 	keep zipcode place_code msa countyfips statefips 								///
 		year_month calendar_month trend trend_sq trend_cu					 		///
 		dactual_mw actual_mw medrentpricepsqft_* 							///
-		med_hhinc20105 renthouse_share2010 white_share2010 black_share2010			///
+		med_hhinc20105 renthouse_share2010 white_share2010 black_share2010 lo_hhinc_share20105		///
 		college_share20105 work_county_share20105 unemp_share20105 teen_share2010   ///
 		estcount_* avgwwage_* emp_* u1*                                             ///
 		walall_29y_lowinc_ssh halall_29y_lowinc_ssh walall_29y_lowinc_zsh halall_29y_lowinc_zsh
@@ -20,7 +20,7 @@ program main
 	
 
 	local het_vars "med_hhinc20105 unemp_share20105 college_share20105 black_share2010"
-	local het_vars "`het_vars' renthouse_share2010 teen_share2010 work_county_share20105"
+	local het_vars "`het_vars' renthouse_share2010 teen_share2010 work_county_share20105 lo_hhinc_share20105"
 	local het_vars "`het_vars' walall_29y_lowinc_ssh halall_29y_lowinc_ssh walall_29y_lowinc_zsh halall_29y_lowinc_zsh" 
  
 
