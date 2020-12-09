@@ -28,7 +28,7 @@ program plot_mw_dist
 	syntax, outstub(str)
 
 	twoway (hist pct_ch_MW if pct_ch_MW>0, color(navy%80) lcolor(white) lw(vthin)), ///
-			xtitle("Minimum wage changes (%)", size(small)) ytitle("Frequency", size(small)) ///
+			xtitle("Minimum wage changes (%)") ytitle("Relative frequency") ///
 			xlabel(, labsize(small)) ylabel(, labsize(small)) ///
 			graphregion(color(white)) bgcolor(white)
 	graph export `outstub'/pct_ch_mw_dist.png, replace 
@@ -36,7 +36,7 @@ program plot_mw_dist
 
 	keep if pct_ch_MW>0
 	twoway (hist year_month, color(navy%80) lcolor(white) lw(vthin)), ///
-			xtitle("Monthly date", size(small)) ytitle("Frequency", size(small)) ///
+			xtitle("Monthly date") ytitle("Relative frequency") ///
 			xlabel(#20, labsize(small) angle(45)) ///
 			graphregion(color(white)) bgcolor(white)
 	graph export `outstub'/pct_ch_mw_date_dist.png, replace 
