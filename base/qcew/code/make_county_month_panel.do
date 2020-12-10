@@ -8,7 +8,7 @@ program main
 
     use `instub'/industry_county_qtr_emp_wage.dta, clear
 
-    select_sectors, ownership(`" "Total Covered" "') industry(`""Total, all industries"')
+    select_sectors, ownership(`" "Total Covered" "') industries("10")
 
     clean_vars
 
