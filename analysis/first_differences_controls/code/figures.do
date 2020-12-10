@@ -15,16 +15,14 @@ program main
 	foreach var in `industries' {
 		plot_dynamic, ind(`var') treatvar(ln_mw) absorb(quarter) cluster(statefips) instub(`instub') outstub(`outstub') w(3)
 	}
-
 end
 
 program plot_dynamic
-	syntax, ind(str) treatvar(str) absorb(str) cluster(str) instub(str) outstub(str) [w(int 5) t_plot(real 1.645) offset(real 0.2)]
+	syntax, ind(str) treatvar(str) absorb(str) cluster(str) instub(str) outstub(str) [w(int 5) t_plot(real 1.645) offset(real 0.25)]
 
 	local depvar_wage "avg_d_ln_wwage_`ind'"
 	reghdfe `depvar_wage' L(-`w'/`w').D.`treatvar', ///
-		absorb(`absorb')        ///
-		vce(cluster `cluster') nocons
+		absorb(`absorb') vce(cluster `cluster') nocons
 
 	preserve
 		coefplot, vertical base gen keep(*.`treatvar')
@@ -60,12 +58,12 @@ program plot_dynamic
 	restore
 
 	preserve
-	use `instub'/qcew_controls_countymonth.dta, clear
-	local mw = `w'*3
-	local depvar_emp "d_ln_emp_`ind'"
-	reghdfe `depvar_emp' L(-`mw'/`mw').D.`treatvar', ///
-		absorb(year_month)        ///
-		vce(cluster `cluster') nocons
+		use `instub'/qcew_controls_countymonth.dta, clear
+		local mw = `w'*3
+		local depvar_emp "d_ln_emp_`ind'"
+		reghdfe `depvar_emp' L(-`mw'/`mw').D.`treatvar', ///
+			absorb(year_month)        ///
+			vce(cluster `cluster') nocons
 
 		coefplot, vertical base gen keep(*.`treatvar')
 		keep __at __b __se

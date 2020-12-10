@@ -19,7 +19,7 @@ from gslab_make.dir_mod import *
 set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
-delete_files('../output/*')
+clear_dirs('../output/')
 
 envir_vars = os.getenv('PATH')
 if envir_vars is None:
@@ -34,12 +34,9 @@ elif "Stata15" in envir_vars:
 
 start_make_logging()
 
-run_stata(program = 'preclean_qcew.do', executable = stata)
-run_stata(program = 'create_county_quarter_panels.do', executable = stata)
-run_stata(program = 'make_mw_qcewcontrol_ctyquarter.do', executable = stata)
+run_stata(program = 'figures.do', executable = stata)
 
 end_make_logging()
 
 shutil.rmtree('gslab_make')
 input('\n Press <Enter> to exit.')
-

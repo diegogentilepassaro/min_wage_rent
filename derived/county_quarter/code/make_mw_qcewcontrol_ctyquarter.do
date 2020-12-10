@@ -6,7 +6,7 @@ program main
 	local instub_mw    "../../../drive/base_large/output"
 	local instub_wages "../../../base/qcew/output"
 	local instub_xwalk "../../../raw/crosswalk"
-	local outstub "../output"
+	local outstub      "../output"
 
 	prepare_aux_data, instub_xwalk(`instub_xwalk') instub_mw(`instub_mw')
 
@@ -27,16 +27,11 @@ program main
 	prepare_panel, sectors(bizserv fin info const eduhe leis manu natres transp tot)
 	
 
-
 	*when checking 7790 notmatched from master zippanel, 95 percents are PO boxes and the remaning 5 looks like universities, very small rural areas. This means we probably can use zcta/zip interchangeably
 	*used this to check zipcode type 
 	*merge m:1 zipcode using ../temp/zip_zcta_xwalk.dta, nogen assert(1 2 3)
 
-
 	save_data `outstub'/qcew_controls_countyquarter_panel.dta, key(countyfips quarter) replace 
-
-	
-
 end 
 
 
@@ -89,16 +84,16 @@ program prepare_panel
 	unab monthvar : emp_* ln_emp_*	
 
 	preserve 
-	xtset countyfips year_month
-	foreach var in ln_mw ln_expmw `monthvar' {
-		bys countyfips (year_month): g d_`var' = D.`var'
-	}
-	g statefips = string(countyfips, "%05.0f")
-	replace statefips = substr(statefips, 1, 2)
-	destring statefips, replace
-	order statefips, after(countyfips)	
-	
-	save ../output/qcew_controls_countymonth.dta, replace 
+		xtset countyfips year_month
+		foreach var in ln_mw ln_expmw `monthvar' {
+			bys countyfips (year_month): g d_`var' = D.`var'
+		}
+		g statefips = string(countyfips, "%05.0f")
+		replace statefips = substr(statefips, 1, 2)
+		destring statefips, replace
+		order statefips, after(countyfips)	
+		
+		save ../output/qcew_controls_countymonth.dta, replace 
 	restore
 
 	gcollapse (first) `quartervar' ///
@@ -149,6 +144,4 @@ program prepare_aux_data
 end
 
 
-
-
-main 
+main
