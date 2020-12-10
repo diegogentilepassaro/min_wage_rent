@@ -1,12 +1,12 @@
 
- make.py started: 2020-11-27 19:15:59 C:\Users\shermo\Documents\GitHub\min_wage_rent\base\lodes\code 
+ make.py started: 2020-12-01 13:01:54 C:\Users\diegog\Desktop\Diego\min_wage_rent\base\lodes\code 
 
 
 
 
 Execute:  R CMD BATCH --no-save "./make_lodes_ziplevel.R" make_lodes_ziplevel.Rout
 
-R version 3.6.3 (2020-02-29) -- "Holding the Windsock"
+R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
 Copyright (C) 2020 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64 (64-bit)
 
@@ -53,11 +53,12 @@ The following objects are masked from 'package:dplyr':
 
 > 
 > options(scipen=999)
-> load_packages(c('tidyverse', 'data.table', 'bit64', 'purrr', 'readxl'))
+> load_packages(c('tidyverse', 'data.table', 'bit64', 
++                 'purrr', 'readxl', 'parallel', 'R.utils'))
 -- Attaching packages --------------------------------------- tidyverse 1.3.0 --
-v ggplot2 3.3.0     v purrr   0.3.4
+v ggplot2 3.3.2     v purrr   0.3.4
 v tibble  3.0.4     v stringr 1.4.0
-v tidyr   1.0.2     v forcats 0.5.0
+v tidyr   1.1.2     v forcats 0.5.0
 v readr   1.4.0     
 -- Conflicts ------------------------------------------ tidyverse_conflicts() --
 x data.table::between() masks dplyr::between()
@@ -67,14 +68,6 @@ x dplyr::lag()          masks stats::lag()
 x data.table::last()    masks dplyr::last()
 x purrr::transpose()    masks data.table::transpose()
 Loading required package: bit
-Attaching package bit
-package:bit (c) 2008-2012 Jens Oehlschlaegel (GPL-2)
-creators: bit bitwhich
-coercion: as.logical as.integer as.bit as.bitwhich which
-operator: ! & | xor != ==
-querying: print length any all min max range sum summary
-bit access: length<- [ [<- [[ [[<-
-for more help type ?bit
 
 Attaching package: 'bit'
 
@@ -87,9 +80,9 @@ The following object is masked from 'package:base':
     xor
 
 Attaching package bit64
-package:bit64 (c) 2011-2012 Jens Oehlschlaegel
-creators: integer64 seq :
-coercion: as.integer64 as.vector as.logical as.integer as.double as.character as.bin
+package:bit64 (c) 2011-2017 Jens Oehlschlaegel
+creators: integer64 runif64 seq :
+coercion: as.integer64 as.vector as.logical as.integer as.double as.character as.bitstring
 logical operator: ! & | xor != == < <= >= >
 arithmetic operator: + - * / %/% %% ^
 math: sign abs sqrt log log2 log10
@@ -106,13 +99,49 @@ for more help type ?bit64
 
 Attaching package: 'bit64'
 
-The following object is masked from 'package:bit':
-
-    still.identical
-
 The following objects are masked from 'package:base':
 
     %in%, :, is.double, match, order, rank
+
+Loading required package: R.oo
+Loading required package: R.methodsS3
+R.methodsS3 v1.8.1 (2020-08-26 16:20:06 UTC) successfully loaded. See ?R.methodsS3 for help.
+R.oo v1.24.0 (2020-08-26 16:11:58 UTC) successfully loaded. See ?R.oo for help.
+
+Attaching package: 'R.oo'
+
+The following object is masked from 'package:R.methodsS3':
+
+    throw
+
+The following object is masked from 'package:bit':
+
+    clone
+
+The following objects are masked from 'package:methods':
+
+    getClasses, getMethods
+
+The following objects are masked from 'package:base':
+
+    attach, detach, load, save
+
+R.utils v2.10.1 (2020-08-26 22:50:31 UTC) successfully loaded. See ?R.utils for help.
+
+Attaching package: 'R.utils'
+
+The following object is masked from 'package:tidyr':
+
+    extract
+
+The following object is masked from 'package:utils':
+
+    timestamp
+
+The following objects are masked from 'package:base':
+
+    cat, commandArgs, getOption, inherits, isOpen, nullfile, parse,
+    warnings
 
 > 
 > main <- function() {
@@ -185,6 +214,7 @@ The following objects are masked from 'package:base':
 > 
 > make_xwalk <- function(instub) {
 +   xwalk_files <- list.files(paste0(instub, 'lodes/'), full.names = T)
++ 
 +   xwalk <- rbindlist(lapply(xwalk_files, function(x) fread(x)))
 +   
 +   setnames(xwalk, old = c('tabblk2010', 'trct'), new = c('blockfips', 'tract_fips'))
@@ -202,7 +232,9 @@ The following objects are masked from 'package:base':
 +   files <- files[!grepl("pr", files)]          # Ignore Puerto Rico
 +   files <- files[!grepl("desktop.ini", files)] # Ignore desktop.ini
 +   
-+   df <- rbindlist(lapply(files, function(x) fread(x)))
++   cores <- 1 ## Parallelization doesn't work in Windows
++   df <- rbindlist(mclapply(files, mc.cores = cores, function(x) fread(x)))
++   
 +   
 +   target_vars <- c('C000', 'CA01', 'CE01', 'CR02', 'CD01', 'CD02')
 +   target_names <- c('tot', 'njob_29young', 'njob_lowinc', 'njob_black', 'njob_nohs', 'njob_hs')
@@ -218,9 +250,12 @@ The following objects are masked from 'package:base':
 +   target_names <- c(target_names[1:(length(target_names)-2)], 'njob_lowedu')
 +   
 +   dftract <- xw[df, on = 'blockfips'][, 'blockfips':= NULL]
-+   dftract <- dftract[, lapply(.SD,sum, na.rm = T),by=c('tract_fips', 'st')]
++   
++   dftract <- dftract[, lapply(.SD, sum, na.rm = T),by=c('tract_fips', 'st')]
++   
 +   
 +   dfzip <- dftract[xw_tractzip, on = 'tract_fips']
++   
 +   dfzip <- dfzip[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), 
 +                   by = c('zipcode', 'st'), .SDcols = target_names]
 +   
@@ -297,12 +332,14 @@ The following objects are masked from 'package:base':
 +   
 +   data[, c('w_sttot', 'h_sttot') := NULL]
 +   
-+   vars <- c('walall_njob_29young_zsh', 
++     vars <- c('walall_njob_29young_zsh', 
 +             'walall_njob_29young_ssh', 
 +             'halall_njob_29young_zsh', 
 +             'halall_njob_29young_ssh', 
-+             'welall_njob_29young_zsh', 
-+             'welall_njob_29young_ssh', 
++             'walall_njob_lowinc_zsh', 
++             'walall_njob_lowinc_ssh', 
++             'halall_njob_lowinc_zsh', 
++             'halall_njob_lowinc_ssh',
 +             'walall_29y_lowinc_zsh', 
 +             'walall_29y_lowinc_ssh', 
 +             'halall_29y_lowinc_zsh', 
@@ -323,12 +360,12 @@ There were 50 or more warnings (use warnings() to see the first 50)
 > 
 > proc.time()
    user  system elapsed 
- 229.54   35.60  447.62 
+ 186.70   26.93  449.39 
 
 
 Execute:  R CMD BATCH --no-save "./make_odmatrix_ziplevel.R" make_odmatrix_ziplevel.Rout
 
-R version 3.6.3 (2020-02-29) -- "Holding the Windsock"
+R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
 Copyright (C) 2020 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64 (64-bit)
 
@@ -377,9 +414,9 @@ The following objects are masked from 'package:dplyr':
 > options(scipen=999)
 > load_packages(c('tidyverse', 'data.table', 'bit64', 'purrr', 'readxl', 'parallel'))
 -- Attaching packages --------------------------------------- tidyverse 1.3.0 --
-v ggplot2 3.3.0     v purrr   0.3.4
+v ggplot2 3.3.2     v purrr   0.3.4
 v tibble  3.0.4     v stringr 1.4.0
-v tidyr   1.0.2     v forcats 0.5.0
+v tidyr   1.1.2     v forcats 0.5.0
 v readr   1.4.0     
 -- Conflicts ------------------------------------------ tidyverse_conflicts() --
 x data.table::between() masks dplyr::between()
@@ -389,14 +426,6 @@ x dplyr::lag()          masks stats::lag()
 x data.table::last()    masks dplyr::last()
 x purrr::transpose()    masks data.table::transpose()
 Loading required package: bit
-Attaching package bit
-package:bit (c) 2008-2012 Jens Oehlschlaegel (GPL-2)
-creators: bit bitwhich
-coercion: as.logical as.integer as.bit as.bitwhich which
-operator: ! & | xor != ==
-querying: print length any all min max range sum summary
-bit access: length<- [ [<- [[ [[<-
-for more help type ?bit
 
 Attaching package: 'bit'
 
@@ -409,9 +438,9 @@ The following object is masked from 'package:base':
     xor
 
 Attaching package bit64
-package:bit64 (c) 2011-2012 Jens Oehlschlaegel
-creators: integer64 seq :
-coercion: as.integer64 as.vector as.logical as.integer as.double as.character as.bin
+package:bit64 (c) 2011-2017 Jens Oehlschlaegel
+creators: integer64 runif64 seq :
+coercion: as.integer64 as.vector as.logical as.integer as.double as.character as.bitstring
 logical operator: ! & | xor != == < <= >= >
 arithmetic operator: + - * / %/% %% ^
 math: sign abs sqrt log log2 log10
@@ -427,10 +456,6 @@ WARNING semantics differ from integer
 for more help type ?bit64
 
 Attaching package: 'bit64'
-
-The following object is masked from 'package:bit':
-
-    still.identical
 
 The following objects are masked from 'package:base':
 
@@ -595,12 +620,12 @@ There were 50 or more warnings (use warnings() to see the first 50)
 > 
 > proc.time()
     user   system  elapsed 
-18129.04  2038.84 10221.43 
+17965.39  2037.23 10470.34 
 
 
 Execute:  R CMD BATCH --no-save "./make_lodes_experienced_ziplevel.R" make_lodes_experienced_ziplevel.Rout
 
-R version 3.6.3 (2020-02-29) -- "Holding the Windsock"
+R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
 Copyright (C) 2020 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64 (64-bit)
 
@@ -647,11 +672,12 @@ The following objects are masked from 'package:dplyr':
 
 > 
 > options(scipen=999)
-> load_packages(c('tidyverse', 'data.table', 'bit64', 'purrr', 'readxl', 'parallel', 'matrixStats', 'usmap'))
+> load_packages(c('tidyverse', 'data.table', 'bit64', 
++                 'purrr', 'readxl', 'parallel', 'matrixStats', 'usmap'))
 -- Attaching packages --------------------------------------- tidyverse 1.3.0 --
-v ggplot2 3.3.0     v purrr   0.3.4
+v ggplot2 3.3.2     v purrr   0.3.4
 v tibble  3.0.4     v stringr 1.4.0
-v tidyr   1.0.2     v forcats 0.5.0
+v tidyr   1.1.2     v forcats 0.5.0
 v readr   1.4.0     
 -- Conflicts ------------------------------------------ tidyverse_conflicts() --
 x data.table::between() masks dplyr::between()
@@ -661,14 +687,6 @@ x dplyr::lag()          masks stats::lag()
 x data.table::last()    masks dplyr::last()
 x purrr::transpose()    masks data.table::transpose()
 Loading required package: bit
-Attaching package bit
-package:bit (c) 2008-2012 Jens Oehlschlaegel (GPL-2)
-creators: bit bitwhich
-coercion: as.logical as.integer as.bit as.bitwhich which
-operator: ! & | xor != ==
-querying: print length any all min max range sum summary
-bit access: length<- [ [<- [[ [[<-
-for more help type ?bit
 
 Attaching package: 'bit'
 
@@ -681,9 +699,9 @@ The following object is masked from 'package:base':
     xor
 
 Attaching package bit64
-package:bit64 (c) 2011-2012 Jens Oehlschlaegel
-creators: integer64 seq :
-coercion: as.integer64 as.vector as.logical as.integer as.double as.character as.bin
+package:bit64 (c) 2011-2017 Jens Oehlschlaegel
+creators: integer64 runif64 seq :
+coercion: as.integer64 as.vector as.logical as.integer as.double as.character as.bitstring
 logical operator: ! & | xor != == < <= >= >
 arithmetic operator: + - * / %/% %% ^
 math: sign abs sqrt log log2 log10
@@ -699,10 +717,6 @@ WARNING semantics differ from integer
 for more help type ?bit64
 
 Attaching package: 'bit64'
-
-The following object is masked from 'package:bit':
-
-    still.identical
 
 The following objects are masked from 'package:base':
 
@@ -897,6 +911,6 @@ There were 50 or more warnings (use warnings() to see the first 50)
 > 
 > proc.time()
    user  system elapsed 
-1999.37  167.23 1899.92 
+2050.56  118.89 2022.59 
 
- make.py ended: 2020-11-27 22:45:31
+ make.py ended: 2020-12-01 16:37:39

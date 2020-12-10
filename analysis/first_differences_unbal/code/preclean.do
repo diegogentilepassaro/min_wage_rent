@@ -8,6 +8,9 @@ program main
 	local outstub "../temp"
 	local logfile "../output/data_file_manifest.log"
 
+	identify_baseline, instub(`instub')
+	local mergevars "`r(mergevars)'"
+
 	use zipcode place_code msa countyfips statefips 								///
 		year_month calendar_month trend trend_sq trend_cu					 		///
 		dactual_mw actual_mw medrentpricepsqft_sfcc							        ///
@@ -15,6 +18,10 @@ program main
 		college_share20105 work_county_share20105 entry*                   ///
 		estcount_* avgwwage_* emp_* u1*                                             ///
 		using `instub'/unbal_rent_panel.dta, clear 
+
+	merge 1:1 `mergevars' using ../temp/baseline_rent_panel.dta, keep(1 3)
+	g basepanel = (_m==3)
+	drop _m
 
 	local het_vars "med_hhinc20105 renthouse_share2010 college_share20105 black_share2010"
 	local het_vars "`het_vars' nonwhite_share2010 work_county_share20105"
@@ -67,6 +74,28 @@ program simplify_varnames
 	cap rename ln_medrentpricepsqft_mfr5plus ln_med_rent_psqft_mfr5plus
 
 end
+
+program identify_baseline, rclass
+	syntax, instub(str)
+	use zipcode place_code msa countyfips statefips 								///
+		year_month calendar_month trend trend_sq trend_cu					 		///
+		dactual_mw actual_mw medrentpricepsqft_sfcc							        ///
+		med_hhinc20105 renthouse_share2010 white_share2010 black_share2010			///
+		college_share20105 work_county_share20105                  ///
+		estcount_* avgwwage_* emp_* u1*                                             ///
+		using `instub'/baseline_rent_panel.dta, clear
+		save "../temp/baseline_rent_panel.dta", replace
+
+		local mergevars "zipcode place_code msa countyfips statefips"
+		local mergevars `"`mergevars' year_month calendar_month trend trend_sq trend_cu"'
+		local mergevars `"`mergevars' dactual_mw actual_mw medrentpricepsqft_sfcc"'
+		local mergevars `"`mergevars' med_hhinc20105 renthouse_share2010 white_share2010 black_share2010"'
+		local mergevars `"`mergevars' college_share20105 work_county_share20105"'
+		unab mergevars2: estcount_* avgwwage_* emp_* u1*
+		local mergevars `"`mergevars' `mergevars2'"'
+
+		return local mergevars `mergevars'
+end 	
 
 
 * Execute 
