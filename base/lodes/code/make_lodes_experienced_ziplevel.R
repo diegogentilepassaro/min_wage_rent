@@ -3,14 +3,18 @@ source("../../../lib/R/load_packages.R")
 source("../../../lib/R/save_data.R")
 
 options(scipen=999)
-load_packages(c('tidyverse', 'data.table', 'bit64', 'purrr', 'readxl', 'parallel', 'matrixStats', 'usmap'))
+load_packages(c('tidyverse', 'data.table', 'bit64', 
+                'purrr', 'readxl', 'parallel', 'matrixStats', 'usmap'))
 
 main <- function(){
   datadir_lodes <- '../../../drive/base_large/output/'
   datadir_mw    <- '../../../base/zillow_min_wage/output/'
   datadir_xwalk <- '../../../raw/crosswalk/'
   outdir        <- '../../../drive/base_large/output/'
+  log_file      <- '../output/data_file_manifest.log'
   
+  cores <- 1 ## Parallelization doesn't work in Windows
+
   mw_data <- load_mw(instub = datadir_mw)
   state_mw <- mw_data[['state_mw']]
   county_mw <- mw_data[['county_mw']]
@@ -31,13 +35,14 @@ main <- function(){
   #compute for, for each state, share of treated and experienced MW
   state_fips <- fips(c(tolower(state.abb), 'dc'))
   
-  exp_mw <- mclapply(state_fips, 
+  exp_mw <- mclapply(state_fips,
                      function(x, p = target_period, zip = zipmw_us) {
                        this_state <- fread(paste0(datadir_lodes, 'odzip_', x, '.csv'))
                        this_state[, c('h_totjob', 'h_job_young', 'h_job_lowinc') := lapply(.SD, sum, na.rm = T) , 
                                   .SDcols = c('totjob', 'job_young', 'job_lowinc'), 
                                   by = 'h_zipcode']
                        setorderv(this_state, cols = c('h_zipcode', 'w_zipcode'))
+
                        #share of treated and experienced MW for every date
                        p <- lapply(p, function(y, this_st = this_state, zip2 = zip) {
                          this_date_mw <- zip2[yearmonth==y,][, 'w_zipcode' := zipcode] #select the given date
@@ -62,18 +67,20 @@ main <- function(){
                                                                 exp_mw_job_lowinc = sum(actual_mw*sh_job_lowinc, na.rm = T)), by = c('h_zipcode', 'yearmonth')]
                          this_state_date <- this_state_date[!is.na(yearmonth),] #remove missings
                          return(this_state_date)
+                         
                        })
                        p <- rbindlist(p)
                        return(p)
-                     }, mc.cores = 8)
+                     }, mc.cores = cores)   # mcapply parallels on Mac. On windows it supports one core only (error otherwise)
+
   exp_mw <- rbindlist(exp_mw)
   setnames(exp_mw, old  = 'h_zipcode', new = 'zipcode')
   setorderv(exp_mw, c('zipcode', 'yearmonth'))
   
-  save_data(exp_mw, key = c('zipcode', 'yearmonth'), filename = paste0(outdir, 'exp_mw.dta'))
-  
+  save_data(exp_mw, key = c('zipcode', 'yearmonth'), 
+            filename = paste0(outdir, 'exp_mw.dta'),
+            logfile  = log_file)
 }
-
 
 
 load_mw <- function(instub) {
@@ -171,5 +178,6 @@ assemble_mw_US <- function(zcounty, zplaces, stmw, ctymw, locmw) {
   dfzip[, zipcode:=as.numeric(zipcode)] 
   return(dfzip)
 }
+
 
 main()

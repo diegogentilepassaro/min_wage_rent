@@ -13,10 +13,12 @@ main <- function() {
    # outdir  <- "../output/"
    outdir <- "../../../drive/base_large/output/"
    tempdir <- "../temp"
+   log_file <- "../output/data_file_manifest.log"
          
    table_list <- list.files(datadir, 
                             pattern = "*.csv")
    
+   table_list <- table_list[table_list != "nhgis0043_ds176_20105_2010_tract.csv"] # We are not using this file
    table_list <- str_remove_all(table_list, paste0("nhgis", data_version, "_"))
    
    table_clean <- lapply(table_list, format_tables, datadir = datadir, data_version = data_version)
@@ -82,7 +84,8 @@ main <- function() {
    
    table_final_zipshare[, (denom_cols):= NULL]
    
-   table_final_med <- table_final[, lapply(.SD, function(x, w) weighted.mean(x,w, na.rm = T), w=rel_wgt), by = target_geo, .SDcols = med_demovars]
+   table_final_med <- table_final[, lapply(.SD, function(x, w) weighted.mean(x,w, na.rm = T), w=rel_wgt), 
+                                 by = target_geo, .SDcols = med_demovars]
    
    table_final_all <- table_final_zipshare[table_final_med, on = 'zipcode']
    
@@ -90,9 +93,9 @@ main <- function() {
    
    table_final_all <- zip_mw[table_final_all, on = 'zipcode']
    
-   save_data(table_final_all,
+   save_data(table_final_all, key = c('zipcode'),
              filename = paste0(outdir, 'zip_demo.csv'),
-             key = c('zipcode'))
+             logfile = log_file)
 }
 
 
@@ -215,8 +218,6 @@ format_tables <- function(x, datadir, data_version) {
 
       data[, c('tot_pinc20105', 'tot_pinc_ft20105') := list(QXGE001, (QXGE003 + QXGE006))]
       
-      
-      
       target_vars <- c('tract_fips', 'county_fips',
                        'workers20105', 'workers_prsal20105',
                        'work_county_share20105', 
@@ -229,9 +230,7 @@ format_tables <- function(x, datadir, data_version) {
                        'employee_share20105', 
                        'work_county_share20105D', 'worktravel_share_20105D', 'college_share20105D', 'poor_share20105D', 'hhinc_share20105D', 'unemp_share20105D', 'employee_share20105D', 
                        'worker_foodservice20105', 'worker_foodservice20105D', 
-                       'tot_pinc20105', 'tot_pinc_ft20105')
-      
-      
+                       'tot_pinc20105', 'tot_pinc_ft20105')      
    } 
    else if (x == 'ds192_20125_2012_tract.csv') {
       
@@ -249,7 +248,8 @@ format_tables <- function(x, datadir, data_version) {
                    REPE033)]
       
       target_vars <- c('tract_fips', 'county_fips', 
-                       'med_earn_healthsup_20105', 'med_earn_protectserv_20105', 'med_earn_foodserv_20105', 'med_earn_cleaning_20105', 'med_earn_perscare_20105', 'med_earn_prodtransp_20105')
+                       paste0('med_earn_', c('healthsup_20105', 'protectserv_20105', 'foodserv_20105', 
+                                             'cleaning_20105', 'perscare_20105', 'prodtransp_20105')))
       
    }
    

@@ -42,8 +42,7 @@ program main
 	save_data "`outstub'/baseline_rent_panel.dta", key(zipcode year_month) 	///
 		log(`logfile') replace
 
-
-	* Baseline listings
+	/* * Baseline listings
 	local listing_vars "medlistingprice_low_tier" 
 	foreach name in _top_tier psqft_sfcc psqft_low_tier psqft_top_tier {
 		local listing_vars "`listing_vars' medlistingprice`name'"
@@ -61,7 +60,7 @@ program main
 	}
 	add_covars, demo(yes) indemo(`temp') qcew(yes) inqcew(`inqcew') bps(yes) inbps(`inbps') lodes(yes) inlodes(`inlodes') 
 	save_data "`outstub'/baseline_listing_panel.dta", key(zipcode year_month) ///
-		log(`logfile') replace
+		log(`logfile') replace */
 
 
 	* Baseline all
@@ -102,9 +101,9 @@ program add_covars
 	
 	gen date = dofm(year_month)
 	format date %d
-		
-	gen year  = year(date)
+
 	gen month = month(date)
+	gen year = year(date)
 
 	drop date
 end 

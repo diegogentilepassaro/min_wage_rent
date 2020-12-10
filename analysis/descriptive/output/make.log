@@ -1,10 +1,10 @@
 
- make.py started: 2020-11-10 16:24:56 /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/analysis/descriptive/code 
+ make.py started: 2020-12-01 14:36:06 /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/analysis/descriptive/code 
 
 
 
 
-Execute:  R CMD BATCH --no-save "./plot_maps.R" plot_maps.Rout
+Execute:  R CMD BATCH --no-save "./build_summary_tables.R" build_summary_tables.Rout
 
 R version 4.0.2 (2020-06-22) -- "Taking Off Again"
 Copyright (C) 2020 The R Foundation for Statistical Computing
@@ -52,828 +52,390 @@ The following objects are masked from ‘package:dplyr’:
     between, first, last
 
 > 
-> load_packages(c('tidyverse', 'DescTools', 'data.table', 'matrixStats', 'knitr', 'tigris', 'sf', 'sfheaders', 'remotes', 'choroplethrZip',
-+                 'kableExtra', 'ggplot2', 'png', 'readxl', 'readstata13', 'unikn', 'RColorBrewer', 'maps', 'stringr', 'tidycensus'))
-── Attaching packages ─────────────────────────────────────── tidyverse 1.3.0 ──
-✔ ggplot2 3.3.2     ✔ purrr   0.3.4
-✔ tibble  3.0.4     ✔ stringr 1.4.0
-✔ tidyr   1.1.2     ✔ forcats 0.5.0
-✔ readr   1.3.1     
-── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
-✖ data.table::between() masks dplyr::between()
-✖ dplyr::filter()       masks stats::filter()
-✖ data.table::first()   masks dplyr::first()
-✖ dplyr::lag()          masks stats::lag()
-✖ data.table::last()    masks dplyr::last()
-✖ purrr::transpose()    masks data.table::transpose()
-
-Attaching package: ‘DescTools’
-
-The following object is masked from ‘package:data.table’:
-
-    %like%
-
-
-Attaching package: ‘matrixStats’
-
-The following object is masked from ‘package:dplyr’:
-
-    count
-
-To enable 
-caching of data, set `options(tigris_use_cache = TRUE)` in your R script or .Rprofile.
-Linking to GEOS 3.8.1, GDAL 3.1.1, PROJ 6.3.1
-
-Attaching package: ‘kableExtra’
-
-The following object is masked from ‘package:dplyr’:
-
-    group_rows
-
-Welcome to unikn (v0.3.0)!
-unikn.guide() opens user guides.
-
-Attaching package: ‘maps’
-
-The following object is masked from ‘package:purrr’:
-
-    map
-
-> 
-> theme_set(theme_minimal())
-> options(scipen=999)
+> load_packages(c('readr', 'readxl', 'haven', 'dplyr', 'stringr', 'stargazer'))
 > 
 > 
-> datadir <- "../../../drive/derived_large/output/"
-> outdir <- "../output/"
-> tempdir <- "../temp/"
-> 
-> options(tigris_class = "sf")
-> 
-> remotes::install_github("jrnold/stataXml") #need this to process stata dates
-Skipping install of 'stataXml' from a github remote, the SHA1 (428c8413) has not changed since last install.
-  Use `force = TRUE` to force installation
-> library('stataXml')
-Loading required package: XML
-Loading required package: svUnit
->   
-> 
-> make_xwalks <- function() {
-+   zip_zcta_xwalk <- setDT(read_excel('../../../raw/crosswalk/zip_to_zcta_2019.xlsx'))
-+   zip_zcta_xwalk <- zip_zcta_xwalk[!str_detect(zip_zcta_xwalk$ZIP_TYPE, "^Post")]
-+   setnames(zip_zcta_xwalk, old = c('ZIP_CODE', 'ZCTA'), new = c('zipcode', 'zcta'))
+> main <- function() {
++   instub_base_l <- "../../../drive/base_large/output"
++   instub_derv_l <- "../../../drive/derived_large/output"
++   instub_cbsa   <- "../../../drive/raw_data/census/cbsa/nhgis0049_csv"
++   instub_xwalk  <- "../../../raw/crosswalk"
++   outstub       <- "../output/"
 +   
-+   zcta_place_xwalk <- fread('../../../raw/crosswalk/zcta_place_xwalk.csv', 
-+                             select = c('zcta5', 'placefp', 'placenm', 'afact'))
-+   setnames(zcta_place_xwalk, old = c('zcta5', 'placefp'), new  = c('zcta', 'place_code'))
-+   zcta_place_xwalk[, 'zcta' := str_pad(zcta, 5, pad = 0)]
-+   zcta_place_xwalk <- zcta_place_xwalk[zcta_place_xwalk[, .I[which.max(afact)], by = 'zcta']$V1]
++   rent_vars <- paste0("medrentpricepsqft", c("_2br", "_mfr5plus", "_sfcc"))
 +   
-+   zcta_msa_xwalk <- fread('../../../raw/crosswalk/zcta_cbsa_xwalk.csv', 
-+                           drop = c('zipname', 'pop10'))
-+   setnames(zcta_msa_xwalk, old = c('zcta5', 'cbsa10', 'cbsaname10'), new = c('zcta', 'msa', 'msaname'))
-+   zcta_msa_xwalk[, 'zcta' := str_pad(zcta, 5, pad = 0)]
-+   zcta_msa_xwalk <- zcta_msa_xwalk[zcta_msa_xwalk[, .I[which.max(afact)], by = 'zcta']$V1]
++   df_zipdemo <- read_csv(file.path(instub_base_l, "zip_demo.csv"))
++     
++   df_cbsa    <- load_top_CBSA(df_zipdemo, instub_cbsa, instub_xwalk)
 +   
-+   zip_county <- setDT(read_excel('../../../raw/crosswalk/ZIP_COUNTY_122019.xlsx', 
-+                                  col_types = c('text', 'text', 'numeric', 'numeric', 'numeric', 'numeric')))
-+   zip_county <- zip_county[, c('ZIP', "COUNTY", 'TOT_RATIO')]
-+   setnames(zip_county, old = c('ZIP', 'COUNTY'), new = c('zipcode', 'county'))
-+   zip_county  <- zip_county[zip_county[, .I[which.max(TOT_RATIO)], by = 'zipcode']$V1]
++   df_rents_panel <- load_rents(df_zipdemo, instub_derv_l, rent_vars)
++   df_rents_all   <- load_rents(df_zipdemo, instub_derv_l, rent_vars, all = T)
 +   
-+   return(list('zip_zcta_xwalk' = zip_zcta_xwalk, 'zcta_place_xwalk' = zcta_place_xwalk, 'zcta_msa_xwalk' = zcta_msa_xwalk, 'zip_county' = zip_county))
++   panel_zipcodes  <- unique(df_rents_panel$zipcode)
++   zillow_zipcodes <- unique(df_rents_all %>% 
++                               filter(!is.na(medrentpricepsqft_sfcc)) %>%
++                               pull(zipcode))
++   
++   # Compare our sample to full US and urban US
++   US_stats   <- build_basic_stats(df_zipdemo)
++   CBSA_stats <- build_basic_stats(df_cbsa)
++   rents_panel_stats <- build_basic_stats(df_zipdemo %>% filter(zipcode %in% panel_zipcodes))
++   rents_all_stats   <- build_basic_stats(df_zipdemo %>% filter(zipcode %in% zillow_zipcodes))
++   
++   stats <- rbind(US_stats, CBSA_stats, rents_all_stats, rents_panel_stats)
++   
++   stats <- add_basic_rents_and_format(stats, df_rents_panel, df_rents_all, rent_vars[3])
++   
++   row_labels <- c("Population (millions) (2010)", "Population as share of U.S.", 
++                   "Housing Units (millions) (2010)", "Housing Units as share of U.S.", 
++                   paste0(c("Urban", "College", "African-American", "Hispanic", "Elder",
++                            "Poor", "Unemployed"), " Share (2010)"),
++                   "Mean HH income (2010)", "Rent House Share (2010)", #"Work in same county share (2010)",
++                   "Unique zipcodes", 
++                   #paste0("Share of ", c("state ", "county ", "local "), "events"), 
++                   "Mean SFCC psqft rent")
++   rownames(stats) <- row_labels
++   
++   tab = capture.output(stargazer(stats, summary = F, digits = 2,
++                                type = "latex", float = F))
++   tab = gsub("ccccc", "lcccc", tab)
++   cat(paste(tab, "\n"), file = file.path(outstub, "stats_sample.tex"))
++   
++   
++   # Short Statistics of estimating panel
++   df_est <- as.data.frame(df_rents_panel %>% 
++                             select(c("zipcode", "year_month", 
++                                      "actual_mw", "exp_mw_totjob",
++                                      "medrentpricepsqft_sfcc", "medrentprice_sfcc",
++                                      paste0(c("avgwwage_", "emp_", "estcount_"), "fin"))) %>%
++                             mutate(zipcode = as.factor(zipcode),
++                                    year_month = as.factor(year_month)))
++   
++   var_labels = c("Statutory MW", "Experienced MW",
++                  "Median rent psqft. SFCC", "Median rent SFCC",
++                  paste0(c("Avg. wage", "Employment", "Estab. count"), " Fin. activities"))
++   
++   stargazer(df_est, digits = 2,
++             omit.summary.stat = c("p25", "p75"), covariate.labels = var_labels,
++             #add.lines = list(c("Unique zipcodes", format(length(panel_zipcodes), big.mark = ","), "", "", "", "")),
++             float = F, out = file.path(outstub, "stats_est_panel.tex"))
++   
++   # Full Statistics of estimating panel
++   df_est <- as.data.frame(df_rents_panel %>% 
++                             select(c("zipcode", "year_month", 
++                                      "actual_mw", "exp_mw_totjob", "exp_mw_job_lowinc", "exp_mw_job_young",
++                                      rent_vars, "medrentprice_sfcc",
++                                      paste0(c("avgwwage_", "emp_", "estcount_"), "fin"),
++                                      paste0(c("avgwwage_", "emp_", "estcount_"), "bizserv"),
++                                      paste0(c("avgwwage_", "emp_", "estcount_"), "info"))) %>%
++                             mutate(zipcode = as.factor(zipcode),
++                                    year_month = as.factor(year_month)))
++   
++   var_labels = c("Statutory MW", paste("Experienced MW", c("(total jobs)", "(low inc.)", "(young)")),
++                  paste0("Median rent psqft.", c(" 2BR", " MFR5plus", "SFCC")), "Median rent SFCC",
++                  paste0(c("Avg. wage", "Employment", "Estab. count"), " Fin. activities"),
++                  paste0(c("Avg. wage", "Employment", "Estab. count"), " Prof. and bus. serv."),
++                  paste0(c("Avg. wage", "Employment", "Estab. count"), " Information"))
++   
++   stargazer(df_est, digits = 2,
++             omit.summary.stat = c("p25", "p75"), covariate.labels = var_labels,
++             #add.lines = list(c("Unique zipcodes", format(length(panel_zipcodes), big.mark = ","), "", "", "", "")),
++             float = F, out = file.path(outstub, "stats_est_panel_full.tex"))
 + }
 > 
-> plot_sample <- function(df_data, 
-+                         zipzcta,
-+                         zctamsa,
-+                         out) {
+> load_top_CBSA <- function(df_zipdemo, instub_cbsa, instub_xwalk, n = 100) {
 +   
-+   #removing alaska and hawaii for visual clarity (we have though 26 zipcodes there)
-+   sample_zip <- df_data[!is.na(medrentpricepsqft_sfcc) & statefips!=15 & statefips!=2, first(.SD), by = zipcode][, .(zipcode)]
-+   sample_zcta <- zipzcta[sample_zip, on = .(zipcode)][, .(zcta)][, value := 1]
-+   setnames(sample_zcta, old = 'zcta', new = 'region')
++   zip_cbsa <- read_excel(file.path(instub_xwalk, "ZIP_CBSA_122019.xlsx"),
++                          col_types = "numeric") %>%
++     rename(zipcode = ZIP, cbsa = CBSA, totratio = TOT_RATIO) %>%
++     select(zipcode, cbsa, totratio)
 +   
-+   data(zip.map)
-+   zcta_map <- sfheaders::sf_multipolygon(zip.map, x = 'long', y = 'lat', multipolygon_id = 'id', polygon_id = 'piece', keep = T)
-+   zcta_sample_map <- inner_join(zcta_map, sample_zcta, on = 'region')
-+   zcta_sample_map <- mutate(zcta_sample_map, fillvar = 2)
-+   st_crs(zcta_sample_map) <-4326
++   df <- left_join(zip_cbsa, df_zipdemo) %>%
++     filter(totratio > 0.5) %>%
++     group_by(cbsa) %>%
++     mutate(pop_cbsa = sum(pop2010)) %>%
++     ungroup()
 +   
-+   msa_map <- left_join(zcta_map, zctamsa, by = c('region' = 'zcta')) %>%
-+     filter(msaname!='99999') %>%
-+     filter(stab!='AK' & stab!='HI') %>%
-+     group_by(msa) %>%
-+     summarise(geometry = st_union(geometry)) %>%
-+     mutate(fillvar = 1)
-+   st_crs(msa_map) <- 4326
++   pop_cbsa <- read_csv(file.path(instub_cbsa, "nhgis0049_ds172_2010_cbsa.csv")) %>%
++     rename(pop_cbsa = H7V001, cbsa = CBSAA) %>%
++     select(pop_cbsa, cbsa) %>% arrange(-pop_cbsa) %>%
++     mutate(topn = ifelse(row_number() <= n, 1, 0))
 +   
-+   us_boundary <- map_data('state')
-+   us_boundary <- sfheaders::sf_multipolygon(map_data('state'), x = 'long', y = 'lat', multipolygon_id = 'group')
-+   st_crs(us_boundary) <-4326
++   df <- left_join(df, pop_cbsa[, c("cbsa", "topn")])
 +   
-+   plot<- ggplot() + 
-+     geom_sf(data = msa_map, color = 'transparent', aes(fill = 'msafill')) +
-+     geom_sf(data = zcta_sample_map, color = 'transparent', aes(fill = 'samplefill')) + 
-+     geom_sf(data = us_boundary, fill= NA, size = 1.5) +
-+     theme_void() + 
-+     theme(aspect.ratio = 0.6) + 
-+     scale_fill_manual(values = c('msafill' = unname(seecol(pal_seeblau, hex = T)[1]),'samplefill' = unname(seecol(pal_petrol, hex = T)[5])), 
-+                        label = c('CBSAs', 'Sample'), 
-+                        name = '', 
-+                        guide = guide_legend(direction = "horizontal",
-+                                             keyheight = unit(4, units = "cm"),
-+                                             keywidth = unit(8, units = "cm"),
-+                                             byrow = T)) + 
-+     theme(legend.position = "bottom", 
-+           plot.title = element_text(size=180),
-+           plot.subtitle = element_text(size = 140), 
-+           legend.text = element_text(size = 80))
-+   return(plot)
++   return(df %>% filter(topn == 1))
 + }
-> plot_demo <- function(target_demo,
-+                       legend_name,
-+                       zctamsa, 
-+                       out) {
-+   census_api_key('6e4bf831630a20872606ce3949acd975473a1d87')
-+   #censusvar <- load_variables(year = 2010, dataset = 'sf1') #to navigate census variables
-+   census_target <- c(pop = 'P001001', urbpop = 'P002002', housing_units = 'H001001', house_urban = 'H002002')
-+   df_census <- get_decennial(geography = 'zcta', year = 2010, state = NULL, geometry = F,
-+                              variables = census_target, output = 'wide') %>%
-+     rename('zcta' = 'GEOID') %>%
-+     select(- 'NAME') %>%
-+     setDT()
+> 
+> load_rents <- function(df_zipdemo, instub, rent_vars, all = F) {
 +   
-+   data(zip.map)
-+   zcta_map <- sfheaders::sf_multipolygon(zip.map, x = 'long', y = 'lat', multipolygon_id = 'id', polygon_id = 'piece', keep = T) %>%
-+     select(- 'id', - 'order', -'group', -'AFFGEOID10', -'ZCTA5CE10', -'GEOID10', -'hole') %>%
-+     rename('zcta' = 'region') %>%
-+     left_join(zctamsa, by = 'zcta') %>%
-+     left_join(df_census, by = 'zcta') %>%
-+     mutate('ALAND10' = ALAND10 * 0.00000038610) %>% #convrt to square miles
-+     mutate(popden      = Winsorize(pop / ALAND10), 
-+            urbpopden   = Winsorize(urbpop / ALAND10), 
-+            houseden    = Winsorize(housing_units / ALAND10), 
-+            urbhouseden = Winsorize(house_urban / ALAND10)) %>%
-+     filter(stab!='AK' & stab!='HI') %>%
-+     filter(msaname != '99999') #keep only zcta in metropolitan areas 
++   if (all) {
++     df_rents <- read_dta(file.path(instub, "zipcode_yearmonth_panel_all.dta")) %>%
++       select(c("zipcode", "year_month", "year", "month", rent_vars, "medrentprice_sfcc",
++                "state_event", "county_event", "local_event"))
++   } else {
++     df_rents <- read_dta(file.path(instub, "baseline_rent_panel.dta"))
++     
++     cpi      <- read_csv(file.path("../../../drive/raw_data/bls", "cpi_bls.csv")) %>%
++       mutate(Period = as.numeric(str_replace(Period, "M", ""))) %>%
++       rename(year = Year, month = Period, cpi = Value) %>%
++       filter(year != 2020) %>% select(year, month, cpi) %>%
++       mutate(cpi = cpi/last(cpi))    # Bring everything to Dec 2019 prices
++     
++     df_rents <- left_join(df_rents, cpi, by = c('year', 'month'))
++     for (var in rent_vars){
++       df_rents[, var] <- df_rents[, var]/df_rents$cpi
++     }
++     df_rents <- df_rents %>% mutate(cpi = NULL)
++   }
 +   
-+   st_crs(zcta_map) <- 4326
-+   us_boundary <- map_data('state')
-+   us_boundary <- sfheaders::sf_multipolygon(map_data('state'), x = 'long', y = 'lat', multipolygon_id = 'group')
-+   st_crs(us_boundary) <-4326
-+   
-+   plot <- ggplot() + 
-+     geom_sf(data = zcta_map, color = 'transparent', aes(fill = get(target_demo))) + 
-+     geom_sf(data = us_boundary, fill= NA, size = 1.5) +
-+     theme_void() + 
-+     theme(aspect.ratio = 0.6) + 
-+     scale_fill_gradient(
-+       low = seecol(pal_seeblau, hex = T)[1], 
-+       high = seecol(pal_petrol, hex = T)[5],
-+       name = legend_name, 
-+       aesthetics = 'fill',
-+       guide = guide_colorbar(direction = "horizontal",
-+                              barheight = unit(2, units = "cm"),
-+                              barwidth = unit(50, units = "cm"),
-+                              draw.ulim = T,
-+                              draw.llim = T,
-+                              title.position = 'top',
-+                              title.hjust = 0.5,
-+                              label.hjust = 0.5), 
-+       na.value = 'gray') + 
-+     theme(legend.position = "bottom", 
-+           legend.title = element_text(size = 80),
-+           legend.text = element_text(size = 80))
-+   return(plot)
++   return(df_rents)
 + }
 > 
 > 
-> 
-> 
-> plot_changes_city <- function(target_var,
-+                               target_msa, 
-+                               mwarea, 
-+                               mwdate, 
-+                               plotname, 
-+                               df_data, 
-+                               nmon,
-+                               zctamsa, 
-+                               zipzcta,
-+                               zctaplace,
-+                               out) {
-+   nmonths <- nmon
-+   nmonths2 <- nmonths + 1 # keep t-1 for computing percentage change
+> build_basic_stats <- function(df) {
 +   
-+   #identify main variable to plot: % change in rents after last MW change
-+   df_target <- df_data[data.table::like(vector = msa, pattern = target_msa), 
-+                        c('zipcode', 'countyfips', 'year_month', 'msa', 'place_code',
-+                          'medrentpricepsqft_sfcc', 'actual_mw', 'dactual_mw', 
-+                          'exp_mw_totjob')]
-+   df_target <- df_target[, Fyear_month := shift(year_month, type = 'lead'), by = zipcode]
-+   df_target <- df_target[Fyear_month >= as.Date(mwdate), ]
-+   df_target <- df_target[df_target[, .I[1:nmonths2], zipcode]$V1]
-+   df_target[, pct_rentch := (get(target_var)[.N] - get(target_var)[1])/get(target_var)[1], by = 'zipcode']
-+   df_target <- df_target[, last(.SD), by = zipcode]
-+   df_target <- df_target[!is.na(pct_rentch),]
-+   df_target[, 'region' := zipcode]
-+   df_target[, pct_rentch := round(Winsorize(pct_rentch)*100, digits = 2)] #winsorize at .05 and .95
++   stats <- df %>%
++     summarise(pop_2010            = sum(pop2010, na.rm = T)/1e6,
++               housing_units_2010  = sum(housing_units2010, na.rm = T)/1e6,
++               urb_share2010       = mean(urb_share2010, na.rm = T),
++               college_share2010   = mean(college_share20105, na.rm = T),
++               poor_share20105     = mean(poor_share20105, na.rm = T),
++               black_share2010     = mean(black_share2010, na.rm = T),
++               hisp_share2010      = mean(hisp_share2010, na.rm = T),
++               elder_share2010     = mean(elder_share2010, na.rm = T),
++               unemp_share20105    = mean(unemp_share20105, na.rm = T),
++               med_hhinc20105      = mean(med_hhinc20105, na.rm = T),
++               renthouse_share2010 = mean(renthouse_share2010, na.rm = T),
++               zip_count           = n_distinct(zipcode))
 +   
-+   data(zip.map)
-+   zcta_map <- sfheaders::sf_multipolygon(zip.map, x = 'long', y = 'lat', multipolygon_id = 'id', polygon_id = 'piece', keep = T)
-+   
-+   zcta_sample_map <- inner_join(zcta_map, df_target, on = 'region')
-+   st_crs(zcta_sample_map) <- 4326
-+   
-+   msa_map <- zctamsa[data.table::like(vector = msaname, pattern = target_msa), ]
-+   msa_map <- inner_join(zcta_map, msa_map, by = c('region' = 'zcta'))
-+   st_crs(msa_map) <-4326
-+   
-+   mw_map <- inner_join(msa_map, zctaplace, by = c('region' = 'zcta'))
-+   mw_map <- mw_map[mw_map$place_code==mwarea,]
-+   mw_map <- st_union(mw_map)
-+   
-+   #define color palette over fixed interval
-+   minVal = min(df_target$pct_rentch, na.rm = T)
-+   maxVal = max(df_target$pct_rentch, na.rm = T)
-+   
-+   plot <- ggplot() + 
-+     geom_sf(data = msa_map, color = 'black', fill = 'transparent', size = 1.5) +  
-+     geom_sf(data = zcta_sample_map, aes(fill=pct_rentch), color="white", size = 1.5) +
-+     #geom_sf(data = mw_map, color = 'darkred', fill = 'transparent', size = 5) +
-+     theme_void() +
-+     theme(panel.grid.major = element_line(colour = 'transparent')) +
-+     scale_fill_gradient(
-+       low = seecol(pal_petrol, hex = T)[1], 
-+       high = seecol(pal_petrol, hex = T)[5],
-+       limits = c(minVal, maxVal),
-+       name = "6-Months Rent Change (%)", 
-+       aesthetics = 'fill',
-+       guide = guide_colorbar(direction = "horizontal",
-+                              barheight = unit(2, units = "cm"),
-+                              barwidth = unit(50, units = "cm"),
-+                              draw.ulim = T,
-+                              draw.llim = T,
-+                              title.position = 'top',
-+                              title.hjust = 0.5,
-+                              label.hjust = 0.5), 
-+       na.value = 'gray') +
-+     labs(title=plotname, subtitle = paste0('MW change date: ', mwdate)) +
-+     theme(legend.position = "bottom",
-+           plot.title = element_text(size=180),
-+           plot.subtitle = element_text(size = 140),
-+           legend.title = element_text(size = 120),
-+           legend.text = element_text(size = 80))
-+ 
-+   return(plot)
++   return(stats)
 + }
 > 
-> plot_mw_changes_city <- function(target_var,
-+                               target_msa, 
-+                               mwarea, 
-+                               mwdate, 
-+                               plotname, 
-+                               df_data, 
-+                               nmon,
-+                               zctamsa, 
-+                               zipzcta,
-+                               zctaplace,
-+                               out) {
-+   nmonths <- nmon
-+   nmonths2 <- nmonths + 1 # keep t-1 for computing percentage change
+> add_basic_rents_and_format <- function(stats, df_rents_panel, df_rents_all, rent_var) {
 +   
-+   #identify main variable to plot: % change in rents after last MW change
-+   df_target <- df_data[data.table::like(vector = msa, pattern = target_msa), 
-+                        c('zipcode', 'countyfips', 'year_month', 'msa', 'place_code',
-+                          'medrentpricepsqft_sfcc', 'actual_mw', 'dactual_mw', 
-+                          'exp_mw_totjob')]
-+   df_target <- df_target[, Fyear_month := shift(year_month, type = 'lead'), by = zipcode]
-+   df_target <- df_target[Fyear_month >= as.Date(mwdate), ]
-+   df_target <- df_target[df_target[, .I[1:nmonths2], zipcode]$V1]
-+   df_target[, pct_mwch := (get(target_var)[.N] - get(target_var)[1])/get(target_var)[1], by = 'zipcode']
-+   df_target <- df_target[, last(.SD), by = zipcode]
-+   df_target <- df_target[!is.na(pct_mwch) & !is.na(medrentpricepsqft_sfcc),]
-+   df_target[, 'region' := zipcode]
-+   df_target[, pct_mwch := round(pct_mwch*100, digits = 2)]  
-+ 
-+   data(zip.map)
-+   zcta_map <- sfheaders::sf_multipolygon(zip.map, x = 'long', y = 'lat', multipolygon_id = 'id', polygon_id = 'piece', keep = T)
++   stats <- stats %>%
++     mutate(sh_pop     = pop_2010/first(pop_2010), 
++            sh_housing = housing_units_2010/first(housing_units_2010))
 +   
-+   zcta_sample_map <- inner_join(zcta_map, df_target, on = 'region')
-+   st_crs(zcta_sample_map) <- 4326
++   # for (type in c("state", "county", "local")) {
++   #   var <- paste0(type, "_event")
++   #   stats[, paste0(var, "_sh")] = c(NA, NA, mean(pull(df_rents_panel, var), na.rm = T), 
++   #                            mean(pull(df_rents_all, var), na.rm = T))
++   # }
 +   
-+   msa_map <- zctamsa[data.table::like(vector = msaname, pattern = target_msa), ]
-+   msa_map <- inner_join(zcta_map, msa_map, by = c('region' = 'zcta'))
-+   st_crs(msa_map) <-4326
++   stats$mean_sfcc_psqft <- c(NA, NA, mean(pull(df_rents_all, rent_var), na.rm = T), 
++                                      mean(pull(df_rents_panel, rent_var), na.rm = T))
++   # stats$non_na_zipcod <- c(NA, NA, 
++   #                          n_distinct(df_rents_all[!is.na(pull(df_rents_all, rent_var)), "zipcode"], na.rm = T), 
++   #                          n_distinct(df_rents_panel[!is.na(pull(df_rents_panel, rent_var)), "zipcode"], na.rm = T))
 +   
-+   mw_map <- inner_join(msa_map, zctaplace, by = c('region' = 'zcta'))
-+   mw_map <- mw_map[mw_map$place_code==mwarea,]
-+   mw_map <- st_union(mw_map)
-+ 
-+   minVal = min(df_target$pct_mwch, na.rm = T)
-+   maxVal = max(df_target$pct_mwch, na.rm = T)
-+ 
-+   plot <- ggplot() + 
-+     geom_sf(data = msa_map, color = 'black', fill = 'transparent', size = 1.5) +  
-+     geom_sf(data = zcta_sample_map, aes(fill=pct_mwch), color="white", size =1.5) +
-+     theme_void() +
-+     theme(panel.grid.major = element_line(colour = 'transparent')) +
-+     scale_fill_gradient(
-+       low = seecol(pal_petrol, hex = T)[1], 
-+       high = seecol(pal_petrol, hex = T)[5],
-+       limits = c(minVal, maxVal),
-+       name = "6-Months Minimum Wage Change (%)", 
-+       aesthetics = 'fill',
-+       guide = guide_colorbar(direction = "horizontal",
-+                              barheight = unit(2, units = "cm"),
-+                              barwidth = unit(70, units = "cm"),
-+                              draw.ulim = T,
-+                              draw.llim = T,
-+                              title.position = 'top',
-+                              title.hjust = 0.5,
-+                              label.hjust = 0.5), 
-+       na.value = 'gray') +
-+     labs(title=plotname, subtitle = paste0('MW change date: ', mwdate)) +
-+     theme(legend.position = "bottom",
-+           plot.title = element_text(size=180),
-+           plot.subtitle = element_text(size = 140),
-+           legend.title = element_text(size = 120),
-+           legend.text = element_text(size = 80))
++   desired_order <- c("pop_2010", "sh_pop", "housing_units_2010", "sh_housing", 
++                      "urb_share2010", "college_share2010", "black_share2010", "hisp_share2010", 
++                      "elder_share2010", "poor_share20105", "unemp_share20105", 
++                      "med_hhinc20105", "renthouse_share2010", #"work_county_share20105",
++                      "zip_count", 
++                      #"state_event_sh", "county_event_sh", "local_event_sh", 
++                      "mean_sfcc_psqft") #, "non_na_zipcod")
 +   
-+   return(plot)
++   stats <- t(stats[, desired_order])
++   colnames(stats) <- c("U.S.", "Top 100 CBSA", "Full Panel", "Est. Panel")
++   
++   return(stats)
 + }
->   
-> df <- read.dta13(paste0(datadir, 'unbal_rent_panel.dta'))
-> df <- setDT(df)
-> df[, countyfips := str_pad(as.character(countyfips), 5, pad = 0)]
-> df[, zipcode := str_pad(as.character(zipcode), 5, pad = 0)]
-> df[, year_month := fromStataTime(year_month, '%tm')]
-> df <- df[, .(year_month, statefips, countyfips, county, place_code, msa, zipcode, 
-+              medrentpricepsqft_sfcc, state_mw, county_mw, local_mw, actual_mw, dactual_mw, mw_event, which_mw, exp_mw_totjob)]
 > 
-> 
-> xwalks <- make_xwalks()
+> main()
+Parsed with column specification:
+cols(
+  .default = col_double()
+)
+See spec(...) for full column specifications.
+Joining, by = "zipcode"
+Parsed with column specification:
+cols(
+  .default = col_logical(),
+  GISJOIN = col_character(),
+  YEAR = col_double(),
+  CBSA = col_character(),
+  CBSAA = col_double(),
+  CSAA = col_double(),
+  NAME = col_character(),
+  H7V001 = col_double()
+)
+See spec(...) for full column specifications.
+Joining, by = "cbsa"
+Parsed with column specification:
+cols(
+  `Series ID` = col_character(),
+  Year = col_double(),
+  Period = col_character(),
+  Label = col_character(),
+  Value = col_double()
+)
+Note: Using an external vector in selections is ambiguous.
+ℹ Use `all_of(rent_vars)` instead of `rent_vars` to silence this message.
+ℹ See <https://tidyselect.r-lib.org/reference/faq-external-vector.html>.
+This message is displayed once per session.
+
+% Table created by stargazer v.5.2.2 by Marek Hlavac, Harvard University. E-mail: hlavac at fas.harvard.edu
+% Date and time: Tue, Dec 01, 2020 - 14:46:56
+\begin{tabular}{@{\extracolsep{5pt}}lccccc} 
+\\[-1.8ex]\hline 
+\hline \\[-1.8ex] 
+Statistic & \multicolumn{1}{c}{N} & \multicolumn{1}{c}{Mean} & \multicolumn{1}{c}{St. Dev.} & \multicolumn{1}{c}{Min} & \multicolumn{1}{c}{Max} \\ 
+\hline \\[-1.8ex] 
+Statutory MW & 156,600 & 8.08 & 1.21 & 7 & 16 \\ 
+Experienced MW & 156,600 & 8.06 & 1.20 & 6.29 & 14.98 \\ 
+Median rent psqft. SFCC & 113,375 & 1.27 & 0.83 & 0.47 & 7.25 \\ 
+Median rent SFCC & 125,644 & 1,651.10 & 702.99 & 595.00 & 6,595.00 \\ 
+Avg. wage Fin. activities & 152,334 & 1,561.71 & 965.21 & 0.00 & 9,547.00 \\ 
+Employment Fin. activities & 152,334 & 59,557.25 & 75,803.56 & 0.00 & 398,481.00 \\ 
+Estab. count Fin. activities & 152,334 & 5,103.54 & 5,200.22 & 31.00 & 30,238.00 \\ 
+\hline \\[-1.8ex] 
+\end{tabular} 
+
+% Table created by stargazer v.5.2.2 by Marek Hlavac, Harvard University. E-mail: hlavac at fas.harvard.edu
+% Date and time: Tue, Dec 01, 2020 - 14:46:57
+\begin{tabular}{@{\extracolsep{5pt}}lccccc} 
+\\[-1.8ex]\hline 
+\hline \\[-1.8ex] 
+Statistic & \multicolumn{1}{c}{N} & \multicolumn{1}{c}{Mean} & \multicolumn{1}{c}{St. Dev.} & \multicolumn{1}{c}{Min} & \multicolumn{1}{c}{Max} \\ 
+\hline \\[-1.8ex] 
+Statutory MW & 156,600 & 8.08 & 1.21 & 7 & 16 \\ 
+Experienced MW (total jobs) & 156,600 & 8.06 & 1.20 & 6.29 & 14.98 \\ 
+Experienced MW (low inc.) & 156,600 & 8.06 & 1.20 & 5.81 & 15.02 \\ 
+Experienced MW (young) & 156,600 & 8.06 & 1.20 & 6.19 & 15.07 \\ 
+Median rent psqft. 2BR & 24,789 & 1.96 & 0.97 & 0.53 & 6.51 \\ 
+Median rent psqft. MFR5plus & 37,588 & 1.96 & 1.05 & 0.55 & 6.69 \\ 
+Median rent psqft.SFCC & 113,375 & 1.27 & 0.83 & 0.47 & 7.25 \\ 
+Median rent SFCC & 125,644 & 1,651.10 & 702.99 & 595.00 & 6,595.00 \\ 
+Avg. wage Fin. activities & 152,334 & 1,561.71 & 965.21 & 0.00 & 9,547.00 \\ 
+Employment Fin. activities & 152,334 & 59,557.25 & 75,803.56 & 0.00 & 398,481.00 \\ 
+Estab. count Fin. activities & 152,334 & 5,103.54 & 5,200.22 & 31.00 & 30,238.00 \\ 
+Avg. wage Prof. and bus. serv. & 152,334 & 1,252.92 & 434.76 & 226.00 & 4,727.00 \\ 
+Employment Prof. and bus. serv. & 152,334 & 134,293.30 & 143,883.80 & 329.00 & 642,234.00 \\ 
+Estab. count Prof. and bus. serv. & 152,334 & 9,998.14 & 9,478.14 & 60.00 & 56,304.00 \\ 
+Avg. wage Information & 152,334 & 1,504.75 & 620.23 & 0.00 & 7,381.00 \\ 
+Employment Information & 152,334 & 21,043.15 & 35,144.92 & 0.00 & 240,358.00 \\ 
+Estab. count Information & 152,334 & 920.67 & 1,382.30 & 4.00 & 13,212.00 \\ 
+\hline \\[-1.8ex] 
+\end{tabular} 
 There were 50 or more warnings (use warnings() to see the first 50)
-> zip_zcta_xwalk <- xwalks[['zip_zcta_xwalk']]
-> zcta_place_xwalk <- xwalks[['zcta_place_xwalk']]
-> zcta_msa_xwalk <- xwalks[['zcta_msa_xwalk']]
-> zip_county <- xwalks[['zip_county']]
-> 
-> 
-> png(filename = paste0(outdir, 'sample_map.png'), width = 7680, height = 5680)
-> plot_sample(df_data = df, zipzcta = zip_zcta_xwalk, out = outdir, zctamsa = zcta_msa_xwalk)
-Joining, by = "region"
-`summarise()` ungrouping output (override with `.groups` argument)
-> dev.off()
-null device 
-          1 
-> 
-> png(filename = paste0(outdir, 'popurban_density_map.png'), width = 7680, height = 5680)
-> plot_demo(out = outdir, zctamsa = zcta_msa_xwalk, target_demo = 'urbpopden', legend_name = 'Urban Population Density (per Sq. Miles)')
-To install your API key for use in future sessions, run this function with `install = TRUE`.
-Getting data from the 2010 decennial Census
-> dev.off()
-null device 
-          1 
-> png(filename = paste0(outdir, 'houseurban_density_map.png'), width = 7680, height = 5680)
-> plot_demo(out = outdir, zctamsa = zcta_msa_xwalk, target_demo = 'urbhouseden', legend_name = 'Urban Housing Density (per Sq. Miles)')
-To install your API key for use in future sessions, run this function with `install = TRUE`.
-Getting data from the 2010 decennial Census
-> dev.off()
-null device 
-          1 
-> 
-> 
-> # L.A. MSA
-> png(filename = paste0(outdir, 'Los_Angeles_msa.png'), width = 7680, height = 7680)
-> plot_changes_city(target_var = 'medrentpricepsqft_sfcc', 
-+                 target_msa = "Los Angeles",
-+                 nmon = 6,
-+                 plotname = "Los Angeles MSA",
-+                 df_data = df,
-+                 mwarea = 44000,
-+                 mwdate = '2019-07-01',
-+                 zctamsa = zcta_msa_xwalk,
-+                 zipzcta = zip_zcta_xwalk,
-+                 zctaplace = zcta_place_xwalk,
-+                 out = outdir)
-Joining, by = "region"
-Warning messages:
-1: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4050 is invalid in this locale
-2: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4052 is invalid in this locale
-3: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4053 is invalid in this locale
-4: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4054 is invalid in this locale
-5: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4057 is invalid in this locale
-> dev.off()
-null device 
-          1 
-> png(filename = paste0(outdir, 'Los_Angeles_msa_mw.png'), width = 7680, height = 7680)
-> plot_mw_changes_city(target_var = 'actual_mw', 
-+                  target_msa = "Los Angeles",
-+                  nmon = 6,
-+                  plotname = "Los Angeles MSA",
-+                  df_data = df,
-+                  mwarea = 44000,
-+                  mwdate = '2019-07-01',
-+                  zctamsa = zcta_msa_xwalk,
-+                  zipzcta = zip_zcta_xwalk,
-+                  zctaplace = zcta_place_xwalk,
-+                  out = outdir)
-Joining, by = "region"
-Warning messages:
-1: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4050 is invalid in this locale
-2: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4052 is invalid in this locale
-3: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4053 is invalid in this locale
-4: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4054 is invalid in this locale
-5: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4057 is invalid in this locale
-> dev.off()
-null device 
-          1 
-> png(filename = paste0(outdir, 'Los_Angeles_msa_expmw.png'), width = 7680, height = 7680)
-> plot_mw_changes_city(target_var = 'exp_mw_totjob', 
-+                      target_msa = "Los Angeles",
-+                      nmon = 6,
-+                      plotname = "Los Angeles MSA",
-+                      df_data = df,
-+                      mwarea = 44000,
-+                      mwdate = '2019-07-01',
-+                      zctamsa = zcta_msa_xwalk,
-+                      zipzcta = zip_zcta_xwalk,
-+                      zctaplace = zcta_place_xwalk,
-+                      out = outdir)
-Joining, by = "region"
-Warning messages:
-1: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4050 is invalid in this locale
-2: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4052 is invalid in this locale
-3: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4053 is invalid in this locale
-4: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4054 is invalid in this locale
-5: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4057 is invalid in this locale
-> dev.off()
-null device 
-          1 
-> 
-> # Seattle MSA
-> png(filename = paste0(outdir, 'Seattle_msa.png'), width = 7680, height = 7680)
-> plot_changes_city(target_var = 'medrentpricepsqft_sfcc',
-+            target_msa = "Seattle",
-+            nmon = 6,
-+            plotname = "Seattle MSA",
-+            df_data = df,
-+            mwarea = 63000,
-+            mwdate = '2019-01-01',
-+            zctamsa = zcta_msa_xwalk,
-+            zipzcta = zip_zcta_xwalk,
-+            zctaplace = zcta_place_xwalk,
-+            out = outdir)
-Joining, by = "region"
-Warning messages:
-1: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4050 is invalid in this locale
-2: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4052 is invalid in this locale
-3: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4053 is invalid in this locale
-4: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4054 is invalid in this locale
-5: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4057 is invalid in this locale
-> dev.off()
-null device 
-          1 
-> png(filename = paste0(outdir, 'Seattle_msa_mw.png'), width = 7680, height = 7680)
-> plot_mw_changes_city(target_var = 'actual_mw',
-+                   target_msa = "Seattle",
-+                   nmon = 6,
-+                   plotname = "Seattle MSA",
-+                   df_data = df,
-+                   mwarea = 63000,
-+                   mwdate = '2019-01-01',
-+                   zctamsa = zcta_msa_xwalk,
-+                   zipzcta = zip_zcta_xwalk,
-+                   zctaplace = zcta_place_xwalk,
-+                   out = outdir)
-Joining, by = "region"
-Warning messages:
-1: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4050 is invalid in this locale
-2: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4052 is invalid in this locale
-3: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4053 is invalid in this locale
-4: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4054 is invalid in this locale
-5: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4057 is invalid in this locale
-> dev.off()
-null device 
-          1 
-> png(filename = paste0(outdir, 'Seattle_msa_expmw.png'), width = 7680, height = 7680)
-> plot_mw_changes_city(target_var = 'exp_mw_totjob',
-+                      target_msa = "Seattle",
-+                      nmon = 6,
-+                      plotname = "Seattle MSA",
-+                      df_data = df,
-+                      mwarea = 63000,
-+                      mwdate = '2019-01-01',
-+                      zctamsa = zcta_msa_xwalk,
-+                      zipzcta = zip_zcta_xwalk,
-+                      zctaplace = zcta_place_xwalk,
-+                      out = outdir)
-Joining, by = "region"
-Warning messages:
-1: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4050 is invalid in this locale
-2: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4052 is invalid in this locale
-3: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4053 is invalid in this locale
-4: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4054 is invalid in this locale
-5: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4057 is invalid in this locale
-> dev.off()
-null device 
-          1 
-> 
-> # Chicago MSA (cook county increase MW in July 2019)
-> png(filename = paste0(outdir, 'Chicago_msa.png'), width = 7680, height = 7680)
-> plot_changes_city(target_var = 'medrentpricepsqft_sfcc',
-+                   target_msa = "Chicago",
-+                   nmon = 6,
-+                   plotname = "Chicago MSA",
-+                   df_data = df,
-+                   mwarea = 14000,
-+                   mwdate = '2019-07-01',
-+                   zctamsa = zcta_msa_xwalk,
-+                   zipzcta = zip_zcta_xwalk,
-+                   zctaplace = zcta_place_xwalk,
-+                   out = outdir)
-Joining, by = "region"
-Warning messages:
-1: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4050 is invalid in this locale
-2: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4052 is invalid in this locale
-3: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4053 is invalid in this locale
-4: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4054 is invalid in this locale
-5: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4057 is invalid in this locale
-> dev.off()
-null device 
-          1 
-> 
-> 
-> png(filename = paste0(outdir, 'Chicago_msa_mw.png'), width = 7680, height = 7680)
-> plot_mw_changes_city(target_var = 'actual_mw',
-+                      target_msa = "Chicago",
-+                      nmon = 6,
-+                      plotname = "Chicago MSA",
-+                      df_data = df,
-+                      mwarea = 14000,
-+                      mwdate = '2019-07-01',
-+                      zctamsa = zcta_msa_xwalk,
-+                      zipzcta = zip_zcta_xwalk,
-+                      zctaplace = zcta_place_xwalk,
-+                      out = outdir)
-Joining, by = "region"
-Warning messages:
-1: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4050 is invalid in this locale
-2: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4052 is invalid in this locale
-3: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4053 is invalid in this locale
-4: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4054 is invalid in this locale
-5: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4057 is invalid in this locale
-> dev.off()
-null device 
-          1 
-> png(filename = paste0(outdir, 'Chicago_msa_expmw.png'), width = 7680, height = 7680)
-> plot_mw_changes_city(target_var = 'exp_mw_totjob',
-+                      target_msa = "Chicago",
-+                      nmon = 6,
-+                      plotname = "Chicago MSA",
-+                      df_data = df,
-+                      mwarea = 14000,
-+                      mwdate = '2019-07-01',
-+                      zctamsa = zcta_msa_xwalk,
-+                      zipzcta = zip_zcta_xwalk,
-+                      zctaplace = zcta_place_xwalk,
-+                      out = outdir)
-Joining, by = "region"
-Warning messages:
-1: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4050 is invalid in this locale
-2: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4052 is invalid in this locale
-3: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4053 is invalid in this locale
-4: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4054 is invalid in this locale
-5: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4057 is invalid in this locale
-> dev.off()
-null device 
-          1 
-> 
-> # SF msa
-> png(filename = paste0(outdir, 'San_Francisco_msa.png'), width = 7680, height = 7680)
-> plot_changes_city(target_var = 'medrentpricepsqft_sfcc',
-+                 target_msa = "San Francisco",
-+                 nmon = 6,
-+                 plotname = "San Francisco MSA",
-+                 df_data = df,
-+                 mwarea = 67000,
-+                 mwdate = '2019-07-01',
-+                 zctamsa = zcta_msa_xwalk,
-+                 zipzcta = zip_zcta_xwalk,
-+                 zctaplace = zcta_place_xwalk,
-+                 out = outdir)
-Joining, by = "region"
-Warning messages:
-1: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4050 is invalid in this locale
-2: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4052 is invalid in this locale
-3: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4053 is invalid in this locale
-4: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4054 is invalid in this locale
-5: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4057 is invalid in this locale
-> dev.off()
-null device 
-          1 
-> png(filename = paste0(outdir, 'San_Francisco_msa_mw.png'), width = 7680, height = 7680)
-> plot_mw_changes_city(target_var = 'actual_mw',
-+                   target_msa = "San Francisco",
-+                   nmon = 6,
-+                   plotname = "San Francisco MSA",
-+                   df_data = df,
-+                   mwarea = 67000,
-+                   mwdate = '2019-07-01',
-+                   zctamsa = zcta_msa_xwalk,
-+                   zipzcta = zip_zcta_xwalk,
-+                   zctaplace = zcta_place_xwalk,
-+                   out = outdir)
-Joining, by = "region"
-Warning messages:
-1: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4050 is invalid in this locale
-2: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4052 is invalid in this locale
-3: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4053 is invalid in this locale
-4: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4054 is invalid in this locale
-5: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4057 is invalid in this locale
-> dev.off()
-null device 
-          1 
-> png(filename = paste0(outdir, 'San_Francisco_msa_expmw.png'), width = 7680, height = 7680)
-> plot_mw_changes_city(target_var = 'exp_mw_totjob',
-+                      target_msa = "San Francisco",
-+                      nmon = 6,
-+                      plotname = "San Francisco MSA",
-+                      df_data = df,
-+                      mwarea = 67000,
-+                      mwdate = '2019-07-01',
-+                      zctamsa = zcta_msa_xwalk,
-+                      zipzcta = zip_zcta_xwalk,
-+                      zctaplace = zcta_place_xwalk,
-+                      out = outdir)
-Joining, by = "region"
-Warning messages:
-1: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4050 is invalid in this locale
-2: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4052 is invalid in this locale
-3: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4053 is invalid in this locale
-4: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4054 is invalid in this locale
-5: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4057 is invalid in this locale
-> dev.off()
-null device 
-          1 
-> 
-> #San Diego
-> png(filename = paste0(outdir, 'San_Diego_msa.png'), width = 7680, height = 7680)
-> plot_changes_city(target_var = 'medrentpricepsqft_sfcc',
-+            target_msa = "San Diego",
-+            mwarea = 66000,
-+            nmon = 6,
-+            plotname = "San Diego MSA",
-+            df_data = df,
-+            mwdate = '2019-01-01',
-+            zctamsa = zcta_msa_xwalk,
-+            zipzcta = zip_zcta_xwalk,
-+            zctaplace = zcta_place_xwalk,
-+            out = outdir)
-Joining, by = "region"
-Warning messages:
-1: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4050 is invalid in this locale
-2: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4052 is invalid in this locale
-3: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4053 is invalid in this locale
-4: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4054 is invalid in this locale
-5: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4057 is invalid in this locale
-> dev.off()
-null device 
-          1 
-> png(filename = paste0(outdir, 'San_Diego_msa_mw.png'), width = 7680, height = 7680)
-> plot_mw_changes_city(target_var = 'actual_mw',
-+                   target_msa = "San Diego",
-+                   mwarea = 66000,
-+                   nmon = 6,
-+                   plotname = "San Diego MSA",
-+                   df_data = df,
-+                   mwdate = '2019-01-01',
-+                   zctamsa = zcta_msa_xwalk,
-+                   zipzcta = zip_zcta_xwalk,
-+                   zctaplace = zcta_place_xwalk,
-+                   out = outdir)
-Joining, by = "region"
-Warning messages:
-1: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4050 is invalid in this locale
-2: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4052 is invalid in this locale
-3: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4053 is invalid in this locale
-4: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4054 is invalid in this locale
-5: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4057 is invalid in this locale
-> dev.off()
-null device 
-          1 
-> png(filename = paste0(outdir, 'San_Diego_msa_expmw.png'), width = 7680, height = 7680)
-> plot_mw_changes_city(target_var = 'exp_mw_totjob',
-+                      target_msa = "San Diego",
-+                      mwarea = 66000,
-+                      nmon = 6,
-+                      plotname = "San Diego MSA",
-+                      df_data = df,
-+                      mwdate = '2019-01-01',
-+                      zctamsa = zcta_msa_xwalk,
-+                      zipzcta = zip_zcta_xwalk,
-+                      zctaplace = zcta_place_xwalk,
-+                      out = outdir)
-Joining, by = "region"
-Warning messages:
-1: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4050 is invalid in this locale
-2: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4052 is invalid in this locale
-3: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4053 is invalid in this locale
-4: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4054 is invalid in this locale
-5: In grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed) :
-  input string 4057 is invalid in this locale
-> dev.off()
-null device 
-          1 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
 > 
 > proc.time()
    user  system elapsed 
-229.336   7.655 217.485 
+614.757  29.437 652.368 
 
- make.py ended: 2020-11-10 16:28:34
+
+Execute:  stataSE -e do "./plot_mw.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   16.1   Copyright 1985-2019 StataCorp LLC
+  Statistics/Data analysis            StataCorp
+                                      4905 Lakeway Drive
+     Special Edition                  College Station, Texas 77845 USA
+                                      800-STATA-PC        https://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Stata license: 120-user network perpetual
+Serial number: 401606201670
+  Licensed to: Brown University
+               Brown University
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. Maximum number of variables is set to 5,000; see help set_maxvar.
+
+. do ./plot_mw.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "/Applications/Stata/ado/base/"
+  [2]  (SITE)      "/Applications/Stata/ado/site/"
+  [3]              "."
+  [4]  (PERSONAL)  "/Users/gabriborg/Documents/Stata/ado/personal/"
+  [5]  (PLUS)      "/Users/gabriborg/Library/Application Support/Stata/ado/plus/"
+  [6]  (OLDPLACE)  "~/ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. adopath + ../../../lib/stata/min_wage/ado
+  [1]  (BASE)      "/Applications/Stata/ado/base/"
+  [2]  (SITE)      "/Applications/Stata/ado/site/"
+  [3]              "."
+  [4]  (PERSONAL)  "/Users/gabriborg/Documents/Stata/ado/personal/"
+  [5]  (PLUS)      "/Users/gabriborg/Library/Application Support/Stata/ado/plus/"
+  [6]  (OLDPLACE)  "~/ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+  [8]              "../../../lib/stata/min_wage/ado"
+
+. set maxvar 32000
+
+
+. 
+. program main
+  1.         local instub "../../../drive/derived_large/output"
+  2.         local outstub "../output"
+  3. 
+.         load_data, instub(`instub')
+  4.         plot_mw_dist, outstub(`outstub')
+  5. end
+
+. 
+. program load_data
+  1.         syntax, instub(str)
+  2. 
+.         local instub "../../../drive/derived_large/output"
+  3. 
+.         use zipcode year_month actual_mw ///
+>                 using `instub'/unbal_rent_panel.dta, clear
+  4. 
+.         bys zipcode (year_month): gen pct_ch_MW = 100*(actual_mw/L.actual_mw - 1
+> )
+  5. end
+
+. 
+. program plot_mw_dist
+  1.         syntax, outstub(str)
+  2. 
+.         twoway (hist pct_ch_MW if pct_ch_MW>0, color(navy%80) lcolor(white) lw(v
+> thin)), ///
+>                         xtitle("Minimum wage changes (%)", size(small)) ytitle("
+> Frequency", size(small)) ///
+>                         xlabel(, labsize(small)) ylabel(, labsize(small)) ///
+>                         graphregion(color(white)) bgcolor(white)
+  3.         graph export `outstub'/pct_ch_mw_dist.png, replace 
+  4.         graph export `outstub'/pct_ch_mw_dist.eps, replace
+  5. 
+.         keep if pct_ch_MW>0
+  6.         twoway (hist year_month, color(navy%80) lcolor(white) lw(vthin)), ///
+>                         xtitle("Monthly date", size(small)) ytitle("Frequency", 
+> size(small)) ///
+>                         xlabel(#20, labsize(small) angle(45)) ///
+>                         graphregion(color(white)) bgcolor(white)
+  7.         graph export `outstub'/pct_ch_mw_date_dist.png, replace 
+  8.         graph export `outstub'/pct_ch_mw_date_dist.eps, replace 
+  9. end
+
+. 
+. 
+. main
+(4,604 missing values generated)
+(file /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/analysis/descriptive
+> /code/../output/pct_ch_mw_dist.png written in PNG format)
+(note: file ../output/pct_ch_mw_dist.eps not found)
+(file ../output/pct_ch_mw_dist.eps written in EPS format)
+(529,278 observations deleted)
+(file /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/analysis/descriptive
+> /code/../output/pct_ch_mw_date_dist.png written in PNG format)
+(note: file ../output/pct_ch_mw_date_dist.eps not found)
+(file ../output/pct_ch_mw_date_dist.eps written in EPS format)
+
+. 
+end of do-file
+
+ make.py ended: 2020-12-01 14:47:04

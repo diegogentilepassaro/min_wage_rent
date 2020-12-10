@@ -1,0 +1,1226 @@
+
+ make.py started: 2020-12-04 19:26:00 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\first_differences_unbal\code 
+
+
+
+
+Execute:  StataMP-64 /e do "./preclean.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./preclean.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.         local instub "../../../drive/derived_large/output"
+  2.         local outstub "../temp"
+  3.         local logfile "../output/data_file_manifest.log"
+  4. 
+.         identify_baseline, instub(`instub')
+  5.         local mergevars "`r(mergevars)'"
+  6. 
+.         use zipcode place_code msa countyfips statefips                      
+>                                            ///
+>                 year_month calendar_month trend trend_sq trend_cu            
+>                                            ///
+>                 dactual_mw actual_mw medrentpricepsqft_sfcc                  
+>                                            ///
+>                 med_hhinc20105 renthouse_share2010 white_share2010 black_shar
+> e2010                      ///
+>                 college_share20105 work_county_share20105 entry*             
+>       ///
+>                 estcount_* avgwwage_* emp_* u1*                              
+>                ///
+>                 using `instub'/unbal_rent_panel.dta, clear 
+  7. 
+.         merge 1:1 `mergevars' using ../temp/baseline_rent_panel.dta, keep(1 3
+> )
+  8.         g basepanel = (_m==3)
+  9.         drop _m
+ 10. 
+.         local het_vars "med_hhinc20105 renthouse_share2010 college_share20105
+>  black_share2010"
+ 11.         local het_vars "`het_vars' nonwhite_share2010 work_county_share201
+> 05"
+ 12. 
+.         create_vars,    log_vars(actual_mw medrentpricepsqft_* emp_* estcount
+> _* avgwwage_* u1*)         ///
+>                                         heterogeneity_vars(`het_vars')
+ 13.         
+.         simplify_varnames
+ 14. 
+.         xtset zipcode year_month
+ 15.         gen d_ln_mw = D.ln_mw
+ 16. 
+.         save_data "`outstub'/unbal_fd_rent_panel.dta", key(zipcode year_month
+> ) replace log(`logfile')
+ 17. 
+. end 
+
+. 
+. program create_vars
+  1.         syntax, log_vars(str) heterogeneity_vars(str)
+  2. 
+.         local log_vars_expanded "" 
+  3.         foreach v in `log_vars' {
+  4.                 unab this_var: `v'
+  5.                 local log_vars_expanded `"`log_vars_expanded' `this_var'"'
+  6.         }
+  7.         unab bpsvars: u1*
+  8.         foreach var in `bpsvars' {
+  9.                 replace `var' = 1 + `var'
+ 10.         }
+ 11.         foreach var in `log_vars_expanded' {
+ 12.                 gen ln_`var' = ln(`var')
+ 13.         }
+ 14. 
+.         gen nonwhite_share2010 = 1 - white_share2010
+ 15.         
+.         gen trend_times2 = 2*trend
+ 16. 
+.         foreach var in `heterogeneity_vars' {
+ 17. 
+.                 gquantiles `var'_nat_qtl = `var', xtile nq(4)
+ 18. 
+.                 gquantiles `var'_st_qtl  = `var', xtile nq(4) by(statefips)
+ 19.         }
+ 20. end
+
+. 
+. program simplify_varnames
+  1.         
+.         cap rename ln_actual_mw                  ln_mw 
+  2.         cap rename ln_medrentpricepsqft_sfcc     ln_med_rent_psqft_sfcc
+  3.         cap rename ln_medrentpricepsqft_2br      ln_med_rent_psqft_2br
+  4.         cap rename ln_medrentpricepsqft_mfr5plus ln_med_rent_psqft_mfr5plu
+> s
+  5. 
+. end
+
+. 
+. program identify_baseline, rclass
+  1.         syntax, instub(str)
+  2.         use zipcode place_code msa countyfips statefips                   
+>                                               ///
+>                 year_month calendar_month trend trend_sq trend_cu            
+>                                            ///
+>                 dactual_mw actual_mw medrentpricepsqft_sfcc                  
+>                                            ///
+>                 med_hhinc20105 renthouse_share2010 white_share2010 black_shar
+> e2010                      ///
+>                 college_share20105 work_county_share20105                  //
+> /
+>                 estcount_* avgwwage_* emp_* u1*                              
+>                ///
+>                 using `instub'/baseline_rent_panel.dta, clear
+  3.                 save "../temp/baseline_rent_panel.dta", replace
+  4. 
+.                 local mergevars "zipcode place_code msa countyfips statefips"
+  5.                 local mergevars `"`mergevars' year_month calendar_month tr
+> end trend_sq trend_cu"'
+  6.                 local mergevars `"`mergevars' dactual_mw actual_mw medrent
+> pricepsqft_sfcc"'
+  7.                 local mergevars `"`mergevars' med_hhinc20105 renthouse_sha
+> re2010 white_share2010 black_share2010"'
+  8.                 local mergevars `"`mergevars' college_share20105 work_coun
+> ty_share20105"'
+  9.                 unab mergevars2: estcount_* avgwwage_* emp_* u1*
+ 10.                 local mergevars `"`mergevars' `mergevars2'"'
+ 11. 
+.                 return local mergevars `mergevars'
+ 12. end     
+
+. 
+. 
+. * Execute 
+. main 
+(note: file ../temp/baseline_rent_panel.dta not found)
+file ../temp/baseline_rent_panel.dta saved
+(label msa already defined)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       400,934
+        from master                   400,934  (_merge==1)
+        from using                          0  (_merge==2)
+
+    matched                           151,543  (_merge==3)
+    -----------------------------------------
+(442,906 real changes made)
+(442,906 real changes made)
+(442,906 real changes made)
+(442,906 real changes made)
+(442,906 real changes made)
+(442,906 real changes made)
+(354,499 missing values generated)
+(15,144 missing values generated)
+(20,733 missing values generated)
+(15,099 missing values generated)
+(15,099 missing values generated)
+(15,348 missing values generated)
+(18,597 missing values generated)
+(15,144 missing values generated)
+(33,423 missing values generated)
+(20,352 missing values generated)
+(28,317 missing values generated)
+(33,378 missing values generated)
+(15,099 missing values generated)
+(15,099 missing values generated)
+(15,099 missing values generated)
+(15,099 missing values generated)
+(15,099 missing values generated)
+(15,099 missing values generated)
+(15,216 missing values generated)
+(15,099 missing values generated)
+(15,099 missing values generated)
+(15,099 missing values generated)
+(17,877 missing values generated)
+(15,486 missing values generated)
+(15,099 missing values generated)
+(15,144 missing values generated)
+(20,733 missing values generated)
+(15,099 missing values generated)
+(15,099 missing values generated)
+(15,348 missing values generated)
+(18,597 missing values generated)
+(15,144 missing values generated)
+(33,423 missing values generated)
+(20,352 missing values generated)
+(28,317 missing values generated)
+(33,378 missing values generated)
+(15,099 missing values generated)
+(110,735 missing values generated)
+(110,735 missing values generated)
+(111,115 missing values generated)
+(110,028 missing values generated)
+(110,028 missing values generated)
+(110,455 missing values generated)
+(480 missing values generated)
+       panel variable:  zipcode (unbalanced)
+        time variable:  year_month, 2010m1 to 2019m12
+                delta:  1 month
+(4,604 missing values generated)
+(data already sorted by zipcode year_month)
+  variable basepanel was float now byte
+  variable trend_times2 was float now int
+  (2,762,385 bytes saved)
+============================================================================
+File: ../temp/unbal_fd_rent_panel.dta
+Key: zipcode year_month
+============================================================================
+  552477:124(59938):1369979787:1382669411
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |    552,477    53537.25    30554.29       1060      99705
+  year_month |    552,477    659.5003    34.63966        600        719
+  place_code |    453,837    41994.73    23168.35        100      88940
+  countyfips |    551,157    25881.72    16485.24       1001      56021
+   statefips |    552,477    25.79028    16.43845          1         56
+-------------+---------------------------------------------------------
+medrentpri~c |    197,978    1.303812    1.033133   .1091193   23.96932
+   actual_mw |    552,477    8.200625     1.36035       7.25         16
+  dactual_mw |    552,473     .017035    .1206529          0       3.25
+calendar_m~h |    552,477     6.50003    3.452041          1         12
+         msa |    552,357    442.6709     239.245          2        860
+-------------+---------------------------------------------------------
+       trend |    552,477    225.5003    34.63966        166        285
+    trend_sq |    552,477     52050.3    15659.32      27556      81225
+    trend_cu |    552,477    1.23e+07     5408175    4574296   2.31e+07
+  entry_sfcc |    397,920    660.2961    34.20743        601        708
+   entry_2br |    286,919    681.1911    24.64555        601        708
+-------------+---------------------------------------------------------
+entry_mfr5~s |    403,797    676.3571    27.37039        601        708
+white_s~2010 |    551,997     .589158    .2409829   .0037838   .9748839
+black_s~2010 |    551,997    .1447029     .191157   .0009378   .9753076
+renthou~2010 |    551,997    .4013557    .1759362   .0608285   .9884645
+work_c~20105 |    551,997     .755335    .1942749   .1248519    .998565
+-------------+---------------------------------------------------------
+colleg~20105 |    551,997    .4360505    .1674601   .0580171   .9082218
+med_hh~20105 |    551,997    64289.41    25477.42   12404.68   214212.3
+estcount_b~v |    537,378    8395.381    10259.21          3      56758
+avgwwage_b~v |    537,378    1252.322    431.0264          0       9279
+ emp_bizserv |    537,378    112152.7    141029.5          0     640795
+-------------+---------------------------------------------------------
+estcount_c~t |    537,378    2891.827     3119.27         13      17066
+avgwwage_c~t |    537,378    1095.904    270.8501          0       2610
+   emp_const |    537,378    29301.43    34282.27          0     173791
+estcount_e~e |    537,378    10989.41    34595.38          3     245237
+avgwwage_e~e |    537,378    930.1707    142.4738        394       2315
+-------------+---------------------------------------------------------
+   emp_eduhe |    537,378    105848.5    142360.7         13     832830
+estcount_f~v |    537,378    109.2157    91.18703          1        456
+avgwwage_f~v |    537,378    1423.215    234.5835        508       3287
+  emp_fedgov |    537,378    12543.53    18125.37          8     215436
+estcount_fin |    537,378    4236.948    5396.496          7      30405
+-------------+---------------------------------------------------------
+avgwwage_fin |    537,378    1483.972    724.2608          0       9557
+     emp_fin |    537,378    45313.84    59708.69          0     397839
+estcount_i~o |    537,261    907.3912    1862.734          1      13271
+avgwwage_i~o |    537,261    1508.415    724.7832          0      14537
+    emp_info |    537,261    20380.76    40605.63          0     238776
+-------------+---------------------------------------------------------
+estcount_l~s |    537,378    3975.214    6068.857          3      39458
+avgwwage_l~s |    537,378    428.1793    126.8183          0       1533
+    emp_leis |    537,378    77586.78    101432.2          0     551950
+estcount_l~v |    537,378     398.509    733.3872          1       4213
+avgwwage_l~v |    537,378    955.7473    270.2545          0       2042
+-------------+---------------------------------------------------------
+  emp_locgov |    537,378    62585.25    90715.64          0     463616
+estcount_m~u |    537,378    1576.627    2502.926          1      13469
+avgwwage_m~u |    537,378    1292.965    438.6295          0       6535
+    emp_manu |    537,378    49692.52    75193.96          0     376653
+estcount_n~s |    534,600    193.0424    290.1184          1       1859
+-------------+---------------------------------------------------------
+avgwwage_n~s |    534,600    1101.671    822.4973          0      10760
+  emp_natres |    534,600    4330.956    12093.45          0      97846
+estcount_s~v |    536,991    178.1529    494.7783          1       5969
+avgwwage_s~v |    536,991    1024.369    316.3703          0       2572
+   emp_stgov |    536,991    15891.54     18657.7          0     114555
+-------------+---------------------------------------------------------
+estcount_t~p |    537,378    8282.622    11020.42         10      59615
+avgwwage_t~p |    537,378    847.0381    189.5391        316       3193
+  emp_transp |    537,378    128679.5    167981.3         41     872187
+    u1_bldgs |    442,906    217.4294    293.7394      -1621       2688
+    u1_units |    442,906    217.4294    293.7394      -1621       2688
+-------------+---------------------------------------------------------
+    u1_value |    442,906    5.64e+07    7.31e+07  -1.94e+08   6.43e+08
+ u1rep_bldgs |    442,906     206.525     292.571       -477       3759
+ u1rep_units |    442,906     206.525     292.571       -477       3759
+ u1rep_value |    442,906    5.37e+07    7.23e+07  -2.01e+08   8.74e+08
+   basepanel |    552,477    .2742974    .4461599          0          1
+-------------+---------------------------------------------------------
+       ln_mw |    552,477    2.092554    .1468084   1.981001   2.772589
+ln_med_ren~c |    197,978    .1260564    .4678614  -2.215314   3.176775
+ln_emp_biz~v |    537,333    10.83778    1.412554   1.609438   13.37047
+ln_emp_const |    531,744    9.689223     1.18035   3.091043   12.06561
+ln_emp_eduhe |    537,378    10.88185    1.262904   2.564949   13.63258
+-------------+---------------------------------------------------------
+ln_emp_fed~v |    537,378    8.644768    1.458764   2.079442   12.28042
+  ln_emp_fin |    537,129    9.916558    1.410551   2.564949    12.8938
+ ln_emp_info |    533,880    8.790752    1.586772   1.609438   12.38328
+ ln_emp_leis |    537,333    10.59216    1.200251   3.218876   13.22121
+ln_emp_loc~v |    519,054    10.41724    1.149827   6.200509   13.04681
+-------------+---------------------------------------------------------
+ ln_emp_manu |    532,125    10.00251    1.343916   3.218876   12.83908
+ln_emp_nat~s |    524,160    6.919343    1.708498   .6931472   11.49115
+ln_emp_stgov |    519,099     8.94829    1.442057   3.044523   11.64881
+ln_emp_tra~p |    537,378    11.10867    1.199441   3.713572   13.67876
+ln_estcou~rv |    537,378    8.358924    1.266559   1.098612   10.94655
+-------------+---------------------------------------------------------
+ln_estcoun~t |    537,378    7.462659    1.062698   2.564949   9.744843
+ln_estcoun~e |    537,378    8.037289    1.409552   1.098612   12.40998
+ln_estc~dgov |    537,378    4.382278    .8267708          0   6.122493
+ln_estcoun~n |    537,378    7.693609    1.207692    1.94591   10.32236
+ln_estcoun~o |    537,261    5.837118    1.384001          0   9.493337
+-------------+---------------------------------------------------------
+ln_estcou~is |    537,378    7.612656    1.167505   1.098612   10.58299
+ln_estc~cgov |    537,378    5.164138    1.243764          0    8.34593
+ln_estcoun~u |    537,378    6.591729    1.254039          0   9.508146
+ln_estcou~es |    534,600    4.450283    1.333158          0   7.527794
+ln_estc~tgov |    536,991    4.151964    1.248123          0   8.694335
+-------------+---------------------------------------------------------
+ln_estcoun~p |    537,378    8.384933    1.159777   2.302585   10.99566
+ln_avgwwa~rv |    537,333    7.079883       .3222   5.420535   9.135509
+ln_avgwwag~t |    531,744    6.985591    .2204711   6.037871   7.867105
+ln_avgwwag~e |    537,378    6.823621    .1541775   5.976351   7.747165
+ln_avgw~dgov |    537,378    7.247309      .16364   6.230482   8.097731
+-------------+---------------------------------------------------------
+ln_avgwwag~n |    537,129    7.226189    .3663772   6.107023    9.16503
+ln_avgwwag~o |    533,880    7.248078    .3729026   5.802118   9.584453
+ln_avgwwa~is |    537,333    6.021234    .2711587    5.01728   7.334982
+ln_avgw~cgov |    519,054    6.876598    .2016191   5.843544   7.621685
+ln_avgwwag~u |    532,125    7.132648    .2792244   5.953243   8.784927
+-------------+---------------------------------------------------------
+ln_avgwwa~es |    524,160     6.85454    .5386916   5.293305   9.283591
+ln_avgw~tgov |    519,099    6.936371    .2433559   5.950643   7.852439
+ln_avgwwag~p |    537,378    6.718584    .2129596   5.755742   8.068716
+ ln_u1_bldgs |    441,742     4.65448    1.371705          0   7.896553
+ ln_u1_units |    441,742     4.65448    1.371705          0   7.896553
+-------------+---------------------------------------------------------
+ ln_u1_value |    441,362    16.87801    2.505392          0   20.28197
+ln_u1rep_b~s |    442,449    4.461159    1.571211          0   8.231908
+ln_u1rep_u~s |    442,449    4.461159    1.571211          0   8.231908
+ln_u1rep_v~e |    442,022    16.40073    3.591301          0   20.58904
+nonwhit~2010 |    551,997     .410842    .2409829   .0251161   .9962162
+-------------+---------------------------------------------------------
+trend_times2 |    552,477    451.0006    69.27932        332        570
+med_h~at_qtl |    551,997    2.499352    1.118034          1          4
+med_h~st_qtl |    551,997     2.48957    1.117597          1          4
+renth~at_qtl |    551,997    2.499992    1.118033          1          4
+renth~st_qtl |    551,997    2.489992    1.117599          1          4
+-------------+---------------------------------------------------------
+colle~at_qtl |    551,997    2.499568    1.118227          1          4
+colle~st_qtl |    551,997    2.489785    1.117791          1          4
+black~at_qtl |    551,997    2.499995    1.118036          1          4
+black~st_qtl |    551,997    2.489564    1.117404          1          4
+nonwh~at_qtl |    551,997    2.499995    1.118034          1          4
+-------------+---------------------------------------------------------
+nonwh~st_qtl |    551,997     2.48978    1.117791          1          4
+work_~at_qtl |    551,997    2.499994    1.118034          1          4
+work_~st_qtl |    551,997    2.489995      1.1176          1          4
+     d_ln_mw |    547,873    .0017993    .0125654   -.331534   .3083012
+
+
+
+
+(note: file ../temp/unbal_fd_rent_panel.dta not found)
+file ../temp/unbal_fd_rent_panel.dta saved
+
+. 
+end of do-file
+
+
+Execute:  StataMP-64 /e do "./estimates.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./estimates.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. adopath + ../../../lib/stata/min_wage/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+  [8]              "../../../lib/stata/min_wage/ado"
+
+. set maxvar 32000
+
+
+. 
+. program main
+  1.         local instub "../temp"
+  2.         local outstub "../output"
+  3. 
+.         use "`instub'/unbal_fd_rent_panel.dta", clear
+  4. 
+.         static_dynamic_comp, depvar(ln_med_rent_psqft_sfcc) absorb(year_month
+> ) ///
+>                 cluster(statefips) add_wgt(yes)
+  5. 
+.         esttab using "`outstub'/static_dynamic_comptable.tex", replace compre
+> ss se substitute(\_ _) ///
+>                 keep(D.ln_mw) b(%9.4f) se(%9.4f) coeflabels(D.ln_mw "Static E
+> ffect") ///
+>                 stats(space cumsum_b cumsum_V space ctrl_wage ctrl_emp ctrl_e
+> stab r2 N,  ///
+>                 fmt(%s1 %s7 %s7 %s1 %s3 %s3 %s3 %9.3f %9.0gc) ///
+>                 labels("\vspace{-2mm}" "Cumulative effect" " " "\hline" ///
+>                         "Wage controls" "Employment controls" "Establishment-
+> count controls"  ///
+>                         "R-squared" "Observations")) ///
+>                 mtitles("Baseline" "Unbalanced" "Reweighted")  ///
+>                 star(* 0.10 ** 0.05 *** 0.01) nonote
+  6. end 
+
+. 
+. 
+. program static_dynamic_comp 
+  1.         syntax, depvar(str) absorb(str) cluster(str) add_wgt(str) [w(int 5
+> ) t_plot(real 1.645)]
+  2. 
+.         eststo clear 
+  3.         define_controls
+  4. 
+.         local emp_ctrls "`r(emp_ctrls)'"
+  5.         local estcount_ctrls "`r(estcount_ctrls)'"
+  6.         local avgwwage_ctrls "`r(avgwwage_ctrls)'"
+  7. 
+.         local controls `"`emp_ctrls' `estcount_ctrls' `avgwwage_ctrls'"'
+  8. 
+.         local lincomest_coeffs "D1.ln_mw + LD.ln_mw"
+  9.         local pretrend_test "(F1D.ln_mw = 0)"
+ 10.         forvalues i = 2(1)`w'{
+ 11.                 local lincomest_coeffs "`lincomest_coeffs' + L`i'D.ln_mw"
+ 12.             local pretrend_test " `pretrend_test' (F`i'D.ln_mw = 0)"
+ 13.         }
+ 14. 
+.         *Baseline 
+.         reghdfe D.`depvar' L(0/`w').D.ln_mw D.(`controls') if basepanel, ///
+>                 absorb(`absorb') vce(cluster `cluster') nocons  
+ 15.         
+.         add_cumsum, coefficients(`lincomest_coeffs') i(1)
+ 16. 
+.         local cumsum_b "`r(cumsum_b)'"
+ 17.         local cumsum_V "`r(cumsum_V)'"
+ 18. 
+.         eststo: qui reghdfe D.`depvar' D.ln_mw D.(`controls') if basepanel, /
+> //
+>                 absorb(`absorb') vce(cluster `cluster') nocons
+ 19.         comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing
+> ("No")
+ 20.         estadd local space ""
+ 21.         estadd local cumsum_b "`cumsum_b'"
+ 22.         estadd local cumsum_V "`cumsum_V'"
+ 23. 
+.         *Unbalanced
+.         qui reghdfe D.`depvar' L(0/`w').D.ln_mw D.(`controls'), ///
+>                 absorb(`absorb' entry_sfcc#year_month) vce(cluster `cluster')
+>  nocons
+ 24. 
+.         add_cumsum, coefficients(`lincomest_coeffs') i(1)
+ 25. 
+.         local cumsum_b "`r(cumsum_b)'"
+ 26.         local cumsum_V "`r(cumsum_V)'"
+ 27. 
+.         eststo: qui reghdfe D.`depvar' D.ln_mw D.(`controls'), ///
+>                 absorb(`absorb' entry_sfcc#year_month) vce(cluster `cluster')
+>  nocons
+ 28.         comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing
+> ("No")
+ 29.         estadd local space ""
+ 30.         estadd local cumsum_b "`cumsum_b'"
+ 31.         estadd local cumsum_V "`cumsum_V'"
+ 32. 
+.         if "`add_wgt'"=="yes" {
+ 33.                 use "../../first_differences_wgt/temp/fd_rent_panel.dta", 
+> clear
+ 34.                 qui reghdfe D.`depvar' L(0/`w').D.ln_mw D.(`controls') [pw
+>  = wgt_cbsa100], ///
+>                         absorb(`absorb') vce(cluster `cluster') nocons  
+ 35. 
+.                 add_cumsum, coefficients(`lincomest_coeffs') i(1)
+ 36. 
+.                 local cumsum_b "`r(cumsum_b)'"
+ 37.                 local cumsum_V "`r(cumsum_V)'"
+ 38. 
+.                 eststo: qui reghdfe D.`depvar' D.ln_mw D.(`controls') [pw = w
+> gt_cbsa100], ///
+>                         absorb(`absorb') vce(cluster `cluster') nocons
+ 39.                 comment_table_control, emp("Yes") estab("Yes") wage("Yes")
+>  housing("No")
+ 40.                 estadd local space ""
+ 41.                 estadd local cumsum_b "`cumsum_b'"
+ 42.                 estadd local cumsum_V "`cumsum_V'"
+ 43.         }
+ 44. end 
+
+. 
+. program add_cumsum, rclass
+  1.         syntax, coefficients(str) i(int)
+  2.         lincomest `coefficients'
+  3.         mat b = e(b)
+  4.         mat V = e(V)
+  5.         local b_digits = round(b[1,1], 0.0001)
+  6.         local se_digits = round(V[1,1]^.5, 0.0001)
+  7.         if abs(b[1,1]/(V[1,1]^.5)) > 1.96 {
+  8.                 local star = "\sym{**}"
+  9.         }
+ 10.         else if abs(b[1,1]/(V[1,1]^.5)) > 1.65 {
+ 11.                 local star = "\sym{*}"
+ 12.         }
+ 13.         else {
+ 14.                 local star = ""
+ 15.         }
+ 16. 
+.         local cumsum_b = "0`b_digits'`star'"
+ 17.         local cumsum_V = "(0`se_digits')"
+ 18. 
+.         return local cumsum_b `cumsum_b'
+ 19.         return local cumsum_V `cumsum_V'
+ 20. end
+
+. 
+. program comment_table_control
+  1.         syntax, emp(str) estab(str) wage(str) housing(str)
+  2. 
+.         estadd local ctrl_emp   "`emp'"
+  3.         estadd local ctrl_estab "`estab'"
+  4.         estadd local ctrl_wage  "`wage'"
+  5.         estadd local ctrl_building "`housing'"
+  6. end
+
+. 
+. 
+. main
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    107,743
+Absorbing 1 HDFE group                            F(  15,     40) =       9.68
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.0222
+                                                  Adj R-squared   =     0.0211
+                                                  Within R-sq.    =     0.0003
+Number of clusters (statefips) =         41       Root MSE        =     0.0280
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+D.           |               Robust
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+         D1. |   .0260073   .0124548     2.09   0.043     .0008353    .0511792
+         LD. |    .017315    .007662     2.26   0.029     .0018294    .0328005
+        L2D. |  -.0061718   .0123024    -0.50   0.619    -.0310359    .0186923
+        L3D. |   .0039821   .0077857     0.51   0.612    -.0117535    .0197176
+        L4D. |   .0092449   .0066974     1.38   0.175     -.004291    .0227808
+        L5D. |   .0090206   .0067669     1.33   0.190    -.0046558    .0226969
+             |
+ln_emp_biz~v |
+         D1. |   .0049921   .0043207     1.16   0.255    -.0037403    .0137246
+             |
+ ln_emp_info |
+         D1. |   .0013444    .004321     0.31   0.757    -.0073886    .0100775
+             |
+  ln_emp_fin |
+         D1. |   .0137687   .0053179     2.59   0.013     .0030209    .0245166
+             |
+ln_estcou~rv |
+         D1. |   .0168647   .0141619     1.19   0.241    -.0117577     .045487
+             |
+ln_estcoun~o |
+         D1. |   .0037109   .0054574     0.68   0.500    -.0073188    .0147407
+             |
+ln_estcoun~n |
+         D1. |  -.0011023    .009529    -0.12   0.908    -.0203611    .0181566
+             |
+ln_avgwwa~rv |
+         D1. |   .0026665   .0025058     1.06   0.294    -.0023979    .0077309
+             |
+ln_avgwwag~o |
+         D1. |   .0012193   .0017873     0.68   0.499     -.002393    .0048316
+             |
+ln_avgwwag~n |
+         D1. |  -.0020553     .00127    -1.62   0.113    -.0046221    .0005116
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       111           0         111     |
+-----------------------------------------------------+
+Confidence interval for formula:
+D1.ln_mw+LD.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw+L5D.ln_mw
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |    .059398   .0342699     1.73   0.091     -.009864      .12866
+------------------------------------------------------------------------------
+(est1 stored)
+
+added macro:
+           e(ctrl_emp) : "Yes"
+
+added macro:
+         e(ctrl_estab) : "Yes"
+
+added macro:
+          e(ctrl_wage) : "Yes"
+
+added macro:
+      e(ctrl_building) : "No"
+
+added macro:
+              e(space) : ""
+
+added macro:
+           e(cumsum_b) : "0.0594\sym"
+
+added macro:
+           e(cumsum_V) : "(0.0343)"
+Confidence interval for formula:
+D1.ln_mw+LD.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw+L5D.ln_mw
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0532176   .0296352     1.80   0.079     -.006368    .1128032
+------------------------------------------------------------------------------
+(est2 stored)
+
+added macro:
+           e(ctrl_emp) : "Yes"
+
+added macro:
+         e(ctrl_estab) : "Yes"
+
+added macro:
+          e(ctrl_wage) : "Yes"
+
+added macro:
+      e(ctrl_building) : "No"
+
+added macro:
+              e(space) : ""
+
+added macro:
+           e(cumsum_b) : "0.0532\sym"
+
+added macro:
+           e(cumsum_V) : "(0.0296)"
+Confidence interval for formula:
+D1.ln_mw+LD.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw+L5D.ln_mw
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0736722   .0427772     1.72   0.093    -.0127838    .1601282
+------------------------------------------------------------------------------
+(est3 stored)
+
+added macro:
+           e(ctrl_emp) : "Yes"
+
+added macro:
+         e(ctrl_estab) : "Yes"
+
+added macro:
+          e(ctrl_wage) : "Yes"
+
+added macro:
+      e(ctrl_building) : "No"
+
+added macro:
+              e(space) : ""
+
+added macro:
+           e(cumsum_b) : "0.0737\sym"
+
+added macro:
+           e(cumsum_V) : "(0.0428)"
+(note: file ../output/static_dynamic_comptable.tex not found)
+(output written to ../output/static_dynamic_comptable.tex)
+
+. 
+end of do-file
+
+
+Execute:  StataMP-64 /e do "./figures.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./figures.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. adopath + ../../../lib/stata/min_wage/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+  [8]              "../../../lib/stata/min_wage/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.         local instub "../temp"
+  2.         local outstub "../output"
+  3. 
+.         use "`instub'/unbal_fd_rent_panel.dta", clear
+  4. 
+.         build_coeff_plot_comp, depvar(ln_med_rent_psqft_sfcc) absorb(year_mon
+> th) ///
+>                 cluster(statefips)
+  5. 
+. end
+
+. 
+. 
+. 
+. program build_coeff_plot_comp
+  1.         syntax, depvar(str) absorb(str) cluster(str) [w(int 5) t_plot(real
+>  1.645) offset(real 0.095)]
+  2. 
+.         define_controls estcount avgwwage
+  3.         local emp_ctrls "`r(emp_ctrls)'"
+  4.         local estcount_ctrls "`r(estcount_ctrls)'"
+  5.         local avgwwage_ctrls "`r(avgwwage_ctrls)'"
+  6. 
+.         local controls `"`emp_ctrls' `estcount_ctrls' `avgwwage_ctrls'"'
+  7. 
+.         *cumulative base
+.         preserve 
+  8.         qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls') if basep
+> anel, absorb(`absorb') vce(cluster `cluster') nocons
+  9.         local w_halfspan = `w' + 1
+ 10.         matrix CUMBASE = J(`w_halfspan', 5, .)
+ 11.         matrix colname CUMBASE = "at" "cumsum_base_b" "cumsum_base_se" "cu
+> msum_base_lb" "cumsum_base_ub"
+ 12.         local firstcoeff = "D1.ln_mw"
+ 13.         local cumcoeff = `"`firstcoeff'"'
+ 14.         matrix  CUMBASE[1, 1] = 0
+ 15.         lincomest `firstcoeff'
+ 16.         mat b = e(b)
+ 17.         mat V = e(V)
+ 18.         matrix CUMBASE[1,2] = b[1,1]
+ 19.         matrix CUMBASE[1,3] = V[1,1]^.5
+ 20.         matrix CUMBASE[1,4] = b[1, 1] - `t_plot'*V[1, 1]^.5
+ 21.         matrix CUMBASE[1,5] = b[1, 1] + `t_plot'*V[1, 1]^.5
+ 22.         forval i = 1/`w' {
+ 23.                 qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls') 
+> if basepanel, absorb(`absorb') vce(cluster `cluster') nocons
+ 24.                 local at = `i' + 1
+ 25.                 local cumcoeff = `"`cumcoeff' + L`i'D.ln_mw"'
+ 26.                 lincomest `cumcoeff'
+ 27.                 mat b = e(b)
+ 28.                 mat V = e(V)
+ 29.                 matrix CUMBASE[`at',1] = `i'
+ 30.                 matrix CUMBASE[`at',2] = b[1,1]
+ 31.                 matrix CUMBASE[`at',3] = V[1,1]^.5
+ 32.                 matrix CUMBASE[`at',4] = b[1, 1] - `t_plot'*V[1, 1]^.5
+ 33.                 matrix CUMBASE[`at',5] = b[1, 1] + `t_plot'*V[1, 1]^.5
+ 34.         }
+ 35.         svmat double CUMBASE, name(col) 
+ 36.         keep at cumsum_*
+ 37.         drop if missing(at)
+ 38.         replace at = at + `w' + 1
+ 39.         save "../temp/cumsum_base.dta", replace 
+ 40.         restore
+ 41. 
+.         *regular base
+.         qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls') if basepane
+> l, absorb(`absorb') vce(cluster `cluster') nocons
+ 42.         preserve
+ 43.                 coefplot, vertical base gen
+ 44.                 keep __at __b __se
+ 45.                 rename (__at __b __se) (at b_full se_full)
+ 46.                 
+.                 local winspan = 2*`w' + 1
+ 47.                 keep if _n<=`winspan'
+ 48.                 keep if !missing(at)
+ 49. 
+.                 gen b_full_lb = b_full - `t_plot'*se_full
+ 50.                 gen b_full_ub = b_full + `t_plot'*se_full
+ 51. 
+.                 save "../temp/plot_coeffs_base.dta", replace
+ 52.         restore
+ 53. 
+.         *cumsum unbalanced 
+.         preserve 
+ 54.         qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls'), absorb(
+> `absorb' entry_sfcc#year_month) vce(cluster `cluster') nocons
+ 55.         local w_halfspan = `w' + 1
+ 56.         matrix CUMBASE = J(`w_halfspan', 5, .)
+ 57.         matrix colname CUMBASE = "at" "cumsum_wgt_b" "cumsum_wgt_se" "cums
+> um_wgt_lb" "cumsum_wgt_ub"
+ 58.         local firstcoeff = "D1.ln_mw"
+ 59.         local cumcoeff = `"`firstcoeff'"'
+ 60.         matrix  CUMBASE[1, 1] = 0
+ 61.         lincomest `firstcoeff'
+ 62.         mat b = e(b)
+ 63.         mat V = e(V)
+ 64.         matrix CUMBASE[1,2] = b[1,1]
+ 65.         matrix CUMBASE[1,3] = V[1,1]^.5
+ 66.         matrix CUMBASE[1,4] = b[1, 1] - `t_plot'*V[1, 1]^.5
+ 67.         matrix CUMBASE[1,5] = b[1, 1] + `t_plot'*V[1, 1]^.5
+ 68.         forval i = 1/`w' {
+ 69.                 qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls'),
+>  absorb(`absorb' entry_sfcc#year_month) vce(cluster `cluster') nocons
+ 70.                 local at = `i' + 1
+ 71.                 local cumcoeff = `"`cumcoeff' + L`i'D.ln_mw"'
+ 72.                 lincomest `cumcoeff'
+ 73.                 mat b = e(b)
+ 74.                 mat V = e(V)
+ 75.                 matrix CUMBASE[`at',1] = `i'
+ 76.                 matrix CUMBASE[`at',2] = b[1,1]
+ 77.                 matrix CUMBASE[`at',3] = V[1,1]^.5
+ 78.                 matrix CUMBASE[`at',4] = b[1, 1] - `t_plot'*V[1, 1]^.5
+ 79.                 matrix CUMBASE[`at',5] = b[1, 1] + `t_plot'*V[1, 1]^.5
+ 80.         }
+ 81.         svmat double CUMBASE, name(col) 
+ 82.         keep at cumsum_*
+ 83.         drop if missing(at)
+ 84.         replace at = at + `w' + 1
+ 85.         save "../temp/cumsum_wgt.dta", replace 
+ 86.         restore
+ 87. 
+. 
+.         qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls'), ///
+>         absorb(`absorb' entry_sfcc#year_month) vce(cluster `cluster') nocons
+ 88. 
+.                                 
+.         preserve
+ 89.                 coefplot, vertical base gen
+ 90.                 keep __at __b __se
+ 91.                 rename (__at __b __se) (at b_wgt se_wgt)
+ 92.                 tset at
+ 93. 
+.                 local winspan = 2*`w' + 1
+ 94.                 keep if _n<=`winspan'
+ 95.                 keep if !missing(at)
+ 96. 
+.                 gen b_wgt_lb = b_wgt - `t_plot'*se_wgt
+ 97.                 gen b_wgt_ub = b_wgt + `t_plot'*se_wgt
+ 98.                         
+.                 gen cumsum_b_wgt = b_wgt[1]
+ 99.                 replace cumsum_b_wgt = cumsum_b_wgt[_n-1] + b_wgt[_n] if _
+> n > 1
+100.                 merge 1:1 at using "../temp/plot_coeffs_base.dta", nogen a
+> ssert(1 2 3)
+101.                 merge 1:1 at using "../temp/cumsum_base.dta", nogen assert
+> (1 2 3)
+102.                 merge 1:1 at using "../temp/cumsum_wgt.dta", nogen assert(
+> 1 2 3)
+103. 
+.                 sort at
+104.                 foreach var in cumsum_base_b cumsum_base_lb cumsum_base_ub
+>  cumsum_wgt_b cumsum_wgt_lb cumsum_wgt_ub {
+105.                         replace `var' = 0 if at == `w'
+106.                 }
+107.                 // To prevent lines from overlapping perfectly
+.                 gen at_full = at - `offset'
+108.                 gen at_base = at + `offset'
+109. 
+.                 // Figure
+.                 make_plot_xlabels, w(`w')
+110.                 local xlab "`r(xlab)'"
+111. 
+.                 twoway (scatter b_full at_base, mcol(navy)) (rcap b_full_lb b
+> _full_ub at_base, lcol(navy) lw(thin)) ///
+>                            (scatter b_wgt at_full, mcol(maroon)) (rcap b_wgt_
+> lb b_wgt_ub at_full, col(maroon) lw(thin)) ///
+>                            (line cumsum_base_b at, col(navy)) (line cumsum_ba
+> se_lb at, col(navy) lw(thin) lp(dash)) (line cumsum_base_ub at, col(navy) lw(
+> thin) lp(dash)) ///
+>                            (line cumsum_wgt_b at, col(maroon)) (line cumsum_w
+> gt_lb at, col(maroon) lw(thin) lp(dash)) (line cumsum_wgt_ub at, col(maroon) 
+> lw(thin) lp(dash)), ///
+>                            yline(0, lcol(black)) ///
+>                            xlabel(`xlab', labsize(small)) xtitle("") ///
+>                            ylabel(-0.06(0.02).16, grid labsize(small)) ytitle
+> ("Coefficient") ///
+>                            legend(order(1 "Baseline dynamic model" 3 "Reweigh
+> ted dynamic model" 5 "Cumulative baseline" 8 "Cumulative reweighted") size(vs
+> mall)) ///
+>                            graphregion(color(white)) bgcolor(white)
+112.                 graph export "../output/fd_model_comparison_unbal.png", re
+> place
+113.                 graph export "../output/fd_model_comparison_unbal.eps", re
+> place
+114. 
+.         restore 
+115. end
+
+. 
+. program make_plot_xlabels, rclass 
+  1.         syntax, w(int)
+  2. 
+.         local xlab ""
+  3.         forval lead = 1/`w' {
+  4.                 local leadlab = `lead' - `w' - 1
+  5.                 local xlab `"`xlab' `lead' "`leadlab'""'
+  6.         }
+  7.         local zero = `w' + 1
+  8.         local xlab `"`xlab' `zero' "0""'
+  9.         forval lag = 1/`w' {
+ 10.                 local coeflag = `zero' + `lag'
+ 11.                 local xlab `"`xlab' `coeflag' "`lag'""'
+ 12.         }
+ 13. 
+.         return local xlab `xlab'
+ 14. end
+
+. 
+. 
+. main 
+Confidence interval for formula:
+D1.ln_mw
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0259413   .0124122     2.09   0.043     .0008553    .0510273
+------------------------------------------------------------------------------
+Confidence interval for formula:
+D1.ln_mw+L1D.ln_mw
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0404985    .015996     2.53   0.015     .0081694    .0728277
+------------------------------------------------------------------------------
+Confidence interval for formula:
+D1.ln_mw+L1D.ln_mw+L2D.ln_mw
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0341097   .0268803     1.27   0.212    -.0202174    .0884368
+------------------------------------------------------------------------------
+Confidence interval for formula:
+D1.ln_mw+L1D.ln_mw+L2D.ln_mw+L3D.ln_mw
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0380598   .0317415     1.20   0.238    -.0260923    .1022118
+------------------------------------------------------------------------------
+Confidence interval for formula:
+D1.ln_mw+L1D.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0476856   .0345821     1.38   0.176    -.0222073    .1175786
+------------------------------------------------------------------------------
+Confidence interval for formula:
+D1.ln_mw+L1D.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw+L5D.ln_mw
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0575442   .0341687     1.68   0.100    -.0115134    .1266017
+------------------------------------------------------------------------------
+(552,471 observations deleted)
+(6 real changes made)
+(note: file ../temp/cumsum_base.dta not found)
+file ../temp/cumsum_base.dta saved
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(552,466 observations deleted)
+(0 observations deleted)
+(note: file ../temp/plot_coeffs_base.dta not found)
+file ../temp/plot_coeffs_base.dta saved
+Confidence interval for formula:
+D1.ln_mw
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0226993   .0115414     1.97   0.055    -.0005061    .0459048
+------------------------------------------------------------------------------
+Confidence interval for formula:
+D1.ln_mw+L1D.ln_mw
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0308359   .0145828     2.11   0.040     .0015153    .0601565
+------------------------------------------------------------------------------
+Confidence interval for formula:
+D1.ln_mw+L1D.ln_mw+L2D.ln_mw
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0377468   .0194847     1.94   0.059    -.0014298    .0769235
+------------------------------------------------------------------------------
+Confidence interval for formula:
+D1.ln_mw+L1D.ln_mw+L2D.ln_mw+L3D.ln_mw
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0428593   .0247996     1.73   0.090    -.0070036    .0927222
+------------------------------------------------------------------------------
+Confidence interval for formula:
+D1.ln_mw+L1D.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0499778    .027503     1.82   0.075    -.0053207    .1052763
+------------------------------------------------------------------------------
+Confidence interval for formula:
+D1.ln_mw+L1D.ln_mw+L2D.ln_mw+L3D.ln_mw+L4D.ln_mw+L5D.ln_mw
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~c |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0536275   .0292349     1.83   0.073    -.0051532    .1124082
+------------------------------------------------------------------------------
+(552,471 observations deleted)
+(6 real changes made)
+(note: file ../temp/cumsum_wgt.dta not found)
+file ../temp/cumsum_wgt.dta saved
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+        time variable:  at, 1 to 20
+                delta:  1 unit
+(552,466 observations deleted)
+(0 observations deleted)
+(10 real changes made)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                11  
+    -----------------------------------------
+(note: variable at was byte, now double to accommodate using data's values)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             5
+        from master                         5  
+        from using                          0  
+
+    matched                                 6  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             5
+        from master                         5  
+        from using                          0  
+
+    matched                                 6  
+    -----------------------------------------
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(note: file ../output/fd_model_comparison_unbal.png not found)
+(file ../output/fd_model_comparison_unbal.png written in PNG format)
+(note: file ../output/fd_model_comparison_unbal.eps not found)
+(file ../output/fd_model_comparison_unbal.eps written in EPS format)
+
+. 
+end of do-file
+
+ make.py ended: 2020-12-04 19:27:26

@@ -89,8 +89,9 @@ program compare_zillow_safmr_zipcode
 		   (line safmr year, lp(dash) lc(gs10)), ///
 		   legend(order(1 "zillow single family/condo" 2 "SAFMR")) ///
 		   ylabel(500(500)2000, grid labsize(small)) ytitle("Rent (2012 USD)", size(medsmall)) ///
-		   xlabel(, labsize(small))  xtitle(, size(medsmall))
-	graph export ../output/trend_zillow_safmrwgt_zipcode_avg.png, replace
+		   xlabel(, labsize(small))  xtitle(, size(medsmall)) ///
+		   graphregion(color(white)) bgcolor(white)
+	graph export ../output/trend_zillow_safmrwgt_zipcode_avg.eps, replace
 	restore 
 	* Option 1: take year average 
 	preserve
@@ -112,15 +113,17 @@ program compare_zillow_safmr_zipcode
 		   (line safmr4br year, lp(dash) lc(black)), ///
 		   legend(order(1 "zillow single family/condo" 2 "SAFMR 2br" 3 "SAFMR 3br" 4 "SAFMR 4br") cols(3)) ///
 		   ylabel(, grid labsize(small)) ytitle("Rent (2012 USD)", size(medsmall)) ///
-		   xlabel(, labsize(small)) xtitle(, size(medsmall))
-	graph export ../output/trend_zillow_safmr_zipcode_avg.png, replace
+		   xlabel(, labsize(small)) xtitle(, size(medsmall)) ///
+		   graphregion(color(white)) bgcolor(white)
+	graph export ../output/trend_zillow_safmr_zipcode_avg.eps, replace
 
 	twoway (line medrentprice_sfcc year, lc(eltblue)) ///
 		   (line safmr3br year, lp(dash) lc(black)), ///
 		   legend(order(1 "zillow single family/condo" 2 "SAFMR 3br") cols(3)) ///
 		   ylabel(, grid labsize(small)) ytitle("Rent (2012 USD)", size(medsmall)) ///
-		   xlabel(, labsize(small)) xtitle(, size(medsmall))
-	graph export ../output/trend_zillow_safmr3br_zipcode_avg.png, replace
+		   xlabel(, labsize(small)) xtitle(, size(medsmall)) ///
+		   graphregion(color(white)) bgcolor(white)
+	graph export ../output/trend_zillow_safmr3br_zipcode_avg.eps, replace
 
 	restore
 
@@ -148,15 +151,17 @@ program compare_zillow_safmr_zipcode
 			   (line safmr2br year, lp(dash) lc(gs11)) (line safmr3br year, lp(dash) lc(lavender)) (line safmr4br year, lp(dash) lc(black)), ///
 			   legend(order(1 "zillow single family/condo" 2 "SAFMR 2br" 3 "SAFMR 3br" 4 "SAFMR 4br") cols(3)) ///
 			   ylabel(, grid labsize(small)) ytitle("Rent (2012 USD)", size(medsmall)) ///
-			   xlabel(, labsize(small)) xtitle(, size(medsmall))
-		graph export ../output/trend_zillow_safmr_zipcode_m`m'.png, replace
+			   xlabel(, labsize(small)) xtitle(, size(medsmall)) ///
+			   graphregion(color(white)) bgcolor(white)
+		graph export ../output/trend_zillow_safmr_zipcode_m`m'.eps, replace
 
 		twoway (line medrentprice_sfcc year, lc(eltblue)) ///
 			   (line safmr3br year, lp(dash) lc(black)), ///
 			   legend(order(1 "zillow single family/condo" 2 "SAFMR 3br") cols(3)) ///
 			   ylabel(, grid labsize(small)) ytitle("Rent (2012 USD)", size(medsmall)) ///
-			   xlabel(, labsize(small)) xtitle(, size(medsmall))
-		graph export ../output/trend_zillow_safmr3br_zipcode_m`m'.png, replace
+			   xlabel(, labsize(small)) xtitle(, size(medsmall)) ///
+			   graphregion(color(white)) bgcolor(white)
+		graph export ../output/trend_zillow_safmr3br_zipcode_m`m'.eps, replace
 		restore	
 	}
 
@@ -181,10 +186,11 @@ program compare_zillow_safmr_zipcode
 
 	winsor2 medrentprice_sfcc, replace by(safmr_type year) cuts(5 95)
 
+	preserve
+	local nbr = 3
 	foreach var in medrentprice_sfcc safmrbr {
 		qui reghdfe `var' if safmr_type==`nbr', absorb(zipcode) res(`var'R)
 	}
-	local nbr = 3
 	qui corr medrentprice_sfccR safmrbrR if safmr_type==`nbr'
 	local rho = round(r(rho), .001)
 	di `rho'
@@ -193,12 +199,12 @@ program compare_zillow_safmr_zipcode
 	local estbeta = round(_b[safmrbr], .001)
 	local estse = round(_se[safmrbr], .001)
 	binscatter medrentprice_sfcc safmrbr if safmr_type==`nbr', ///
-	absorb(zipcode)  ///
+	absorb(zipcode) ///
 	ytitle("Median Rent Price (2012 USD)", size(medsmall)) xtitle("Small Area Fair Market Rent - `nbr'br", size(medsmall)) ///
-	mc(eltblue) lc(gs10) text(1600 2200 "{&beta} = `estbeta' (`estse')") text(1580 2150 "{&rho} = `rho'")
+	mc(navy) lc(gs10) text(1600 2200 "{&beta} = `estbeta' (`estse')") text(1580 2150 "{&rho} = `rho'")
 
-	graph export ../output/bins_sfcc_safmr`nbr'br.png, replace
-
+	graph export ../output/bins_sfcc_safmr`nbr'br.eps, replace
+	restore
 end
 
 
