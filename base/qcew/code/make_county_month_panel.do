@@ -8,7 +8,7 @@ program main
 
     use `instub'/industry_county_qtr_emp_wage.dta, clear
 
-    select_sectors, ownership(`" "Total Covered" "') industries(`""Total, all industries"')
+    select_sectors, ownership(`" "Total Covered" "') industries("10")
 
     clean_vars
 
@@ -18,7 +18,6 @@ program main
     key(countyfips year_month) replace 
 
     use `instub'/industry_county_qtr_emp_wage.dta, clear
-
 
     select_sectors, ownership(`""Federal Government" "State Government" "Local Government" "Private""') ///
                     industries("1011 1012 1013 1021 1022 1023 1024 1025 1026 1019")

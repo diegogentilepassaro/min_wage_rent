@@ -33,7 +33,6 @@ program clean_vars
 	drop msa_str
 	
 	replace dactual_mw = round(dactual_mw, 0.01)
-	replace dactual_mw = 0 if dactual_mw < 0
 
 	label define which_mw 1 "federal" 2 "state" 3 "county" 4 "local"
 	encode which_mw, g(which_mw2) label(which_mw)

@@ -18,17 +18,17 @@ program main
 	run_static_model, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) cluster(statefips)
 	esttab * using "`outstub'/fd_table.tex", keep(D.ln_mw) compress se replace substitute(\_ _) ///
 		b(%9.4f) se(%9.4f) coeflabels(`estlabels_static') ///
-		stats(ctrl_wage ctrl_emp ctrl_estab r2 N, fmt(%s3 %s3 %s3 %9.3f %9.0gc) ///
-		labels("Wage controls" "Employment controls" "Establishment-count controls" ///
+		stats(space ctrl_wage ctrl_emp ctrl_estab r2 N, fmt(%s1 %s3 %s3 %s3 %9.3f %9.0gc) ///
+		labels("\vspace{-2mm}" "Wage controls" "Employment controls" "Establishment-count controls" ///
 			"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) ///
 		nonote nomtitles
 
-	run_static_model_trend, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) cluster(statefips)
+	run_static_model_trend, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) cluster(statefips) control(yes)
 	esttab * using "`outstub'/fd_table_trend.tex", keep(D.ln_mw) compress se replace substitute(\_ _) 	///
 		b(%9.4f) se(%9.4f) coeflabels(`estlabels_static') ///
-		stats(zs_trend zs_trend_sq r2 N, fmt(%s3 %s3 %9.3f %9.0gc) ///
-		labels("Zipcode-specifc linear trend" "Zipcode-specific quadratic trend" ///
-			"R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) nonote nomtitles 
+		stats(space zs_trend zs_trend_sq econ_con r2 N, fmt(%s1 %s3 %s3 %s3 %9.3f %9.0gc) ///
+		labels("\vspace{-2mm}" "Zipcode-specifc linear trend" "Zipcode-specific quadratic trend" ///
+			"Local economy controls" "R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) nonote nomtitles
 
 	* Dynamic Model
 	run_dynamic_model, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
@@ -56,39 +56,70 @@ program run_static_model
 
 	eststo: reghdfe D.`depvar' D.ln_mw,	absorb(`absorb') vce(cluster `cluster') nocons
 	comment_table_control, emp("No") estab("No") wage("No") housing("No")
+	estadd local space ""
 
 	scalar static_effect = _b[D.ln_mw]
 	scalar static_effect_se = _se[D.ln_mw]
 
 	eststo: reghdfe D.`depvar' D.ln_mw D.(`avgwwage_ctrls'), absorb(`absorb' zipcode) vce(cluster `cluster') nocons
 	comment_table_control, emp("No") estab("No") wage("Yes") housing("No")
+	estadd local space ""
 
 	eststo: reghdfe D.`depvar' D.ln_mw D.(`emp_ctrls'), absorb(`absorb') vce(cluster `cluster') nocons
 	comment_table_control, emp("Yes") estab("No") wage("No") housing("No")
+	estadd local space ""
 
 	eststo: reghdfe D.`depvar' D.ln_mw D.(`estcount_ctrls'), absorb(`absorb') vce(cluster `cluster') nocons
 	comment_table_control, emp("No") estab("Yes") wage("No") housing("No")
+	estadd local space ""
 
 	eststo: reghdfe D.`depvar' D.ln_mw D.(`avgwwage_ctrls') D.(`emp_ctrls') D.(`estcount_ctrls'), ///
 		absorb(`absorb') vce(cluster `cluster') nocons
 	comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing("No")
+	estadd local space ""
 end 
 
 program run_static_model_trend
-	syntax, depvar(str) absorb(str) cluster(str)
+	syntax, depvar(str) absorb(str) cluster(str) [control(str)]
+
+	define_controls
+	local emp_ctrls "`r(emp_ctrls)'"
+	local estcount_ctrls "`r(estcount_ctrls)'"
+	local avgwwage_ctrls "`r(avgwwage_ctrls)'"
+	local controls `"`emp_ctrls' `estcount_ctrls' `avgwwage_ctrls'"'
 
 	eststo clear
 	eststo: reghdfe D.`depvar' D.ln_mw, ///
 		vce(cluster `cluster') nocons absorb(`absorb') 
-	comment_table, trend_lin("No") trend_sq("No")
+	comment_table, trend_lin("No") trend_sq("No") econ_con("No")
+	estadd local space ""
 
 	eststo: reghdfe D.`depvar' D.ln_mw,	///
 		vce(cluster `cluster') nocons absorb(`absorb' i.zipcode) 
-	comment_table, trend_lin("Yes") trend_sq("No")
+	comment_table, trend_lin("Yes") trend_sq("No") econ_con("No")
+	estadd local space ""
 
 	eststo: reghdfe D.`depvar' D.ln_mw, ///
 		vce(cluster `cluster') nocons absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) 
-	comment_table, trend_lin("Yes") trend_sq("Yes")
+	comment_table, trend_lin("Yes") trend_sq("Yes") econ_con("No")
+	estadd local space ""
+
+	if "`control'"=="yes" {
+		eststo: reghdfe D.`depvar' D.ln_mw D.(`controls'), ///
+			vce(cluster `cluster') nocons absorb(`absorb') 
+		comment_table, trend_lin("No") trend_sq("No") econ_con("Yes")
+		estadd local space ""
+
+		eststo: reghdfe D.`depvar' D.ln_mw D.(`controls'),	///
+			vce(cluster `cluster') nocons absorb(`absorb' i.zipcode) 
+		comment_table, trend_lin("Yes") trend_sq("No") econ_con("Yes")
+		estadd local space ""
+
+		eststo: reghdfe D.`depvar' D.ln_mw D.(`controls'), ///
+			vce(cluster `cluster') nocons absorb(`absorb' i.zipcode c.trend_times2#i.zipcode) 
+		comment_table, trend_lin("Yes") trend_sq("Yes") econ_con("Yes")
+		estadd local space ""
+	}
 end
 
 program run_dynamic_model
@@ -191,10 +222,11 @@ program add_cumsum
 end
 
 program comment_table
-	syntax, trend_lin(str) trend_sq(str)
+	syntax, trend_lin(str) trend_sq(str) econ_con(str)
 
 	estadd local zs_trend 		"`trend_lin'"
 	estadd local zs_trend_sq 	"`trend_sq'"
+	estadd local econ_con       "`econ_con'"
 end
 
 
