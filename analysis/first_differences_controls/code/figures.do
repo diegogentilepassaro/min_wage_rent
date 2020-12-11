@@ -11,7 +11,7 @@ program main
 	local industries "info bizserv fin"
 
 	use `instub'/qcew_controls_countyquarter_panel.dta, clear
- 	
+	
 	foreach var in `industries' {
 		plot_dynamic, ind(`var') treatvar(ln_mw) absorb(quarter) cluster(statefips) instub(`instub') outstub(`outstub') w(3)
 	}
@@ -77,6 +77,19 @@ program plot_dynamic
 
 		merge 1:1 at using ../temp/coeffs_est.dta, nogen assert(1 2 3) keep(1 3)
 		merge 1:1 at using ../temp/coeffs_wage.dta, nogen assert(1 2 3) keep(1 3)
+		tset at 
+		local zero = `mw' + 1
+		foreach var in b_est b_est_lb b_est_ub b_wage b_wage_lb b_wage_ub {
+			replace `var' = F.`var' if at > `zero'
+		}
+		g at_inv = - at 
+		tset at_inv
+		foreach var in b_est b_est_lb b_est_ub b_wage b_wage_lb b_wage_ub {
+			replace `var' = F.`var' if at_inv > - `zero'
+		}		
+		drop at_inv
+		sort at 
+		tset at
 
 		make_plot_xlabels, w(`mw')
 		gen at_wage = at - `offset'
@@ -137,7 +150,10 @@ program make_plot_xlabels, rclass
 	} */
 
 	if `w'==9 {
-		local xlab `"1 `""-9" "(-3)""' 2 "-8" 3 "-7" 4 `""-6" "(-2)""' 5 "-5" 6 "-4" 7 `""-3" "(-1)""' 8 "-2" 9 "-1" 10 `""0" "(0)""' 11 "1" 12 "2" 13 `""3" "(1)""' 14 "4" 15 "5" 16 `""6" "(2)""' 17 "7" 18 "8" 19 `""9" "(3)""' "'
+		local xlab `"       1 "-9" 2 `""-8" "(-3)""' 3 "-7" 4 "-6" 5 `""-5" "(-2)""'"'
+		local xlab `"`xlab' 6 "-4" 7 "-3" 8 `""-2" "(-1)""' 9 "-1" 10 `""0" "(0)""'"'
+		local xlab `"`xlab' 11 "1" 12 `""2" "(1)""' 13 "3" 14 "4" 15 `""5" "(2)""'"'
+		local xlab `"`xlab' 16 "6" 17 "7" 18 `""8" "(3)""' 19 "9"                "'
 	}
 	
 	
