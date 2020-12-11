@@ -25,9 +25,9 @@ program main
 			  	%9.3f %9.3f %9.3f ///
 				%s1 %s1 %s1 ///
 			  	%9.3f %9.3f %9.3f) ///
-			  labels("\vspace{-2mm}" "\textit{\textbb{Panel A: Statutory MW}}" "\hline" ///
+			  labels("\vspace{-2mm}" "\textit{\textbf{Panel A: Statutory MW}}" "\hline" ///
 			  	"Rent Elasticity" "Avg. Wage Elasticity" "Pass-Through" ///
-			  	"\vspace{1mm}" "\textit{\textbb{Panel B: Experienced MW}}" "\hline" ///
+			  	"\vspace{1mm}" "\textit{\textbf{Panel B: Experienced MW}}" "\hline" ///
 			  	"Rent Elasticity" "Avg. Wage Elasticity" "Pass-Through")) ///
 		mtitles("\shortstack{QCEW \\ regression}" ///
 		    "\shortstack{Dube et \\al. (2019)}") ///
@@ -89,7 +89,7 @@ program incidence_comparison_dube2019
 	syntax, depvar(str) treatvar(str) absorb(str) cluster(str) mww_share_stub(str) outstub(str) [w(int 5) dynamic(str)]
 
 	if "`treatvar'"=="ln_mw" {
-		eststo dube: qui reghdfe D.`depvar' D.`treatvar', ///
+		eststo dube: reghdfe D.`depvar' D.`treatvar', ///
 				absorb(`absorb')        ///
 				vce(cluster `cluster') nocons		
 	}
