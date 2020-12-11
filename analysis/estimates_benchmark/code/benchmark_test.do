@@ -129,7 +129,7 @@ end
 program incidence_formula_avg_reg
 	syntax, depvar(str) treatvar(str) absorb(str) cluster(str) wagevar(str) instub_wage(str) outstub(str) [w(int 5) dynamic(str)]
 	
-	qui reghdfe D.`depvar' D.`treatvar', ///
+	reghdfe D.`depvar' D.`treatvar', ///
 			absorb(`absorb')        ///
 			vce(cluster `cluster') nocons
 	local r = _b[D.`treatvar']
@@ -142,7 +142,7 @@ program incidence_formula_avg_reg
 	use `instub_wage'/mw_wage_panel.dta, clear 
 	merge m:1 countyfips using `samplecty', nogen assert(1 2 3) keep(3)
 	sort countyfips quarter
-	reghdfe `wagevar' d_`treatvar', absorb(quarter countyfips statefips) nocons
+	reghdfe `wagevar' d_`treatvar', absorb(quarter countyfips) nocons
 	local effect_wage = _b[d_`treatvar']
 	restore
 
