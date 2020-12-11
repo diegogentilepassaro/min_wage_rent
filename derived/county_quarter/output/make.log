@@ -1,5 +1,5 @@
 
- make.py started: 2020-12-10 11:21:50 C:\Users\shermo\Documents\GitHub\min_wage_rent\derived\county_quarter\code 
+ make.py started: 2020-12-10 11:45:16 C:\Users\shermo\Documents\GitHub\min_wage_rent\derived\county_quarter\code 
 
 
 
@@ -458,8 +458,6 @@ avg_quarte~t |    127,995    44934.04    155404.3          0    4513128
 
 
 
-(note: file ../../../drive/derived_large/output/county_quarter_panel_all.dta no
-> t found)
 file ../../../drive/derived_large/output/county_quarter_panel_all.dta saved
 (162,458 observations deleted)
 (116,091 observations deleted)
@@ -675,8 +673,6 @@ avg_quarte~t |      7,995    322341.9      475189   5685.333    4513128
 
 
 
-(note: file ../../../drive/derived_large/output/baseline_rent_county_quarter.dt
-> a not found)
 file ../../../drive/derived_large/output/baseline_rent_county_quarter.dta saved
 (162,458 observations deleted)
 (116,091 observations deleted)
@@ -890,12 +886,648 @@ avg_quarte~t |     53,508    90586.28      221776        747    4513128
 
 
 
-(note: file ../../../drive/derived_large/output/baseline_listing_county_quarter
-> .dta not found)
 file ../../../drive/derived_large/output/baseline_listing_county_quarter.dta sa
 > ved
 
 . 
 end of do-file
 
- make.py ended: 2020-12-10 11:24:00
+
+Execute:  StataMP-64 /e do "./make_mw_qcewcontrol_ctyquarter.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./make_mw_qcewcontrol_ctyquarter.do 
+
+. set more off
+
+. clear all
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. 
+. program main 
+  1.         local instub_mw    "../../../drive/base_large/output"
+  2.         local instub_wages "../../../base/qcew/output"
+  3.         local instub_xwalk "../../../raw/crosswalk"
+  4.         local outstub      "../output"
+  5. 
+.         prepare_aux_data, instub_xwalk(`instub_xwalk') instub_mw(`instub_mw')
+  6. 
+.         use `instub_mw'/zip_mw.dta, clear
+  7.         clean_zip_mw
+  8.         merge 1:1 zipcode year_month using ../temp/exp_mw.dta, nogen asser
+> t(1 2 3)
+  9. 
+.         merge m:1 zipcode countyfips using ../temp/zip_cty_wgt.dta, nogen ass
+> ert(1 2 3) keep(3)
+ 10.         gsort countyfips year_month
+ 11.         *collapse geography 
+.         gcollapse (mean) actual_mw dactual_mw treated_mw ln_mw exp_mw ln_expm
+> w [aw = zhu], by(county year_month) 
+ 12.         
+.         merge m:1 countyfips year_month using `instub_wages'/ind_emp_wage_cou
+> ntymonth.dta, ///
+>         nogen assert(1 2 3) keep(3)
+ 13.         merge m:1 countyfips year_month using `instub_wages'/tot_emp_wage_
+> countymonth.dta, ///
+>         nogen assert(1 2 3) keep(3)     
+ 14.         
+.         prepare_panel, sectors(bizserv fin info const eduhe leis manu natres 
+> transp tot)
+ 15.         
+. 
+.         *when checking 7790 notmatched from master zippanel, 95 percents are 
+> PO boxes and the remaning 5 looks like universities, very small rural areas. 
+> This means we probably can use zcta/zip interchangeably
+.         *used this to check zipcode type 
+.         *merge m:1 zipcode using ../temp/zip_zcta_xwalk.dta, nogen assert(1 2
+>  3)
+. 
+.         save_data `outstub'/qcew_controls_countyquarter_panel.dta, key(county
+> fips quarter) replace 
+ 16. end 
+
+. 
+. 
+. program clean_zip_mw 
+  1.         destring countyfips, replace 
+  2.         destring statefips, replace
+  3.         drop county_above local_above
+  4.         g temp = mofd(year_month)
+  5.         order temp, after(year_month)
+  6.         drop year_month
+  7.         rename temp year_month
+  8.         format year_month %tm
+  9. 
+.         xtset zipcode year_month
+ 10.         g ln_mw    = log(actual_mw)
+ 11.         
+. 
+.         keep zipcode countyfips year_month ///
+>                  ln_mw actual_mw dactual_mw treated_mw
+ 12. end 
+
+. 
+. 
+. program prepare_panel
+  1.         syntax, sectors(str)
+  2. 
+.         local contlist ""
+  3.         foreach s in `sectors' {
+  4.                 unab this_s : *_`s'
+  5.         
+.                 g avgmwage_`s' = avgwwage_`s' * 4.35
+  6.                 g ln_wwage_`s' = log(avgwwage_`s')
+  7.                 g ln_mwage_`s' = log(avgmwage_`s')
+  8.                 g ln_emp_`s'   = log(emp_`s')
+  9.                 g ln_est_`s'   = log(estcount_`s')
+ 10. 
+.                 local contlist `"`contlist' avgwwage_`s' avgmwage_`s' ln_wwag
+> e_`s' ln_mwage_`s' emp_`s' ln_emp_`s' estcount_`s' ln_est_`s'"'
+ 11.         }
+ 12. 
+. 
+.         keep year_month countyfips            ///
+>                  ln_mw actual_mw dactual_mw treated_mw ///
+>                  exp_mw ln_expmw             ///
+>                 `contlist'
+ 13. 
+.         g quarter = qofd(dofm(year_month)), 
+ 14.         order quarter, after(year_month)
+ 15.         format quarter %tq
+ 16.         
+.         unab quartervar : estcount_* avgwwage_* avgmwage_* ln_wwage_* ln_mwag
+> e_* ln_est_*
+ 17.         unab monthvar : emp_* ln_emp_*  
+ 18. 
+.         preserve 
+ 19.                 xtset countyfips year_month
+ 20.                 foreach var in ln_mw ln_expmw `monthvar' {
+ 21.                         bys countyfips (year_month): g d_`var' = D.`var'
+ 22.                 }
+ 23.                 g statefips = string(countyfips, "%05.0f")
+ 24.                 replace statefips = substr(statefips, 1, 2)
+ 25.                 destring statefips, replace
+ 26.                 order statefips, after(countyfips)      
+ 27.                 
+.                 save ../output/qcew_controls_countymonth.dta, replace 
+ 28.         restore
+ 29. 
+.         gcollapse (first) `quartervar' ///
+>                   (last) actual_mw dactual_mw treated_mw ln_mw exp_mw ln_expm
+> w `monthvar', by(countyfips quarter) 
+ 30. 
+.         xtset countyfips quarter
+ 31. 
+.         foreach var in ln_mw ln_expmw `monthvar' {
+ 32.                 bys countyfips (quarter): g d_`var' = (1/3)*D.`var'
+ 33.         }
+ 34.         foreach var in `quartervar' {
+ 35.                 bys countyfips (quarter): g avg_d_`var' = (1/3)*D.`var'
+ 36.         }
+ 37. 
+.         g statefips = string(countyfips, "%05.0f")
+ 38.         replace statefips = substr(statefips, 1, 2)
+ 39.         destring statefips, replace
+ 40.         order statefips, after(countyfips)      
+ 41. end 
+
+. 
+. program prepare_aux_data        
+  1.         syntax, instub_xwalk(str) instub_mw(str)
+  2.         import delim `instub_xwalk'/zcta_county_rel_10.txt, delim(",") cle
+> ar
+  3.         rename (zcta5 geoid) (zipcode countyfips)
+  4.         keep if zhupct >=50
+  5.         duplicates tag zipcode, g(dup)
+  6.         bys zipcode: egen morepop = max(zpoppct) if dup==1
+  7.         drop if dup==1 & zpoppct!=morepop
+  8.         drop morepop dup
+  9.         *keep housing units as weights
+.         keep zipcode countyfips hupt zhu 
+ 10.         save ../temp/zip_cty_wgt.dta, replace 
+ 11. 
+.         import excel `instub_xwalk'/zip_to_zcta_2019.xlsx, first clear
+ 12.         rename (ZIP_CODE ZCTA) (zipcode zcta)
+ 13.         drop if zcta=="No ZCTA"
+ 14.         destring zipcode zcta, replace 
+ 15.         keep zipcode zcta zip_join_type ZIP_TYPE
+ 16.         save ../temp/zip_zcta_xwalk.dta, replace
+ 17. 
+.         use `instub_mw'/exp_mw.dta, clear 
+ 18.         g year_month = mofd(yearmonth)
+ 19.         format year_month %tm
+ 20.         drop yearmonth exp_mw_job_lowinc exp_mw_job_young
+ 21.         rename exp_mw_totjob exp_mw
+ 22.         g ln_expmw = log(exp_mw)
+ 23.         save ../temp/exp_mw.dta, replace
+ 24. end
+
+. 
+. 
+. main
+(24 vars, 44,410 obs)
+(11,709 observations deleted)
+
+Duplicates in terms of zipcode
+(32697 missing values generated)
+(2 observations deleted)
+(note: file ../temp/zip_cty_wgt.dta not found)
+file ../temp/zip_cty_wgt.dta saved
+(9 observations deleted)
+zipcode: all characters numeric; replaced as long
+zcta: all characters numeric; replaced as long
+(note: file ../temp/zip_zcta_xwalk.dta not found)
+file ../temp/zip_zcta_xwalk.dta saved
+(note: file ../temp/exp_mw.dta not found)
+file ../temp/exp_mw.dta saved
+countyfips: all characters numeric; replaced as long
+statefips: all characters numeric; replaced as byte
+       panel variable:  zipcode (strongly balanced)
+        time variable:  year_month, 2010m1 to 2019m12
+                delta:  1 month
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       318,120
+        from master                   254,760  
+        from using                     63,360  
+
+    matched                         4,587,720  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                         3,907,680  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           366,459  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           366,459  
+    -----------------------------------------
+(1,002 missing values generated)
+(22,602 missing values generated)
+(22,602 missing values generated)
+(22,603 missing values generated)
+(1,002 missing values generated)
+(1,176 missing values generated)
+(18,234 missing values generated)
+(18,234 missing values generated)
+(18,234 missing values generated)
+(1,176 missing values generated)
+(12,519 missing values generated)
+(84,870 missing values generated)
+(84,870 missing values generated)
+(84,870 missing values generated)
+(12,519 missing values generated)
+(1,311 missing values generated)
+(40,263 missing values generated)
+(40,263 missing values generated)
+(40,264 missing values generated)
+(1,311 missing values generated)
+(1,857 missing values generated)
+(15,099 missing values generated)
+(15,099 missing values generated)
+(15,099 missing values generated)
+(1,857 missing values generated)
+(1,050 missing values generated)
+(9,588 missing values generated)
+(9,588 missing values generated)
+(9,588 missing values generated)
+(1,050 missing values generated)
+(7,017 missing values generated)
+(43,764 missing values generated)
+(43,764 missing values generated)
+(43,764 missing values generated)
+(7,017 missing values generated)
+(2,604 missing values generated)
+(34,815 missing values generated)
+(34,815 missing values generated)
+(34,817 missing values generated)
+(2,604 missing values generated)
+(72 missing values generated)
+(1,029 missing values generated)
+(1,029 missing values generated)
+(1,029 missing values generated)
+(72 missing values generated)
+(36 missing values generated)
+(36 missing values generated)
+(36 missing values generated)
+       panel variable:  countyfips (unbalanced)
+        time variable:  year_month, 2010m1 to 2019m9
+                delta:  1 month
+(3,133 missing values generated)
+(3,133 missing values generated)
+(4,149 missing values generated)
+(4,451 missing values generated)
+(4,994 missing values generated)
+(4,318 missing values generated)
+(15,653 missing values generated)
+(4,191 missing values generated)
+(10,156 missing values generated)
+(5,755 missing values generated)
+(3,208 missing values generated)
+(3,133 missing values generated)
+(26,898 missing values generated)
+(22,146 missing values generated)
+(89,108 missing values generated)
+(44,977 missing values generated)
+(18,762 missing values generated)
+(13,244 missing values generated)
+(47,563 missing values generated)
+(39,332 missing values generated)
+(4,202 missing values generated)
+(3,179 missing values generated)
+(366,459 real changes made)
+statefips: all characters numeric; replaced as byte
+(note: file ../output/qcew_controls_countymonth.dta not found)
+file ../output/qcew_controls_countymonth.dta saved
+       panel variable:  countyfips (unbalanced)
+        time variable:  quarter, 2010q1 to 2019q3
+                delta:  1 quarter
+(3,133 missing values generated)
+(3,133 missing values generated)
+(3,481 missing values generated)
+(3,577 missing values generated)
+(3,756 missing values generated)
+(3,534 missing values generated)
+(7,307 missing values generated)
+(3,491 missing values generated)
+(5,478 missing values generated)
+(4,019 missing values generated)
+(3,160 missing values generated)
+(3,133 missing values generated)
+(11,829 missing values generated)
+(9,990 missing values generated)
+(32,528 missing values generated)
+(18,133 missing values generated)
+(8,696 missing values generated)
+(6,852 missing values generated)
+(18,387 missing values generated)
+(16,119 missing values generated)
+(3,516 missing values generated)
+(3,155 missing values generated)
+(3,481 missing values generated)
+(3,577 missing values generated)
+(3,756 missing values generated)
+(3,534 missing values generated)
+(7,307 missing values generated)
+(3,491 missing values generated)
+(5,478 missing values generated)
+(4,019 missing values generated)
+(3,160 missing values generated)
+(3,133 missing values generated)
+(3,481 missing values generated)
+(3,577 missing values generated)
+(3,756 missing values generated)
+(3,534 missing values generated)
+(7,307 missing values generated)
+(3,491 missing values generated)
+(5,478 missing values generated)
+(4,019 missing values generated)
+(3,160 missing values generated)
+(3,133 missing values generated)
+(3,481 missing values generated)
+(3,534 missing values generated)
+(7,307 missing values generated)
+(3,577 missing values generated)
+(3,756 missing values generated)
+(3,491 missing values generated)
+(5,478 missing values generated)
+(4,019 missing values generated)
+(3,160 missing values generated)
+(3,133 missing values generated)
+(11,829 missing values generated)
+(9,990 missing values generated)
+(32,528 missing values generated)
+(18,133 missing values generated)
+(8,696 missing values generated)
+(6,852 missing values generated)
+(18,387 missing values generated)
+(16,119 missing values generated)
+(3,516 missing values generated)
+(3,155 missing values generated)
+(11,829 missing values generated)
+(9,990 missing values generated)
+(32,528 missing values generated)
+(18,133 missing values generated)
+(8,696 missing values generated)
+(6,852 missing values generated)
+(18,387 missing values generated)
+(16,119 missing values generated)
+(3,516 missing values generated)
+(3,155 missing values generated)
+(3,481 missing values generated)
+(3,534 missing values generated)
+(7,307 missing values generated)
+(3,577 missing values generated)
+(3,756 missing values generated)
+(3,491 missing values generated)
+(5,478 missing values generated)
+(4,019 missing values generated)
+(3,160 missing values generated)
+(3,133 missing values generated)
+(122,153 real changes made)
+statefips: all characters numeric; replaced as byte
+(data already sorted by countyfips quarter)
+  variable quarter was float now int
+  (244,306 bytes saved)
+============================================================================
+File: ../output/qcew_controls_countyquarter_panel.dta
+Key: countyfips quarter
+============================================================================
+  122153:171(91283):68290223:3468197894
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  countyfips |    122,153    30335.97     15138.5       1001      56045
+     quarter |    122,153    218.9969    11.25445        200        238
+   statefips |    122,153    30.23378    15.12229          1         56
+estcount_b~v |    121,819    480.3436    1871.115          1      56758
+estcount_c~t |    121,716    237.3144    647.6574          1      17066
+-------------+---------------------------------------------------------
+estcount_e~e |    121,534    434.2079    3608.035          1     245237
+estcount_fin |    121,761    259.5831    958.6962          1      30405
+estcount_i~o |    117,980    44.06968    237.7824          1      13271
+estcount_l~s |    121,803    253.4744    901.0988          1      39458
+estcount_m~u |    119,814    106.8815    366.9424          1      13469
+-------------+---------------------------------------------------------
+estcount_n~s |    121,285    42.28037     86.4778          1       1859
+estcount_t~p |    122,129    558.2627    1826.694          1      59615
+estcount_tot |    122,153    2840.675    11501.34          8     511616
+avgwwage_b~v |    121,819    762.1672    394.3859          0      26956
+avgwwage_c~t |    121,716    748.5371    351.5859          0       8024
+-------------+---------------------------------------------------------
+avgwwage_e~e |    121,534    646.3505    221.6503          0       2749
+avgwwage_fin |    121,761    823.8624    369.4572          0      12775
+avgwwage_i~o |    117,980    684.3354     499.407          0      16227
+avgwwage_l~s |    121,803    274.6573     100.836          0       2473
+avgwwage_m~u |    119,814     822.336    405.7997          0       7592
+-------------+---------------------------------------------------------
+avgwwage_n~s |    121,285    745.1992    438.4656          0      23770
+avgwwage_t~p |    122,129    650.7988     183.248          0      11257
+avgwwage_tot |    122,153    729.0063    178.7451          0       4317
+avgmwage_b~v |    121,819    3315.427    1715.579          0   117258.6
+avgmwage_fin |    121,761    3583.802    1607.139          0   55571.25
+-------------+---------------------------------------------------------
+avgmwage_i~o |    117,980    2976.859     2172.42          0   70587.45
+avgmwage_c~t |    121,716    3256.136    1529.399          0    34904.4
+avgmwage_e~e |    121,534    2811.625    964.1789          0   11958.15
+avgmwage_l~s |    121,803    1194.759    438.6364          0   10757.55
+avgmwage_m~u |    119,814    3577.162    1765.229          0    33025.2
+-------------+---------------------------------------------------------
+avgmwage_n~s |    121,285    3241.617    1907.326          0   103399.5
+avgmwage_t~p |    122,129    2830.975    797.1289          0   48967.95
+avgmwage_tot |    122,153    3171.178    777.5411          0   18778.95
+ln_wwage_b~v |    114,619    6.628799    .3576639   4.248495   10.20196
+ln_wwage_fin |    116,075    6.713117    .2955102   5.099866   9.455245
+-------------+---------------------------------------------------------
+ln_wwage_i~o |     93,863    6.678755    .3856606   4.219508   9.694432
+ln_wwage_c~t |    108,732    6.689632    .2862272   4.736198   8.990192
+ln_wwage_e~e |    117,120    6.468641     .288303   3.663562   7.918993
+ln_wwage_l~s |    118,957    5.595716    .2863332   3.912023   7.813187
+ln_wwage_m~u |    107,565    6.769582    .3144933   4.624973   8.934851
+-------------+---------------------------------------------------------
+ln_wwage_n~s |    110,548    6.628193    .3750279   4.532599   10.07618
+ln_wwage_t~p |    121,810    6.449795    .2425361   4.983607   9.328746
+ln_wwage_tot |    122,141    6.566796    .2163333   5.765191   8.370316
+ln_mwage_b~v |    114,619    8.098974    .3576639   5.718671   11.67214
+ln_mwage_fin |    116,075    8.183293    .2955103   6.570042   10.92542
+-------------+---------------------------------------------------------
+ln_mwage_i~o |     93,863    8.148931    .3856606   5.689683   11.16461
+ln_mwage_c~t |    108,732    8.159808    .2862272   6.206374   10.46037
+ln_mwage_e~e |    117,120    7.938817     .288303   5.133738   9.389169
+ln_mwage_l~s |    118,957    7.065892    .2863332   5.382199   9.283363
+ln_mwage_m~u |    107,565    8.239758    .3144933   6.095149   10.40503
+-------------+---------------------------------------------------------
+ln_mwage_n~s |    110,548    8.098369    .3750279   6.002775   11.54636
+ln_mwage_t~p |    121,810    7.919971    .2425361   6.453783   10.79892
+ln_mwage_tot |    122,141    8.036972    .2163334   7.235367   9.840492
+ln_est_biz~v |    121,819    4.335811    1.754039          0   10.94655
+  ln_est_fin |    121,761    4.042056    1.592306          0   10.32236
+-------------+---------------------------------------------------------
+ ln_est_info |    117,980    2.306967    1.418335          0   9.493337
+ln_est_const |    121,716    4.202246    1.534361          0   9.744843
+ln_est_eduhe |    121,534    4.293074    1.687955          0   12.40998
+ ln_est_leis |    121,803    4.166335    1.543128          0   10.58299
+ ln_est_manu |    119,814    3.397686    1.518313          0   9.508146
+-------------+---------------------------------------------------------
+ln_est_nat~s |    121,285    3.097245    1.083377          0   7.527794
+ln_est_tra~p |    122,129     5.09202    1.423972          0   10.99566
+  ln_est_tot |    122,153    6.621409    1.427386   2.079442   13.14533
+   actual_mw |    122,153    7.668379    .8079206       7.25      15.59
+  dactual_mw |    122,153    .0026422    .0428315      -2.85   1.036105
+-------------+---------------------------------------------------------
+  treated_mw |    122,153    .0050658    .0709288          0          1
+       ln_mw |    122,153    2.032295    .0946414   1.981001    2.74663
+      exp_mw |    122,153    7.652054    .8068017   5.831239   14.77125
+    ln_expmw |    122,153    2.030125    .0948866   1.758456   2.692637
+ emp_bizserv |    121,819    5767.733    26400.11          0     638851
+-------------+---------------------------------------------------------
+   emp_const |    121,716    1943.288    6647.119          0     173791
+   emp_eduhe |    121,534    6623.687    24402.12          0     832830
+     emp_fin |    121,761    2419.883    11760.23          0     392278
+    emp_info |    117,980    865.3113    5805.527          0     229261
+    emp_leis |    121,803    4720.679     17592.8          0     551950
+-------------+---------------------------------------------------------
+    emp_manu |    119,814    3916.546    12129.32          0     376653
+  emp_natres |    121,285    604.4326    2799.002          0      97846
+  emp_transp |    122,129    8159.728    28335.92          0     872187
+     emp_tot |    122,153    43208.49    153449.9          0    4526194
+ln_emp_biz~v |    114,619    6.356595     2.06038   1.098612   13.36743
+-------------+---------------------------------------------------------
+  ln_emp_fin |    116,075    5.879793    1.714888   1.098612   12.87973
+ ln_emp_info |     93,863    4.920023    1.733729   1.098612   12.34262
+ln_emp_const |    108,732    6.153061    1.671444   1.098612   12.06561
+ln_emp_eduhe |    117,120    7.096194    1.786725   1.098612   13.63258
+ ln_emp_leis |    118,957    6.757848    1.818805   1.098612   13.22121
+-------------+---------------------------------------------------------
+ ln_emp_manu |    107,565    7.025458    1.753176   1.098612   12.83908
+ln_emp_nat~s |    110,548    5.360836    1.301007   1.098612   11.49115
+ln_emp_tra~p |    121,810    7.452401     1.68027   1.098612   13.67876
+  ln_emp_tot |    122,141    9.147085    1.619616   3.332205   15.32539
+     d_ln_mw |    119,020     .000899    .0047486  -.0775841   .0723043
+-------------+---------------------------------------------------------
+  d_ln_expmw |    119,020    .0009261    .0045723  -.0593835   .0723019
+d_emp_bizs~v |    118,672    12.36126    193.8045      -9223   5882.333
+ d_emp_const |    118,576    6.704426    125.8725      -5155   5246.333
+ d_emp_eduhe |    118,397    12.50183    194.9422  -3959.333   49969.67
+   d_emp_fin |    118,619    2.219897    60.65451  -2894.667       3034
+-------------+---------------------------------------------------------
+  d_emp_info |    114,846    .2209335    88.42495     -10150   5637.667
+  d_emp_leis |    118,662    11.26733    248.6009  -3758.667       8665
+  d_emp_manu |    116,675    3.950624    102.1325  -7451.667   7451.667
+d_emp_natres |    118,134    1.197688    232.4776  -11776.67   11036.67
+d_emp_transp |    118,993    9.175503     330.139  -12989.67   12285.67
+-------------+---------------------------------------------------------
+   d_emp_tot |    119,020    59.38508    911.2925     -73656   35598.33
+d_ln_emp_b~v |    110,324    .0015459    .0456016  -.7164051   .8167191
+d_ln_emp_fin |    112,163   -.0001845    .0241186  -.8016214   .6569965
+d_ln_emp_i~o |     89,625    -.001996    .0371735  -.7176844   .7324082
+d_ln_emp_c~t |    104,020    .0027578    .0576421  -.7067544    .818727
+-------------+---------------------------------------------------------
+d_ln_emp_e~e |    113,457    .0007657    .0216866  -.5706974   .7198281
+d_ln_emp_l~s |    115,301     .001911    .0562865  -1.024654    .970966
+d_ln_emp_m~u |    103,766    .0010934    .0336779  -.8196437   1.638927
+d_ln_emp_n~s |    106,034    .0019976    .0715066  -.8101395   .9162908
+d_ln_emp_t~p |    118,637    .0006118    .0226785  -.5206324   .5648652
+-------------+---------------------------------------------------------
+d_ln_emp_tot |    118,998    .0007604    .0201342  -.4590084   .6032984
+avg_d_estc~v |    118,672    .7986916    12.06749  -1386.333        638
+avg_d_est~st |    118,576    .0943867    4.831818  -594.3333   225.6667
+avg_d_estc~e |    118,397    2.458004    155.3715  -1406.333   49769.67
+avg_d_estc~n |    118,619     .233858    4.975594  -481.3333   405.6667
+-------------+---------------------------------------------------------
+avg_d_estc~o |    114,846    .0676558    2.374904       -207   285.6667
+avg_d_est~is |    118,662    .4068727    5.149195  -355.3333   486.3333
+avg_d_estc~u |    116,675     .003774     1.77932  -271.3333   107.6667
+avg_d_est~es |    118,134    .0391871    .6577536        -38   21.33333
+avg_d_estc~p |    118,993    .1615305    8.502431       -775   612.6667
+-------------+---------------------------------------------------------
+avg_d_est~ot |    119,020    3.224562    102.9801     -16778   17422.67
+avg_d_avgw~v |    118,672    1.907159    91.99374  -8820.333   8817.333
+avg_d_avgw.. |    118,576    2.416074    72.23775      -2388   2674.667
+avg_d_avgw~e |    118,397    1.588996    30.40675  -690.6667   657.6667
+avg_d_avgw~n |    118,619    1.631003    75.16503  -2676.667   4076.667
+-------------+---------------------------------------------------------
+avg_d_avgw~o |    114,846    1.401462    82.61316  -3472.667   4925.667
+avg_d_avgw.. |    118,662     .778334    16.29213  -672.6667   677.6667
+avg_d_avgw~u |    116,675    1.551049    61.19189      -1920   1924.667
+avg_d_avgw.. |    118,134    1.740509     93.6926      -7617   7549.333
+avg_d_avgw~p |    118,993     1.48339    33.61086  -3280.667   3253.667
+-------------+---------------------------------------------------------
+avg_d_avgw.. |    119,020    1.578628     21.0719  -985.6667       1039
+avg_d_avgm~v |    118,672     8.29614    400.1728  -38368.45    38355.4
+avg_d_avgm~n |    118,619    7.094865    326.9679   -11643.5    17733.5
+avg_d_avgm~o |    114,846    6.096361    359.3672   -15106.1   21426.65
+avg_d_avgm.. |    118,576    10.50992    314.2342   -10387.8    11634.8
+-------------+---------------------------------------------------------
+avg_d_avgm~e |    118,397    6.912132    132.2694    -3004.4    2860.85
+avg_d_avgm.. |    118,662    3.385753    70.87075    -2926.1    2947.85
+avg_d_avgm~u |    116,675    6.747064    266.1847      -8352     8372.3
+avg_d_avgm.. |    118,134    7.571216    407.5628  -33133.95    32839.6
+avg_d_avgm~p |    118,993    6.452745    146.2072   -14270.9   14153.45
+-------------+---------------------------------------------------------
+avg_d_avgm.. |    119,020    6.867033    91.66277   -4287.65    4519.65
+avg_d_ln_w~v |    110,324    .0026728     .059487  -1.332468   1.326462
+avg_d_ln_w~n |    112,163    .0022557    .0531979  -.7412246   1.051486
+avg_d_ln_w~o |     89,625    .0021536    .0505719  -.8890761   .8136044
+avg_d_ln_w.. |    104,020    .0034986    .0537534   -.752011   .8431811
+-------------+---------------------------------------------------------
+avg_d_ln_w~e |    113,457     .002488    .0323084  -.7046968    .416048
+avg_d_ln_w.. |    115,301    .0028532    .0336263  -.5718083   .5754707
+avg_d_ln_w~u |    103,766    .0022276    .0435346  -.7106881   .7167646
+avg_d_ln_w.. |    106,034    .0026861    .0646715  -1.084298    1.01777
+avg_d_ln_w~p |    118,637    .0024079    .0336347  -.8563647   .7340713
+-------------+---------------------------------------------------------
+a~_wwage_tot |    118,998    .0022559    .0248111  -.3850252   .4267462
+avg_d_ln_m~v |    110,324    .0026728     .059487  -1.332468   1.326462
+avg_d_ln_m~n |    112,163    .0022557    .0531979  -.7412246   1.051487
+avg_d_ln_m~o |     89,625    .0021536    .0505719  -.8890761   .8136044
+avg_d_ln_m.. |    104,020    .0034986    .0537534  -.7520111   .8431811
+-------------+---------------------------------------------------------
+avg_d_ln_m~e |    113,457     .002488    .0323084  -.7046968    .416048
+avg_d_ln_m.. |    115,301    .0028532    .0336263  -.5718083   .5754709
+avg_d_ln_m~u |    103,766    .0022276    .0435346  -.7106879   .7167647
+avg_d_ln_m.. |    106,034    .0026861    .0646715  -1.084298    1.01777
+avg_d_ln_m~p |    118,637    .0024079    .0336347  -.8563647   .7340714
+-------------+---------------------------------------------------------
+a~_mwage_tot |    118,998    .0022559    .0248111  -.3850254   .4267464
+avg_d_ln_e~v |    118,672    .0010551    .0185917  -.5878629    .488779
+avg_d_ln_e~n |    118,619    .0000163    .0161947  -.8549831   .8157222
+avg_d_ln_e~o |    114,846   -.0006422      .03075  -.7324082   .5364793
+avg~st_const |    118,576   -.0004383     .019496  -.4620981   .4620981
+-------------+---------------------------------------------------------
+avg_d_ln_e~e |    118,397    .0025344    .0279059  -.5555322   .9518185
+avg_~st_leis |    118,662    .0005546    .0173846  -.3662041   .5013592
+avg_d_ln_e~u |    116,675   -.0002638    .0212259  -.3662041   .4620981
+av~st_natres |    118,134    .0013695    .0223553  -.3662041   .3900237
+avg_d_ln_e~p |    118,993   -.0000892     .009683  -.3662041   .2458663
+-------------+---------------------------------------------------------
+avg_d~st_tot |    119,020    .0004107    .0061437   -.286157   .3387914
+
+
+
+
+(note: file ../output/qcew_controls_countyquarter_panel.dta not found)
+file ../output/qcew_controls_countyquarter_panel.dta saved
+
+. 
+end of do-file
+
+ make.py ended: 2020-12-10 11:53:36

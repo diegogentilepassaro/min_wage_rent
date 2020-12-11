@@ -94,7 +94,8 @@ program plot_dynamic
 			ylabel(-0.2(0.1)0.2, grid labsize(small)) ytitle("Coefficient") ///
 			legend(order(1 "Employment" 3 "Weekly Wage" 5 "Establishment count") rows(1) size(small)) ///
 			graphregion(color(white)) bgcolor(white)
-		graph export "`outstub'/fd_models_`ind'_w`w'.eps", replace		
+		graph export "`outstub'/fd_models_`ind'_w`w'.eps", replace
+		graph export "`outstub'/fd_models_`ind'_w`w'.png", replace	
 	restore
 end 
 
