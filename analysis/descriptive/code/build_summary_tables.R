@@ -121,9 +121,11 @@ load_rents <- function(df_zipdemo, instub, rent_vars, all = F) {
   if (all) {
     df_rents <- read_dta(file.path(instub, "zipcode_yearmonth_panel_all.dta")) %>%
       select(c("zipcode", "year_month", "year", "month", rent_vars, "medrentprice_sfcc",
-               "state_event", "county_event", "local_event"))
+               "state_event", "county_event", "local_event")) %>%
+      filter(!(year == 2010) | !(month == 1))
   } else {
-    df_rents <- read_dta(file.path(instub, "baseline_rent_panel.dta"))
+    df_rents <- read_dta(file.path(instub, "baseline_rent_panel.dta")) %>%
+      filter(!(year == 2010) | !(month == 1))
     
     cpi      <- read_csv(file.path("../../../drive/raw_data/bls", "cpi_bls.csv")) %>%
       mutate(Period = as.numeric(str_replace(Period, "M", ""))) %>%
