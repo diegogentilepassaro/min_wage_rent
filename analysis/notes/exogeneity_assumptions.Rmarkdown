@@ -8,7 +8,10 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE,
+                      results = "hide",
+                      warning = FALSE,
+                      message = FALSE)
 ```
 
 Exogeneity assumption? Something more/less stringent? In this note we run some 
@@ -55,11 +58,11 @@ where $s$ is windows of leads and lags.
 
 We start by simulating a raw dataframe
 
-```{r base_df, echo=F}
+```{r base_df}
 library(dplyr)
 
-n_zipcodes = 200  # number of zipcodes
-n_periods  = 48   # number of periods (4 years)
+n_zipcodes = 500  # number of zipcodes
+n_periods  = 61   # number of periods (5 years)
 
 df <- data.frame(
   "zipcode" = rep(1:n_zipcodes, each = n_periods),
@@ -74,29 +77,29 @@ note that:
 - `shock` is simulated independently, so the strict exogeneity assumption with 
 respect to the MW holds.
 
-- `shock2`, on the other hand, violate strict exogeneity. The reason is that, if 
+- `shock2`, on the other hand, violates strict exogeneity. The reason is that, if 
 last period there was a MW event, we increase the shock by 1%.
 
 ```{r}
-set.seed(42)
+set.seed(23)
 # Simulate auto-correlated shocks
-m = 0
-s = 1
-rho = 0.5
+m = 0.5
+s = 0.6
+rho = 0.6
 
-df$iid.shock <- rnorm(n = length(df), mean = m, sd = s)
+df$iid.shocks <- rnorm(n = length(df), mean = m, sd = s)
 df <- df %>% group_by(zipcode) %>%
-  mutate(lagged.iid.shock = lag(iid.shock),
-         shock = rho*lagged.iid.shock + iid.shock,
+  mutate(lagged.iid.shock = lag(iid.shocks),
+         shock = rho*lagged.iid.shock + iid.shocks,
          lagged.iid.shock = NULL)
 
 # Simulate time-period effects
-other.shocks <- rnorm(n = n_periods, sd = 1000)
+other.shocks <- rnorm(n = n_periods)
 df <- df %>% group_by(period) %>%
-  mutate(period.effect = period/2 + other.shocks[period])
+  mutate(period.effect = period/4 + other.shocks[period])
 
 # Simulate MW
-mw_change_bounds = c(0.005, 0.1)
+mw_change_bounds = c(0.5, 1)
 
 df <- df %>% group_by(zipcode) %>%
   mutate(mw_event    = rbinom(n(), 1, prob = 1.5/n_periods), # 1.5 events per zipcode on average
@@ -104,23 +107,29 @@ df <- df %>% group_by(zipcode) %>%
          L_delta_ln_mw = lag(delta_ln_mw),    # Lags
          L2_delta_ln_mw = lag(L_delta_ln_mw))  
 
-# Simulate shocks that violate strict exogeneity
+# Simulate weird shocks
 df <- df %>% group_by(zipcode) %>%
   mutate(shock2 = ifelse(lag(mw_event) == 1, shock*1.01, shock))
+
 ```
 
 Finally, with all the ingredients we simulate several rent variables
 
 ```{r}
-mweff_1 = 0.03
-mweff_2 = 0.015
 
 # Simulate rents
+mw_eff1 = 0.03
+mw_eff2 = 0.015
+
 df <- df %>%
-  mutate(diff_ln_rent_1 = period.effect + shock  + mweff_1*delta_ln_mw,
-         diff_ln_rent_2 = period.effect + shock  + mweff_1*delta_ln_mw + mweff_2*L_delta_ln_mw,
-         diff_ln_rent_3 = period.effect + shock2 + mweff_1*delta_ln_mw,
-         diff_ln_rent_4 = period.effect + shock2 + mweff_1*delta_ln_mw + mweff_2*L_delta_ln_mw)
+  mutate(diff_ln_rent_1 = period.effect + shock 
+                        + mw_eff1*delta_ln_mw,
+         diff_ln_rent_2 = period.effect + shock 
+                        + mw_eff1*delta_ln_mw + mw_eff2*L_delta_ln_mw,
+         diff_ln_rent_3 = period.effect + shock2 
+                        + mw_eff1*delta_ln_mw,
+         diff_ln_rent_4 = period.effect + shock2 
+                        + mw_eff1*delta_ln_mw + mw_eff2*L_delta_ln_mw)
 
 ```
 
@@ -140,7 +149,7 @@ are pretty encouraging. The first variable identifies no dynamic effect and a
 correctly sized effect of MW changes. The second variable identifies both coefficients
 correctly.
 
-```{r estimate, echo = F}
+```{r estimate}
 library(fixest)
 
 df$period <- as.factor(df$period)
@@ -152,11 +161,11 @@ fit2.1 <- feols(diff_ln_rent_2 ~ delta_ln_mw | period, df)
 fit2.2 <- feols(diff_ln_rent_2 ~ delta_ln_mw + L_delta_ln_mw | period, df)
 fit2.3 <- feols(diff_ln_rent_2 ~ delta_ln_mw + L_delta_ln_mw + L2_delta_ln_mw | period, df)
 
-if (file.exists("simulations1.tex")) file.remove("simulations1.tex")
-etable(fit1.1, fit1.2, fit1.3, fit2.1, fit2.2, fit2.3, file = "simulations1.tex")
+etable(fit1.1, fit1.2, fit1.3, fit2.1, fit2.2, fit2.3, 
+       file = "simulations1.tex", replace = TRUE)
 ```
 
-\scalebox{0.7}{\input{simulations1.tex}}
+\input{simulations1.tex}
 
 But don't yell victory yet, Diego! The estimations below use the variables among
 which strict exogeneity is violated (the MW has an effect on next period shock).
@@ -170,10 +179,6 @@ model thinks the direct effect of the MW is the effect of the MW on rents plues 
 effect of the MW on the shock.
 
 ```{r estimate 2}
-library(fixest)
-
-df$period <- as.factor(df$period)
-
 fit1.1 <- feols(diff_ln_rent_3 ~ delta_ln_mw | period, df)
 fit1.2 <- feols(diff_ln_rent_3 ~ delta_ln_mw + L_delta_ln_mw | period, df)
 fit1.3 <- feols(diff_ln_rent_3 ~ delta_ln_mw + L_delta_ln_mw + L2_delta_ln_mw | period, df)
@@ -181,8 +186,12 @@ fit2.1 <- feols(diff_ln_rent_4 ~ delta_ln_mw | period, df)
 fit2.2 <- feols(diff_ln_rent_4 ~ delta_ln_mw + L_delta_ln_mw | period, df)
 fit2.3 <- feols(diff_ln_rent_4 ~ delta_ln_mw + L_delta_ln_mw + L2_delta_ln_mw | period, df)
 
-etable(fit1.1, fit1.2, fit1.3, fit2.1, fit2.2, fit2.3)
+etable(fit1.1, fit1.2, fit1.3, fit2.1, fit2.2, fit2.3, 
+       file = "simulations2.tex", replace = TRUE)
 ```
+
+
+\input{simulations2.tex}
 
 ## 3. Takeaways
 
@@ -191,7 +200,4 @@ Given these simulations, I (SH) think our effect is consistent with two scenario
 - Strict exogeneity holds and MW directly affects rents in same and following months.
 - Strict exogeneity doesn't hold. The MW affects rents in same month and shock in the 
 following month, which we see as a 2-period dynamic effect of the mW in our model.
-
-
-
 
