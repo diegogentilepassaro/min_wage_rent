@@ -18,7 +18,7 @@ program main
 end
 
 program plot_dynamic
-	syntax, ind(str) treatvar(str) absorb(str) cluster(str) instub(str) outstub(str) [w(int 5) t_plot(real 1.645) offset(real 0.25)]
+	syntax, ind(str) treatvar(str) absorb(str) cluster(str) instub(str) outstub(str) [w(int 5) t_plot(real 1.645) offset(real 0.28)]
 
 	local depvar_wage "avg_d_ln_wwage_`ind'"
 	reghdfe `depvar_wage' L(-`w'/`w').D.`treatvar', ///
@@ -96,11 +96,11 @@ program plot_dynamic
 		gen at_emp = at                  
 		gen at_est = at + `offset'
 
-		twoway 	(connect b_emp at_emp, col(eltgreen)) ///
+		twoway 	(connect b_emp at_emp, col(eltgreen) msize(small)) ///
 					(rcap b_emp_lb b_emp_ub at_emp, col(eltgreen) lw(vthin)) ///
-				(connect b_wage at_wage, col(maroon) m(diamond)) ///
+				(connect b_wage at_wage, col(maroon) m(diamond) msize(small)) ///
 					(rcap b_wage_lb b_wage_ub at_wage, col(maroon) lw(vthin)) ///
-				(connect b_est at_est, col(navy) m(triangle)) ///
+				(connect b_est at_est, col(navy) m(triangle) msize(small)) ///
 					(rcap b_est_lb b_est_ub at_est, col(navy) lw(vthin)), ///		
 			yline(0, lcol(black)) ///
 			xlabel(`r(xlab)', labsize(small)) xtitle(" ") ///
