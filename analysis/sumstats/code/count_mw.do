@@ -10,7 +10,8 @@ program main
 	local outfile      "../output/sumstats_unbalanced.log"
 
 	use "`instub_unbal'/unbal_rent_panel.dta", clear
-
+	gen ln_med_rent_psqft_sfcc = log(medrentpricepsqft_sfcc )
+	
 	count_mw_and_write_file, outfile(`outfile')
 
 	local instub_baseline "../../first_differences/temp"
@@ -31,6 +32,9 @@ program count_mw_and_write_file
 
 	tab mw_event if mw_event == 1
 	file write myfile "Number of zipcode-level MW events: `r(N)'" _n
+
+	tab mw_event if mw_event == 1 & !missing(D.ln_med_rent_psqft_sfcc)
+	file write myfile "Number of zipcode-level MW events with no missing psqft SFCC rents: `r(N)'" _n
 
 	preserve
 		collapse (max) state_event, by(statefips year_month)
