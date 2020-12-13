@@ -8,7 +8,7 @@ program main
 	local instub "../../../derived/county_quarter/output"
 	local outstub "../output"
 
-	local industries "info bizserv fin"
+	local industries "info bizserv fin const eduhe leis manu natres transp tot"
 
 	use `instub'/qcew_controls_countyquarter_panel.dta, clear
 	
@@ -104,7 +104,7 @@ program plot_dynamic
 					(rcap b_est_lb b_est_ub at_est, col(navy) lw(vthin)), ///		
 			yline(0, lcol(black)) ///
 			xlabel(`r(xlab)', labsize(small)) xtitle(" ") ///
-			ylabel(-0.2(0.1)0.2, grid labsize(small)) ytitle("Coefficient") ///
+			ylabel(-0.15(0.05)0.15, grid labsize(small)) ytitle("Coefficient") ///
 			legend(order(1 "Employment" 3 "Weekly Wage" 5 "Establishment count") rows(1) size(small)) ///
 			graphregion(color(white)) bgcolor(white)
 		graph export "`outstub'/fd_models_`ind'_w`w'.eps", replace
@@ -150,10 +150,8 @@ program make_plot_xlabels, rclass
 	} */
 
 	if `w'==9 {
-		local xlab `"       1 "-9" 2 `""-8" "(-3)""' 3 "-7" 4 "-6" 5 `""-5" "(-2)""'"'
-		local xlab `"`xlab' 6 "-4" 7 "-3" 8 `""-2" "(-1)""' 9 "-1" 10 `""0" "(0)""'"'
-		local xlab `"`xlab' 11 "1" 12 `""2" "(1)""' 13 "3" 14 "4" 15 `""5" "(2)""'"'
-		local xlab `"`xlab' 16 "6" 17 "7" 18 `""8" "(3)""' 19 "9"                "'
+		local xlab `"1 `""-9" "(-3)""' 2 "-8" 3 "-7" 4 `""-6" "(-2)""' 5 "-5" 6 "-4" 7 `""-3" "(-1)""' 8 "-2" 9 "-1" 10 `""0" "(0)""' "'
+		local xlab `"`xlab' 11 "1" 12 "2" 13 `""3" "(1)""' 14 "4" 15 "5" 16 `""6" "(2)""' 17 "7" 18 "8" 19 `""9" "(3)""' "'
 	}
 	
 	
