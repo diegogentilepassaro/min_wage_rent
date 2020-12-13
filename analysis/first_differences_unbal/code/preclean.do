@@ -34,6 +34,9 @@ program main
 	xtset zipcode year_month
 	gen d_ln_mw = D.ln_mw
 
+	local weights_vars "renthouse_share2010 black_share2010 med_hhinc20105 college_share20105"
+	make_weights, weights_vars(`weights_vars')
+
 	save_data "`outstub'/unbal_fd_rent_panel.dta", key(zipcode year_month) replace log(`logfile')
 
 end 
@@ -96,6 +99,20 @@ program identify_baseline, rclass
 
 		return local mergevars `mergevars'
 end 	
+
+program make_weights
+	syntax, weights_vars(str)
+	* balancing procedure: add ,in the right order the target average values from analysis/descriptive/output/desc_stats.tex
+	preserve
+	keep if year_month==tm(2019m12)
+	ebalance `weights_vars', manualtargets(.347 .124 62774 .386)
+	rename _webal wgt_cbsa100
+	keep zipcode wgt_cbsa100
+	tempfile cbsa_weights
+	save "`cbsa_weights'", replace 
+	restore
+	merge m:1 zipcode using `cbsa_weights', nogen assert(1 2 3) keep(1 3)
+end 
 
 
 * Execute 

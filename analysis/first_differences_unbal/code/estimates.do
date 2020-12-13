@@ -10,28 +10,23 @@ program main
 
 	use "`instub'/unbal_fd_rent_panel.dta", clear
 
-	make_results_labels, w(5)
-	local estlabels_dyn "`r(estlabels_dyn)'"
-	local estlabels_static "`r(estlabels_static)'"
-
-
 	static_dynamic_comp, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
 		cluster(statefips) add_wgt(yes)
-	esttab using "`outstub'/static_dynamic_comptable.tex", replace compress se substitute(\_ _) ///
-	keep(D.ln_mw) b(%9.4f) se(%9.4f) coeflabels(D.ln_mw "Static Effect") ///
-	stats(space cumsum_b cumsum_V space p_value_F ctrl_wage ctrl_emp ctrl_estab r2 N,  ///
-	fmt(%s1 %s7 %s7 %s1 %9.3f %s3 %s3 %s3 %9.3f %9.0gc) ///
-	labels("\vspace{-1mm}" "Cumulative effect" " " "\hline" "P-value no pretrends" ///
-		"Wage controls" "Employment controls" "Establishment-count controls"  ///
-			"R-squared" "Observations")) ///
-	mtitles("Baseline" "Unbalanced" "Reweighted")  ///
-	star(* 0.10 ** 0.05 *** 0.01) nonote
 
+	esttab using "`outstub'/static_dynamic_comptable.tex", replace compress se substitute(\_ _) ///
+		keep(D.ln_mw) b(%9.4f) se(%9.4f) coeflabels(D.ln_mw "Static Effect") ///
+		stats(space cumsum_b cumsum_V space ctrl_wage ctrl_emp ctrl_estab r2 N,  ///
+		fmt(%s1 %s7 %s7 %s1 %s3 %s3 %s3 %9.3f %9.0gc) ///
+		labels("\vspace{-2mm}" "Cumulative effect" " " "\hline" ///
+			"Wage controls" "Employment controls" "Establishment-count controls"  ///
+			"R-squared" "Observations")) ///
+		mtitles("Baseline" "Unbalanced" "Reweighted")  ///
+		star(* 0.10 ** 0.05 *** 0.01) nonote
 end 
 
 
 program static_dynamic_comp 
-	syntax, depvar(str) absorb(str) cluster(str) [w(int 5) t_plot(real 1.645) add_wgt(str)]
+	syntax, depvar(str) absorb(str) cluster(str) add_wgt(str) [w(int 5) t_plot(real 1.645)]
 
 	eststo clear 
 	define_controls
@@ -49,10 +44,9 @@ program static_dynamic_comp
 	    local pretrend_test " `pretrend_test' (F`i'D.ln_mw = 0)"
 	}
 
-	*baseline 
-	reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls') if basepanel, absorb(`absorb') vce(cluster `cluster') nocons	
-	test `pretrend_test'
-	local p_value_F = r(p)
+	*Baseline 
+	reghdfe D.`depvar' L(0/`w').D.ln_mw D.(`controls') if basepanel, ///
+		absorb(`absorb') vce(cluster `cluster') nocons	
 	
 	add_cumsum, coefficients(`lincomest_coeffs') i(1)
 
@@ -62,15 +56,13 @@ program static_dynamic_comp
 	eststo: qui reghdfe D.`depvar' D.ln_mw D.(`controls') if basepanel, ///
 		absorb(`absorb') vce(cluster `cluster') nocons
 	comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing("No")
-	estadd scalar p_value_F `p_value_F'
 	estadd local space ""
 	estadd local cumsum_b "`cumsum_b'"
 	estadd local cumsum_V "`cumsum_V'"
 
 	*Unbalanced
-	qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls'), absorb(`absorb' entry_sfcc#year_month) vce(cluster `cluster') nocons	
-	test `pretrend_test'
-	local p_value_F = r(p)
+	qui reghdfe D.`depvar' L(0/`w').D.ln_mw D.(`controls'), ///
+		absorb(`absorb' entry_sfcc#year_month) vce(cluster `cluster') nocons
 
 	add_cumsum, coefficients(`lincomest_coeffs') i(1)
 
@@ -80,16 +72,14 @@ program static_dynamic_comp
 	eststo: qui reghdfe D.`depvar' D.ln_mw D.(`controls'), ///
 		absorb(`absorb' entry_sfcc#year_month) vce(cluster `cluster') nocons
 	comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing("No")
-	estadd scalar p_value_F `p_value_F'
 	estadd local space ""
 	estadd local cumsum_b "`cumsum_b'"
 	estadd local cumsum_V "`cumsum_V'"
 
 	if "`add_wgt'"=="yes" {
 		use "../../first_differences_wgt/temp/fd_rent_panel.dta", clear
-		qui reghdfe D.`depvar' L(-`w'/`w').D.ln_mw D.(`controls') [pw = wgt_cbsa100], absorb(`absorb') vce(cluster `cluster') nocons	
-		test `pretrend_test'
-		local p_value_F = r(p)
+		qui reghdfe D.`depvar' L(0/`w').D.ln_mw D.(`controls') [pw = wgt_cbsa100], ///
+			absorb(`absorb') vce(cluster `cluster') nocons	
 
 		add_cumsum, coefficients(`lincomest_coeffs') i(1)
 
@@ -99,27 +89,19 @@ program static_dynamic_comp
 		eststo: qui reghdfe D.`depvar' D.ln_mw D.(`controls') [pw = wgt_cbsa100], ///
 			absorb(`absorb') vce(cluster `cluster') nocons
 		comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing("No")
-		estadd scalar p_value_F `p_value_F'
 		estadd local space ""
 		estadd local cumsum_b "`cumsum_b'"
 		estadd local cumsum_V "`cumsum_V'"
 	}
-
 end 
-
-
-
-
-
-
 
 program add_cumsum, rclass
 	syntax, coefficients(str) i(int)
 	lincomest `coefficients'
 	mat b = e(b)
 	mat V = e(V)
-	local b_digits = round(b[1,1], 0.001)
-	local se_digits = round(V[1,1]^.5, 0.001)
+	local b_digits = round(b[1,1], 0.0001)
+	local se_digits = round(V[1,1]^.5, 0.0001)
 	if abs(b[1,1]/(V[1,1]^.5)) > 1.96 {
 		local star = "\sym{**}"
 	}
@@ -135,7 +117,6 @@ program add_cumsum, rclass
 
 	return local cumsum_b `cumsum_b'
 	return local cumsum_V `cumsum_V'
-	*estadd scalar cumsum_V = V[1,1]^.5: reg_`i'
 end
 
 program comment_table_control
@@ -148,4 +129,4 @@ program comment_table_control
 end
 
 
-main 
+main

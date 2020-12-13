@@ -29,7 +29,7 @@ program plot_dynamic_placebo
 	local controls `"`emp_ctrls' `estcount_ctrls' `avgwwage_ctrls'"'
 
 	eststo clear
-	eststo: reghdfe D.`placebovar' L(-`w'/`w').D.ln_mw `controls', ///
+	eststo: reghdfe D.`placebovar' L(-`w'/`w').D.ln_mw D.(`controls'), ///
 		absorb(`absorb') ///
 		vce(cluster `cluster') nocons
 
