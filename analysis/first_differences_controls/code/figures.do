@@ -77,19 +77,6 @@ program plot_dynamic
 
 		merge 1:1 at using ../temp/coeffs_est.dta, nogen assert(1 2 3) keep(1 3)
 		merge 1:1 at using ../temp/coeffs_wage.dta, nogen assert(1 2 3) keep(1 3)
-		tset at 
-		local zero = `mw' + 1
-		foreach var in b_est b_est_lb b_est_ub b_wage b_wage_lb b_wage_ub {
-			replace `var' = F.`var' if at > `zero'
-		}
-		g at_inv = - at 
-		tset at_inv
-		foreach var in b_est b_est_lb b_est_ub b_wage b_wage_lb b_wage_ub {
-			replace `var' = F.`var' if at_inv > - `zero'
-		}		
-		drop at_inv
-		sort at 
-		tset at
 
 		make_plot_xlabels, w(`mw')
 		gen at_wage = at - `offset'
