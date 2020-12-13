@@ -18,7 +18,6 @@ program main
 		estcount_* avgwwage_* emp_* u1*												
 
 	
-
 	local het_vars "med_hhinc20105 renthouse_share2010 college_share20105 black_share2010"
 	local het_vars "`het_vars' unemp_share20105 teen_share2010" 
 
@@ -28,9 +27,6 @@ program main
 				 heterogeneity_vars(`het_vars')
 	
 	simplify_varnames
-
-	xtset zipcode year_month
-	gen d_ln_mw = D.ln_mw
 
 	save_data "`outstub'/fd_rent_panel.dta", key(zipcode year_month) replace log(`logfile')
 end
@@ -51,10 +47,6 @@ program create_vars
 		gen ln_`var' = ln(`var')
 	}
 
-	gen nonwhite_share2010 = 1 - white_share2010
-	
-	gen trend_times2 = 2*trend
-
 	foreach var in `heterogeneity_vars' {
 
 		gquantiles `var'_nat_qtl = `var', xtile nq(4)
@@ -62,7 +54,25 @@ program create_vars
 		gquantiles `var'_st_qtl  = `var', xtile nq(4) by(statefips)
 	}
 
-	g listwgt =  housing_units2010 / monthlylistings_nsa_sfcc
+	gen nonwhite_share2010 = 1 - white_share2010
+	gen trend_times2       = 2*trend
+	gen listwgt            =  housing_units2010 / monthlylistings_nsa_sfcc
+
+	local rent_var "medrentpricepsqft_sfcc"
+	gen indicator = (missing(`rent_var') & !missing(L.`rent_var')) | ///
+					(!missing(`rent_var') & missing(L.`rent_var')) | ///
+					(zipcode != zipcode[_n-1]) // Indicates start of missing group
+	gen miss_group_id = sum(indicator)
+	bysort zipcode (year_month): egen first_missing_group = min(miss_group_id)
+
+	gen in_panel = (miss_group_id != first_missing_group)
+	gen miss_in_panel = (in_panel & missing(`rent_var'))
+	replace miss_in_panel = . if !in_panel
+
+	drop indicator miss_group_id first_missing_group
+
+	gen enter_panel = (in_panel == 1 & in_panel[_n-1]==0)
+	gen mw_event = dactual_mw > 0	
 end
 
 program simplify_varnames
@@ -77,9 +87,8 @@ program simplify_varnames
 	cap rename newmonthlylistings_nsa_sfcc    n_newlistings_sfcc
 	cap rename ln_newmonthlylistings_nsa_sfcc ln_n_newlistings_sfcc
 
-
-
-
+	xtset zipcode year_month
+	gen d_ln_mw = D.ln_mw
 end
 
 main
