@@ -3,7 +3,8 @@ source("../../../lib/R/load_packages.R")
 source("../../../lib/R/save_data.R")
 
 options(scipen=999)
-load_packages(c('tidyverse', 'data.table', 'bit64', 'purrr', 'readxl', 'parallel', 'matrixStats', 'usmap'))
+load_packages(c('tidyverse', 'data.table', 'bit64', 
+                'purrr', 'readxl', 'parallel', 'matrixStats', 'usmap'))
 
 main <- function(){
   datadir_lodes <- '../../../drive/base_large/output/'
