@@ -15,7 +15,7 @@ program main
     create_monthly_panel
 
     save_data `outstub'/tot_emp_wage_countymonth.dta, ///
-    key(countyfips year_month) replace 
+        key(countyfips year_month) replace
 
     use `instub'/industry_county_qtr_emp_wage.dta, clear
 
