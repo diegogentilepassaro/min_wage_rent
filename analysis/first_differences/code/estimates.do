@@ -27,8 +27,8 @@ program main
 	esttab * using "`outstub'/fd_table_trend.tex", keep(D.ln_mw) compress se replace substitute(\_ _) 	///
 		b(%9.4f) se(%9.4f) coeflabels(`estlabels_static') ///
 		stats(space zs_trend zs_trend_sq econ_con r2 N, fmt(%s1 %s3 %s3 %s3 %9.3f %9.0gc) ///
-		labels("\vspace{-2mm}" "Zipcode-specifc linear trend" "Zipcode-specific quadratic trend" ///
-			"Local economy controls" "R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) nonote nomtitles
+		labels("\vspace{-2mm}" "ZIP code-specifc linear trend" "ZIP code-specific quadratic trend" ///
+			"Economic controls" "R-squared" "Observations")) star(* 0.10 ** 0.05 *** 0.01) nonote nomtitles
 
 	* Dynamic Model
 	run_dynamic_model, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
