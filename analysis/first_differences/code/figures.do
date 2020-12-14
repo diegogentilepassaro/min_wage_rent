@@ -199,8 +199,9 @@ program build_cumsum_plot
 	}
 	
 	*qui reghdfe D5.`depvar' D5.ln_mw, absorb(`absorb') vce(cluster `cluster') nocons
+	local longrun_span = 1
 	
-	qui ivreghdfe D.`depvar' L(0/`w').D.ln_mw (L.D.`depvar' = L2.D.`depvar') D.(`controls'), ///
+	qui ivreghdfe D.`depvar' L(0/`longrun_span').D.ln_mw (L.D.`depvar' = L2.D.`depvar') D.(`controls'), ///
 		absorb(`absorb') cluster(`cluster') nocons
 	
 	nlcom (_b[D1.ln_mw] + _b[LD.ln_mw])/(1 - _b[LD.`depvar'])

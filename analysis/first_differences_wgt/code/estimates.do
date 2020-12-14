@@ -57,7 +57,7 @@ program static_dynamic_comp
 	local cumsum_b "`r(cumsum_b)'"
 	local cumsum_V "`r(cumsum_V)'"
 
-	ivreghdfe D.`depvar' L(0/`w').D.ln_mw (L.D.`depvar' = L2.D.`depvar') D.(`controls'), ///
+	ivreghdfe D.`depvar' L(0/1).D.ln_mw (L.D.`depvar' = L2.D.`depvar') D.(`controls'), ///
 		absorb(`absorb') cluster(`cluster') nocons
 	compute_longrun, depvar(`depvar')
 
@@ -83,7 +83,7 @@ program static_dynamic_comp
 	local cumsum_b "`r(cumsum_b)'"
 	local cumsum_V "`r(cumsum_V)'"
 
-	ivreghdfe D.`depvar' L(0/`w').D.ln_mw (L.D.`depvar' = L2.D.`depvar') D.(`controls') [pw = wgt_cbsa100], ///
+	ivreghdfe D.`depvar' L(0/1).D.ln_mw (L.D.`depvar' = L2.D.`depvar') D.(`controls') [pw = wgt_cbsa100], ///
 		absorb(`absorb') cluster(`cluster') nocons
 	compute_longrun, depvar(`depvar')
 
@@ -111,7 +111,7 @@ program static_dynamic_comp
 		local cumsum_b "`r(cumsum_b)'"
 		local cumsum_V "`r(cumsum_V)'"
 
-		ivreghdfe D.`depvar' L(0/`w').D.ln_mw (L.D.`depvar' = L2.D.`depvar') D.(`controls'), ///
+		ivreghdfe D.`depvar' L(0/1).D.ln_mw (L.D.`depvar' = L2.D.`depvar') D.(`controls'), ///
 			absorb(`absorb') cluster (`cluster') nocons
 		compute_longrun, depvar(`depvar')
 
@@ -158,7 +158,7 @@ program compute_cumsum, rclass
 end
 
 program compute_longrun, rclass
-	syntax, depvar(str)
+	syntax, depvar(str) 
 	
 	nlcom (_b[D1.ln_mw] + _b[LD.ln_mw])/(1 - _b[LD.`depvar'])
 	mat b = r(b)

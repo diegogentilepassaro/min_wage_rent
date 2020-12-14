@@ -26,7 +26,7 @@ program main
 			"\hline" "P-value no pretrends" "Observations")) /// 
 		star(* 0.10 ** 0.05 *** 0.01) 	///
 		mtitles("\shortstack{Static \\ model}" "\shortstack{Dynamic \\ model}" "\shortstack{Distributed \\ Lags model}" ///
-		"\shortstack{AB Dynamic \\ model}" "\shortstack{AB Distributed \\ Lags model}") nonote
+		"\shortstack{AB Dynamic \\ model}" "\shortstack{AB Distributed \\ Lags model}" "\shortstack{AB Distributed \\ Lags model, s=1}") nonote
 		
 		* "\shortstack{MW Dynamic \\ model}" "\shortstack{MW Distributed \\ Lags model}"
 end
@@ -68,11 +68,15 @@ program horse_race_models
 	test `pretrend_test'
 	estadd scalar p_value_F = r(p)
 	estadd local k ""
-	add_long_run, depvar(`depvar') est_i(4)
+	add_long_run, depvar(`depvar') est_i(4) lw(`w')
 
 	eststo: ivreghdfe D.`depvar' L(0/`w').D.ln_mw (L.D.`depvar' = L2.D.`depvar') D.(`controls'), ///
 		absorb(`absorb') cluster (`cluster') nocons
-	add_long_run, depvar(`depvar') est_i(5)
+	add_long_run, depvar(`depvar') est_i(5) lw(`w')
+
+	eststo: ivreghdfe D.`depvar' L(0/1).D.ln_mw (L.D.`depvar' = L2.D.`depvar') D.(`controls'), ///
+		absorb(`absorb') cluster (`cluster') nocons
+	add_long_run, depvar(`depvar') est_i(6) lw(1)
 
 	/*
 	local w_plus1 = `w' + 1
@@ -120,9 +124,14 @@ program add_cumsum
 end
 
 program add_long_run
-	syntax, depvar(str) est_i(int)
+	syntax, depvar(str) est_i(int) lw(int)
+
+	local sumlags = "_b[D1.ln_mw]" 
+	forval l = 1/`lw' {
+		local sumlags `"`sumlags' + _b[L`l'D.ln_mw]"'
+	}
 	
-	nlcom (_b[D1.ln_mw] + _b[LD.ln_mw])/(1 - _b[LD.`depvar'])
+	nlcom (`sumlags')/(1 - _b[LD.`depvar'])
 	mat b = r(b)
 	mat V = r(V)
 	local b_digits = round(b[1,1], 0.001)
