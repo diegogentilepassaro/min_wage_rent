@@ -229,10 +229,10 @@ program make_table_titles, rclass
 			local title_list `"`title_list' "\shortstack{Young worker, \\ residence}""'		
 		}
 		if "`var'" == "walall_29y_lowinc_ssh" {
-			local title_list `"`title_list' "\shortstack{Young \\ low-income worker,\\ workplace}""'		
+			local title_list `"`title_list' "\shortstack{Young \\ low-inc. worker,\\ workplace}""'		
 		}
 		if "`var'" == "halall_29y_lowinc_ssh" {
-			local title_list `"`title_list' "\shortstack{Young \\ low-income worker,\\ residence}""'		
+			local title_list `"`title_list' "\shortstack{Young \\ low-inc. worker,\\ residence}""'		
 		}
 	}
 
