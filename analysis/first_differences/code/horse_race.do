@@ -26,7 +26,7 @@ program main
 			"\hline" "P-value no pretrends" "Observations")) /// 
 		star(* 0.10 ** 0.05 *** 0.01) 	///
 		mtitles("\shortstack{Static \\ model}" "\shortstack{Dynamic \\ model}" "\shortstack{Distributed \\ Lags model}" ///
-		"\shortstack{AB Dynamic \\ model}" "\shortstack{AB Distributed \\ Lags model}" "\shortstack{AB Distributed \\ Lags model, s=1}") nonote
+		"\shortstack{AB Dynamic \\ model}" "\shortstack{AB Distributed \\ Lags model}" "\shortstack{AB Dist. Lags \\ model, $s=1$}") nonote
 		
 		* "\shortstack{MW Dynamic \\ model}" "\shortstack{MW Distributed \\ Lags model}"
 end
