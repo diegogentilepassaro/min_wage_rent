@@ -84,6 +84,8 @@ program compare_zillow_safmr_zipcode
 	foreach v in `target_vars' safmr {
 		replace `v' = `v'/cpi2012
 	}
+	
+	corr safmr medrentprice_sfcc
 
 	twoway (line medrentprice_sfcc year, lc(eltblue)) ///
 		   (line safmr year, lp(dash) lc(gs10)), ///
