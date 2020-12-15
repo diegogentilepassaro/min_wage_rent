@@ -14,22 +14,19 @@ program main
 		cluster(statefips)
 
 	foreach var in walall_29y_lowinc_zsh halall_29y_lowinc_zsh walall_29y_lowinc_ssh halall_29y_lowinc_ssh {
+		plot_vardist, hetvar(`var') outstub(`outstub')
 		plot_static_heterogeneity, depvar(ln_med_rent_psqft_sfcc) absorb(year_month zipcode) ///
 				het_var(`var'_st_qtl) cluster(statefips) outstub(`outstub')		
-	}	
+	}
 
-
+	plot_residuals, absorb(year_month) cluster(statefips)
 end 
 
 program build_coeff_plot_comp
 	syntax, depvar(str) absorb(str) cluster(str) [w(int 5) t_plot(real 1.645) offset(real 0.09)]
 
-	define_controls estcount avgwwage
-	local emp_ctrls "`r(emp_ctrls)'"
-	local estcount_ctrls "`r(estcount_ctrls)'"
-	local avgwwage_ctrls "`r(avgwwage_ctrls)'"
-
-	local controls `"`emp_ctrls' `estcount_ctrls' `avgwwage_ctrls'"'
+	define_controls
+	local controls "`r(economic_controls)'"
 
 	*cumulative base
 	preserve 
@@ -158,28 +155,27 @@ program build_coeff_plot_comp
 
 		twoway (scatter b_full at_base, mcol(maroon)) (rcap b_full_lb b_full_ub at_base, lcol(maroon) lw(thin)) ///
 			   (scatter b_exp at_full, mcol(navy)) (rcap b_exp_lb b_exp_ub at_full, col(navy) lw(thin)) ///
-			   (line cumsum_base_b at_base, col(maroon)) (line cumsum_base_lb at_base, col(maroon) lw(thin) lp(dash)) (line cumsum_base_ub at_base, col(maroon) lw(thin) lp(dash)) ///
-   			   (line cumsum_exp_b at_full, col(navy)) (line cumsum_exp_lb at_full, col(navy) lw(thin) lp(dash)) (line cumsum_exp_ub at_full, col(navy) lw(thin) lp(dash)), ///
+			   (line cumsum_base_b at, col(maroon)) ///
+			   		(line cumsum_base_lb at, col(maroon) lw(thin) lp(dash)) (line cumsum_base_ub at, col(maroon) lw(thin) lp(dash)) ///
+   			   (line cumsum_exp_b at, col(navy)) ///
+				  	(line cumsum_exp_lb at, col(navy) lw(thin) lp(dash)) (line cumsum_exp_ub at, col(navy) lw(thin) lp(dash)), ///
 			   yline(0, lcol(black)) ///
 			   xlabel(`xlab', labsize(small)) xtitle("") ///
 			   ylabel(-0.06(0.02).16, grid labsize(small)) ytitle("Coefficient") ///
-			   legend(order(1 "Baseline dynamic model" 3 "Experienced MW dynamic model" 5 "Cumulative baseline" 8 "Cumulative Experienced MW") size(vsmall)) ///
+			   legend(order(1 "Baseline dynamic model" 3 "Experienced MW dynamic model" ///
+			   				5 "Cumulative baseline" 8 "Cumulative experienced MW") size(vsmall)) ///
 			   graphregion(color(white)) bgcolor(white)
 		graph export "../output/fd_model_comparison_expmw.png", replace
 		graph export "../output/fd_model_comparison_expmw.eps", replace
-
 	restore 
 end
 
 program plot_static_heterogeneity
 	syntax, depvar(str) absorb(str) cluster(str) het_var(str) outstub(str) [qtles(int 4)]
 
-	define_controls estcount avgwwage
-	local emp_ctrls "`r(emp_ctrls)'"
-	local estcount_ctrls "`r(estcount_ctrls)'"
-	local avgwwage_ctrls "`r(avgwwage_ctrls)'"
+	define_controls
 
-	local controls `"`emp_ctrls' `estcount_ctrls' `avgwwage_ctrls'"'
+	local controls "`r(economic_controls)'"
 
 	eststo clear
 	reghdfe D.`depvar' c.d_ln_mw#i.`het_var' D.(`controls'), ///
@@ -190,8 +186,52 @@ program plot_static_heterogeneity
 		ylabel(1 "First quartile" 2 "Second quartile" 3 "Third quartile" 4 "Fourth quartile") ///
 		ytitle(" ") xtitle("Estimated rent elasticity to the MW")	///
 		xline(0, lcol(black)) mcolor(navy) xlabel(-.04(0.02).1) ciopts(recast(rcap) lc(navy) lw(vthin))
-	graph export `outstub'/fd_static_heter_`het_var'.png, replace 
-	graph export `outstub'/fd_static_heter_`het_var'.eps, replace 
+	graph export `outstub'/fd_static_heter_`het_var'.png, replace
+	graph export `outstub'/fd_static_heter_`het_var'.eps, replace
+end
+
+program plot_vardist 
+	syntax, hetvar(str) outstub(str)
+
+	preserve 
+		replace `hetvar' = `hetvar'*100
+		twoway(hist `hetvar', color(navy%80) lcolor(white) lw(vthin)), ///
+		ylabel(, labsize(small)) xlabel(, labsize(small)) xtitle("Share (%)", size(small)) ///
+		graphregion(color(white)) bgcolor(white) 
+		graph export `outstub'/`hetvar'_dist.eps, replace 
+	restore
+end 
+
+program plot_residuals
+	syntax, absorb(str) cluster(str)
+
+	define_controls
+	local controls "`r(economic_controls)'"
+
+	qui reghdfe D.ln_expmw D.ln_mw D.(`controls') if !missing(D.ln_med_rent_psqft_sfcc), ///
+		absorb(`absorb') vce(cluster `cluster') nocons resid
+
+	predict resid_expmw, resid
+
+	preserve
+		collapse (sd) resid_expmw (sum) *_event (last) actual_mw, by(zipcode)
+
+		twoway (scatter resid_expmw actual_mw, mcol(maroon%50)) ///
+			   	(lfit resid_expmw actual_mw, lcol(black) lp(dash)), ///
+			xtitle("MW as of December 2019") ytitle("Std. Dev. residuals experienced MW") ///
+			graphregion(color(white)) bgcolor(white) legend(off)
+		graph export "../output/resid_expmw_lastmw.png", replace
+		graph export "../output/resid_expmw_lastmw.pdf", replace
+
+		foreach event_type in mw state local {
+			twoway (scatter resid_expmw `event_type'_event, mcol(maroon%50)) ///
+			   		(lfit resid_expmw `event_type'_event, lcol(black) lp(dash)), ///
+				xtitle("Number of events") ytitle("Std. Dev. residuals experienced MW") ///
+				graphregion(color(white)) bgcolor(white) legend(off)
+			graph export "../output/resid_expmw_`event_type'_event.png", replace
+			graph export "../output/resid_expmw_`event_type'_event.pdf", replace
+		}
+	restore
 end
 
 program make_plot_xlabels, rclass 
@@ -213,5 +253,4 @@ program make_plot_xlabels, rclass
 end
 
 
-
-main 
+main

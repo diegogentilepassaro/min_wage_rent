@@ -82,7 +82,7 @@ main <- function() {
                                    year_month = as.factor(year_month)))
   
   var_labels = c("Statutory MW", paste("Experienced MW", c("(total jobs)", "(low inc.)", "(young)")),
-                 paste0("Median rent psqft.", c(" 2BR", " MFR5plus", "SFCC")), "Median rent SFCC",
+                 paste0("Median rent psqft.", c(" 2BR", " MFR5plus", " SFCC")), "Median rent SFCC",
                  paste0(c("Avg. wage", "Employment", "Estab. count"), " Fin. activities"),
                  paste0(c("Avg. wage", "Employment", "Estab. count"), " Prof. and bus. serv."),
                  paste0(c("Avg. wage", "Employment", "Estab. count"), " Information"))
@@ -121,9 +121,11 @@ load_rents <- function(df_zipdemo, instub, rent_vars, all = F) {
   if (all) {
     df_rents <- read_dta(file.path(instub, "zipcode_yearmonth_panel_all.dta")) %>%
       select(c("zipcode", "year_month", "year", "month", rent_vars, "medrentprice_sfcc",
-               "state_event", "county_event", "local_event"))
+               "state_event", "county_event", "local_event")) %>%
+      filter(!(year == 2010) | !(month == 1))
   } else {
-    df_rents <- read_dta(file.path(instub, "baseline_rent_panel.dta"))
+    df_rents <- read_dta(file.path(instub, "baseline_rent_panel.dta")) %>%
+      filter(!(year == 2010) | !(month == 1))
     
     cpi      <- read_csv(file.path("../../../drive/raw_data/bls", "cpi_bls.csv")) %>%
       mutate(Period = as.numeric(str_replace(Period, "M", ""))) %>%
@@ -148,9 +150,9 @@ build_basic_stats <- function(df) {
     summarise(pop_2010            = sum(pop2010, na.rm = T)/1e6,
               housing_units_2010  = sum(housing_units2010, na.rm = T)/1e6,
               urb_share2010       = mean(urb_share2010, na.rm = T),
-              college_share2010   = mean(urb_share2010, na.rm = T),
-              poor_share20105     = mean(urb_share2010, na.rm = T),
-              black_share2010     = mean(urb_share2010, na.rm = T),
+              college_share2010   = mean(college_share20105, na.rm = T),
+              poor_share20105     = mean(poor_share20105, na.rm = T),
+              black_share2010     = mean(black_share2010, na.rm = T),
               hisp_share2010      = mean(hisp_share2010, na.rm = T),
               elder_share2010     = mean(elder_share2010, na.rm = T),
               unemp_share20105    = mean(unemp_share20105, na.rm = T),

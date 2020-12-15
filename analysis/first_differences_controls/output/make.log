@@ -1,0 +1,2120 @@
+
+ make.py started: 2020-12-13 09:08:59 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\first_differences_controls\code 
+
+
+
+
+Execute:  StataMP-64 /e do "./figures.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./figures.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. adopath + ../../../lib/stata/min_wage/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+  [8]              "../../../lib/stata/min_wage/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main 
+  1.         local instub "../../../derived/county_quarter/output"
+  2.         local outstub "../output"
+  3. 
+.         local industries "info bizserv fin const eduhe leis manu natres trans
+> p tot"
+  4. 
+.         use `instub'/qcew_controls_countyquarter_panel.dta, clear
+  5.         
+.         foreach var in `industries' {
+  6.                 plot_dynamic, ind(`var') treatvar(ln_mw) absorb(quarter) c
+> luster(statefips) instub(`instub') outstub(`outstub') w(3)
+  7.         }
+  8. end
+
+. 
+. program plot_dynamic
+  1.         syntax, ind(str) treatvar(str) absorb(str) cluster(str) instub(str
+> ) outstub(str) [w(int 5) t_plot(real 1.645) offset(real 0.28)]
+  2. 
+.         local depvar_wage "avg_d_ln_wwage_`ind'"
+  3.         reghdfe `depvar_wage' L(-`w'/`w').D.`treatvar', ///
+>                 absorb(`absorb') vce(cluster `cluster') nocons
+  4. 
+.         preserve
+  5.                 coefplot, vertical base gen keep(*.`treatvar')
+  6.                 keep __at __b __se
+  7.                 rename (__at __b __se) (at b_wage se_wage)
+  8.                 
+.                 keep if !missing(at)
+  9.                 replace at = (at*3) - 2
+ 10. 
+.                 gen b_wage_lb = b_wage - `t_plot'*se_wage
+ 11.                 gen b_wage_ub = b_wage + `t_plot'*se_wage
+ 12.                 save ../temp/coeffs_wage.dta, replace 
+ 13.         restore
+ 14. 
+. 
+.         local depvar_est "avg_d_ln_est_`ind'"
+ 15.         reghdfe `depvar_est' L(-`w'/`w').D.`treatvar' , ///
+>                 absorb(`absorb')        ///
+>                 vce(cluster `cluster') nocons
+ 16. 
+.         preserve
+ 17.                 coefplot, vertical base gen keep(*.`treatvar')
+ 18.                 keep __at __b __se
+ 19.                 rename (__at __b __se) (at b_est se_est)
+ 20.                 
+.                 keep if !missing(at)
+ 21.                 replace at = (at*3) - 2
+ 22. 
+. 
+.                 gen b_est_lb = b_est - `t_plot'*se_est
+ 23.                 gen b_est_ub = b_est + `t_plot'*se_est
+ 24.                 save ../temp/coeffs_est.dta, replace 
+ 25.         restore
+ 26. 
+.         preserve
+ 27.                 use `instub'/qcew_controls_countymonth.dta, clear
+ 28.                 local mw = `w'*3
+ 29.                 local depvar_emp "d_ln_emp_`ind'"
+ 30.                 reghdfe `depvar_emp' L(-`mw'/`mw').D.`treatvar', ///
+>                         absorb(year_month)        ///
+>                         vce(cluster `cluster') nocons
+ 31. 
+.                 coefplot, vertical base gen keep(*.`treatvar')
+ 32.                 keep __at __b __se
+ 33.                 rename (__at __b __se) (at b_emp se_emp)
+ 34.                 
+.                 keep if !missing(at)
+ 35. 
+.                 gen b_emp_lb = b_emp - `t_plot'*se_emp
+ 36.                 gen b_emp_ub = b_emp + `t_plot'*se_emp
+ 37.                 save ../temp/coeffs_emp.dta, replace 
+ 38. 
+.                 merge 1:1 at using ../temp/coeffs_est.dta, nogen assert(1 2 3
+> ) keep(1 3)
+ 39.                 merge 1:1 at using ../temp/coeffs_wage.dta, nogen assert(1
+>  2 3) keep(1 3)
+ 40. 
+.                 make_plot_xlabels, w(`mw')
+ 41.                 gen at_wage = at - `offset'
+ 42.                 gen at_emp = at                  
+ 43.                 gen at_est = at + `offset'
+ 44. 
+.                 twoway  (connect b_emp at_emp, col(eltgreen) msize(small)) //
+> /
+>                                         (rcap b_emp_lb b_emp_ub at_emp, col(e
+> ltgreen) lw(vthin)) ///
+>                                 (connect b_wage at_wage, col(maroon) m(diamon
+> d) msize(small)) ///
+>                                         (rcap b_wage_lb b_wage_ub at_wage, co
+> l(maroon) lw(vthin)) ///
+>                                 (connect b_est at_est, col(navy) m(triangle) 
+> msize(small)) ///
+>                                         (rcap b_est_lb b_est_ub at_est, col(n
+> avy) lw(vthin)), ///               
+>                         yline(0, lcol(black)) ///
+>                         xlabel(`r(xlab)', labsize(small)) xtitle(" ") ///
+>                         ylabel(-0.15(0.05)0.15, grid labsize(small)) ytitle("
+> Coefficient") ///
+>                         legend(order(1 "Employment" 3 "Weekly Wage" 5 "Establ
+> ishment count") rows(1) size(small)) ///
+>                         graphregion(color(white)) bgcolor(white)
+ 45.                 graph export "`outstub'/fd_models_`ind'_w`w'.eps", replace
+ 46.                 graph export "`outstub'/fd_models_`ind'_w`w'.png", replace
+>       
+ 47.         restore
+ 48. end 
+
+. 
+. program make_plot_xlabels, rclass 
+  1.         syntax, w(int)
+  2. /* 
+>         local qw = `w' / 3
+>         local xlab ""
+> 
+>         local this_qw = 1
+>         forval lead = 1/`w' {
+>                 local leadlab = `lead' - `w' - 1
+>                 local test_qw =  (`this_qw'*3)-2
+>                 if `test_qw'!=`lead'{
+>                         local xlab `"`xlab' `lead' "`leadlab'""'
+>                 }
+>                 else if `test_qw'==`lead' {
+>                         local leadlab2 = `this_qw' - `qw' - 1
+>                         local xlab `"`xlab' `lead' `" "`leadlab'" "(`leadlab2
+> ')""' "'
+>                         local this_qw = `this_qw' + 1
+>                 }
+>         }
+>         local zero = `w' + 1
+>         local xlab `"`xlab' `zero' "0" "(0)""'
+>         di "`xlab'"
+>         
+>         local lag2 = 1
+>         forval lag = 1/`w' {
+>                 local coeflag = `zero' + `lag'
+>                 local test_qw = (`this_qw'*3)-2
+>                 if `test_qw'!=`coeflag' {
+>                         local xlab `"`xlab' `coeflag' "`lag'""'
+>                 }
+>                 else if `test_qw'==`coeflag' {
+>                         local xlab `"`xlab' `coeflag' `""`lag'" "(`lag2')""'"
+> '
+>                         local lag2 = `lag' + 1
+>                         local this_qw = `this_qw' + 1                   
+>                 }
+>         } */
+. 
+.         if `w'==9 {
+  3.                 local xlab `"1 `""-9" "(-3)""' 2 "-8" 3 "-7" 4 `""-6" "(-2
+> )""' 5 "-5" 6 "-4" 7 `""-3" "(-1)""' 8 "-2" 9 "-1" 10 `""0" "(0)""' "'
+  4.                 local xlab `"`xlab' 11 "1" 12 "2" 13 `""3" "(1)""' 14 "4" 
+> 15 "5" 16 `""6" "(2)""' 17 "7" 18 "8" 19 `""9" "(3)""' "'
+  5.         }
+  6.         
+.         
+. 
+.         return local xlab `xlab'
+  7. end
+
+. 
+. main 
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =     75,346
+Absorbing 1 HDFE group                            F(   7,     50) =       1.02
+Statistics robust to heteroskedasticity           Prob > F        =     0.4282
+                                                  R-squared       =     0.0625
+                                                  Adj R-squared   =     0.0621
+                                                  Within R-sq.    =     0.0001
+Number of clusters (statefips) =         51       Root MSE        =     0.0489
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+avg_d_ln_w~o |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F3D. |   .0032904   .0215193     0.15   0.879    -.0399324    .0465131
+        F2D. |  -.0165374   .0210578    -0.79   0.436    -.0588332    .0257584
+         FD. |   -.009862   .0181801    -0.54   0.590    -.0463778    .0266539
+         D1. |   .0314809   .0251335     1.25   0.216    -.0190012     .081963
+         LD. |  -.0026104   .0224616    -0.12   0.908    -.0477258    .0425051
+        L2D. |   .0027022   .0188086     0.14   0.886    -.0350759    .0404804
+        L3D. |  -.0102331   .0156465    -0.65   0.516    -.0416601    .0211939
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     quarter |        32           0          32     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(122,146 observations deleted)
+(6 real changes made)
+(note: file ../temp/coeffs_wage.dta not found)
+file ../temp/coeffs_wage.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =     96,685
+Absorbing 1 HDFE group                            F(   7,     50) =       4.99
+Statistics robust to heteroskedasticity           Prob > F        =     0.0002
+                                                  R-squared       =     0.0178
+                                                  Adj R-squared   =     0.0174
+                                                  Within R-sq.    =     0.0007
+Number of clusters (statefips) =         51       Root MSE        =     0.0308
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+avg_d_ln_e~o |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F3D. |   .0119849   .0113666     1.05   0.297    -.0108456    .0348154
+        F2D. |   .0103724   .0087164     1.19   0.240    -.0071349    .0278797
+         FD. |  -.0053127    .006301    -0.84   0.403    -.0179687    .0073433
+         D1. |   .0455866   .0155983     2.92   0.005     .0142565    .0769167
+         LD. |   .0185067    .010354     1.79   0.080    -.0022899    .0393033
+        L2D. |   .0081823   .0104726     0.78   0.438    -.0128525    .0292171
+        L3D. |   .0254198   .0075355     3.37   0.001     .0102842    .0405553
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     quarter |        32           0          32     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(122,146 observations deleted)
+(6 real changes made)
+(note: file ../temp/coeffs_est.dta not found)
+file ../temp/coeffs_est.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    233,860
+Absorbing 1 HDFE group                            F(  19,     50) =       2.70
+Statistics robust to heteroskedasticity           Prob > F        =     0.0026
+                                                  R-squared       =     0.0095
+                                                  Adj R-squared   =     0.0090
+                                                  Within R-sq.    =     0.0001
+Number of clusters (statefips) =         51       Root MSE        =     0.0747
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+d_ln_emp_i~o |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F9D. |    .007918   .0148202     0.53   0.596    -.0218493    .0376853
+        F8D. |   .0067291   .0122963     0.55   0.587    -.0179688     .031427
+        F7D. |  -.0260716   .0232215    -1.12   0.267    -.0727133    .0205702
+        F6D. |   .0037117   .0259831     0.14   0.887    -.0484768    .0559002
+        F5D. |   .0488586   .0221626     2.20   0.032     .0043437    .0933735
+        F4D. |  -.0435749   .0199473    -2.18   0.034    -.0836402   -.0035095
+        F3D. |  -.0271588   .0197473    -1.38   0.175    -.0668224    .0125047
+        F2D. |   .0133719   .0246462     0.54   0.590    -.0361315    .0628752
+         FD. |   .0158368   .0129939     1.22   0.229    -.0102622    .0419357
+         D1. |   .0594786   .0284895     2.09   0.042     .0022558    .1167014
+         LD. |  -.0193683   .0217466    -0.89   0.377    -.0630477    .0243111
+        L2D. |   -.010922   .0183413    -0.60   0.554    -.0477616    .0259176
+        L3D. |   -.000969   .0183028    -0.05   0.958    -.0377314    .0357933
+        L4D. |   .0182309   .0199679     0.91   0.366    -.0218758    .0583376
+        L5D. |   .0294095   .0322996     0.91   0.367    -.0354661    .0942851
+        L6D. |   .0211271   .0235036     0.90   0.373    -.0260813    .0683355
+        L7D. |   .0107707   .0193827     0.56   0.581    -.0281605     .049702
+        L8D. |   .0381306   .0189036     2.02   0.049     .0001616    .0760997
+        L9D. |   .0015441   .0225957     0.07   0.946    -.0438408    .0469289
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |        98           0          98     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(366,440 observations deleted)
+(note: file ../temp/coeffs_emp.dta not found)
+file ../temp/coeffs_emp.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            12
+        from master                        12  
+        from using                          0  
+
+    matched                                 7  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            12
+        from master                        12  
+        from using                          0  
+
+    matched                                 7  
+    -----------------------------------------
+(note: file ../output/fd_models_info_w3.eps not found)
+(file ../output/fd_models_info_w3.eps written in EPS format)
+(note: file ../output/fd_models_info_w3.png not found)
+(file ../output/fd_models_info_w3.png written in PNG format)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =     92,934
+Absorbing 1 HDFE group                            F(   7,     50) =       3.80
+Statistics robust to heteroskedasticity           Prob > F        =     0.0022
+                                                  R-squared       =     0.1915
+                                                  Adj R-squared   =     0.1912
+                                                  Within R-sq.    =     0.0005
+Number of clusters (statefips) =         51       Root MSE        =     0.0544
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+avg_d_ln_w~v |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F3D. |  -.0385332   .0172604    -2.23   0.030    -.0732018   -.0038647
+        F2D. |   .0206171   .0124012     1.66   0.103    -.0042913    .0455256
+         FD. |  -.0218968   .0159139    -1.38   0.175    -.0538608    .0100672
+         D1. |   .0659089    .026458     2.49   0.016     .0127664    .1190513
+         LD. |  -.0099736   .0169542    -0.59   0.559    -.0440272    .0240799
+        L2D. |  -.0282189   .0137621    -2.05   0.046     -.055861   -.0005769
+        L3D. |   .0165935   .0185536     0.89   0.375    -.0206726    .0538595
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     quarter |        32           0          32     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(122,146 observations deleted)
+(6 real changes made)
+file ../temp/coeffs_wage.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =     99,934
+Absorbing 1 HDFE group                            F(   7,     50) =       2.31
+Statistics robust to heteroskedasticity           Prob > F        =     0.0405
+                                                  R-squared       =     0.0122
+                                                  Adj R-squared   =     0.0118
+                                                  Within R-sq.    =     0.0002
+Number of clusters (statefips) =         51       Root MSE        =     0.0187
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+avg_d_ln_e~v |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F3D. |   .0027446   .0074906     0.37   0.716    -.0123008      .01779
+        F2D. |  -.0037592   .0083137    -0.45   0.653    -.0204578    .0129394
+         FD. |   .0044981   .0085292     0.53   0.600    -.0126334    .0216296
+         D1. |   -.011256    .012554    -0.90   0.374    -.0364716    .0139595
+         LD. |   .0072393   .0068101     1.06   0.293    -.0064392    .0209179
+        L2D. |   .0028095   .0076668     0.37   0.716    -.0125898    .0182088
+        L3D. |  -.0143675   .0076963    -1.87   0.068     -.029826     .001091
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     quarter |        32           0          32     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(122,146 observations deleted)
+(6 real changes made)
+file ../temp/coeffs_est.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    286,949
+Absorbing 1 HDFE group                            F(  19,     50) =       3.99
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.0190
+                                                  Adj R-squared   =     0.0186
+                                                  Within R-sq.    =     0.0004
+Number of clusters (statefips) =         51       Root MSE        =     0.0868
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+d_ln_emp_b~v |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F9D. |   .0153834   .0326845     0.47   0.640    -.0502654    .0810321
+        F8D. |   .0755544   .0453263     1.67   0.102    -.0154861    .1665949
+        F7D. |   .0618862   .0356483     1.74   0.089    -.0097156     .133488
+        F6D. |    .028404   .0280052     1.01   0.315    -.0278462    .0846541
+        F5D. |  -.0435417   .0287454    -1.51   0.136    -.1012785    .0141951
+        F4D. |  -.0056986    .029959    -0.19   0.850    -.0658732    .0544759
+        F3D. |  -.0135364   .0251531    -0.54   0.593    -.0640578    .0369851
+        F2D. |  -.0793574   .0422526    -1.88   0.066    -.1642242    .0055094
+         FD. |   .0433532   .0291341     1.49   0.143    -.0151644    .1018708
+         D1. |  -.0282857   .0490936    -0.58   0.567    -.1268932    .0703217
+         LD. |  -.0632299   .0307763    -2.05   0.045    -.1250459    -.001414
+        L2D. |   .0072567   .0261335     0.28   0.782     -.045234    .0597474
+        L3D. |   -.001005   .0260932    -0.04   0.969    -.0534147    .0514047
+        L4D. |   .0754044   .0424196     1.78   0.082    -.0097979    .1606066
+        L5D. |   .0334387   .0267636     1.25   0.217    -.0203175    .0871949
+        L6D. |   .0193286   .0310555     0.62   0.537    -.0430482    .0817053
+        L7D. |  -.0124044   .0174761    -0.71   0.481    -.0475061    .0226973
+        L8D. |  -.0066054   .0227787    -0.29   0.773    -.0523577    .0391469
+        L9D. |  -.0211163   .0217713    -0.97   0.337    -.0648453    .0226127
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |        98           0          98     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(366,440 observations deleted)
+file ../temp/coeffs_emp.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            12
+        from master                        12  
+        from using                          0  
+
+    matched                                 7  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            12
+        from master                        12  
+        from using                          0  
+
+    matched                                 7  
+    -----------------------------------------
+(note: file ../output/fd_models_bizserv_w3.eps not found)
+(file ../output/fd_models_bizserv_w3.eps written in EPS format)
+(note: file ../output/fd_models_bizserv_w3.png not found)
+(file ../output/fd_models_bizserv_w3.png written in PNG format)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =     94,359
+Absorbing 1 HDFE group                            F(   7,     50) =       1.88
+Statistics robust to heteroskedasticity           Prob > F        =     0.0925
+                                                  R-squared       =     0.2593
+                                                  Adj R-squared   =     0.2590
+                                                  Within R-sq.    =     0.0001
+Number of clusters (statefips) =         51       Root MSE        =     0.0464
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+avg_d_ln_w~n |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F3D. |   .0125571    .030828     0.41   0.686    -.0493628    .0744771
+        F2D. |   .0110464   .0238223     0.46   0.645    -.0368021    .0588948
+         FD. |  -.0230652   .0283845    -0.81   0.420     -.080077    .0339467
+         D1. |   .0103777    .048131     0.22   0.830    -.0862963    .1070516
+         LD. |  -.0125677   .0276172    -0.46   0.651    -.0680385    .0429032
+        L2D. |   .0125314   .0277508     0.45   0.654    -.0432078    .0682706
+        L3D. |   .0245335   .0336928     0.73   0.470    -.0431404    .0922074
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     quarter |        32           0          32     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(122,146 observations deleted)
+(6 real changes made)
+file ../temp/coeffs_wage.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =     99,884
+Absorbing 1 HDFE group                            F(   7,     50) =       1.21
+Statistics robust to heteroskedasticity           Prob > F        =     0.3162
+                                                  R-squared       =     0.0050
+                                                  Adj R-squared   =     0.0046
+                                                  Within R-sq.    =     0.0001
+Number of clusters (statefips) =         51       Root MSE        =     0.0161
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+avg_d_ln_e~n |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F3D. |   .0040358   .0065649     0.61   0.542    -.0091502    .0172218
+        F2D. |   .0022297   .0043341     0.51   0.609    -.0064755    .0109349
+         FD. |    -.00204    .005748    -0.35   0.724    -.0135852    .0095052
+         D1. |  -.0040304   .0104142    -0.39   0.700    -.0249479    .0168872
+         LD. |   .0021864   .0038379     0.57   0.571    -.0055222    .0098951
+        L2D. |   -.000698    .004181    -0.17   0.868    -.0090957    .0076997
+        L3D. |  -.0099744   .0049133    -2.03   0.048     -.019843   -.0001057
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     quarter |        32           0          32     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(122,146 observations deleted)
+(6 real changes made)
+file ../temp/coeffs_est.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    290,633
+Absorbing 1 HDFE group                            F(  19,     50) =       4.46
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.0283
+                                                  Adj R-squared   =     0.0279
+                                                  Within R-sq.    =     0.0004
+Number of clusters (statefips) =         51       Root MSE        =     0.0445
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+d_ln_emp_fin |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F9D. |  -.0075785   .0163067    -0.46   0.644    -.0403315    .0251745
+        F8D. |   .0148903   .0204684     0.73   0.470    -.0262216    .0560023
+        F7D. |   .0252519   .0190901     1.32   0.192    -.0130916    .0635954
+        F6D. |   .0151529   .0126929     1.19   0.238    -.0103414    .0406473
+        F5D. |     .01366   .0126013     1.08   0.284    -.0116506    .0389705
+        F4D. |  -.0213968    .012737    -1.68   0.099    -.0469799    .0041863
+        F3D. |    -.02412   .0184219    -1.31   0.196    -.0611214    .0128815
+        F2D. |  -.0261132   .0136704    -1.91   0.062     -.053571    .0013446
+         FD. |  -.0003268   .0259602    -0.01   0.990    -.0524694    .0518157
+         D1. |   .0084916   .0225595     0.38   0.708    -.0368205    .0538037
+         LD. |  -.0160669   .0128111    -1.25   0.216    -.0417988     .009665
+        L2D. |  -.0031997   .0094428    -0.34   0.736     -.022166    .0157667
+        L3D. |   .0014122   .0133321     0.11   0.916     -.025366    .0281904
+        L4D. |  -.0002805   .0161377    -0.02   0.986    -.0326941    .0321331
+        L5D. |   .0429384   .0217947     1.97   0.054    -.0008374    .0867143
+        L6D. |   .0486662   .0173856     2.80   0.007     .0137463    .0835862
+        L7D. |   .0164093   .0145341     1.13   0.264    -.0127833    .0456019
+        L8D. |   -.015578   .0133175    -1.17   0.248    -.0423269     .011171
+        L9D. |  -.0264855    .019742    -1.34   0.186    -.0661384    .0131674
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |        98           0          98     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(366,440 observations deleted)
+file ../temp/coeffs_emp.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            12
+        from master                        12  
+        from using                          0  
+
+    matched                                 7  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            12
+        from master                        12  
+        from using                          0  
+
+    matched                                 7  
+    -----------------------------------------
+(note: file ../output/fd_models_fin_w3.eps not found)
+(file ../output/fd_models_fin_w3.eps written in EPS format)
+(note: file ../output/fd_models_fin_w3.png not found)
+(file ../output/fd_models_fin_w3.png written in PNG format)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =     87,514
+Absorbing 1 HDFE group                            F(   7,     50) =       0.27
+Statistics robust to heteroskedasticity           Prob > F        =     0.9609
+                                                  R-squared       =     0.3348
+                                                  Adj R-squared   =     0.3345
+                                                  Within R-sq.    =     0.0001
+Number of clusters (statefips) =         51       Root MSE        =     0.0444
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+avg_d_ln_w.. |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F3D. |   .0007913   .0164224     0.05   0.962     -.032194    .0337766
+        F2D. |  -.0106484   .0169711    -0.63   0.533    -.0447357     .023439
+         FD. |  -.0078768   .0164593    -0.48   0.634    -.0409363    .0251826
+         D1. |   .0213425   .0311731     0.68   0.497    -.0412706    .0839555
+         LD. |  -.0150293   .0145467    -1.03   0.306    -.0442473    .0141886
+        L2D. |   .0029326   .0156782     0.19   0.852    -.0285581    .0344232
+        L3D. |   -.003876   .0205783    -0.19   0.851    -.0452088    .0374568
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     quarter |        32           0          32     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(122,146 observations deleted)
+(6 real changes made)
+file ../temp/coeffs_wage.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =     99,849
+Absorbing 1 HDFE group                            F(   7,     50) =       2.56
+Statistics robust to heteroskedasticity           Prob > F        =     0.0249
+                                                  R-squared       =     0.0270
+                                                  Adj R-squared   =     0.0266
+                                                  Within R-sq.    =     0.0006
+Number of clusters (statefips) =         51       Root MSE        =     0.0194
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+avg~st_const |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F3D. |   .0143441   .0089461     1.60   0.115    -.0036247    .0323129
+        F2D. |   .0068971   .0068685     1.00   0.320    -.0068987    .0206928
+         FD. |   .0114116   .0097239     1.17   0.246    -.0081194    .0309426
+         D1. |  -.0020543   .0136517    -0.15   0.881    -.0294745    .0253659
+         LD. |   .0206162   .0066277     3.11   0.003     .0073041    .0339283
+        L2D. |  -.0012466   .0071078    -0.18   0.861     -.015523    .0130297
+        L3D. |  -.0196727   .0087821    -2.24   0.030    -.0373119   -.0020334
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     quarter |        32           0          32     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(122,146 observations deleted)
+(6 real changes made)
+file ../temp/coeffs_est.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    271,324
+Absorbing 1 HDFE group                            F(  19,     50) =       4.20
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.1408
+                                                  Adj R-squared   =     0.1404
+                                                  Within R-sq.    =     0.0007
+Number of clusters (statefips) =         51       Root MSE        =     0.0920
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+d_ln_emp_c~t |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F9D. |   .0071625   .0717393     0.10   0.921    -.1369301     .151255
+        F8D. |   .0636475   .1005277     0.63   0.530    -.1382683    .2655633
+        F7D. |   .0475981   .1122194     0.42   0.673    -.1778013    .2729974
+        F6D. |   .0103907   .0339213     0.31   0.761    -.0577423    .0785236
+        F5D. |   .0052377   .0239893     0.22   0.828    -.0429462    .0534216
+        F4D. |    .068187   .0685128     1.00   0.324    -.0694251    .2057991
+        F3D. |   .0696033   .0896668     0.78   0.441    -.1104978    .2497044
+        F2D. |  -.0166632   .0901199    -0.18   0.854    -.1976744    .1643479
+         FD. |  -.0421833   .0662036    -0.64   0.527    -.1751571    .0907904
+         D1. |  -.1302969   .0979089    -1.33   0.189    -.3269527     .066359
+         LD. |  -.0951039   .0618486    -1.54   0.130    -.2193305    .0291228
+        L2D. |  -.0213504    .058971    -0.36   0.719    -.1397971    .0970963
+        L3D. |  -.0029988   .0687869    -0.04   0.965    -.1411613    .1351637
+        L4D. |   .0519481   .1011525     0.51   0.610    -.1512226    .2551188
+        L5D. |  -.0148418   .1131634    -0.13   0.896    -.2421371    .2124535
+        L6D. |   .0743251   .0417553     1.78   0.081     -.009543    .1581932
+        L7D. |   .0409331   .0263818     1.55   0.127    -.0120563    .0939226
+        L8D. |   .1138184   .1116733     1.02   0.313     -.110484    .3381208
+        L9D. |   .0746473   .0832341     0.90   0.374    -.0925333     .241828
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |        98           0          98     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(366,440 observations deleted)
+file ../temp/coeffs_emp.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            12
+        from master                        12  
+        from using                          0  
+
+    matched                                 7  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            12
+        from master                        12  
+        from using                          0  
+
+    matched                                 7  
+    -----------------------------------------
+(note: file ../output/fd_models_const_w3.eps not found)
+(file ../output/fd_models_const_w3.eps written in EPS format)
+(note: file ../output/fd_models_const_w3.png not found)
+(file ../output/fd_models_const_w3.png written in PNG format)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =     95,532
+Absorbing 1 HDFE group                            F(   7,     50) =       2.01
+Statistics robust to heteroskedasticity           Prob > F        =     0.0718
+                                                  R-squared       =     0.2666
+                                                  Adj R-squared   =     0.2663
+                                                  Within R-sq.    =     0.0002
+Number of clusters (statefips) =         51       Root MSE        =     0.0279
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+avg_d_ln_w~e |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F3D. |  -.0012672   .0100185    -0.13   0.900    -.0213899    .0188555
+        F2D. |   .0081218   .0127997     0.63   0.529    -.0175872    .0338307
+         FD. |  -.0038199   .0092147    -0.41   0.680    -.0223282    .0146884
+         D1. |   .0229751   .0134375     1.71   0.094     -.004015    .0499652
+         LD. |  -.0019966   .0120816    -0.17   0.869    -.0262631      .02227
+        L2D. |   .0068823   .0180352     0.38   0.704    -.0293426    .0431072
+        L3D. |  -.0116479   .0088931    -1.31   0.196    -.0295103    .0062145
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     quarter |        32           0          32     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(122,146 observations deleted)
+(6 real changes made)
+file ../temp/coeffs_wage.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =     99,723
+Absorbing 1 HDFE group                            F(   7,     50) =       1.92
+Statistics robust to heteroskedasticity           Prob > F        =     0.0865
+                                                  R-squared       =     0.0586
+                                                  Adj R-squared   =     0.0582
+                                                  Within R-sq.    =     0.0014
+Number of clusters (statefips) =         51       Root MSE        =     0.0286
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+avg_d_ln_e~e |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F3D. |  -.0194244   .0170784    -1.14   0.261    -.0537274    .0148786
+        F2D. |  -.0394695   .0331564    -1.19   0.240    -.1060661     .027127
+         FD. |   .0225527   .0180171     1.25   0.216    -.0136358    .0587412
+         D1. |   .0534705   .0387318     1.38   0.174    -.0243245    .1312655
+         LD. |   .0034693   .0121106     0.29   0.776    -.0208555    .0277941
+        L2D. |  -.0024659   .0069409    -0.36   0.724    -.0164071    .0114752
+        L3D. |  -.0260028   .0208908    -1.24   0.219    -.0679631    .0159575
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     quarter |        32           0          32     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(122,146 observations deleted)
+(6 real changes made)
+file ../temp/coeffs_est.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    293,694
+Absorbing 1 HDFE group                            F(  19,     50) =       3.41
+Statistics robust to heteroskedasticity           Prob > F        =     0.0003
+                                                  R-squared       =     0.0144
+                                                  Adj R-squared   =     0.0140
+                                                  Within R-sq.    =     0.0003
+Number of clusters (statefips) =         51       Root MSE        =     0.0429
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+d_ln_emp_e~e |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F9D. |   .0167879   .0160379     1.05   0.300    -.0154251     .049001
+        F8D. |   .0125898   .0125158     1.01   0.319     -.012549    .0377287
+        F7D. |   .0121535   .0171929     0.71   0.483    -.0223795    .0466866
+        F6D. |   .0220952   .0190223     1.16   0.251    -.0161122    .0603026
+        F5D. |  -.0251732   .0183806    -1.37   0.177    -.0620917    .0117454
+        F4D. |  -.0200385   .0156551    -1.28   0.206    -.0514827    .0114057
+        F3D. |   .0182418   .0170303     1.07   0.289    -.0159644    .0524481
+        F2D. |   .0063278   .0120761     0.52   0.603    -.0179278    .0305833
+         FD. |   .0340352   .0154487     2.20   0.032     .0030056    .0650648
+         D1. |   .0231991   .0247765     0.94   0.354     -.026566    .0729642
+         LD. |  -.0367354   .0146587    -2.51   0.016    -.0661783   -.0072925
+        L2D. |   .0278579    .012494     2.23   0.030      .002763    .0529528
+        L3D. |  -.0024444   .0122578    -0.20   0.843     -.027065    .0221761
+        L4D. |   .0120134    .010412     1.15   0.254    -.0088997    .0329265
+        L5D. |   .0310546   .0178436     1.74   0.088    -.0047853    .0668945
+        L6D. |  -.0285501   .0179468    -1.59   0.118    -.0645973    .0074971
+        L7D. |  -.0066607   .0177587    -0.38   0.709    -.0423301    .0290086
+        L8D. |  -.0055584   .0177146    -0.31   0.755    -.0411391    .0300224
+        L9D. |   .0066866   .0153004     0.44   0.664    -.0240451    .0374182
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |        98           0          98     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(366,440 observations deleted)
+file ../temp/coeffs_emp.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            12
+        from master                        12  
+        from using                          0  
+
+    matched                                 7  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            12
+        from master                        12  
+        from using                          0  
+
+    matched                                 7  
+    -----------------------------------------
+(note: file ../output/fd_models_eduhe_w3.eps not found)
+(file ../output/fd_models_eduhe_w3.eps written in EPS format)
+(note: file ../output/fd_models_eduhe_w3.png not found)
+(file ../output/fd_models_eduhe_w3.png written in PNG format)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =     97,078
+Absorbing 1 HDFE group                            F(   7,     50) =      22.09
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.1639
+                                                  Adj R-squared   =     0.1636
+                                                  Within R-sq.    =     0.0024
+Number of clusters (statefips) =         51       Root MSE        =     0.0309
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+avg_d_ln_w.. |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F3D. |  -.0031941    .012982    -0.25   0.807    -.0292691    .0228809
+        F2D. |   .0371151   .0232128     1.60   0.116    -.0095091    .0837394
+         FD. |  -.0280754   .0165885    -1.69   0.097    -.0613944    .0052436
+         D1. |   .0594829   .0214338     2.78   0.008     .0164319    .1025339
+         LD. |  -.0018722   .0113529    -0.16   0.870    -.0246752    .0209308
+        L2D. |   .0525176   .0231369     2.27   0.028     .0060458    .0989894
+        L3D. |  -.0285155   .0152265    -1.87   0.067    -.0590987    .0020678
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     quarter |        32           0          32     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(122,146 observations deleted)
+(6 real changes made)
+file ../temp/coeffs_wage.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =     99,918
+Absorbing 1 HDFE group                            F(   7,     50) =       0.89
+Statistics robust to heteroskedasticity           Prob > F        =     0.5226
+                                                  R-squared       =     0.0092
+                                                  Adj R-squared   =     0.0088
+                                                  Within R-sq.    =     0.0002
+Number of clusters (statefips) =         51       Root MSE        =     0.0173
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+avg_~st_leis |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F3D. |   .0067488   .0061115     1.10   0.275    -.0055265    .0190241
+        F2D. |   .0003908   .0069121     0.06   0.955    -.0134926    .0142741
+         FD. |   .0004662    .006372     0.07   0.942    -.0123323    .0132648
+         D1. |  -.0085347   .0083359    -1.02   0.311    -.0252777    .0082084
+         LD. |   .0079597   .0061637     1.29   0.203    -.0044204    .0203398
+        L2D. |  -.0031176   .0065039    -0.48   0.634    -.0161811    .0099458
+        L3D. |    -.00636   .0062516    -1.02   0.314    -.0189167    .0061966
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     quarter |        32           0          32     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(122,146 observations deleted)
+(6 real changes made)
+file ../temp/coeffs_est.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    298,334
+Absorbing 1 HDFE group                            F(  19,     50) =       4.48
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.1090
+                                                  Adj R-squared   =     0.1086
+                                                  Within R-sq.    =     0.0027
+Number of clusters (statefips) =         51       Root MSE        =     0.0847
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+d_ln_emp_l~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F9D. |  -.0499694   .0599762    -0.83   0.409    -.1704351    .0704962
+        F8D. |   .1015411   .0702064     1.45   0.154    -.0394726    .2425547
+        F7D. |   .1957206   .0914391     2.14   0.037     .0120598    .3793815
+        F6D. |   .0780438   .0445901     1.75   0.086    -.0115182    .1676057
+        F5D. |   .0608523   .0364578     1.67   0.101    -.0123753    .1340799
+        F4D. |  -.0486444    .056159    -0.87   0.391     -.161443    .0641542
+        F3D. |  -.1209533   .0749318    -1.61   0.113    -.2714583    .0295517
+        F2D. |  -.1704771   .0955093    -1.78   0.080    -.3623132     .021359
+         FD. |    .068893   .0868813     0.79   0.432    -.1056131    .2433992
+         D1. |   -.039815   .0540406    -0.74   0.465    -.1483588    .0687288
+         LD. |  -.0846239   .0382786    -2.21   0.032    -.1615089    -.007739
+        L2D. |  -.0610521   .0625673    -0.98   0.334    -.1867223    .0646181
+        L3D. |  -.0611444   .0587391    -1.04   0.303    -.1791254    .0568366
+        L4D. |   .1165726   .0793655     1.47   0.148    -.0428377    .2759829
+        L5D. |   .2173302    .073268     2.97   0.005     .0701671    .3644933
+        L6D. |   .0755575   .0391305     1.93   0.059    -.0030384    .1541534
+        L7D. |   .0102959   .0370648     0.28   0.782    -.0641509    .0847427
+        L8D. |   -.061533    .054493    -1.13   0.264    -.1709853    .0479194
+        L9D. |  -.1412869   .1064199    -1.33   0.190    -.3550375    .0724637
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |        98           0          98     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(366,440 observations deleted)
+file ../temp/coeffs_emp.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            12
+        from master                        12  
+        from using                          0  
+
+    matched                                 7  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            12
+        from master                        12  
+        from using                          0  
+
+    matched                                 7  
+    -----------------------------------------
+(note: file ../output/fd_models_leis_w3.eps not found)
+(file ../output/fd_models_leis_w3.eps written in EPS format)
+(note: file ../output/fd_models_leis_w3.png not found)
+(file ../output/fd_models_leis_w3.png written in PNG format)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =     87,357
+Absorbing 1 HDFE group                            F(   7,     50) =       1.90
+Statistics robust to heteroskedasticity           Prob > F        =     0.0894
+                                                  R-squared       =     0.1469
+                                                  Adj R-squared   =     0.1466
+                                                  Within R-sq.    =     0.0001
+Number of clusters (statefips) =         51       Root MSE        =     0.0407
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+avg_d_ln_w~u |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F3D. |   .0098394   .0162131     0.61   0.547    -.0227257    .0424044
+        F2D. |   .0117486   .0153089     0.77   0.446    -.0190003    .0424976
+         FD. |  -.0204834   .0086706    -2.36   0.022    -.0378987    -.003068
+         D1. |   .0045118   .0218374     0.21   0.837    -.0393498    .0483735
+         LD. |   .0149674   .0163036     0.92   0.363    -.0177794    .0477142
+        L2D. |  -.0186341   .0154941    -1.20   0.235    -.0497549    .0124866
+        L3D. |   .0123376   .0097365     1.27   0.211    -.0072187    .0318939
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     quarter |        32           0          32     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(122,146 observations deleted)
+(6 real changes made)
+file ../temp/coeffs_wage.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =     98,237
+Absorbing 1 HDFE group                            F(   7,     50) =       1.48
+Statistics robust to heteroskedasticity           Prob > F        =     0.1954
+                                                  R-squared       =     0.0025
+                                                  Adj R-squared   =     0.0021
+                                                  Within R-sq.    =     0.0000
+Number of clusters (statefips) =         51       Root MSE        =     0.0213
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+avg_d_ln_e~u |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F3D. |    .005168   .0052169     0.99   0.327    -.0053105    .0156465
+        F2D. |  -.0029004   .0061046    -0.48   0.637     -.015162    .0093611
+         FD. |  -.0015921   .0088647    -0.18   0.858    -.0193973    .0162132
+         D1. |    .001884   .0076383     0.25   0.806    -.0134579    .0172259
+         LD. |  -.0021592   .0052418    -0.41   0.682    -.0126875    .0083692
+        L2D. |   .0089842   .0046489     1.93   0.059    -.0003534    .0183218
+        L3D. |  -.0013075   .0094762    -0.14   0.891     -.020341     .017726
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     quarter |        32           0          32     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(122,146 observations deleted)
+(6 real changes made)
+file ../temp/coeffs_est.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    269,319
+Absorbing 1 HDFE group                            F(  19,     50) =      10.06
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.0113
+                                                  Adj R-squared   =     0.0109
+                                                  Within R-sq.    =     0.0010
+Number of clusters (statefips) =         51       Root MSE        =     0.0616
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+d_ln_emp_m~u |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F9D. |   .0093674   .0138024     0.68   0.500    -.0183555    .0370903
+        F8D. |   .0390122   .0221618     1.76   0.084     -.005501    .0835255
+        F7D. |   .0684701   .0355291     1.93   0.060    -.0028921    .1398324
+        F6D. |   .0481196   .0565072     0.85   0.399    -.0653785    .1616176
+        F5D. |  -.0159719    .018289    -0.87   0.387    -.0527064    .0207626
+        F4D. |  -.0309506   .0301498    -1.03   0.310    -.0915082    .0296071
+        F3D. |  -.0473957   .0388042    -1.22   0.228    -.1253362    .0305447
+        F2D. |  -.0497561   .0359077    -1.39   0.172    -.1218788    .0223666
+         FD. |  -.0069254   .0222809    -0.31   0.757    -.0516779     .037827
+         D1. |  -.0493788   .0288728    -1.71   0.093    -.1073714    .0086138
+         LD. |   .0191425   .0251431     0.76   0.450    -.0313588    .0696438
+        L2D. |   .0107942   .0248935     0.43   0.666    -.0392058    .0607942
+        L3D. |  -.0196595   .0249213    -0.79   0.434    -.0697153    .0303964
+        L4D. |   .0335649   .0347337     0.97   0.339    -.0361998    .1033295
+        L5D. |   .0734506   .0548326     1.34   0.186    -.0366839    .1835851
+        L6D. |   .1068712   .0583157     1.83   0.073    -.0102593    .2240017
+        L7D. |  -.0258992    .025945    -1.00   0.323    -.0780112    .0262129
+        L8D. |  -.0971614   .0748348    -1.30   0.200    -.2474716    .0531487
+        L9D. |  -.0244319   .0484276    -0.50   0.616    -.1217015    .0728377
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |        98           0          98     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(366,440 observations deleted)
+file ../temp/coeffs_emp.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            12
+        from master                        12  
+        from using                          0  
+
+    matched                                 7  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            12
+        from master                        12  
+        from using                          0  
+
+    matched                                 7  
+    -----------------------------------------
+(note: file ../output/fd_models_manu_w3.eps not found)
+(file ../output/fd_models_manu_w3.eps written in EPS format)
+(note: file ../output/fd_models_manu_w3.png not found)
+(file ../output/fd_models_manu_w3.png written in PNG format)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =     89,286
+Absorbing 1 HDFE group                            F(   7,     50) =       1.35
+Statistics robust to heteroskedasticity           Prob > F        =     0.2459
+                                                  R-squared       =     0.1519
+                                                  Adj R-squared   =     0.1515
+                                                  Within R-sq.    =     0.0002
+Number of clusters (statefips) =         51       Root MSE        =     0.0604
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+avg_d_ln_w.. |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F3D. |   .0211395   .0254631     0.83   0.410    -.0300047    .0722836
+        F2D. |  -.0072928   .0155851    -0.47   0.642    -.0385963    .0240107
+         FD. |   .0225844    .033214     0.68   0.500     -.044128    .0892967
+         D1. |  -.0407787   .0471116    -0.87   0.391    -.1354051    .0538477
+         LD. |    .000405   .0206334     0.02   0.984    -.0410384    .0418484
+        L2D. |   .0291302   .0181346     1.61   0.114    -.0072942    .0655546
+        L3D. |   .0123564   .0216112     0.57   0.570     -.031051    .0557638
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     quarter |        32           0          32     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(122,146 observations deleted)
+(6 real changes made)
+file ../temp/coeffs_wage.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =     99,489
+Absorbing 1 HDFE group                            F(   7,     50) =       0.85
+Statistics robust to heteroskedasticity           Prob > F        =     0.5558
+                                                  R-squared       =     0.0057
+                                                  Adj R-squared   =     0.0054
+                                                  Within R-sq.    =     0.0001
+Number of clusters (statefips) =         51       Root MSE        =     0.0225
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+av~st_natres |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F3D. |  -.0060804   .0053802    -1.13   0.264    -.0168869     .004726
+        F2D. |   .0023394   .0078587     0.30   0.767    -.0134452     .018124
+         FD. |    .007868   .0099427     0.79   0.432    -.0121026    .0278385
+         D1. |  -.0066613   .0094292    -0.71   0.483    -.0256003    .0122777
+         LD. |   .0105227   .0076501     1.38   0.175    -.0048429    .0258884
+        L2D. |   .0069738   .0074875     0.93   0.356    -.0080653     .022013
+        L3D. |  -.0035376   .0086045    -0.41   0.683    -.0208202     .013745
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     quarter |        32           0          32     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(122,146 observations deleted)
+(6 real changes made)
+file ../temp/coeffs_est.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    276,298
+Absorbing 1 HDFE group                            F(  19,     50) =       6.04
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.0681
+                                                  Adj R-squared   =     0.0677
+                                                  Within R-sq.    =     0.0006
+Number of clusters (statefips) =         51       Root MSE        =     0.1303
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+d_ln_emp_n~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F9D. |    .015795   .0779741     0.20   0.840    -.1408205    .1724105
+        F8D. |   .0239284   .0779685     0.31   0.760    -.1326761    .1805328
+        F7D. |   .0596797   .0790399     0.76   0.454    -.0990766     .218436
+        F6D. |    .055534   .0790767     0.70   0.486    -.1032962    .2143642
+        F5D. |    .067044   .0437149     1.53   0.131    -.0207599    .1548479
+        F4D. |  -.0198744   .0486896    -0.41   0.685    -.1176704    .0779216
+        F3D. |   .0633305   .0727434     0.87   0.388     -.082779      .20944
+        F2D. |  -.1743943   .0996714    -1.75   0.086    -.3745901    .0258016
+         FD. |  -.1951287   .1193571    -1.63   0.108    -.4348646    .0446072
+         D1. |  -.0738258   .0983763    -0.75   0.457    -.2714203    .1237687
+         LD. |   .0173997   .0758091     0.23   0.819    -.1348674    .1696667
+        L2D. |   .1032034   .0849247     1.22   0.230    -.0673729    .2737797
+        L3D. |  -.0308633   .0899791    -0.34   0.733    -.2115917    .1498652
+        L4D. |  -.0244794   .0698101    -0.35   0.727    -.1646972    .1157384
+        L5D. |   .1318043   .0653097     2.02   0.049     .0006259    .2629828
+        L6D. |   .1571303   .0814887     1.93   0.060    -.0065446    .3208053
+        L7D. |  -.0186356   .0414089    -0.45   0.655    -.1018078    .0645365
+        L8D. |   .0197313   .0654325     0.30   0.764    -.1116937    .1511563
+        L9D. |   .0226981   .0637581     0.36   0.723    -.1053639      .15076
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |        98           0          98     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(366,440 observations deleted)
+file ../temp/coeffs_emp.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            12
+        from master                        12  
+        from using                          0  
+
+    matched                                 7  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            12
+        from master                        12  
+        from using                          0  
+
+    matched                                 7  
+    -----------------------------------------
+(note: file ../output/fd_models_natres_w3.eps not found)
+(file ../output/fd_models_natres_w3.eps written in EPS format)
+(note: file ../output/fd_models_natres_w3.png not found)
+(file ../output/fd_models_natres_w3.png written in PNG format)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =     99,896
+Absorbing 1 HDFE group                            F(   7,     50) =       1.54
+Statistics robust to heteroskedasticity           Prob > F        =     0.1769
+                                                  R-squared       =     0.1905
+                                                  Adj R-squared   =     0.1902
+                                                  Within R-sq.    =     0.0004
+Number of clusters (statefips) =         51       Root MSE        =     0.0305
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+avg_d_ln_w~p |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F3D. |  -.0095359   .0132913    -0.72   0.476    -.0362322    .0171605
+        F2D. |   .0125006     .00892     1.40   0.167    -.0054156    .0304169
+         FD. |  -.0102829   .0116657    -0.88   0.382    -.0337141    .0131484
+         D1. |   .0128468   .0226188     0.57   0.573    -.0325845     .058278
+         LD. |  -.0054488    .011811    -0.46   0.647     -.029172    .0182744
+        L2D. |   .0225247   .0155984     1.44   0.155    -.0088056     .053855
+        L3D. |  -.0157448   .0158393    -0.99   0.325     -.047559    .0160693
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     quarter |        32           0          32     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(122,146 observations deleted)
+(6 real changes made)
+file ../temp/coeffs_wage.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    100,198
+Absorbing 1 HDFE group                            F(   7,     50) =       0.72
+Statistics robust to heteroskedasticity           Prob > F        =     0.6566
+                                                  R-squared       =     0.0145
+                                                  Adj R-squared   =     0.0142
+                                                  Within R-sq.    =     0.0002
+Number of clusters (statefips) =         51       Root MSE        =     0.0097
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+avg_d_ln_e~p |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F3D. |   .0034328   .0059226     0.58   0.565     -.008463    .0153286
+        F2D. |  -.0026852   .0040459    -0.66   0.510    -.0108117    .0054413
+         FD. |  -.0009226   .0040243    -0.23   0.820    -.0090056    .0071603
+         D1. |  -.0022753   .0076651    -0.30   0.768    -.0176712    .0131205
+         LD. |   .0042631   .0048587     0.88   0.384    -.0054958     .014022
+        L2D. |  -.0020271   .0035152    -0.58   0.567    -.0090876    .0050335
+        L3D. |  -.0051492    .003837    -1.34   0.186    -.0128561    .0025577
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     quarter |        32           0          32     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(122,146 observations deleted)
+(6 real changes made)
+file ../temp/coeffs_est.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    306,024
+Absorbing 1 HDFE group                            F(  19,     50) =       5.61
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.0858
+                                                  Adj R-squared   =     0.0855
+                                                  Within R-sq.    =     0.0015
+Number of clusters (statefips) =         51       Root MSE        =     0.0364
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+d_ln_emp_t~p |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F9D. |   .0022208    .016818     0.13   0.895    -.0315592    .0360007
+        F8D. |   .0509246   .0262531     1.94   0.058    -.0018064    .1036556
+        F7D. |   .0599814   .0321832     1.86   0.068    -.0046605    .1246234
+        F6D. |   .0236349   .0219136     1.08   0.286    -.0203798    .0676496
+        F5D. |  -.0093241   .0069427    -1.34   0.185     -.023269    .0046208
+        F4D. |   -.037914   .0212311    -1.79   0.080     -.080558      .00473
+        F3D. |  -.0295828   .0227702    -1.30   0.200    -.0753181    .0161526
+        F2D. |   -.045147   .0276742    -1.63   0.109    -.1007324    .0104383
+         FD. |   .0271308    .016853     1.61   0.114    -.0067194    .0609809
+         D1. |   -.031551   .0195311    -1.62   0.113    -.0707803    .0076783
+         LD. |  -.0142164    .014398    -0.99   0.328    -.0431356    .0147027
+        L2D. |   -.003779   .0140644    -0.27   0.789    -.0320282    .0244701
+        L3D. |  -.0072774   .0172708    -0.42   0.675     -.041967    .0274121
+        L4D. |   .0338083   .0262858     1.29   0.204    -.0189884     .086605
+        L5D. |   .0623693   .0240382     2.59   0.012     .0140871    .1106515
+        L6D. |    .030788   .0160627     1.92   0.061     -.001475    .0630509
+        L7D. |  -.0110308   .0073282    -1.51   0.139    -.0257499    .0036882
+        L8D. |  -.0213244   .0275702    -0.77   0.443    -.0767008    .0340521
+        L9D. |  -.0440201   .0270415    -1.63   0.110    -.0983345    .0102943
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |        98           0          98     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(366,440 observations deleted)
+file ../temp/coeffs_emp.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            12
+        from master                        12  
+        from using                          0  
+
+    matched                                 7  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            12
+        from master                        12  
+        from using                          0  
+
+    matched                                 7  
+    -----------------------------------------
+(note: file ../output/fd_models_transp_w3.eps not found)
+(file ../output/fd_models_transp_w3.eps written in EPS format)
+(note: file ../output/fd_models_transp_w3.png not found)
+(file ../output/fd_models_transp_w3.png written in PNG format)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    100,202
+Absorbing 1 HDFE group                            F(   7,     50) =       3.44
+Statistics robust to heteroskedasticity           Prob > F        =     0.0044
+                                                  R-squared       =     0.3198
+                                                  Adj R-squared   =     0.3196
+                                                  Within R-sq.    =     0.0016
+Number of clusters (statefips) =         51       Root MSE        =     0.0206
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+a~_wwage_tot |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F3D. |   .0052233   .0176896     0.30   0.769    -.0303073    .0407539
+        F2D. |   .0161528   .0189038     0.85   0.397    -.0218166    .0541221
+         FD. |  -.0235899   .0121713    -1.94   0.058    -.0480366    .0008568
+         D1. |   .0272362    .014897     1.83   0.073    -.0026853    .0571577
+         LD. |   -.011515   .0149081    -0.77   0.444    -.0414588    .0184288
+        L2D. |    .021196   .0132166     1.60   0.115    -.0053503    .0477422
+        L3D. |   -.024186   .0127529    -1.90   0.064    -.0498008    .0014289
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     quarter |        32           0          32     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(122,146 observations deleted)
+(6 real changes made)
+file ../temp/coeffs_wage.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    100,222
+Absorbing 1 HDFE group                            F(   7,     50) =       0.80
+Statistics robust to heteroskedasticity           Prob > F        =     0.5902
+                                                  R-squared       =     0.0535
+                                                  Adj R-squared   =     0.0531
+                                                  Within R-sq.    =     0.0006
+Number of clusters (statefips) =         51       Root MSE        =     0.0060
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+avg_d~st_tot |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F3D. |   .0012899   .0070391     0.18   0.855    -.0128485    .0154282
+        F2D. |  -.0044931   .0066844    -0.67   0.505    -.0179191    .0089329
+         FD. |   .0038067   .0050358     0.76   0.453    -.0063079    .0139213
+         D1. |   .0022023   .0098245     0.22   0.824    -.0175309    .0219355
+         LD. |   .0032777   .0038803     0.84   0.402    -.0045161    .0110715
+        L2D. |   .0029224   .0033628     0.87   0.389    -.0038321    .0096768
+        L3D. |  -.0090602   .0065329    -1.39   0.172    -.0221819    .0040615
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     quarter |        32           0          32     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(122,146 observations deleted)
+(6 real changes made)
+file ../temp/coeffs_est.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    306,888
+Absorbing 1 HDFE group                            F(  19,     50) =       5.15
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.1379
+                                                  Adj R-squared   =     0.1376
+                                                  Within R-sq.    =     0.0020
+Number of clusters (statefips) =         51       Root MSE        =     0.0329
+
+                             (Std. Err. adjusted for 51 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+d_ln_emp_tot |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F9D. |  -.0041196   .0231961    -0.18   0.860    -.0507103    .0424711
+        F8D. |   .0370612   .0240067     1.54   0.129    -.0111578    .0852801
+        F7D. |   .0691056   .0403055     1.71   0.093    -.0118504    .1500616
+        F6D. |   .0014968    .048377     0.03   0.975    -.0956713     .098665
+        F5D. |  -.0159156   .0299564    -0.53   0.598    -.0760848    .0442536
+        F4D. |  -.0212802    .032942    -0.65   0.521    -.0874462    .0448857
+        F3D. |  -.0243629   .0365342    -0.67   0.508    -.0977441    .0490183
+        F2D. |  -.0464481   .0380819    -1.22   0.228    -.1229379    .0300417
+         FD. |   .0201755   .0325775     0.62   0.539    -.0452584    .0856093
+         D1. |  -.0096931   .0229008    -0.42   0.674    -.0556907    .0363046
+         LD. |  -.0154857   .0174418    -0.89   0.379    -.0505185    .0195471
+        L2D. |   .0194416   .0147088     1.32   0.192     -.010102    .0489852
+        L3D. |  -.0199862   .0190473    -1.05   0.299    -.0582439    .0182714
+        L4D. |    .024736    .024716     1.00   0.322    -.0249075    .0743796
+        L5D. |   .0827455   .0367053     2.25   0.029     .0090207    .1564702
+        L6D. |   .0547262   .0445035     1.23   0.225    -.0346618    .1441142
+        L7D. |  -.0447387   .0277476    -1.61   0.113    -.1004713    .0109939
+        L8D. |  -.0366128   .0370099    -0.99   0.327    -.1109494    .0377238
+        L9D. |  -.0236561   .0378925    -0.62   0.535    -.0997655    .0524533
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |        98           0          98     |
+-----------------------------------------------------+
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(366,440 observations deleted)
+file ../temp/coeffs_emp.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            12
+        from master                        12  
+        from using                          0  
+
+    matched                                 7  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            12
+        from master                        12  
+        from using                          0  
+
+    matched                                 7  
+    -----------------------------------------
+(note: file ../output/fd_models_tot_w3.eps not found)
+(file ../output/fd_models_tot_w3.eps written in EPS format)
+(note: file ../output/fd_models_tot_w3.png not found)
+(file ../output/fd_models_tot_w3.png written in PNG format)
+
+. 
+end of do-file
+
+ make.py ended: 2020-12-13 09:11:11
