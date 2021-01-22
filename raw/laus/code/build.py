@@ -36,53 +36,61 @@ def create_seriesID_list(instub):
     
     return laus_seriesID
 
+
 def divide_chunks(l, n): 
       
     # looping till length l 
     for i in range(0, len(l), n):  
         yield l[i:i + n] 
 
+
 def get_data(seriesID, year_start, year_end, outstub):
     #Code adapted from http://danstrong.tech/blog/BLS-API/
     
-    headers = {'Content-type': 'application/json'}
-    data = json.dumps({"seriesid": seriesID[25:27],
-                       "startyear":year_start, 
-                       "endyear":year_end, 
-                       "registrationkey":"4ad5d078135a4bea83ef7c2550427f6e"})
-    p = requests.post('https://api.bls.gov/publicAPI/v2/timeseries/data/', data=data, headers=headers)
-    json_data = json.loads(p.text)
+    seriesID_list = list(divide_chunks(seriesID, 25))
     
-    county_list = []
-    year_list = []
-    month_list = []
-    unemp_list = []
-    footnote_list = []
+    df_list = []
     
-    for series in json_data['Results']['series']:
-        countyfips = series['seriesID'][5:10]
-        for item in series['data']:
-            year = item['year']
-            period = item['period']
-            month = item['period'][1:]
-            unemp_rate = item['value']
-            footnotes=""
-            for footnote in item['footnotes']:
-                if footnote:
-                    footnotes = footnotes + footnote['text'] + ','
-            if 'M01' <= period <= 'M12':
-                #x.add_row([countyfips, year,month,unemp_rate,footnotes[0:-1]])
-                county_list.append(countyfips)
-                year_list.append(year)
-                month_list.append(month)
-                unemp_list.append(unemp_rate)
-                footnote_list.append(footnote)
+    for this_series in seriesID_list:  
+        headers = {'Content-type': 'application/json'}
+        data = json.dumps({"seriesid": this_series,
+                           "startyear":year_start, 
+                           "endyear":year_end, 
+                           "registrationkey":"4ad5d078135a4bea83ef7c2550427f6e"})
+        p = requests.post('https://api.bls.gov/publicAPI/v2/timeseries/data/', data=data, headers=headers)
+        json_data = json.loads(p.text)
+        
+        county_list = []
+        year_list = []
+        month_list = []
+        unemp_list = []
+        footnote_list = []
+        
+        for series in json_data['Results']['series']:
+            countyfips = series['seriesID'][5:10]
+            for item in series['data']:
+                year = item['year']
+                period = item['period']
+                month = item['period'][1:]
+                unemp_rate = item['value']
+                footnotes=""
+                for footnote in item['footnotes']:
+                    if footnote:
+                        footnotes = footnotes + footnote['text'] + ','
+                if 'M01' <= period <= 'M12':
+                    #x.add_row([countyfips, year,month,unemp_rate,footnotes[0:-1]])
+                    county_list.append(countyfips)
+                    year_list.append(year)
+                    month_list.append(month)
+                    unemp_list.append(unemp_rate)
+                    footnote_list.append(footnote)
+        
+        df = pandas.DataFrame({'countyfips': county_list, 'year': year_list, 'month': month_list, 'unemp_rate': unemp_list, 'footnotes': footnote_list})
+        df_list.append(df)
     
-    df = pandas.DataFrame({'countyfips': county_list, 'year': year_list, 'month': month_list, 'unemp_rate': unemp_list, 'footnotes': footnote_list})
-    
-    df.to_csv(outstub + 'cty_laus.csv')
-    
-    print(len(df))
+    df_final = pandas.concat(df_list)
+    df_final.to_csv(outstub + 'cty_laus.csv')
+
     
 def log_and_print(message, logger):
     print(message)
@@ -116,9 +124,4 @@ if __name__ == "__main__":
     get_data(seriesID_LAUS, "2010", "2019", DATA_PATH)  
     
     log_and_print(f"County-level LAUS series downloaded in ROOT/drive/raw_data/lodes.", logger)
-    
-    
-    
-    
-    
     
