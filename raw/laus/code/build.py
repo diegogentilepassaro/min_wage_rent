@@ -45,13 +45,11 @@ def divide_chunks(l, n):
 def get_data(seriesID, year_start, year_end, outstub):
     #Code adapted from http://danstrong.tech/blog/BLS-API/
     
-    
-    
     headers = {'Content-type': 'application/json'}
     data = json.dumps({"seriesid": seriesID[25:27],
                        "startyear":year_start, 
                        "endyear":year_end, 
-                       "registrationkey":"000f4e000f204473bb565256e8eee73e"})
+                       "registrationkey":"4ad5d078135a4bea83ef7c2550427f6e"})
     p = requests.post('https://api.bls.gov/publicAPI/v2/timeseries/data/', data=data, headers=headers)
     json_data = json.loads(p.text)
     
