@@ -29,12 +29,15 @@ main <- function() {
   table_clean <- lapply(table_list, format_tables, datadir = datadir, data_version = data_version, xwalk = xwalk)
   
   table_clean <- rbindlist(table_clean, use.names = TRUE)
+  setorderv(table_clean, cols = c('zipcode', 'year'))
   
-  table_clean[, c('from', 'to') := list(paste0(year, '-01-01'), paste0(year, '-12-01'))]
+  table_clean <- table_clean[!is.na(year)]
+  table_clean[, c('from', 'to') := list(paste0(year, '-01-01'), paste0(year, '-12-31'))]
+  table_clean[, c('from', 'to') := list(as.Date(from), as.Date(to))]
   
-  # test[, list(zipcode, type, date = seq(from, to, by = "day")), by = 1:nrow(dt)]
+  table_clean <- table_clean[, list(zipcode, acs_pop, year_month = seq(from, to, by = "month")), by = 1:nrow(table_clean)][, nrow:= NULL]
   
-  return(table_clean)
+  save_data(table_clean, filename = paste0(outdir, 'acs_population_zipmonth.csv'), logfile = log_file, key = c('zipcode', 'year_month'))
 }
 
 format_tables <- function(x, datadir, data_version, xwalk) {
@@ -82,5 +85,4 @@ crosswalk_table_tractzip <- function(data, xwalk) {
   return(data)
 }
 
-o <- main()
-view(o)
+main()

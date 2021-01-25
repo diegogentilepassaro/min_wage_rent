@@ -37,6 +37,7 @@ start_make_logging()
 run_rbatch(program = 'tract_avgMW_13_18.R')
 run_rbatch(program = 'make_MWrenters_ziplevel.R')
 run_rbatch(program = 'make_demographics_ziplevel.R')
+run_rbatch(program = 'make_zippop_year.R')
 
 end_make_logging()
 
