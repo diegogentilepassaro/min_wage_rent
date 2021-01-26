@@ -85,7 +85,11 @@ def get_data(seriesID, year_start, year_end, outstub):
                     unemp_list.append(unemp_rate)
                     footnote_list.append(footnote)
         
-        df = pandas.DataFrame({'countyfips': county_list, 'year': year_list, 'month': month_list, 'unemp_rate': unemp_list, 'footnotes': footnote_list})
+        df = pandas.DataFrame({'countyfips': county_list, 
+                               'year': year_list, 
+                               'month': month_list, 
+                               'unemp_rate': unemp_list, 
+                               'footnotes': footnote_list})
         df_list.append(df)
     
     df_final = pandas.concat(df_list)
@@ -100,10 +104,10 @@ def log_and_print(message, logger):
 
 if __name__ == "__main__":
     
-    AREACODE_PATH = os.path.dirname(os.path.dirname(os.path.realpath(__file__))) + '/docs/'
-    LOG_PATH      = os.path.dirname(os.path.dirname(os.path.realpath(__file__))) + '/output/'
-    DATA_PATH     = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))) + '/drive/raw_data/laus/'
-    
+    LAUS_PATH     = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    AREACODE_PATH = os.path.join(LAUS_PATH, 'docs/')
+    LOG_PATH      = os.path.join(LAUS_PATH, 'output/')
+    DATA_PATH     = os.path.join(os.path.dirname(os.path.dirname(LAUS_PATH)), 'drive/raw_data/laus/')     
     
     logging.basicConfig(filename = os.path.join(LOG_PATH, 'build.log'), filemode = 'w', 
                         format = '%(asctime)s %(message)s', level = logging.INFO, datefmt = '%Y-%m-%d %H:%M:%S')
