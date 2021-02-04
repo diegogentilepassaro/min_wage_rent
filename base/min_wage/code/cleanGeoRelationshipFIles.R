@@ -9,6 +9,7 @@ main <- function(){
    datadir   <- '../../../drive/raw_data/census/'
    outputdir <- "../output/"
    
+   
    clean_2010census_gazzetter(indir = datadir, outdir = outputdir,
                               key   = c('state', 'place_code'))
    

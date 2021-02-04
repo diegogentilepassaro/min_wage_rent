@@ -5,7 +5,7 @@ source("../../../lib/R/save_data.R")
 load_packages(c('tidyverse', 'data.table', 'tidycensus'))
 
 main <- function() {
-   datadir <- '../../../base/zillow_min_wage/output/'
+   datadir <- '../../../base/zillow/output/'
    tempdir <- '../temp/'
    
    filelist <- reshape_zillow_zip_level(infolder = datadir)

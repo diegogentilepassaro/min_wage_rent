@@ -8,7 +8,7 @@ program main
     local exports   "../output"
     local temp      "../temp"
 
-    import_crosswalk, instub(`xwalk') outstub(`temp')
+    import_statenames, instub(`xwalk') outstub(`temp')
     local fips = r(fips)
 
     fed_min_wage_change,   instub(`raw') outstub(`exports') 
@@ -25,7 +25,7 @@ program main
     export_state_annually,  instub(`temp') outstub(`exports') target_mw(`mw_list')
 end
 
-program import_crosswalk, rclass
+program import_statenames, rclass
     syntax, instub(str) outstub(str)
 
     import excel using `instub'/state_name_fips_usps.xlsx, clear ///

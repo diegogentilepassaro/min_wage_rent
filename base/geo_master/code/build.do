@@ -30,6 +30,8 @@ program main
 
 	save_data "../output/zcta_county_place_usps_master_xwalk.dta", ///
 	    key(zcta zipcode countyfips place_code) replace
+    save_data "../output/zcta_county_place_usps_master_xwalk.csv", ///
+    	key(zcta zipcode countyfips place_code) replace 
 end
 
 
