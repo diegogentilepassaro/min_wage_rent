@@ -1,0 +1,41 @@
+
+fix_varnames_zipcode <- function(x) {
+  
+  x <- str_replace_all(x, "AllHomes", "SFCC")
+  x <- str_replace_all(x, "SingleFamilyResidence", "SF")
+  x <- str_replace_all(x, "Condominium", "C")
+  x <- str_replace_all(x, "Condominum", "C")
+  x <- str_replace_all(x, "1Bedroom|1bedroom", "1BR")
+  x <- str_replace_all(x, "2Bedroom|2bedroom", "2BR")
+  x <- str_replace_all(x, "3Bedroom|3bedroom", "3BR")
+  x <- str_replace_all(x, "4Bedroom|4bedroom", "4BR")
+  x <- str_replace_all(x, "5BedroomOrMore", "5BR")
+  x <- str_replace_all(x, "CondoCoop", "CC")
+  x <- str_replace_all(x, "Sfr", "SF")
+  x <- str_replace_all(x, "DuplexTriplex", "MFdxtx")
+  x <- str_replace_all(x, "Mfr5PLus", "MF5")
+  x <- str_replace_all(x, "BottomTier", "low_tier")
+  x <- str_replace_all(x, "MiddleTier", "mid_tier")
+  x <- str_replace_all(x, "TopTier", "top_tier")
+  x <- str_replace_all(x, "MultiFamilyResidenceRental", "MF")
+  x <- str_replace_all(x, "SingleFamilyResidenceRental", "SF")
+  x <- str_replace_all(x, "SingleFamilyResidenceRental", "SF")
+  x <- str_replace_all(x, "PlusMultifamily", "MF")
+  
+  x <- str_replace_all(x, "ListingsWithPriceReductions", "listings_pricedown")
+  x <- str_replace_all(x, "Zhvi", "zhvi")
+  x <- str_replace_all(x, "Zri", "zri")
+  
+  x <- str_replace_all(x, "Listing", "listing")
+  x <- str_replace_all(x, "Median", "med")
+  x <- str_replace_all(x, "Price", "price")
+  x <- str_replace_all(x, "PerSqft", "psqft")
+  x <- str_replace_all(x, "PctOf", "pct")
+  x <- str_replace_all(x, "Reductions", "reductions")
+  x <- str_replace_all(x, "Reduction", "reduction")
+  x <- str_replace_all(x, "Rental", "rent")
+  x <- str_replace_all(x, "Homes", "homes")
+  x <- str_replace_all(x, "With", "")
+  
+  return(x)
+}
