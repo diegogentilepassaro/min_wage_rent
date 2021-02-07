@@ -1,7 +1,124 @@
 
- make.py started: 2021-02-06 08:51:17 C:\Users\shermo\Documents\GitHub\min_wage_rent\base\zillow\code 
+ make.py started: 2021-02-06 16:14:36 C:\Users\shermo\Documents\GitHub\min_wage_rent\base\zillow\code 
 
 
+
+
+Execute:  R CMD BATCH --no-save "./build_county.R" build_county.Rout
+
+R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list = ls())
+> source("../../../lib/R/load_packages.R")
+> source("../../../lib/R/save_data.R")
+
+Please cite as: 
+
+ Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+ R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
+
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+
+Attaching package: 'data.table'
+
+The following objects are masked from 'package:dplyr':
+
+    between, first, last
+
+> source("fix_varnames.R")
+> 
+> load_packages(c('stringr', 'data.table'))
+> 
+> main <- function() {
++    
++    datadir  <- "../../../drive/raw_data/zillow/County_122019"
++    outdir   <- "../../../drive/base_large/zillow"
++    log_file <- "../output/data_file_manifest.log"
++    
++    raw_filenames <- list.files(datadir, pattern = "*.csv", full.names = T)
++    
++    dts <- lapply(raw_filenames, rename_zillow)
++    
++    dts <- reshape_zillow(dts, raw_filenames)
++    
++    dt <- merge(dts[[1]], dts[[2]], all = T)
++    
++    dt[, county := str_replace_all(county, " County", "")]
++    
++    save_data(dt, key = c('countyfips', 'statefips', 'date'), 
++              filename = file.path(outdir, 'zillow_county_clean.csv'),
++              logfile = log_file)
++ }
+> 
+> rename_zillow <- function(x) {
++    dt <- fread(x, stringsAsFactors = F)[, SizeRank := NULL]
++    
++    old_geo_names <- colnames(dt)[!str_detect(colnames(dt), "[0-9]")]
++    new_geo_names <- c("county", "stateabb", "msa", "statefips", "countyfips")
++    
++    setnames(dt, old = old_geo_names, new = new_geo_names)
++    
++    n_unique <- dim(unique(dt[, ..new_geo_names]))[1]
++    stopifnot(n_unique == dim(dt)[1])  # Check if key
++    
++    return(dt)
++ }
+> 
+> reshape_zillow <- function(dts, filenames) {
++    
++    value_names <- str_replace_all(basename(filenames), "County_|.csv", "")
++    value_names <- fix_varnames_county(value_names)
++    
++    dt_zillow <- mapply(reshape_single_file,
++                        dt = dts, valname = value_names, SIMPLIFY = F)
++    
++    return(dt_zillow)
++ }
+> 
+> reshape_single_file <- function(dt, valname) {
++    
++    idvars <- names(dt)[!str_detect(names(dt), "[0-9]")]
++    
++    dt <- melt(dt, id.vars = idvars,
++               variable.name = 'date', value.name = valname)
++    
++    return(dt)
++ }
+> 
+> # Execute
+> main()
+[1] "File '../../../drive/base_large/zillow/zillow_county_clean.csv' saved successfully."
+[1] "Log file generated successfully."
+> 
+> proc.time()
+   user  system elapsed 
+   2.14    0.31    4.10 
 
 
 Execute:  R CMD BATCH --no-save "./build_zipcode.R" build_zipcode.Rout
@@ -57,31 +174,22 @@ The following objects are masked from 'package:dplyr':
 > 
 > main <- function() {
 +    
-+    datadir  <- "../../../drive/raw_data/zillow"
++    datadir  <- "../../../drive/raw_data/zillow/Zip_122019"
 +    outdir   <- "../../../drive/base_large/zillow"
 +    log_file <- "../output/data_file_manifest.log"
 +    
-+    raw_filenames <- list.files(file.path(datadir, "Zip_122019"), 
-+                                pattern = "*.csv", full.names = T)
++    raw_filenames <- list.files(datadir, pattern = "*.csv", full.names = T)
 +    raw_filenames <- raw_filenames[!str_detect(raw_filenames, "_Summary.csv")]
 +    
-+    lapply(raw_filenames, rename_zillow) # Recursively renames and saves files in ../temp
++    lapply(raw_filenames, rename_zillow) # Recursively rename and saves files in ../temp
 +    
 +    dts_list <- reshape_zillow("../temp")
 +    
 +    dt <- merge_zillow(l = dts_list, key = c('zipcode', 'date'))
 +    
 +    save_data(dt, key = c('zipcode', 'date'), 
-+              filename = file.path(outdir, 'zillow_zipcode_clean.csv'))
-+ }
-> 
-> build_zipcode <- function(indir, outdir){
-+    
-+    # Merge data
-+    filelist <- reshape_zillow(infolder = datadir)
-+    
-+    merge_zillow(l = filelist, outstub = paste0(tempdir, 'zillow_clean.csv'),
-+                 key = c('zipcode', 'date'))
++              filename = file.path(outdir, 'zillow_zipcode_clean.csv'),
++              logfile = log_file)
 + }
 > 
 > rename_zillow <- function(x) {
@@ -105,18 +213,10 @@ The following objects are masked from 'package:dplyr':
 +       newgeonames <- c("zipcode", "city", "county", "msa", "statename")
 +       setnames(df, old = geo_names, new = newgeonames)
 +       
-+       df[, county := str_replace_all(county, " County", "")]
-+       df[, zipcode := str_pad(as.character(zipcode), 5, pad = "0")]
-+       
-+       save_data(df = df, key = newgeonames,
-+                 filename = file.path("../temp", basename(x)),
-+                 nolog = T)
-+       
 +    } else if (identical(geo_names, geo_names_2)) {
 +       newgeonames <- c("old_id", "zipcode", "city", "county", "stateabb", "msa")
 +       setnames(df, old = geo_names, new = newgeonames)
 +       
-+       df[, county := str_replace_all(county, " County", "")]
 +       df[, old_id := NULL]
 +       newgeonames <- newgeonames[-1]
 +       
@@ -130,16 +230,14 @@ The following objects are masked from 'package:dplyr':
 +       newgeonames <- c("old_id", "zipcode", "city", "stateabb", "msa", "county")
 +       setnames(df, old = geo_names, new = newgeonames)
 +       
-+       df[, county := str_replace_all(county, " County", "")]
-+       df[,old_id := NULL]
++       df[, old_id := NULL]
 +       newgeonames <- newgeonames[-1]
 +       
 +    } else if (identical(geo_names, geo_names_5)) {
 +       newgeonames <- c("old_id", "zipcode", "city", "county", "stateabb", "msa")
 +       setnames(df, old = geo_names, new = newgeonames)
 +       
-+       df[, county := str_replace_all(county, " County", "")]
-+       df[,old_id := NULL]
++       df[, old_id := NULL]
 +       newgeonames <- newgeonames[-1]
 +       
 +    } else if (identical(geo_names, geo_names_6)) {
@@ -150,7 +248,8 @@ The following objects are masked from 'package:dplyr':
 +       newgeonames <- newgeonames[-1]
 +    }
 +    df[, zipcode := str_pad(as.character(zipcode), 5, pad = "0")]
-+    
++    if ("County" %in% geo_names) df[, county := str_replace_all(county, " County", "")]
++ 
 +    save_data(df = df, key = newgeonames, 
 +              filename = file.path("../temp", basename(x)),
 +              nolog = T)
@@ -183,7 +282,7 @@ The following objects are masked from 'package:dplyr':
 +               variable.name = 'date', value.name = valname)
 +    
 +    missing_id_vars <- setdiff(id_fullvars, idvars)
-+    dt[, (missing_id_vars):= ""]
++    dt[, (missing_id_vars) := ""]
 +    
 +    return(dt)
 + }
@@ -226,8 +325,6 @@ The following objects are masked from 'package:dplyr':
 +    file_combined <- setDT(dt)[file_combined, on = 'zipcode']
 +    
 +    setorder(file_combined, zipcode, date)
-+    
-+    file_combined[, date := str_replace_all(date, "-", "_")]
 +    
 +    return(file_combined)
 + }
@@ -281,6 +378,6 @@ There were 50 or more warnings (use warnings() to see the first 50)
 > 
 > proc.time()
    user  system elapsed 
- 217.65   80.87  169.54 
+ 180.50   82.50  130.64 
 
- make.py ended: 2021-02-06 08:54:09
+ make.py ended: 2021-02-06 16:16:53
