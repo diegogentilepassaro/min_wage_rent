@@ -50,38 +50,29 @@ rename_zillow <- function(x) {
       newgeonames <- c("old_id", "zipcode", "city", "county", "stateabb", "msa")
       setnames(df, old = geo_names, new = newgeonames)
       
-      df[, old_id := NULL]
-      newgeonames <- newgeonames[-1]
-      
    } else if (identical(geo_names, geo_names_3)) {
       newgeonames <- c("zipcode", "city", "stateabb", "msa", "county")
       setnames(df, old = geo_names, new = newgeonames)
-      
-      df[, county := str_replace_all(county, " County", "")]
-      
+
    } else if (identical(geo_names, geo_names_4)) {
       newgeonames <- c("old_id", "zipcode", "city", "stateabb", "msa", "county")
       setnames(df, old = geo_names, new = newgeonames)
-      
-      df[, old_id := NULL]
-      newgeonames <- newgeonames[-1]
       
    } else if (identical(geo_names, geo_names_5)) {
       newgeonames <- c("old_id", "zipcode", "city", "county", "stateabb", "msa")
       setnames(df, old = geo_names, new = newgeonames)
       
-      df[, old_id := NULL]
-      newgeonames <- newgeonames[-1]
-      
    } else if (identical(geo_names, geo_names_6)) {
       newgeonames <- c("old_id", "zipcode", "stateabb")
       setnames(df, old = geo_names, new = newgeonames)
-      
+   }
+   
+   df[, zipcode := str_pad(as.character(zipcode), 5, pad = "0")]
+   if ("RegionID" %in% geo_names) {
       df[, old_id := NULL]
       newgeonames <- newgeonames[-1]
    }
-   df[, zipcode := str_pad(as.character(zipcode), 5, pad = "0")]
-   if ("County" %in% geo_names) df[, county := str_replace_all(county, " County", "")]
+   if ("county" %in% newgeonames) df[, county := str_replace_all(county, " County", "")]
 
    save_data(df = df, key = newgeonames, 
              filename = file.path("../temp", basename(x)),
