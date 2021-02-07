@@ -19,8 +19,8 @@ program main
 	esttab using "`outstub'/expmw_static_results.tex", replace compress se substitute(\_ _) ///
 		keep(D.ln_mw D.ln_expmw) b(%9.4f) se(%9.4f) ///
 		coeflabels(D.ln_mw "$\Delta \ln \underline{w}_{ict}$" D.ln_expmw "$\Delta \ln \underline{w}_{ict}^{\text{exp}}$") ///
-		stats(space ctrl_wage ctrl_emp ctrl_estab r2 N, fmt(%s1 %s3 %s3 %s3 %9.3f %9.0gc) ///
-		labels("\vspace{-2mm}" "Wage controls" "Employment controls" "Establishment-count controls" "R-squared" "Observations")) ///
+		stats(space ctrl_wage ctrl_emp ctrl_estab p_value_F r2 N, fmt(%s1 %s3 %s3 %s3 %9.3f %9.3f %9.0gc) ///
+		labels("\vspace{-2mm}" "Wage controls" "Employment controls" "Establishment-count controls" "P-value equality" "R-squared" "Observations")) ///
 		mgroups("$\Delta \ln \underline{w}_{ict}^{\text{exp}}$" "$\Delta \ln y_{ict}$", ///
 			pattern(1 1 0 0) prefix(\multicolumn{@span}{c}{) suffix(}) span erepeat(\cmidrule(lr){@span})) ///
 		nomtitles star(* 0.10 ** 0.05 *** 0.01) nonote
@@ -86,6 +86,7 @@ program run_models
 	file write myfile "Static model when including both actual and exp MW" _n
 
 	test (D.ln_mw = D.ln_expmw)
+	estadd scalar p_value_F = r(p)
 	file write myfile "P-value static coefficients are the same: `r(p)'" _n
 	
 	file close myfile

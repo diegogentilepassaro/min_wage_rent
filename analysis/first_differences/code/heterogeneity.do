@@ -38,7 +38,7 @@ program main
 				   2.qtl#c.d_ln_mw "Second quartile" ///
 				   3.qtl#c.d_ln_mw "Third quartile" ///
 				   4.qtl#c.d_ln_mw "Fourth quartile") /// 
-		stats(N, fmt(%9.0gc) labels("Observations")) star(* 0.10 ** 0.05 *** 0.01) nonote
+		stats(p_value_F N, fmt(%9.3f %9.0gc) labels("P-value equality" "Observations")) star(* 0.10 ** 0.05 *** 0.01) nonote
 
 	*table - workers' type 
 	make_table_titles, hetlist(`workvars')
@@ -179,6 +179,11 @@ program make_dd_static_heterogeneity
 	foreach var in `hetlist' {
 		local hetlist_qtl `"`hetlist_qtl' `var'_st_qtl"'
 	}
+	local eqtest "1.qtl#c.d_ln_mw"
+	forval q = 2/`qtles'{
+		local eqtest `"`eqtest' = `q'.qtl#c.d_ln_mw"'
+	}
+	di "`eqtest'"
 
 	eststo clear
 	foreach var in `hetlist_qtl' {
@@ -186,6 +191,8 @@ program make_dd_static_heterogeneity
 		eststo: reghdfe D.`depvar' c.d_ln_mw#i.qtl D.(`controls'), ///
 			absorb(`absorb') ///
 			vce(cluster `cluster') nocons	
+		test `eqtest'
+		estadd scalar p_value_F = r(p)
 		rename qtl `var'
 	} 
 end 
