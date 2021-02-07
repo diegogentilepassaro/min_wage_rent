@@ -13,7 +13,7 @@ program main
 
     fed_min_wage_change,   instub(`raw') outstub(`temp') 
     add_state_to_fedmw,    fips(`fips')  outstub(`temp')
-    state_min_wage_change, instub(`raw') outstub(`outstub') temp(`temp')
+    state_min_wage_change, instub(`raw') outstub(`temp') temp(`temp')
 
     prepare_finaldata, begindate(01may1974) finaldate(31dec2019)           ///
                        outstub(`temp') temp(`temp')
@@ -90,7 +90,7 @@ program add_state_to_fedmw
     save_data `outstub'/fedmw.dta, replace key(date statefips) log(none)
 end
 
-program state_min_wage_change 
+program state_min_wage_change
     syntax, instub(str) outstub(str) temp(str)
 
     import excel using `instub'/VZ_StateMinimumWage_Changes.xlsx, clear firstrow
@@ -111,7 +111,7 @@ program state_min_wage_change
 
     sort stateabb date
     
-    export delim using `temp'/VZ_state_changes.csv, replace 
+    export delim using `outstub'/VZ_state_changes.csv, replace 
 
     tsset statefips date
     tsfill
@@ -154,8 +154,8 @@ program export_state_daily
 
     keep statefips statename stateabb date `target_mw'
 
-    isid statefips date, sort
-    export delim using `outstub'/state_daily.csv, replace 
+    save_data `outstub'/state_daily.csv, key(statefips date) ///
+        outsheet replace
 end
 
 program export_state_monthly
@@ -168,14 +168,13 @@ program export_state_monthly
     gen monthly_date = mofd(date)
     format monthly_date %tm
 
-    collapse (max) `target_mw',          ///
-             by(statefips statename stateabb monthly_date)
+    collapse (max) `target_mw', by(statefips statename stateabb monthly_date)
 
     label var monthly_date "Monthly Date"
     label_mw_vars, time_level("Monthly")
 
-    isid statefips monthly_date, sort
-    export delim using `outstub'/state_monthly.csv, replace
+    save_data using `outstub'/state_monthly.csv, key(statefips monthly_date) ///
+        outsheet replace
 end
 
 program export_state_quarterly
@@ -188,14 +187,13 @@ program export_state_quarterly
     gen quarterly_date = qofd(date)
     format quarterly_date %tq
 
-    collapse (max) `target_mw',           ///
-             by(statefips statename stateabb quarterly_date)
+    collapse (max) `target_mw', by(statefips statename stateabb quarterly_date)
 
     label var quarterly_date "Quarterly Date"
     label_mw_vars, time_level("Quarterly")
 
-    isid statefips quarterly_date, sort
-    export delim using `outstub'/state_quarterly.csv, replace 
+    save_data `outstub'/state_quarterly.csv, key(statefips quarterly_date) ///
+        outsheet replace
 end
 
 program export_state_annually
@@ -208,14 +206,13 @@ program export_state_annually
     gen year = yofd(date)
     format year %ty
 
-    collapse (max) `target_mw',          ///
-             by(statefips statename stateabb year)
+    collapse (max) `target_mw', by(statefips statename stateabb year)
 
     label var year "Year"
     label_mw_vars, time_level("Annual")
 
-    isid statefips year, sort
-    export delim using `outstub'/state_annual.csv, replace
+    save_data `outstub'/state_annual.csv, key(statefips year) ///
+        outsheet replace
 end
 
 program label_mw_vars
@@ -224,7 +221,7 @@ program label_mw_vars
 	cap label var fed_mw  "`time_level' Federal MW"
 	cap label var mw      "`time_level' State MW"	
 	cap label var mw_healthinsurance "`time_level' State MW Health and Insurance"
-	cap label var mw_smallbusiness "`time_level' State MW Small Business"
+	cap label var mw_smallbusiness   "`time_level' State MW Small Business"
 end
 
 *EXECUTE

@@ -152,8 +152,8 @@ program export_substate_daily
 	syntax, outstub(str) temp(str) 
 		
 	use `temp'/data_substate.dta, clear
-	sort locality date
-	export delim using `outstub'/substate_daily.csv, replace
+	save_data `outstub'/substate_daily.csv, key(locality date) ///
+        outsheet replace
 end
 
 program export_substate_monthly
@@ -168,9 +168,8 @@ program export_substate_monthly
 	label var monthly_date "Monthly Date"
 	label_mw_vars, time_level("Monthly")
 
-	sort locality monthly_date
-
-	export delim using `outstub'/substate_monthly.csv, replace 
+	save_data `outstub'/substate_monthly.csv, key(locality monthly_date) ///
+        outsheet replace
 end 
 
 program export_substate_quarterly
@@ -185,9 +184,8 @@ program export_substate_quarterly
 	label var quarterly_date "Quarterly Date"
 	label_mw_vars, time_level("Quarterly")
 
-	sort locality quarterly_date
-
-	export delim using `outstub'/substate_quarterly.csv, replace
+	save_data `outstub'/substate_quarterly.csv, key(locality quarterly_date) ///
+        outsheet replace
 end 
 
 program export_substate_annually
@@ -202,9 +200,8 @@ program export_substate_annually
 	label var year "Year"
 	label_mw_vars, time_level("Annual")
 
-	sort locality year
-
-	export delim using `outstub'/substate_annual.csv, replace 
+	save_data `outstub'/substate_annual.csv, key(locality year) ///
+        outsheet replace
 end
 
 program label_mw_vars
@@ -213,7 +210,7 @@ program label_mw_vars
 	cap label var mw     "`time_level' MW"	
 	cap label var abovestate_mw "Local > State min wage"	
 	cap label var mw_healthinsurance "`time_level' State MW Health and Insurance"
-	cap label var mw_smallbusiness "`time_level' State MW Small Business"
+	cap label var mw_smallbusiness   "`time_level' State MW Small Business"
 end
 
 * EXECUTE
