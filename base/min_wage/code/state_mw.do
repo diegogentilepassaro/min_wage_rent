@@ -3,26 +3,26 @@ clear all
 adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
-    local raw       "../../../drive/raw_data/min_wage"
-    local xwalk     "../../../raw/crosswalk"
-    local exports   "../output"
-    local temp      "../temp"
+    local raw     "../../../drive/raw_data/min_wage"
+    local xwalk   "../../../raw/crosswalk"
+    local outstub "../output"
+    local temp    "../temp"
 
     import_statenames, instub(`xwalk') outstub(`temp')
     local fips = r(fips)
 
-    fed_min_wage_change,   instub(`raw') outstub(`exports') 
+    fed_min_wage_change,   instub(`raw') outstub(`temp') 
     add_state_to_fedmw,    fips(`fips')  outstub(`temp')
-    state_min_wage_change, instub(`raw') outstub(`exports') temp(`temp')
+    state_min_wage_change, instub(`raw') outstub(`outstub') temp(`temp')
 
     prepare_finaldata, begindate(01may1974) finaldate(31dec2019)           ///
                        outstub(`temp') temp(`temp')
 
     local mw_list "fed_mw mw"
-    export_state_daily,     instub(`temp') outstub(`exports') target_mw(`mw_list')
-    export_state_monthly,   instub(`temp') outstub(`exports') target_mw(`mw_list')
-    export_state_quarterly, instub(`temp') outstub(`exports') target_mw(`mw_list')
-    export_state_annually,  instub(`temp') outstub(`exports') target_mw(`mw_list')
+    export_state_daily,     instub(`temp') outstub(`outstub') target_mw(`mw_list')
+    export_state_monthly,   instub(`temp') outstub(`outstub') target_mw(`mw_list')
+    export_state_quarterly, instub(`temp') outstub(`outstub') target_mw(`mw_list')
+    export_state_annually,  instub(`temp') outstub(`outstub') target_mw(`mw_list')
 end
 
 program import_statenames, rclass
@@ -58,7 +58,6 @@ program fed_min_wage_change
 
     order year month day date fed_mw source
 
-    isid date, sort
     export delim using `outstub'/VZ_federal_changes.csv, replace
 end
 
@@ -112,8 +111,7 @@ program state_min_wage_change
 
     sort stateabb date
     
-    isid statefips date, sort
-    export delim using `outstub'/VZ_state_changes.csv, replace 
+    export delim using `temp'/VZ_state_changes.csv, replace 
 
     tsset statefips date
     tsfill
@@ -146,24 +144,24 @@ program prepare_finaldata
     label var mw "State Minimum Wage"
     notes mw: The mw variable represents the higher rate between the state and federal minimum wage
 
-    save_data `outstub'/data.dta, replace key(statefips date) log(none)
+    save_data `outstub'/data_state.dta, replace key(statefips date) log(none)
 end
 
 program export_state_daily
     syntax, instub(str) outstub(str) target_mw(str)
 
-    use `instub'/data.dta, clear
+    use `instub'/data_state.dta, clear
 
     keep statefips statename stateabb date `target_mw'
 
     isid statefips date, sort
-    export delim using `outstub'/VZ_state_daily.csv, replace 
+    export delim using `outstub'/state_daily.csv, replace 
 end
 
 program export_state_monthly
     syntax, instub(str) outstub(str) target_mw(str)
 
-    use `instub'/data.dta, clear
+    use `instub'/data_state.dta, clear
 
     keep statefips statename stateabb date `target_mw'
 
@@ -177,13 +175,13 @@ program export_state_monthly
     label_mw_vars, time_level("Monthly")
 
     isid statefips monthly_date, sort
-    export delim using `outstub'/VZ_state_monthly.csv, replace
+    export delim using `outstub'/state_monthly.csv, replace
 end
 
 program export_state_quarterly
     syntax, instub(str) outstub(str) target_mw(str)
 
-    use `instub'/data.dta, clear
+    use `instub'/data_state.dta, clear
 
     keep statefips statename stateabb date `target_mw'
 
@@ -197,13 +195,13 @@ program export_state_quarterly
     label_mw_vars, time_level("Quarterly")
 
     isid statefips quarterly_date, sort
-    export delim using `outstub'/VZ_state_quarterly.csv, replace 
+    export delim using `outstub'/state_quarterly.csv, replace 
 end
 
 program export_state_annually
     syntax, instub(str) outstub(str) target_mw(str)
 
-    use `instub'/data.dta, clear
+    use `instub'/datdata_statea.dta, clear
 
     keep statefips statename stateabb date `target_mw'
 
@@ -217,7 +215,7 @@ program export_state_annually
     label_mw_vars, time_level("Annual")
 
     isid statefips year, sort
-    export delim using `outstub'/VZ_state_annual.csv, replace
+    export delim using `outstub'/state_annual.csv, replace
 end
 
 program label_mw_vars
