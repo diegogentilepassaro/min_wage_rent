@@ -7,31 +7,22 @@ load_packages(c('stringr', 'data.table'))
 
 main <- function() {
    
-   datadir  <- "../../../drive/raw_data/zillow"
+   datadir  <- "../../../drive/raw_data/zillow/Zip_122019"
    outdir   <- "../../../drive/base_large/zillow"
    log_file <- "../output/data_file_manifest.log"
    
-   raw_filenames <- list.files(file.path(datadir, "Zip_122019"), 
-                               pattern = "*.csv", full.names = T)
+   raw_filenames <- list.files(datadir, pattern = "*.csv", full.names = T)
    raw_filenames <- raw_filenames[!str_detect(raw_filenames, "_Summary.csv")]
    
-   lapply(raw_filenames, rename_zillow) # Recursively renames and saves files in ../temp
+   lapply(raw_filenames, rename_zillow) # Recursively rename and saves files in ../temp
    
    dts_list <- reshape_zillow("../temp")
    
    dt <- merge_zillow(l = dts_list, key = c('zipcode', 'date'))
    
    save_data(dt, key = c('zipcode', 'date'), 
-             filename = file.path(outdir, 'zillow_zipcode_clean.csv'))
-}
-
-build_zipcode <- function(indir, outdir){
-   
-   # Merge data
-   filelist <- reshape_zillow(infolder = datadir)
-   
-   merge_zillow(l = filelist, outstub = paste0(tempdir, 'zillow_clean.csv'),
-                key = c('zipcode', 'date'))
+             filename = file.path(outdir, 'zillow_zipcode_clean.csv'),
+             logfile = log_file)
 }
 
 rename_zillow <- function(x) {
@@ -55,18 +46,10 @@ rename_zillow <- function(x) {
       newgeonames <- c("zipcode", "city", "county", "msa", "statename")
       setnames(df, old = geo_names, new = newgeonames)
       
-      df[, county := str_replace_all(county, " County", "")]
-      df[, zipcode := str_pad(as.character(zipcode), 5, pad = "0")]
-      
-      save_data(df = df, key = newgeonames,
-                filename = file.path("../temp", basename(x)),
-                nolog = T)
-      
    } else if (identical(geo_names, geo_names_2)) {
       newgeonames <- c("old_id", "zipcode", "city", "county", "stateabb", "msa")
       setnames(df, old = geo_names, new = newgeonames)
       
-      df[, county := str_replace_all(county, " County", "")]
       df[, old_id := NULL]
       newgeonames <- newgeonames[-1]
       
@@ -80,16 +63,14 @@ rename_zillow <- function(x) {
       newgeonames <- c("old_id", "zipcode", "city", "stateabb", "msa", "county")
       setnames(df, old = geo_names, new = newgeonames)
       
-      df[, county := str_replace_all(county, " County", "")]
-      df[,old_id := NULL]
+      df[, old_id := NULL]
       newgeonames <- newgeonames[-1]
       
    } else if (identical(geo_names, geo_names_5)) {
       newgeonames <- c("old_id", "zipcode", "city", "county", "stateabb", "msa")
       setnames(df, old = geo_names, new = newgeonames)
       
-      df[, county := str_replace_all(county, " County", "")]
-      df[,old_id := NULL]
+      df[, old_id := NULL]
       newgeonames <- newgeonames[-1]
       
    } else if (identical(geo_names, geo_names_6)) {
@@ -100,7 +81,8 @@ rename_zillow <- function(x) {
       newgeonames <- newgeonames[-1]
    }
    df[, zipcode := str_pad(as.character(zipcode), 5, pad = "0")]
-   
+   if ("County" %in% geo_names) df[, county := str_replace_all(county, " County", "")]
+
    save_data(df = df, key = newgeonames, 
              filename = file.path("../temp", basename(x)),
              nolog = T)
@@ -133,7 +115,7 @@ reshape_single_file <- function(filename, valname, infolder, id_fullvars) {
               variable.name = 'date', value.name = valname)
    
    missing_id_vars <- setdiff(id_fullvars, idvars)
-   dt[, (missing_id_vars):= ""]
+   dt[, (missing_id_vars) := ""]
    
    return(dt)
 }
@@ -176,8 +158,6 @@ merge_zillow <- function(l, key) {
    file_combined <- setDT(dt)[file_combined, on = 'zipcode']
    
    setorder(file_combined, zipcode, date)
-   
-   file_combined[, date := str_replace_all(date, "-", "_")]
    
    return(file_combined)
 }
