@@ -39,3 +39,16 @@ fix_varnames_zipcode <- function(x) {
   
   return(x)
 }
+
+fix_varnames_county <- function(x) {
+  
+  x <- str_replace_all(x, "AllHomes", "SFCC")
+  x <- str_replace_all(x, "Sfr", "SF")
+  
+  x <- str_replace_all(x, "Median", "med")
+  x <- str_replace_all(x, "Price", "price")
+  x <- str_replace_all(x, "PerSqft", "psqft")
+  x <- str_replace_all(x, "Rental", "rent")
+
+  return(x)
+}
