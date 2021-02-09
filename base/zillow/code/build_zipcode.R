@@ -127,9 +127,9 @@ merge_zillow <- function(l, key) {
    
    dt <- setDT(dt)[,lapply(.SD, function(y) y[!is.na(y)]),
                                  by = c('zipcode', 'city', 'msa', 'county')]
-   dt <- dt[,city := str_replace_all(city, "^Town of | Township$", "")]
+   dt <- dt[, city := str_replace_all(city, "^Town of | Township$", "")]
    
-   dt <- dt[,lapply(.SD, function(y) y[!is.na(y)]),
+   dt <- dt[, lapply(.SD, function(y) y[!is.na(y)]),
                           by = c('zipcode', 'city', 'msa', 'county')]
    dt <- unique(dt)
    
@@ -145,7 +145,7 @@ merge_zillow <- function(l, key) {
    
    l <- lapply(l, function(y) y[, (geovars_exclude_zip) := NULL])
    
-   file_combined <- Reduce(function(x, y, m = mvars){merge(x, y, all = T, by = key)}, l)
+   file_combined <- Reduce(function(...) merge(..., all = T, by = key), l)
    file_combined <- setDT(dt)[file_combined, on = 'zipcode']
    
    setorder(file_combined, zipcode, date)

@@ -13,11 +13,11 @@ main <- function() {
    
    raw_filenames <- list.files(datadir, pattern = "*.csv", full.names = T)
    
-   dts <- lapply(raw_filenames, rename_zillow)
+   dts <- lapply(raw_filenames, rename_geovars)
    
    dts <- reshape_zillow(dts, raw_filenames)
    
-   dt <- merge(dts[[1]], dts[[2]], all = T)
+   dt <- Reduce(function(...) merge(..., all = TRUE), dts)
    
    dt[, county := str_replace_all(county, " County", "")]
    
@@ -26,7 +26,7 @@ main <- function() {
              logfile = log_file)
 }
 
-rename_zillow <- function(x) {
+rename_geovars <- function(x) {
    dt <- fread(x, stringsAsFactors = F)[, SizeRank := NULL]
    
    old_geo_names <- colnames(dt)[!str_detect(colnames(dt), "[0-9]")]
