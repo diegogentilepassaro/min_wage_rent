@@ -22,7 +22,7 @@ program main
     export_state_daily,     instub(`temp') outstub(`outstub') target_mw(`mw_list')
     export_state_monthly,   instub(`temp') outstub(`outstub') target_mw(`mw_list')
     export_state_quarterly, instub(`temp') outstub(`outstub') target_mw(`mw_list')
-    export_state_annually,  instub(`temp') outstub(`outstub') target_mw(`mw_list')
+    export_state_yearly,    instub(`temp') outstub(`outstub') target_mw(`mw_list')
 end
 
 program import_statenames, rclass
@@ -173,7 +173,7 @@ program export_state_monthly
     label var monthly_date "Monthly Date"
     label_mw_vars, time_level("Monthly")
 
-    save_data using `outstub'/state_monthly.csv, key(statefips monthly_date) ///
+    save_data `outstub'/state_monthly.csv, key(statefips monthly_date) ///
         outsheet replace
 end
 
@@ -196,7 +196,7 @@ program export_state_quarterly
         outsheet replace
 end
 
-program export_state_annually
+program export_state_yearly
     syntax, instub(str) outstub(str) target_mw(str)
 
     use `instub'/datdata_statea.dta, clear

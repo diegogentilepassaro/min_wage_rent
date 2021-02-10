@@ -20,10 +20,10 @@ program main
 	export_substate_daily,     outstub(`outstub') temp(`temp') 
 	export_substate_monthly,   outstub(`outstub') temp(`temp') target_mw(`mw_list')
 	export_substate_quarterly, outstub(`outstub') temp(`temp') target_mw(`mw_list')
-	export_substate_annually,  outstub(`outstub') temp(`temp') target_mw(`mw_list')
+	export_substate_yearly,    outstub(`outstub') temp(`temp') target_mw(`mw_list')
 end
 
-program import_crosswalk, rclass
+program import_crosswalk
 	syntax, instub(str) outstub(str)
 	import excel using `instub'/state_name_fips_usps.xlsx, clear firstrow 
 	
@@ -67,7 +67,8 @@ program substate_min_wage_change
 	label var stateabb "State Abbreviation"
 	label var locality "City/County"
 	label var mw "Minimum Wage"
-	order statefips statename stateabb locality year month day date mw mw_* source source_2 source_notes
+	order statefips statename stateabb locality year month day date mw ///
+		mw_* source source_2 source_notes
 
 	export delim using `outstub'/VZ_substate_changes.csv, replace 
 end
@@ -188,7 +189,7 @@ program export_substate_quarterly
         outsheet replace
 end 
 
-program export_substate_annually
+program export_substate_yearly
 	syntax, outstub(str) temp(str) target_mw(str)
 	use `temp'/data_substate.dta, clear
 
