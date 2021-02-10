@@ -1,6 +1,5 @@
 
 ### Dependencies 
 
-- `./base/min_wage`
-- `./base/lodes`
+- `./drive/raw_data/zillow`
 - `./base/geo_master`
