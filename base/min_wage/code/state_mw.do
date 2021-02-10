@@ -199,7 +199,7 @@ end
 program export_state_yearly
     syntax, instub(str) outstub(str) target_mw(str)
 
-    use `instub'/datdata_statea.dta, clear
+    use `instub'/data_state.dta, clear
 
     keep statefips statename stateabb date `target_mw'
 
