@@ -1,0 +1,344 @@
+
+ make.py started: 2021-02-10 11:39:37 C:\Users\shermo\Documents\GitHub\min_wage_rent\base\zillow\code 
+
+
+
+
+Execute:  R CMD BATCH --no-save "./build_county.R" build_county.Rout
+
+R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list = ls())
+> source("../../../lib/R/load_packages.R")
+> source("../../../lib/R/save_data.R")
+
+Please cite as: 
+
+ Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+ R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
+
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+
+Attaching package: 'data.table'
+
+The following objects are masked from 'package:dplyr':
+
+    between, first, last
+
+> source("fix_varnames.R")
+> 
+> load_packages(c('stringr', 'data.table'))
+> 
+> main <- function() {
++    
++    datadir  <- "../../../drive/raw_data/zillow/County_122019"
++    outdir   <- "../../../drive/base_large/zillow"
++    xwalkdir <- "../../geo_master/output"
++    log_file <- "../output/data_file_manifest.log"
++    
++    raw_filenames <- list.files(datadir, pattern = "*.csv", full.names = T)
++    
++    dts <- lapply(raw_filenames, load_and_clean)
++    
++    dts <- reshape_zillow(dts, raw_filenames)
++    
++    dt <- build_frame(dts)
++    
++    for (i in 1:length(dts)) {
++       dt <- merge(dt, dts[[i]], by = c('countyfips', 'date'), all.x = TRUE)
++    }
++    
++    dt <- add_geographies(dt, xwalkdir)
++    
++    save_data(dt, key = c('countyfips', 'date'), 
++              filename = file.path(outdir, 'zillow_county_clean.csv'),
++              logfile = log_file)
++ }
+> 
+> load_and_clean <- function(x) {
++    dt <- fread(x, colClasses = )[, SizeRank := NULL]
++    
++    all_names <- colnames(dt)
++    date_names <- all_names[str_detect(all_names, "[0-9]")]
++    vars_to_keep <- c("StateCodeFIPS", "MunicipalCodeFIPS", date_names)
++    
++    dt <- dt[, ..vars_to_keep]
++    dt[, countyfips := paste0(str_pad(StateCodeFIPS, 2, "left", pad = 0),
++                              str_pad(MunicipalCodeFIPS, 3, "left", pad = 0))]
++    dt[, c("StateCodeFIPS", "MunicipalCodeFIPS") := NULL]
++    
++    return(dt)
++ }
+> 
+> reshape_zillow <- function(dts, filenames) {
++    
++    value_names <- str_replace_all(basename(filenames), "County_|.csv", "")
++    value_names <- fix_varnames_county(value_names)
++    
++    dt_zillow <- mapply(reshape_single_file,
++                        dt = dts, valname = value_names, SIMPLIFY = F)
++    
++    return(dt_zillow)
++ }
+> 
+> reshape_single_file <- function(dt, valname) {
++    
++    dt <- melt(dt, id.vars = 'countyfips',
++               variable.name = 'date', value.name = valname)
++    
++    return(dt)
++ }
+> 
+> build_frame <- function(dts){
++    
++    counties <- unique(unlist(lapply(dts, function(dt) unique(dt$countyfips))))
++    dates    <- unique(unlist(lapply(dts, function(dt) unique(dt$date))))
++    
++    return(data.table(
++       "countyfips" = rep(counties, each = length(dates)),
++       "date"       = rep(dates, times = length(counties))
++    ))
++ }
+> 
+> add_geographies <- function(dt, xwalkdir) {
++    
++    geo_master <- fread(file.path(xwalkdir, "zcta_county_place_usps_master_xwalk.csv"),
++                        colClasses = 'character')
++    target_geovars <- c("countyfips", "place_code", "cbsa10", "statefips")
++    
++    geo_master <- geo_master[, ..target_geovars][, first(.SD), by = "countyfips"]
++    
++    dt <- left_join(dt, geo_master, by = "countyfips")
++    
++    return(dt)
++ }
+> 
+> # Execute
+> main()
+[1] "File '../../../drive/base_large/zillow/zillow_county_clean.csv' saved successfully."
+[1] "Log file generated successfully."
+> 
+> proc.time()
+   user  system elapsed 
+   2.35    0.50    2.73 
+
+
+Execute:  R CMD BATCH --no-save "./build_zipcode.R" build_zipcode.Rout
+
+R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list = ls())
+> source("../../../lib/R/load_packages.R")
+> source("../../../lib/R/save_data.R")
+
+Please cite as: 
+
+ Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+ R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
+
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+
+Attaching package: 'data.table'
+
+The following objects are masked from 'package:dplyr':
+
+    between, first, last
+
+> source("fix_varnames.R")
+> 
+> load_packages(c('stringr', 'data.table'))
+> 
+> main <- function() {
++    
++    datadir  <- "../../../drive/raw_data/zillow/Zip_122019"
++    outdir   <- "../../../drive/base_large/zillow"
++    xwalkdir <- "../../geo_master/output"
++    log_file <- "../output/data_file_manifest.log"
++    
++    raw_filenames <- list.files(datadir, pattern = "*.csv", full.names = T)
++    raw_filenames <- raw_filenames[!str_detect(raw_filenames, "_Summary.csv")]
++    
++    l <- lapply(raw_filenames, clean_rawdata) # Recursively rename vars and save files in ../temp
++    
++    dts <- reshape_zillow("../temp")
++    
++    dt <- build_frame(dts)
++    
++    for (name in names(dts)) {
++       dt <- merge(dt, dts[[name]], by = c('zipcode', 'date'), all.x = TRUE)
++    }
++ 
++    dt <- add_geographies(dt, xwalkdir)
++    
++    save_data(dt, key = c('zipcode', 'date'), 
++              filename = file.path(outdir, 'zillow_zipcode_clean.csv'),
++              logfile = log_file)
++ }
+> 
+> clean_rawdata <- function(x) {
++    dt <- fread(x, stringsAsFactors = F)
++    
++    all_names <- colnames(dt)
++    date_names <- all_names[str_detect(all_names, "[0-9]")]
++    vars_to_keep <- c("RegionName", date_names)
++ 
++    dt <- dt[, ..vars_to_keep]
++    setnames(dt, old = "RegionName", new = "zipcode")
++ 
++    save_data(dt, key = "zipcode", 
++              filename = file.path("../temp", basename(x)),
++              nolog = T)
++ }
+> 
+> reshape_zillow <- function(infolder) {
++    
++    files <- list.files(infolder, pattern = "*.csv")
++    
++    value_names <- str_replace_all(files, "Zip_|.csv", "")
++    value_names <- fix_varnames_zipcode(value_names)
++    
++    dts <- mapply(reshape_single_file,
++                  filename = files, valname = value_names,
++                  MoreArgs = list(infolder), SIMPLIFY = F)
++    
++    return(dts)
++ }
+> 
+> reshape_single_file <- function(filename, valname, infolder) {
++    dt <- fread(file.path(infolder, filename), stringsAsFactors = F)
++    
++    dt <- melt(dt, id.vars = 'zipcode',
++               variable.name = 'date', value.name = valname)
++    
++    return(dt)
++ }
+> 
+> build_frame <- function(dts){
++    
++    zipcodes <- unique(unlist(lapply(dts, function(dt) unique(dt$zipcode))))
++    dates    <- unique(unlist(lapply(dts, function(dt) unique(dt$date))))
++    
++    return(data.table(
++       "zipcode" = rep(zipcodes, each = length(dates)),
++       "date"    = rep(dates, times = length(zipcodes))
++    ))
++ }
+> 
+> add_geographies <- function(dt, xwalkdir) {
++ 
++    geo_master <- fread(file.path(xwalkdir, "zcta_county_place_usps_master_xwalk.csv"),
++                        colClasses = 'character')
++    target_geovars <- c("zipcode", "countyfips", "place_code", "cbsa10", "statefips")
++    
++    geo_master <- geo_master[, ..target_geovars][, first(.SD), by = "zipcode"]
++    geo_master[, zipcode := as.integer(zipcode)]
++    
++    dt <- left_join(dt, geo_master, by = "zipcode")
++ 
++    return(dt)
++ }
+> 
+> # Execute
+> main()
+[1] "File '../temp/Zip_MedianDailyListings_NSA_AllHomes.csv' saved successfully."
+[1] "File '../temp/Zip_MedianListingPrice_AllHomes.csv' saved successfully."
+[1] "File '../temp/Zip_MedianListingPrice_BottomTier.csv' saved successfully."
+[1] "File '../temp/Zip_MedianListingPrice_TopTier.csv' saved successfully."
+[1] "File '../temp/Zip_MedianListingPricePerSqft_AllHomes.csv' saved successfully."
+[1] "File '../temp/Zip_MedianListingPricePerSqft_BottomTier.csv' saved successfully."
+[1] "File '../temp/Zip_MedianListingPricePerSqft_TopTier.csv' saved successfully."
+[1] "File '../temp/Zip_MedianPctOfPriceReduction_AllHomes.csv' saved successfully."
+[1] "File '../temp/Zip_MedianRentalPrice_1Bedroom.csv' saved successfully."
+[1] "File '../temp/Zip_MedianRentalPrice_2Bedroom.csv' saved successfully."
+[1] "File '../temp/Zip_MedianRentalPrice_3Bedroom.csv' saved successfully."
+[1] "File '../temp/Zip_MedianRentalPrice_4Bedroom.csv' saved successfully."
+[1] "File '../temp/Zip_MedianRentalPrice_5BedroomOrMore.csv' saved successfully."
+[1] "File '../temp/Zip_MedianRentalPrice_AllHomes.csv' saved successfully."
+[1] "File '../temp/Zip_MedianRentalPrice_CondoCoop.csv' saved successfully."
+[1] "File '../temp/Zip_MedianRentalPrice_DuplexTriplex.csv' saved successfully."
+[1] "File '../temp/Zip_MedianRentalPrice_Mfr5Plus.csv' saved successfully."
+[1] "File '../temp/Zip_MedianRentalPrice_Sfr.csv' saved successfully."
+[1] "File '../temp/Zip_MedianRentalPrice_Studio.csv' saved successfully."
+[1] "File '../temp/Zip_MedianRentalPricePerSqft_1Bedroom.csv' saved successfully."
+[1] "File '../temp/Zip_MedianRentalPricePerSqft_2Bedroom.csv' saved successfully."
+[1] "File '../temp/Zip_MedianRentalPricePerSqft_3Bedroom.csv' saved successfully."
+[1] "File '../temp/Zip_MedianRentalPricePerSqft_4Bedroom.csv' saved successfully."
+[1] "File '../temp/Zip_MedianRentalPricePerSqft_5BedroomOrMore.csv' saved successfully."
+[1] "File '../temp/Zip_MedianRentalPricePerSqft_AllHomes.csv' saved successfully."
+[1] "File '../temp/Zip_MedianRentalPricePerSqft_CondoCoop.csv' saved successfully."
+[1] "File '../temp/Zip_MedianRentalPricePerSqft_DuplexTriplex.csv' saved successfully."
+[1] "File '../temp/Zip_MedianRentalPricePerSqft_Mfr5Plus.csv' saved successfully."
+[1] "File '../temp/Zip_MedianRentalPricePerSqft_Sfr.csv' saved successfully."
+[1] "File '../temp/Zip_MedianRentalPricePerSqft_Studio.csv' saved successfully."
+[1] "File '../temp/Zip_MonthlyListings_NSA_AllHomes.csv' saved successfully."
+[1] "File '../temp/Zip_NewMonthlyListings_NSA_AllHomes.csv' saved successfully."
+[1] "File '../temp/Zip_PctOfListingsWithPriceReductions_AllHomes.csv' saved successfully."
+[1] "File '../temp/Zip_Sale_Counts.csv' saved successfully."
+[1] "File '../temp/Zip_SalesPrevForeclosed_Share.csv' saved successfully."
+[1] "File '../temp/Zip_Zhvi_2bedroom.csv' saved successfully."
+[1] "File '../temp/Zip_Zhvi_AllHomes.csv' saved successfully."
+[1] "File '../temp/Zip_Zhvi_Condominum.csv' saved successfully."
+[1] "File '../temp/Zip_Zhvi_SingleFamilyResidence.csv' saved successfully."
+[1] "File '../temp/Zip_Zri_AllHomesPlusMultifamily.csv' saved successfully."
+[1] "File '../temp/Zip_Zri_MultiFamilyResidenceRental.csv' saved successfully."
+[1] "File '../../../drive/base_large/zillow/zillow_zipcode_clean.csv' saved successfully."
+[1] "Log file generated successfully."
+There were 12 warnings (use warnings() to see them)
+> 
+> proc.time()
+   user  system elapsed 
+ 174.70  162.40  152.65 
+
+ make.py ended: 2021-02-10 11:42:15

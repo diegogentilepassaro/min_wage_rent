@@ -5,25 +5,25 @@ adopath + ../../../lib/stata/gslab_misc/ado
 program main 
 	local raw     "../../../drive/raw_data/min_wage"
     local xwalk   "../../../raw/crosswalk"
-	local exports "../output"
+	local outstub "../output"
 	local temp    "../temp"
 
 	import_crosswalk, instub(`xwalk') outstub(`temp')
 
-	substate_min_wage_change, instub(`raw') outstub(`exports') temp(`temp')
+	substate_min_wage_change, instub(`raw') outstub(`temp') temp(`temp')
 	prepare_local, temp(`temp')
-	prepare_state, outstub(`exports') temp(`temp') finaldate(31Dec2019)
+	prepare_state, outstub(`outstub') temp(`temp') finaldate(31Dec2019)
 	
 	local mw_list = "mw mw_smallbusiness"
 	prepare_finaldata, temp(`temp') finaldate(31Dec2019) target_mw(`mw_list')
 
-	export_substate_daily,     outstub(`exports') temp(`temp') 
-	export_substate_monthly,   outstub(`exports') temp(`temp') target_mw(`mw_list')
-	export_substate_quarterly, outstub(`exports') temp(`temp') target_mw(`mw_list')
-	export_substate_annually,  outstub(`exports') temp(`temp') target_mw(`mw_list')
+	export_substate_daily,     outstub(`outstub') temp(`temp') 
+	export_substate_monthly,   outstub(`outstub') temp(`temp') target_mw(`mw_list')
+	export_substate_quarterly, outstub(`outstub') temp(`temp') target_mw(`mw_list')
+	export_substate_yearly,    outstub(`outstub') temp(`temp') target_mw(`mw_list')
 end
 
-program import_crosswalk, rclass
+program import_crosswalk
 	syntax, instub(str) outstub(str)
 	import excel using `instub'/state_name_fips_usps.xlsx, clear firstrow 
 	
@@ -67,10 +67,9 @@ program substate_min_wage_change
 	label var stateabb "State Abbreviation"
 	label var locality "City/County"
 	label var mw "Minimum Wage"
-	order statefips statename stateabb locality year month day date mw mw_* source source_2 source_notes
+	order statefips statename stateabb locality year month day date mw ///
+		mw_* source source_2 source_notes
 
-
-	isid locality date, sort
 	export delim using `outstub'/VZ_substate_changes.csv, replace 
 end
 
@@ -92,7 +91,7 @@ program prepare_state
 	local minyear = r(min)
 
 	preserve	
-		import delim `outstub'/VZ_state_daily.csv, clear 
+		import delim `outstub'/state_daily.csv, clear 
 
 		gen date2 = date(date, "DMY")
 		format date2 %td
@@ -147,20 +146,20 @@ program prepare_finaldata
 	order statefips statename stateabb date locality mw mw_* abovestate_*   source_notes
 	notes mw: The mw variable represents the most applicable minimum wage across the locality.
 
-	save_data `temp'/data.dta, key(statefips locality date) replace log(none)
+	save_data `temp'/data_substate.dta, key(statefips locality date) replace log(none)
 end
 
 program export_substate_daily
 	syntax, outstub(str) temp(str) 
 		
-	use `temp'/data.dta, clear
-	sort locality date
-	export delim using `outstub'/VZ_substate_daily.csv, replace
+	use `temp'/data_substate.dta, clear
+	save_data `outstub'/substate_daily.csv, key(locality date) ///
+        outsheet replace
 end
 
 program export_substate_monthly
 	syntax, outstub(str) temp(str) target_mw(str)
-	use `temp'/data.dta, clear
+	use `temp'/data_substate.dta, clear
 
 	gen monthly_date = mofd(date)
 	format monthly_date %tm
@@ -170,14 +169,13 @@ program export_substate_monthly
 	label var monthly_date "Monthly Date"
 	label_mw_vars, time_level("Monthly")
 
-	sort locality monthly_date
-
-	export delim using `outstub'/VZ_substate_monthly.csv, replace 
+	save_data `outstub'/substate_monthly.csv, key(locality monthly_date) ///
+        outsheet replace
 end 
 
 program export_substate_quarterly
 	syntax, outstub(str) temp(str) target_mw(str)
-	use `temp'/data.dta, clear
+	use `temp'/data_substate.dta, clear
 
 	gen quarterly_date = qofd(date)
 	format quarterly_date %tq
@@ -187,14 +185,13 @@ program export_substate_quarterly
 	label var quarterly_date "Quarterly Date"
 	label_mw_vars, time_level("Quarterly")
 
-	sort locality quarterly_date
-
-	export delim using `outstub'/VZ_substate_quarterly.csv, replace
+	save_data `outstub'/substate_quarterly.csv, key(locality quarterly_date) ///
+        outsheet replace
 end 
 
-program export_substate_annually
+program export_substate_yearly
 	syntax, outstub(str) temp(str) target_mw(str)
-	use `temp'/data.dta, clear
+	use `temp'/data_substate.dta, clear
 
 	gen year = yofd(date)
 	format year %ty
@@ -204,9 +201,8 @@ program export_substate_annually
 	label var year "Year"
 	label_mw_vars, time_level("Annual")
 
-	sort locality year
-
-	export delim using `outstub'/VZ_substate_annual.csv, replace 
+	save_data `outstub'/substate_annual.csv, key(locality year) ///
+        outsheet replace
 end
 
 program label_mw_vars
@@ -215,7 +211,7 @@ program label_mw_vars
 	cap label var mw     "`time_level' MW"	
 	cap label var abovestate_mw "Local > State min wage"	
 	cap label var mw_healthinsurance "`time_level' State MW Health and Insurance"
-	cap label var mw_smallbusiness "`time_level' State MW Small Business"
+	cap label var mw_smallbusiness   "`time_level' State MW Small Business"
 end
 
 * EXECUTE

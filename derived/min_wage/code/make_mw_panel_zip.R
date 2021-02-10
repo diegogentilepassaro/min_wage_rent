@@ -3,34 +3,35 @@ source("../../../lib/R/load_packages.R")
 source("../../../lib/R/save_data.R")
 
 options(scipen=999)
-load_packages(c('tidyverse', 'data.table', 'bit64', 'purrr', 'readxl', 'parallel', 'matrixStats'))
+load_packages(c('tidyverse', 'data.table', 'bit64', 'purrr', 'readxl', 'parallel', 'matrixStats', 'readstata13'))
 
 
 main <- function() {
-  datadir_mw    <- '../../../base/zillow_min_wage/output/'
-  datadir_xwalk <- '../../../raw/crosswalk/'
-  outdir        <- '../../../drive/base_large/output/'
+  datadir_mw     <- '../../../base/min_wage/output/'
+  datadir_xwalk  <- '../../../raw/crosswalk/'
+  datadir_mxwalk <- '../../geo_master/output/'
+  outdir         <- '../../../drive/base_large/output/'
+  log_file       <- "../output/mw_file_manifest.log"
 
   mw_data <- load_mw(instub = datadir_mw)
   state_mw <- mw_data[['state_mw']]
   county_mw <- mw_data[['county_mw']]
   local_mw <- mw_data[['local_mw']]
   
-  xwalks <- make_xwalks(instub = datadir_mw)
-  zip_county <- xwalks[['zip_county']]
-  zip_places <- xwalks[['zip_places']]
-  
-  zipmw_us <- assemble_mw_US(zcounty = zip_county, 
-                             zplaces = zip_places, 
-                             stmw    = state_mw, 
-                             ctymw   = county_mw, 
-                             locmw   = local_mw)
-  
+  mxwalk <- make_mxwalk(instub = datadir_mxwalk)
+
+  zipmw_us <- assemble_mw_US(mxwalk = mxwalk, 
+                               stmw   = state_mw, 
+                               ctymw  = county_mw, 
+                               locmw  = local_mw)  
   zipmw_us <- zipmw_us[, .(year_month, zipcode, placename, countyfips, county, statefips, stateabb, 
                            fed_mw, state_mw, county_mw, local_mw, county_abovestate_mw, local_abovestate_mw, 
                            actual_mw, dactual_mw, treated_mw)][!is.na(zipcode),]
-
- save_data(zipmw_us, key = c('zipcode', 'year_month'), filename = paste0(outdir, 'zip_mw.dta')) 
+  
+ save_data(zipmw_us, 
+           key = c('zipcode', 'year_month'), 
+           filename = paste0(outdir, 'zip_mw.dta'), 
+           logfile = log_file) 
 
 }
 
@@ -72,48 +73,49 @@ load_mw <- function(instub) {
   return(list('state_mw' = state_mw, 'county_mw' = county_mw, 'local_mw' = local_mw))
 }
 
-make_xwalks <- function(instub) {
-  #create crosswalks for all MW files to usps zipcode
-  zip_to_zcta <- readxl::read_excel('../../../raw/crosswalk/zip_to_zcta_2019.xlsx')
-  setnames(zip_to_zcta, old = c('ZIP_CODE', 'ZCTA'), new = c('zipcode', 'zcta'))
-  zip_to_zcta <- zip_to_zcta[,c('zipcode', 'zcta')]
+make_mxwalk <- function(instub) {
+  df <- setDT(read.dta13(paste0(instub, 'zcta_county_place_usps_master_xwalk.csv')))
+
+  df <- df[df[, .I[houses_zcta_place_county == max(houses_zcta_place_county)], by = 'zipcode']$V1] 
+  df <- df[df[, .I[1], by = 'zipcode']$V1] #when duplicate zip code, keep the one assigned to a city (as opposed to rural area with code 99999)
   
-  place <- fread(paste0(instub, 'places10.csv'))
-  setnames(place, old = c("state"), new = c("statefips"))
-  place[,statefips := str_pad(as.character(statefips), 2, pad = 0)]
-  place[,place_code := str_pad(as.character(place_code), 5, pad = 0)]
-  zip_places <- fread(paste0(instub, 'zip_places10.csv'), 
-                      colClasses = c("place_code" = "character", "zcta" = "character",
-                                     "statefips"  = "character"))
-  setorder(zip_places, zcta)
-  zip_places <- place[zip_places, on = c('statefips', 'place_code')]
-  zip_places <- zip_places[pct_zip_houses_inplace >= 50,]
-  zip_places <- left_join(zip_places, zip_to_zcta, by = c('zcta'))
+  setnames(df, old = c('state_abb', 'place_name', 'county_name'), new = c('stateabb', 'placename', 'county'))
   
-  zip_county <- fread(paste0(instub, 'zip_county10.csv'), 
-                      colClasses = c("zcta" = "character", "statefips" = "character",
-                                     "county_code" = "character", "countyfips" = "character"))
-  setorder(zip_county, zcta)
+  df[, county := gsub("\\s*\\w*$", " County", df$county)]
+  df[, placename := gsub(",\\s*\\w*$", "", df$placename)][, placename := gsub("\\s*\\w*$", "", df$placename)]
   
-  zip_county <- zip_county[pct_zip_houses_incounty >= 50,]
-  zip_county[,ind := max(pct_zip_pop_incounty, na.rm = T),by = 'zcta'][,
-                                                                       ind := ifelse(ind == pct_zip_pop_incounty, 1, 0)]
+  df <- manual_correction(df)
   
-  zip_county <- zip_county[ind == 1,]
-  zip_county <- zip_county[,ind := NULL]
-  zip_county <- left_join(zip_county, zip_to_zcta, by = c('zcta'))
-  
-  return(list('zip_county' = zip_county, 'zip_places' = zip_places))
+  return(df)
 }
 
-assemble_mw_US <- function(zcounty, zplaces, stmw, ctymw, locmw) {
-  # assemble MW for all US zipcodes 
-  dfzip <- zcounty[, .(zipcode, countyfips, county, statefips, stateabb)]
-  dfzip <- zplaces[, .(zipcode, placename, statefips)][dfzip, on = c('zipcode', 'statefips')]
-  dfzip[, c('from', 'to') := .(as.Date('2010-01-01'), as.Date('2019-12-01'))]
+manual_correction <- function(data) {
+  data[placename=='Louisville/Jefferson County metro government (balance)', placename := 'Lousville']
+  data[placename=='New York', placename := 'New York City']
+  data[placename=='Redwood City', placename := 'Readwood City']
+  data[placename=='St. Paul', placename := 'Saint Paul']
+  data[placename=='Daly City', placename := 'Daly city']
+  #data[zipcode=='94608', placename := 'Emeryville']
+}
+
+assemble_mw_US <- function(mxwalk, stmw, ctymw, locmw) {
+  geovars <- c('zipcode', 
+               'placename', 'place_code', 
+               'cbsa10', 'cbsa10_name', 
+               'countyfips', 'county', 
+               'statefips', 'stateabb')
+  dfzip <- mxwalk[, ..geovars]
   
-  dfzip <- dfzip[, list(zipcode, placename, countyfips, county, statefips, stateabb, year_month = seq(from, to, by = 'month')), 
+  dfzip[, c('from', 'to') := .(as.Date('2010-01-01'), as.Date('2019-12-01'))]
+  dfzip <- dfzip[, list(zipcode, 
+                     placename, place_code, 
+                     cbsa10, cbsa10_name, 
+                     countyfips, county, 
+                     statefips, stateabb,
+                     year_month = seq(from, to, by = 'month')), 
                  by = 1:nrow(dfzip)][, nrow :=NULL]
+  
+  
   dfzip <- stmw[dfzip, on = c('stateabb', 'statefips', 'year_month')]
   dfzip <- ctymw[dfzip, on = c('county', 'statefips', 'stateabb', 'year_month')]
   dfzip <- locmw[dfzip, on = c('placename', 'statefips', 'stateabb', 'year_month')]

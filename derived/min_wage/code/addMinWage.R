@@ -10,10 +10,10 @@ main <- function(){
    log_file  <- "../output/data_file_manifest.log"
    
    data <- load_data(infile_zillow  = paste0(tempdir, 'zillow_clean.csv'), 
-                     infile_statemw = paste0(datadir, 'VZ_state_monthly.csv'), 
-                     infile_localmw = paste0(datadir, 'VZ_substate_monthly.csv'),
+                     infile_statemw = paste0(datadir, 'state_monthly.csv'), 
+                     infile_localmw = paste0(datadir, 'substate_monthly.csv'),
                      infile_place   = paste0(datadir, 'places10.csv'),
-                     infile_county  = paste0(datadir,'zip_county10.csv'),
+                     infile_county  = paste0(datadir, 'zip_county10.csv'),
                      infile_zipplace = paste0(datadir,'zip_places10.csv'))
    
    data <- assemble_data(data)
