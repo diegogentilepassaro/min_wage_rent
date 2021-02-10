@@ -88,7 +88,7 @@ add_geographies <- function(dt, xwalkdir) {
    target_geovars <- c("zipcode", "countyfips", "place_code", "cbsa10", "statefips")
    
    geo_master <- geo_master[, ..target_geovars][, first(.SD), by = "zipcode"]
-   geo_master[, zipcode = as.integer(zipcode)]
+   geo_master[, zipcode := as.integer(zipcode)]
    
    dt <- left_join(dt, geo_master, by = "zipcode")
 
