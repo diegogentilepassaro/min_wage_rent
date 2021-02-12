@@ -42,7 +42,7 @@ make_xwalk <- function(instub) { #crosswalk function
   xwalk[, tract_fips := as.numeric(tract_fips)]
   xwalk <- xwalk[, ..target_xwalk]
   
-  tract_zip_xwalk <- read_excel(paste0(instub, "TRACT_ZIP_122012.xlsx"), 
+  tract_zip_xwalk <- read_excel(paste0(instub, "TRACT_ZIP_122019.xlsx"), 
                                 col_names = c('tract_fips', 'zipcode', 'res_ratio', 'bus_ratio', 'oth_ratio', 'tot_ratio'),
                                 col_types = c('numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric'))
   tract_zip_xwalk <- setDT(tract_zip_xwalk)

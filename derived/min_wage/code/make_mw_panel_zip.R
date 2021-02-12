@@ -3,15 +3,18 @@ source("../../../lib/R/load_packages.R")
 source("../../../lib/R/save_data.R")
 
 options(scipen=999)
-load_packages(c('tidyverse', 'data.table', 'bit64', 'purrr', 'readxl', 'parallel', 'matrixStats', 'readstata13'))
+load_packages(c('tidyverse', 'data.table', 'bit64', 'purrr', 'readxl', 'parallel', 'matrixStats', 'readstata13', 'usmap'))
 
 
 main <- function() {
   datadir_mw     <- '../../../base/min_wage/output/'
   datadir_xwalk  <- '../../../raw/crosswalk/'
-  datadir_mxwalk <- '../../geo_master/output/'
-  outdir         <- '../../../drive/base_large/output/'
+  datadir_mxwalk <- '../../../base/geo_master/output/'
+  datadir_lodes  <- '../../../drive/base_large/output/'
+  outdir         <- '../../../drive/derived_large/output/'
   log_file       <- "../output/mw_file_manifest.log"
+
+  cores <- 1 ## Parallelization doesn't work in Windows
 
   mw_data <- load_mw(instub = datadir_mw)
   state_mw <- mw_data[['state_mw']]
@@ -28,11 +31,33 @@ main <- function() {
                            fed_mw, state_mw, county_mw, local_mw, county_abovestate_mw, local_abovestate_mw, 
                            actual_mw, dactual_mw, treated_mw)][!is.na(zipcode),]
   
- save_data(zipmw_us, 
+  target_period <- unique(zipmw_us[['year_month']])
+  
+  #compute for, for each state, share of treated and experienced MW
+  state_fips <- fips(c(tolower(state.abb), 'dc'))
+
+  exp_mw <- mclapply(state_fips,
+                     assemble_expmw_state, p = target_period, zip = zipmw_us, input = datadir_lodes,
+                     mc.cores = cores)   # mcapply parallels on Mac. On windows it supports one core only (error otherwise)
+
+  exp_mw <- rbindlist(exp_mw)
+  setnames(exp_mw, old  = 'h_zipcode', new = 'zipcode')
+  setorderv(exp_mw, c('zipcode', 'year_month'))
+
+  zipmw_us <- exp_mw[zipmw_us, on = c('zipcode', 'year_month')]  
+  
+  geovars          <- c('zipcode', 'year_month', 'placename', 'countyfips', 'county', 'statefips', 'stateabb')
+  statutory_mwvars <- c('fed_mw', 'state_mw', 'county_mw', 'local_mw', 'county_abovestate_mw', 'local_abovestate_mw', 
+                        'actual_mw', 'dactual_mw', 'treated_mw')
+  exp_mvars        <- c('sh_treated_totjob', 'sh_treated_job_young', 'sh_treated_job_lowinc', 
+                        'exp_mw_totjob', 'exp_mw_job_young', 'exp_mw_job_lowinc')
+
+  setcolorder(zipmw_us, c(geovars, statutory_mwvars, exp_mvars))
+  
+  save_data(zipmw_us, 
            key = c('zipcode', 'year_month'), 
            filename = paste0(outdir, 'zip_mw.dta'), 
            logfile = log_file) 
-
 }
 
 
@@ -131,6 +156,44 @@ assemble_mw_US <- function(mxwalk, stmw, ctymw, locmw) {
   dfzip[, treated_mw := fifelse(dactual_mw>0, 1, 0, na = 0)]
   dfzip[, zipcode:=as.numeric(zipcode)] 
   return(dfzip)
+}
+
+assemble_expmw_state <- function(x, p, zip, input) {
+  this_state <- fread(paste0(input, 'odzip_', x, '.csv'))
+  this_state[, c('h_totjob', 'h_job_young', 'h_job_lowinc') := lapply(.SD, sum, na.rm = T) , 
+            .SDcols = c('totjob', 'job_young', 'job_lowinc'), 
+            by = 'h_zipcode']
+  setorderv(this_state, cols = c('h_zipcode', 'w_zipcode'))
+
+  #share of treated and experienced MW for every date
+  p <- lapply(p, function(y, this_st = this_state, zip2 = zip) {
+   this_date_mw <- zip2[year_month==y,][, 'w_zipcode' := zipcode] #select the given date
+   this_state_date <- this_date_mw[, .(w_zipcode, actual_mw, treated_mw, year_month)][this_st, on = 'w_zipcode'] #merge od matrix and MW
+   this_state_date[treated_mw==1, c('sh_treated_totjob', 'sh_treated_job_young', 'sh_treated_job_lowinc') := lapply(.SD, sum, na.rm = T)
+                   , .SDcols = c('totjob', 'job_young', 'job_lowinc'), by = 'h_zipcode'][
+                     , c('sh_treated_totjob', 'sh_treated_job_young', 'sh_treated_job_lowinc') := lapply(.SD, max, na.rm = T)
+                     , .SDcols = c('sh_treated_totjob', 'sh_treated_job_young', 'sh_treated_job_lowinc'), by = 'h_zipcode'][
+                       , c('sh_treated_totjob', 'sh_treated_job_young', 'sh_treated_job_lowinc') := replace(.SD, .SD==-Inf, 0)
+                       , .SDcols = c('sh_treated_totjob', 'sh_treated_job_young', 'sh_treated_job_lowinc')] #compute share of treated numerator for each zip
+   
+   this_state_date[, c('sh_treated_totjob', 'sh_treated_job_young', 'sh_treated_job_lowinc') := 
+                     .((sh_treated_totjob / h_totjob), (sh_treated_job_young / h_job_young), (sh_treated_job_lowinc / h_job_lowinc))]
+   
+   this_state_date[, c('sh_totjob', 'sh_job_young', 'sh_job_lowinc') := 
+                     .((totjob / h_totjob), (job_young / h_job_young), (job_lowinc / h_job_lowinc))] #compute share of job for each destination
+   
+   this_state_date <- this_state_date[, .(sh_treated_totjob = first(sh_treated_totjob), 
+                                          sh_treated_job_young = first(sh_treated_job_young), 
+                                          sh_treated_job_lowinc = first(sh_treated_job_lowinc), 
+                                          exp_mw_totjob = sum(actual_mw*sh_totjob, na.rm = T), 
+                                          exp_mw_job_young = sum(actual_mw*sh_job_young, na.rm = T), 
+                                          exp_mw_job_lowinc = sum(actual_mw*sh_job_lowinc, na.rm = T)), by = c('h_zipcode', 'year_month')]
+   this_state_date <- this_state_date[!is.na(year_month),] #remove missings
+   return(this_state_date)
+   
+  })
+  p <- rbindlist(p)
+  return(p)
 }
 
 
