@@ -10,17 +10,17 @@ main <- function() {
   datadir_xwalk <- '../../../raw/crosswalk/'
   outdir        <- '../../../drive/base_large/output/'
   
-  #prepare crosswalks 
+  # Prepare crosswalks 
   xwalk_list <- make_xwalk(datadir_xwalk)
   blc_tract_xwalk <- xwalk_list[[1]]
   tract_zip_xwalk <- xwalk_list[[2]]
   rm(xwalk_list)
   
-  #Prepare states od matrices: 
-  files <- list.files(datadir_lodes, full.names = T)
+  # Prepare states od matrices: 
+  files <- list.files(datadir_lodes, full.names = T, pattern = "*.gz")
   files <- files[!grepl("Icon\r$", files)]
   files <- files[!grepl("pr", files)]          # Ignore Puerto Rico
-  files <- files[!grepl("desktop.ini", files)] # Ignore desktop.ini
+  
   files_main <- files[grepl("_main_", files)]
   files_aux <- files[grepl("_aux_", files)]
   
@@ -30,7 +30,8 @@ main <- function() {
   aux_all[, h_statefips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0),1 , 2))]
   
   odzip <- lapply(state_list, function(y) {
-    make_odmatrix_state(stabb = y, datadir = datadir_lodes, out = outdir, aux = aux_all, xwalk = tract_zip_xwalk, dest_threshold = .9)
+    make_odmatrix_state(stabb = y, datadir = datadir_lodes, out = outdir, 
+                        aux = aux_all, xwalk = tract_zip_xwalk, dest_threshold = .9)
   })
 }
 
@@ -98,7 +99,9 @@ make_odmatrix_state <- function(stabb, datadir, out, aux, xwalk, dest_threshold)
   this_state_zip[, 'h_totjob' := sum(totjob, na.rm = T), by = 'h_zipcode']
   this_state_zip[, 'totjob_cum' := cumsum(totjob), by = 'h_zipcode'] 
   this_state_zip[, 'totjob_cumsh' := totjob_cum / h_totjob]
-  this_state_zip <- this_state_zip[totjob_cumsh<=dest_threshold, ][, c('h_totjob', 'totjob_cum', 'totjob_cumsh'):=NULL] #keep only destination zipcode that make up to 90 percent of total workforce
+
+  #keep only destination zipcodes that make up to `dest_threshold` of total workforce
+  this_state_zip <- this_state_zip[totjob_cumsh <= dest_threshold, ][, c('h_totjob', 'totjob_cum', 'totjob_cumsh') := NULL] 
   
   this_fips <- str_pad(this_fips, 2, pad = 0)
   save_data(this_state_zip, key = c('h_zipcode', 'w_zipcode'), 
@@ -107,4 +110,5 @@ make_odmatrix_state <- function(stabb, datadir, out, aux, xwalk, dest_threshold)
 }
 
 
+# Execute
 main() 
