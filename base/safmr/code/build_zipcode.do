@@ -52,6 +52,7 @@ program clean_safmrs
 
 		bys state_fips county_fips (county): replace county = county[_N]  
 		replace county = "Broomfield" if state_fips=="08" & county_fips=="014"
+
 		bys state_fips cbsa (cbsaname): replace cbsaname = cbsaname[_N]  
 
 		replace county_fips = state_fips + county_fips 			
@@ -100,8 +101,9 @@ program clean_safmrs
 		bys state_fips county_fips (county): replace county = county[_N]  
 		replace county = "Broomfield" if state_fips=="08" & county_fips=="014"
 
-		bys state_fips cbsa (cbsaname): replace cbsaname = cbsaname[_N]  
-		replace county_fips = state_fips + county_fips 			
+		bys state_fips cbsa (cbsaname): replace cbsaname = cbsaname[_N]
+
+		replace county_fips = state_fips + county_fips
 		replace county = subinstr(county, " County", "", .)
 		destring county_fips, replace 
 		labmask county_fips, values(county)
