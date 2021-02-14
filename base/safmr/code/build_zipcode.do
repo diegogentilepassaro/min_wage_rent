@@ -46,12 +46,18 @@ end
 program clean_safmrs 
 	syntax, yr(int) instub(str)
 
-	if `yr' == 2012 | `yr' == 2013 | `yr' == 2014 {
-		tolower State StateName County CountyName CBSA CBSAName ZIP
-		rename (state statename county countyname zip) (state_fips state county_fips county zipcode)
+	if `yr' >= 2012 & `yr' <= 2015 {
+		if `yr' == 2012 | `yr' == 2013 | `yr' == 2014 {
+			tolower State StateName County CountyName CBSA CBSAName ZIP
+			rename (state statename county countyname zip) (state_fips state county_fips county zipcode)
+		}
+		else {
+			rename (state statename county cntyname cbsamet cbnsmcnm) ///
+					(state_fips state county_fips county cbsa cbsaname)
+		}
 
 		bys state_fips county_fips (county): replace county = county[_N]  
-		replace county = "Broomfield" if state_fips=="08" & county_fips=="014"
+		replace county = "Broomfield" if state_fips == "08" & county_fips == "014"
 
 		bys state_fips cbsa (cbsaname): replace cbsaname = cbsaname[_N]  
 
@@ -72,15 +78,21 @@ program clean_safmrs
 		labmask state_fips, values(state)
 		drop state
 
+		if `yr' == 2015 {
+			destring cbsa, replace
+		}
 		labmask cbsa, values(cbsaname)
 		drop cbsaname	
 
-		if `yr'== 2012 {
+		if `yr' == 2012 {
 			gen byte notnumeric = (real(zipcode) == .)
 			drop if notnum == 1 
 			drop notnum
 		}
 		destring zipcode, replace
+		if `yr' == 2015 {
+			drop if missing(zipcode)
+		}
 
 		duplicates drop
 
@@ -89,52 +101,17 @@ program clean_safmrs
 			rename safmrsbr`x' safmr`x'br
 		}
 
-		if `yr'== 2013 {
+		if `yr' == 2013 {
 			duplicates drop zipcode county_fips, force
 		}
 	}
 
-	if `yr' == 2015 {
-		rename (state statename county cntyname cbsamet cbnsmcnm) ///
-				(state_fips state county_fips county cbsa cbsaname)
-
-		bys state_fips county_fips (county): replace county = county[_N]  
-		replace county = "Broomfield" if state_fips=="08" & county_fips=="014"
-
-		bys state_fips cbsa (cbsaname): replace cbsaname = cbsaname[_N]
-
-		replace county_fips = state_fips + county_fips
-		replace county = subinstr(county, " County", "", .)
-		destring county_fips, replace 
-		labmask county_fips, values(county)
-		drop county
-
-		destring state_fips, replace 
-		labmask state_fips, values(state)
-		drop if state_fips==72
-		drop state
-
-		destring cbsa, replace 
-		labmask cbsa, values(cbsaname)
-		drop cbsaname
-
-		destring zipcode, replace
-		drop if missing(zipcode)
-
-		duplicates drop
-
-		rename area_rent_* safmrs*
-		forval x = 0(1)4 {
-			rename safmrsbr`x' safmr`x'br
-		}
-	}
-
-	if `yr'==2016 {
-		rename(zip_code metro_code metro_name fips_state_code statename  fips_county_code county_name) ///
+	if `yr' == 2016 {
+		rename(zip_code metro_code metro_name fips_state_code statename fips_county_code county_name) ///
 				(zipcode cbsa cbsaname state_fips state county_fips countyname)
 
 		bys state_fips county_fips (countyname): replace countyname = countyname[_N]  
-		replace countyname = "Broomfield" if state_fips=="08" & county_fips=="014"
+		replace countyname = "Broomfield" if state_fips == "08" & county_fips == "014"
 		bys state_fips cbsa (cbsaname): replace cbsaname = cbsaname[_N]  
 
 		replace county_fips = state_fips + county_fips 			
@@ -162,7 +139,7 @@ program clean_safmrs
 		}
 	}
 
-	if `yr'== 2017 {
+	if `yr' == 2017 {
 		rename (zip_code metro_code metro_name) (zipcode cbsa cbsaname) 
 		destring cbsa, replace 
 		labmask cbsa, values(cbsaname)
