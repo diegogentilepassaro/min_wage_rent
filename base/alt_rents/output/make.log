@@ -1,5 +1,5 @@
 
- make.py started: 2020-11-30 14:39:13 C:\Users\diegog\Desktop\Diego\min_wage_rent\base\alt_rents\code 
+ make.py started: 2021-02-13 17:11:38 C:\Users\shermo\Documents\GitHub\min_wage_rent\base\alt_rents\code 
 
 
 
@@ -44,402 +44,253 @@ Notes:
 
 . 
 . program main 
-  1.         local raw "../../../drive/raw_data/"
-  2.         local exports "../output/"
-  3.         local temp "../temp"
-  4. 
-.         build_small_area_fmr, instub(`raw') outstub(`exports')
-  5.         
-. 
-. end
+  1.         local raw     "../../../drive/raw_data/"
+  2.         local outstub "../output/"
+  3.         local temp    "../temp"
+  4.         local logfile "../output/data_file_manifest.log"
+  5. 
+.         prepare_data, instub(`raw')
+  6. 
+.         forval fmr = 2018(-1)2012 {
+  7.                 append using ../temp/safmrs_`fmr'.dta
+  8.         }
+  9. 
+.         drop if missing(zipcode)
+ 10.         sort zipcode year
+ 11. 
+.         drop if zipcode < 1000 
+ 12. 
+.         duplicates drop
+ 13. 
+.         save_data `outstub'safrm.dta, key(zipcode year) log(`logfile') replac
+> e
+ 14. end
 
 . 
 . 
-. 
-. 
-. program build_small_area_fmr
-  1.         syntax, instub(str) outstub(str) 
+. program prepare_data
+  1.         syntax, instub(str) 
   2. 
 .         forval fmr = 2018(-1)2016 {
   3.                 import excel `instub'SFMR/fy`fmr'_safmrs.xlsx, first clear
 >       
   4.                 clean_safmrs, yr(`fmr') instub(`instub')
-  5.                 tempfile safmrs_`fmr' 
-  6.                 save "`safmrs_`fmr''", replace 
-  7.                 di "`fmr'"
-  8.                 
-.         }       
-  9. 
-. 
+  5.                 save ../temp/safmrs_`fmr'.dta, replace
+  6.         }       
+  7. 
 .         forval fmr = 2015(-1)2012 {
- 10.                 import excel `instub'SFMR/fy`fmr'_safmrs.xls, first clear 
- 11.                 clean_safmrs, yr(`fmr') instub(`instub')
- 12.                 tempfile safmrs_`fmr' 
- 13.                 save "`safmrs_`fmr''", replace          
- 14.                 di "`fmr'"
- 15.         }
- 16. 
-. 
+  8.                 import excel `instub'SFMR/fy`fmr'_safmrs.xls, first clear 
+  9.                 clean_safmrs, yr(`fmr') instub(`instub')
+ 10.                 save ../temp/safmrs_`fmr'.dta, replace
+ 11.         }
+ 12. 
 .         import excel `instub'SFMR/fy2019_safmrs_rev.xlsx, first clear 
- 17.         clean_safmrs, yr(2019) instub(`instub')
- 18. 
-.         forval fmr = 2018(-1)2012 {
- 19.                 append using `safmrs_`fmr'' 
- 20.                 di "Appending year `fmr'"
- 21.         }
- 22. 
-.         drop if missing(zipcode)
- 23.         sort zipcode year
- 24. 
-.         drop if zipcode<1000 
- 25. 
-.         duplicates drop
- 26. 
-.         save_data `outstub'safrm.dta, key(zipcode year) replace
- 27. 
-. end
+ 13.         clean_safmrs, yr(2019) instub(`instub')
+ 14. end
 
 . 
-. 
 . program clean_safmrs 
-  1.                 syntax, yr(int) instub(str)
+  1.         syntax, yr(int) instub(str)
   2. 
-.                 if `yr'==2012 {
-  3.                         tolower State StateName County CountyName CBSA CBS
-> AName ZIP
-  4.                         rename (state statename county countyname zip) (st
-> ate_fips state county_fips county zipcode)
+.         if `yr' == 2012 | `yr' == 2013 | `yr' == 2014 {
+  3.                 
+.                 tolower State StateName County CountyName CBSA CBSAName ZIP
+  4.                 rename (state statename county countyname zip) (state_fips
+>  state county_fips county zipcode)
   5. 
-.                         bys state_fips county_fips (county): replace county =
->  county[_N]  
-  6.                         replace county = "Broomfield" if state_fips=="08" 
-> & county_fips=="014"
-  7. 
-.                         bys state_fips cbsa (cbsaname): replace cbsaname = cb
-> saname[_N]  
+.                 bys state_fips county_fips (county): replace county = county[
+> _N]  
+  6.                 replace county = "Broomfield" if state_fips=="08" & county
+> _fips=="014"
+  7.                 bys state_fips cbsa (cbsaname): replace cbsaname = cbsanam
+> e[_N]  
   8. 
-.                         replace county_fips = state_fips + county_fips       
->            
-  9.                         replace county = subinstr(county, " County", "", .
-> )
- 10.                         destring county_fips, replace 
- 11.                         labmask county_fips, values(county)
- 12.                         drop county
+.                 replace county_fips = state_fips + county_fips               
+>    
+  9.                 replace county = subinstr(county, " County", "", .)
+ 10.                 destring county_fips, replace 
+ 11.                 labmask county_fips, values(county)
+ 12.                 drop county
  13. 
-. 
-.                         destring state_fips, replace 
- 14.                         drop if state_fips==72
- 15.                         replace state_fips=1  if state == "Alabama"
- 16.                         replace state_fips=10 if state == "Delaware"
- 17.                         replace state_fips=25 if state == "Massachusetts"
- 18.                         replace state_fips=54 if state == "West Virginia"
- 19.                         labmask state_fips, values(state)
- 20.                         drop state
- 21. 
-. 
-.                         labmask cbsa, values(cbsaname)
- 22.                         drop cbsaname   
+.                 destring state_fips, replace 
+ 14.                 drop if state_fips == 72
+ 15.                 if `yr'== 2012 {
+ 16.                         replace state_fips = 1  if state == "Alabama"
+ 17.                         replace state_fips = 10 if state == "Delaware"
+ 18.                         replace state_fips = 25 if state == "Massachusetts
+> "
+ 19.                         replace state_fips = 54 if state == "West Virginia
+> "
+ 20.                 }
+ 21.                 labmask state_fips, values(state)
+ 22.                 drop state
  23. 
-.                         gen byte notnumeric = real(zipcode)==.
- 24.                         drop if notnum==1 
- 25.                         drop notnum 
- 26.                         destring zipcode, replace
- 27. 
-.                         duplicates drop 
- 28. 
-.                         rename area_rent_* safmrs*
- 29.                         forval x = 0(1)4 {
- 30.                                 rename safmrsbr`x' safmr`x'br
- 31.                         }
+.                 labmask cbsa, values(cbsaname)
+ 24.                 drop cbsaname   
+ 25. 
+.                 if `yr'== 2012 {
+ 26.                         gen byte notnumeric = (real(zipcode) == .)
+ 27.                         drop if notnum == 1 
+ 28.                         drop notnum
+ 29.                 }
+ 30.                 destring zipcode, replace
+ 31. 
+.                 duplicates drop
  32. 
-.                         collapse_zipcodes, instub(`instub') yr(`yr')
- 33. 
-.                         g year =`yr'
- 34.                         
-.                         order year zipcode safmr*
- 35. 
-. 
-. 
-.                 }
+.                 rename area_rent_* safmrs*
+ 33.                 forval x = 0(1)4 {
+ 34.                         rename safmrsbr`x' safmr`x'br
+ 35.                 }
  36. 
-. 
 .                 if `yr'== 2013 {
- 37.                         tolower State StateName County CountyName CBSA CBS
-> AName ZIP
- 38.                         rename (state statename county countyname zip) (st
-> ate_fips state county_fips county zipcode)
- 39. 
-.                         bys state_fips county_fips (county): replace county =
->  county[_N]  
- 40.                         replace county = "Broomfield" if state_fips=="08" 
-> & county_fips=="014"
- 41. 
-.                         bys state_fips cbsa (cbsaname): replace cbsaname = cb
-> saname[_N]  
+ 37.                         duplicates drop zipcode county_fips, force
+ 38.                 }
+ 39.         }
+ 40. 
+.         if `yr' == 2015 {
+ 41.                 
+.                 rename (state statename county cntyname cbsamet cbnsmcnm) ///
+>                                 (state_fips state county_fips county cbsa cbs
+> aname)
  42. 
-.                         replace county_fips = state_fips + county_fips       
->            
- 43.                         replace county = subinstr(county, " County", "", .
-> )
- 44.                         destring county_fips, replace 
- 45.                         labmask county_fips, values(county)
- 46.                         drop county
- 47. 
-. 
-.                         destring state_fips, replace 
- 48.                         labmask state_fips, values(state)
- 49.                         drop if state_fips==72
- 50.                         drop state
- 51. 
-. 
-. 
-.                         labmask cbsa, values(cbsaname)
- 52.                         drop cbsaname
- 53.                         
-.                         destring zipcode, replace
+.                 bys state_fips county_fips (county): replace county = county[
+> _N]  
+ 43.                 replace county = "Broomfield" if state_fips=="08" & county
+> _fips=="014"
+ 44. 
+.                 bys state_fips cbsa (cbsaname): replace cbsaname = cbsaname[_
+> N]  
+ 45.                 replace county_fips = state_fips + county_fips            
+>       
+ 46.                 replace county = subinstr(county, " County", "", .)
+ 47.                 destring county_fips, replace 
+ 48.                 labmask county_fips, values(county)
+ 49.                 drop county
+ 50. 
+.                 destring state_fips, replace 
+ 51.                 labmask state_fips, values(state)
+ 52.                 drop if state_fips==72
+ 53.                 drop state
  54. 
-.                         duplicates drop 
- 55. 
-.                         rename area_rent_* safmrs*
- 56.                         forval x = 0(1)4 {
- 57.                                 rename safmrsbr`x' safmr`x'br
- 58.                         }
+.                 destring cbsa, replace 
+ 55.                 labmask cbsa, values(cbsaname)
+ 56.                 drop cbsaname
+ 57. 
+.                 destring zipcode, replace
+ 58.                 drop if missing(zipcode)
  59. 
-.                         duplicates drop zipcode county_fips, force
+.                 duplicates drop
  60. 
-.                         collapse_zipcodes, instub(`instub') yr(`yr')
- 61.                         
-.                         g year =`yr'
- 62.                         
-.                         order year zipcode safmr*
+.                 rename area_rent_* safmrs*
+ 61.                 forval x = 0(1)4 {
+ 62.                         rename safmrsbr`x' safmr`x'br
  63.                 }
- 64. 
-.                 if `yr'==2014 {
- 65.                         tolower State StateName County CountyName CBSA CBS
-> AName ZIP
- 66.                         rename (state statename county countyname zip) (st
-> ate_fips state county_fips county zipcode)
+ 64.         }
+ 65. 
+.         if `yr'==2016 {
+ 66.                 rename(zip_code metro_code metro_name fips_state_code stat
+> ename  fips_county_code county_name) ///
+>                                 (zipcode cbsa cbsaname state_fips state count
+> y_fips countyname)
  67. 
-.                         bys state_fips county_fips (county): replace county =
->  county[_N]  
- 68.                         replace county = "Broomfield" if state_fips=="08" 
-> & county_fips=="014"
- 69. 
-.                         bys state_fips cbsa (cbsaname): replace cbsaname = cb
-> saname[_N]  
+.                 bys state_fips county_fips (countyname): replace countyname =
+>  countyname[_N]  
+ 68.                 replace countyname = "Broomfield" if state_fips=="08" & co
+> unty_fips=="014"
+ 69.                 bys state_fips cbsa (cbsaname): replace cbsaname = cbsanam
+> e[_N]  
  70. 
-.                         replace county_fips = state_fips + county_fips       
->            
- 71.                         replace county = subinstr(county, " County", "", .
+.                 replace county_fips = state_fips + county_fips               
+>    
+ 71.                 replace countyname = subinstr(countyname, " County", "", .
 > )
- 72.                         destring county_fips, replace 
- 73.                         labmask county_fips, values(county)
- 74.                         drop county
+ 72.                 destring county_fips, replace 
+ 73.                 labmask county_fips, values(countyname)
+ 74.                 drop countyname
  75. 
-. 
-.                         destring state_fips, replace 
- 76.                         labmask state_fips, values(state)
- 77.                         drop if state_fips==72
- 78.                         drop state
+.                 destring state_fips, replace 
+ 76.                 labmask state_fips, values(state)
+ 77.                 drop if state_fips==72
+ 78.                 drop state
  79. 
-. 
-. 
-.                         labmask cbsa, values(cbsaname)
- 80.                         drop cbsaname
- 81.                         
-.                         destring zipcode, replace
+.                 destring cbsa, replace 
+ 80.                 labmask cbsa, values(cbsaname)
+ 81.                 drop cbsaname
  82. 
-.                         duplicates drop 
+.                 destring zipcode, replace
  83. 
-.                         rename area_rent_* safmrs*
- 84.                         forval x = 0(1)4 {
- 85.                                 rename safmrsbr`x' safmr`x'br
- 86.                         }
- 87. 
-.                         collapse_zipcodes, instub(`instub') yr(`yr')
- 88. 
-.                         g year =`yr'
+.                 duplicates drop
+ 84. 
+.                 rename area_rent_* safmrs*
+ 85.                 forval x = 0(1)4 {
+ 86.                         rename safmrsbr`x' safmr`x'br
+ 87.                 }
+ 88.         }
  89. 
-.                         order year zipcode safmr*
- 90. 
-.                 }
- 91. 
-.                 if `yr'==2015 {
- 92.                         rename (state statename county cntyname cbsamet cb
-> nsmcnm) (state_fips state county_fips county cbsa cbsaname)
- 93. 
-.                         bys state_fips county_fips (county): replace county =
->  county[_N]  
- 94.                         replace county = "Broomfield" if state_fips=="08" 
-> & county_fips=="014"
+.         if `yr'== 2017 {
+ 90.                                                 
+.                 rename (zip_code metro_code metro_name) (zipcode cbsa cbsanam
+> e) 
+ 91.                 destring cbsa, replace 
+ 92.                 labmask cbsa, values(cbsaname)
+ 93.                 drop cbsaname 
+ 94. 
+.                 destring zipcode, replace
  95. 
-.                         bys state_fips cbsa (cbsaname): replace cbsaname = cb
-> saname[_N]  
+.                 duplicates drop
  96. 
-. 
-.                         replace county_fips = state_fips + county_fips       
->            
- 97.                         replace county = subinstr(county, " County", "", .
-> )
- 98.                         destring county_fips, replace 
- 99.                         labmask county_fips, values(county)
-100.                         drop county
+.                 rename area_rent_* safmrs*
+ 97.                 forval x = 0(1)4 {
+ 98.                         rename safmrsbr`x' safmr`x'br
+ 99.                 }
+100.         }
 101. 
-.                         destring state_fips, replace 
-102.                         labmask state_fips, values(state)
-103.                         drop if state_fips==72
-104.                         drop state
+.         if `yr' == 2018 | `yr' == 2019 {
+102.                 tolower *
+103.                 rename (hudmetrofairmarketrentarea) (hudname)
+104.                         
+.                 rename (*paymentstandard *paymentstandar) (*pct *pct) 
 105. 
-. 
-.                         destring cbsa, replace 
-106.                         labmask cbsa, values(cbsaname)
-107.                         drop cbsaname
-108. 
-.                         destring zipcode, replace
-109.                         drop if missing(zipcode)
+.                 g hudcode = substr(hudareacode, -6, 6)
+106.                 g cbsa = substr(hudareacode, 1, 10)
+107.                 replace cbsa = subinstr(cbsa, "METRO", "", .)
+108.                 destring cbsa, replace
+109.                         
+.                 drop hudareacode
 110. 
-.                         duplicates drop
-111. 
-.                         rename area_rent_* safmrs*
-112.                         forval x = 0(1)4 {
-113.                                 rename safmrsbr`x' safmr`x'br
-114.                         }
-115. 
-.                         collapse_zipcodes, instub(`instub') yr(`yr')
-116. 
-.                         g year =`yr'
+.                 destring zipcode, replace
+111.                 drop if missing(zipcode)
+112.                         
+.                 drop hudname hudcode
+113.                 duplicates drop
+114. 
+.                 drop safmr*pct
+115.         }
+116.                 
+.         collapse_zipcodes, instub(`instub') yr(`yr')
 117. 
-.                         order year zipcode safmr*
-118.                 }
-119. 
-.                 if `yr'==2019 | `yr'==2018 {
-120.                         tolower *
-121.                         rename (hudmetrofairmarketrentarea) (hudname)
-122.                         
-.                         rename (*paymentstandard *paymentstandar) (*pct *pct)
->  
-123. 
-.                         g hudcode = substr(hudareacode, -6, 6)
-124. 
-.                         g cbsa = substr(hudareacode, 1, 10)
-125.                         replace cbsa = subinstr(cbsa, "METRO", "", .)
-126.                         destring cbsa, replace
-127.                         
-.                         drop hudareacode
-128. 
-.                         destring zipcode, replace
-129.                         drop if missing(zipcode)
-130.                         
-.                         drop hudname hudcode
-131.                         duplicates drop
-132. 
-.                         collapse_zipcodes, instub(`instub') yr(`yr')
-133.                         
-.                         g year =`yr'
-134. 
-.                         drop safmr*pct
-135. 
-.                         order year zipcode safmr*
-136. 
-.                 }
-137. 
-. 
-.                 if `yr'== 2017 {
-138.                                                 
-.                         rename (zip_code metro_code metro_name) (zipcode cbsa
->  cbsaname) 
-139. 
-.                         destring cbsa, replace 
-140.                         labmask cbsa, values(cbsaname)
-141.                         drop cbsaname 
-142. 
-.                         destring zipcode, replace
-143. 
-.                         duplicates drop
-144. 
-.                         rename area_rent_* safmrs*
-145.                         forval x = 0(1)4 {
-146.                                 rename safmrsbr`x' safmr`x'br
-147.                         }
-148. 
-.                         collapse_zipcodes, instub(`instub') yr(`yr') 
-149. 
-.                         g year =`yr'
-150. 
-.                         order year zipcode safmr*                       
-151. 
-.                 }
-152. 
-.                 if `yr'==2016 {
-153.                         rename(zip_code metro_code metro_name fips_state_c
-> ode statename  fips_county_code county_name) (zipcode cbsa cbsaname state_fip
-> s state county_fips countyname)
-154. 
-.                         bys state_fips county_fips (countyname): replace coun
-> tyname = countyname[_N]  
-155.                         replace countyname = "Broomfield" if state_fips=="
-> 08" & county_fips=="014"
-156. 
-.                         bys state_fips cbsa (cbsaname): replace cbsaname = cb
-> saname[_N]  
-157. 
-.                         replace county_fips = state_fips + county_fips       
->            
-158.                         replace countyname = subinstr(countyname, " County
-> ", "", .)
-159.                         destring county_fips, replace 
-160.                         labmask county_fips, values(countyname)
-161.                         drop countyname
-162. 
-.                         destring state_fips, replace 
-163.                         labmask state_fips, values(state)
-164.                         drop if state_fips==72
-165.                         drop state
-166. 
-. 
-. 
-.                         destring cbsa, replace 
-167.                         labmask cbsa, values(cbsaname)
-168.                         drop cbsaname
-169. 
-. 
-.                         destring zipcode, replace
-170. 
-.                         duplicates drop
-171. 
-.                         rename area_rent_* safmrs*
-172.                         forval x = 0(1)4 {
-173.                                 rename safmrsbr`x' safmr`x'br
-174.                         }
-175. 
-.                         collapse_zipcodes, instub(`instub') yr(`yr')
-176.                         
-.                         g year =`yr'
-177. 
-.                         order year zipcode safmr*
-178.                 }
-179. 
-. 
-. 
-. end 
+.         gen year =`yr'
+118.                         
+.         order year zipcode safmr*
+119. end 
 
 . 
 . 
 . program collapse_zipcodes 
   1.         syntax, yr(int) instub(str)
   2.         
-.         if `yr' <2017 {
+.         if `yr' < 2017 {
   3.                 preserve 
-  4.                 import excel ../../../raw/crosswalk/ZIP_COUNTY_12`yr'.xlsx
-> , clear first
-  5.                 cap tolower *
-  6.                 rename (zip county) (zipcode county_fips) 
-  7.                 destring zipcode, replace 
-  8.                 destring county_fips, replace
-  9.                 keep zipcode county_fips res_ratio 
- 10.                 isid zipcode county_fips
- 11.                 tempfile countyxwalk_`yr'
- 12.                 save "`countyxwalk_`yr''", replace
+  4.                         import excel ../../../raw/crosswalk/ZIP_COUNTY_12`
+> yr'.xlsx, clear first
+  5.                         cap tolower *
+  6.                         rename (zip county) (zipcode county_fips) 
+  7.                         destring zipcode, replace 
+  8.                         destring county_fips, replace
+  9.                         keep zipcode county_fips res_ratio 
+ 10.                         isid zipcode county_fips
+ 11.                         tempfile countyxwalk_`yr'
+ 12.                         save "`countyxwalk_`yr''", replace
  13.                 restore  
  14. 
 .                 merge 1:1 zipcode county_fips using `countyxwalk_`yr'', nogen
@@ -447,24 +298,22 @@ Notes:
  15.                 keep if res_ratio>.5 | missing(res_ratio)
  16.                 duplicates tag cbsa zipcode, g(dup)
  17.                 drop if dup>=1 & missing(res_ratio)
- 18. 
-.                 
+ 18.                 
 .                 isid cbsa zipcode 
  19. 
 .                 drop res_ratio dup
  20.                 keep zipcode cbsa safmr*                
  21.         }
  22. 
-. 
 .         preserve
- 23.         import excel ../../../raw/crosswalk/ZIP_CBSA_12`yr'.xlsx, clear fi
-> rst
- 24.         cap tolower *
- 25.         rename zip zipcode 
- 26.         destring zipcode cbsa, replace
- 27.         keep zipcode cbsa res_ratio 
- 28.         tempfile xwalk_`yr'
- 29.         save "`xwalk_`yr''", replace
+ 23.                 import excel ../../../raw/crosswalk/ZIP_CBSA_12`yr'.xlsx, 
+> clear first
+ 24.                 cap tolower *
+ 25.                 rename zip zipcode 
+ 26.                 destring zipcode cbsa, replace
+ 27.                 keep zipcode cbsa res_ratio 
+ 28.                 tempfile xwalk_`yr'
+ 29.                 save "`xwalk_`yr''", replace
  30.         restore 
  31. 
 .         merge 1:1 zipcode cbsa using `xwalk_`yr'', nogen assert(1 2 3) keep(1
@@ -485,9 +334,7 @@ Notes:
  40. end
 
 . 
-. 
-. 
-. 
+. * Execute
 . main
 (1 missing value generated)
 (1 missing value generated)
@@ -503,8 +350,8 @@ Duplicates in terms of all variables
 (942 observations deleted)
 zipcode: all characters numeric; replaced as long
 cbsa: all characters numeric; replaced as long
-(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000002.tmp not found)
-file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000002.tmp saved
+(note: file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000002.tmp not found)
+file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000002.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -518,9 +365,8 @@ file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000002.tmp saved
 (331 missing values generated)
 (331 real changes made)
 (analytic weights assumed)
-(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000001.tmp not found)
-file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000001.tmp saved
-2018
+(note: file ../temp/safmrs_2018.dta not found)
+file ../temp/safmrs_2018.dta saved
 cbsa: all characters numeric; replaced as long
 zipcode: all characters numeric; replaced as long
 
@@ -529,8 +375,8 @@ Duplicates in terms of all variables
 (0 observations are duplicates)
 zipcode: all characters numeric; replaced as long
 cbsa: all characters numeric; replaced as long
-(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000003.tmp not found)
-file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000003.tmp saved
+(note: file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000002.tmp not found)
+file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000002.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -544,9 +390,8 @@ file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000003.tmp saved
 (312 missing values generated)
 (312 real changes made)
 (analytic weights assumed)
-(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000002.tmp not found)
-file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000002.tmp saved
-2017
+(note: file ../temp/safmrs_2017.dta not found)
+file ../temp/safmrs_2017.dta saved
 (0 real changes made)
 (7 real changes made)
 (0 real changes made)
@@ -564,8 +409,8 @@ Duplicates in terms of all variables
 (0 observations are duplicates)
 zipcode: all characters numeric; replaced as long
 county_fips: all characters numeric; replaced as long
-(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000004.tmp not found)
-file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000004.tmp saved
+(note: file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000002.tmp not found)
+file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000002.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -581,8 +426,8 @@ Duplicates in terms of cbsa zipcode
 (43 observations deleted)
 zipcode: all characters numeric; replaced as long
 cbsa: all characters numeric; replaced as long
-(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000006.tmp not found)
-file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000006.tmp saved
+(note: file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000004.tmp not found)
+file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000004.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -596,9 +441,8 @@ file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000006.tmp saved
 (4,701 missing values generated)
 (4701 real changes made)
 (analytic weights assumed)
-(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000003.tmp not found)
-file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000003.tmp saved
-2016
+(note: file ../temp/safmrs_2016.dta not found)
+file ../temp/safmrs_2016.dta saved
 (0 real changes made)
 (6 real changes made)
 (6 real changes made)
@@ -618,8 +462,8 @@ Duplicates in terms of all variables
 (28 observations deleted)
 zipcode: all characters numeric; replaced as long
 county_fips: all characters numeric; replaced as long
-(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000005.tmp not found)
-file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000005.tmp saved
+(note: file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000002.tmp not found)
+file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000002.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -635,8 +479,8 @@ Duplicates in terms of cbsa zipcode
 (12 observations deleted)
 zipcode: all characters numeric; replaced as long
 cbsa: all characters numeric; replaced as long
-(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000007.tmp not found)
-file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000007.tmp saved
+(note: file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000004.tmp not found)
+file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000004.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -650,9 +494,8 @@ file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000007.tmp saved
 (4,532 missing values generated)
 (4532 real changes made)
 (analytic weights assumed)
-(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000004.tmp not found)
-file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000004.tmp saved
-2015
+(note: file ../temp/safmrs_2015.dta not found)
+file ../temp/safmrs_2015.dta saved
 (0 real changes made)
 (6 real changes made)
 (6 real changes made)
@@ -669,8 +512,8 @@ Duplicates in terms of all variables
 (52 observations deleted)
 zipcode: all characters numeric; replaced as long
 county_fips: all characters numeric; replaced as long
-(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000006.tmp not found)
-file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000006.tmp saved
+(note: file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000002.tmp not found)
+file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000002.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -686,8 +529,8 @@ Duplicates in terms of cbsa zipcode
 (14 observations deleted)
 zipcode: all characters numeric; replaced as long
 cbsa: all characters numeric; replaced as long
-(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000008.tmp not found)
-file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000008.tmp saved
+(note: file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000004.tmp not found)
+file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000004.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -701,9 +544,8 @@ file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000008.tmp saved
 (4,839 missing values generated)
 (4839 real changes made)
 (analytic weights assumed)
-(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000005.tmp not found)
-file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000005.tmp saved
-2014
+(note: file ../temp/safmrs_2014.dta not found)
+file ../temp/safmrs_2014.dta saved
 (0 real changes made)
 (6 real changes made)
 (6 real changes made)
@@ -724,8 +566,8 @@ Duplicates in terms of zipcode county_fips
 (1 observation deleted)
 zipcode: all characters numeric; replaced as long
 county_fips: all characters numeric; replaced as long
-(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000007.tmp not found)
-file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000007.tmp saved
+(note: file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000002.tmp not found)
+file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000002.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -741,8 +583,8 @@ Duplicates in terms of cbsa zipcode
 (19 observations deleted)
 zipcode: all characters numeric; replaced as long
 cbsa: all characters numeric; replaced as long
-(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000009.tmp not found)
-file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000009.tmp saved
+(note: file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000004.tmp not found)
+file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000004.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -756,9 +598,8 @@ file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000009.tmp saved
 (4,902 missing values generated)
 (4902 real changes made)
 (analytic weights assumed)
-(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000006.tmp not found)
-file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000006.tmp saved
-2013
+(note: file ../temp/safmrs_2013.dta not found)
+file ../temp/safmrs_2013.dta saved
 (54 real changes made)
 (6 real changes made)
 (6 real changes made)
@@ -780,8 +621,8 @@ Duplicates in terms of all variables
 (0 observations are duplicates)
 zipcode: all characters numeric; replaced as long
 county_fips: all characters numeric; replaced as long
-(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000008.tmp not found)
-file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000008.tmp saved
+(note: file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000002.tmp not found)
+file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000002.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -797,8 +638,8 @@ Duplicates in terms of cbsa zipcode
 (239 observations deleted)
 zipcode: all characters numeric; replaced as long
 cbsa: all characters numeric; replaced as long
-(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_00000a.tmp not found)
-file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_00000a.tmp saved
+(note: file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000004.tmp not found)
+file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000004.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -812,9 +653,8 @@ file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_00000a.tmp saved
 (4,024 missing values generated)
 (4024 real changes made)
 (analytic weights assumed)
-(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000007.tmp not found)
-file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000007.tmp saved
-2012
+(note: file ../temp/safmrs_2012.dta not found)
+file ../temp/safmrs_2012.dta saved
 (26,019 real changes made)
 cbsa: all characters numeric; replaced as long
 zipcode: all characters numeric; replaced as long
@@ -825,8 +665,8 @@ Duplicates in terms of all variables
 (988 observations deleted)
 zipcode: all characters numeric; replaced as long
 cbsa: all characters numeric; replaced as long
-(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000009.tmp not found)
-file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000009.tmp saved
+(note: file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000002.tmp not found)
+file C:\Users\shermo\AppData\Local\Temp\17\ST_5d88_000002.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -840,13 +680,6 @@ file C:\Users\diegog\AppData\Local\Temp\2\ST_67c8_000009.tmp saved
 (844 missing values generated)
 (844 real changes made)
 (analytic weights assumed)
-Appending year 2018
-Appending year 2017
-Appending year 2016
-Appending year 2015
-Appending year 2014
-Appending year 2013
-Appending year 2012
 (0 observations deleted)
 (483 observations deleted)
 
@@ -856,10 +689,10 @@ Duplicates in terms of all variables
 (data already sorted by zipcode year)
   variable year was float now int
   (323,762 bytes saved)
-============================================================================
+===============================================================================
 File: ../output/safrm.dta
 Key: zipcode year
-============================================================================
+===============================================================================
   161881:7(32277):961095122:1415907161
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
@@ -882,4 +715,4 @@ file ../output/safrm.dta saved
 . 
 end of do-file
 
- make.py ended: 2020-11-30 14:41:05
+ make.py ended: 2021-02-13 17:13:24
