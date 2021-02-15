@@ -10,7 +10,7 @@ main <- function() {
   
   datadir  <- paste0("../../../drive/raw_data/census/tract/nhgis", data_version, "_csv/")
   xwalkdir <- "../../../raw/crosswalk/" 
-  outdir   <- "../../../drive/base_large/output/"
+  outdir   <- "../../../drive/base_large/output/demographics/"
   tempdir  <- "../temp"
   log_file <- "../output/data_file_manifest.log"
   
