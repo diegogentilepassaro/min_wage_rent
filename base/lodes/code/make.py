@@ -36,7 +36,6 @@ start_make_logging()
 
 run_rbatch(program = 'make_lodes_ziplevel.R')
 run_rbatch(program = 'make_odmatrix_ziplevel.R')
-run_rbatch(program = 'make_lodes_experienced_ziplevel.R')
 
 end_make_logging()
 
