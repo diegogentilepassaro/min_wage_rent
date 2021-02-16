@@ -9,7 +9,7 @@ load_packages(c('tidyverse', 'data.table', 'bit64',
 main <- function() {
   datadir_lodes <- '../../../drive/raw_data/lodes/'
   datadir_xwalk <- '../../../raw/crosswalk/'
-  outdir        <- '../../../drive/base_large/output/lodes/'
+  outdir        <- '../../../drive/base_large/lodes/'
   log_file      <- '../output/data_file_manifest.log'
   
   xwalk <- make_xwalk(datadir_xwalk)
