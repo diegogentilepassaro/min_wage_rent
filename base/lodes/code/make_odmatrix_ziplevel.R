@@ -114,8 +114,8 @@ make_odmatrix_state <- function(stabb, datadir, aux, xwalk, dest_threshold) {
   # Keep only destination zipcode that make up to 90 percent of total workforce
   this_state_zip <- this_state_zip[totjob_cumsh <= dest_threshold, ][, c('h_totjob', 'totjob_cum', 'totjob_cumsh') := NULL] 
   
-  return(list("dt" = this_state_zip,
-              "fips" = this_fips))
+  return(list("dt"   = this_state_zip,
+              "fips" = str_pad(this_fips, 2, pad = 0)))
 }
 
 # Execute
