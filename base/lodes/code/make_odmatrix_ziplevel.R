@@ -20,6 +20,7 @@ main <- function(paquetes, n_cores) {
 
   # Prepare crosswalks 
   xwalk_list <- make_xwalk_od(datadir_xwalk)
+
   blc_tract_xwalk <- xwalk_list[[1]]
   tract_zip_xwalk <- xwalk_list[[2]]
   rm(xwalk_list)
@@ -27,6 +28,7 @@ main <- function(paquetes, n_cores) {
   # Prepare states od matrices
   files <- list.files(datadir_lodes, 
                       full.names = T, pattern = "*.gz")
+
   files <- files[!grepl("pr", files)]          # Ignore Puerto Rico
   
   files_main <- files[grepl("_main_", files)]
@@ -118,3 +120,4 @@ make_odmatrix_state <- function(stabb, datadir, aux, xwalk, dest_threshold) {
 
 # Execute
 main(paquetes, n_cores) 
+

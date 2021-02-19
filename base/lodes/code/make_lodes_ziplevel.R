@@ -173,7 +173,8 @@ make_final_vars <- function(data) {
   data[, walall_29y_lowinc_zsh := welall_njob_29young / walall_tot]
   data[, halall_29y_lowinc_zsh := helall_njob_29young / halall_tot]
   
-  data[, c('w_sttot', 'h_sttot') :=lapply(.SD, function(x) sum(x, na.rm = T)), by = 'st', .SDcols = c('welall_njob_29young', 'helall_njob_29young')]
+  data[, c('w_sttot', 'h_sttot') := lapply(.SD, function(x) sum(x, na.rm = T)), 
+       by = 'st', .SDcols = c('welall_njob_29young', 'helall_njob_29young')]
 
   data[, walall_29y_lowinc_ssh := lapply(.SD, function(x) x / w_sttot), 
         .SDcols = c('welall_njob_29young')]
@@ -195,5 +196,5 @@ make_final_vars <- function(data) {
 }
 
 
-#Execute
+# Execute
 main()
