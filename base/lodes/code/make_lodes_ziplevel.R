@@ -2,6 +2,8 @@ remove(list = ls())
 source("../../../lib/R/load_packages.R")
 source("../../../lib/R/save_data.R")
 
+source("make_xwalk.R")
+
 options(scipen=999)
 load_packages(c('tidyverse', 'data.table', 'bit64', 
                 'purrr', 'readxl', 'parallel', 'R.utils'))
@@ -12,7 +14,7 @@ main <- function() {
   outdir        <- '../../../drive/base_large/lodes/'
   log_file      <- '../output/data_file_manifest.log'
   
-  xwalk <- make_xwalk(datadir_xwalk)
+  xwalk <- make_xwalk_raw_wac(datadir_xwalk)
   
   tract_zip_xwalk <- read_excel(paste0(datadir_xwalk, "TRACT_ZIP_122019.xlsx"), 
                                 col_names = c('tract_fips', 'zipcode', 'res_ratio', 'bus_ratio', 'oth_ratio', 'tot_ratio'),
@@ -74,19 +76,6 @@ main <- function() {
             logfile = log_file)
 }
 
-make_xwalk <- function(instub) {
-  xwalk_files <- list.files(paste0(instub, 'lodes/'), full.names = T)
-
-  xwalk <- rbindlist(lapply(xwalk_files, function(x) fread(x)))
-  
-  setnames(xwalk, old = c('tabblk2010', 'trct'), new = c('blockfips', 'tract_fips'))
-  target_xwalk <- c('blockfips', 'tract_fips', 'st')
-  xwalk[, tract_fips := as.numeric(tract_fips)]
-  xwalk <- xwalk[, ..target_xwalk]
-  
-  return(xwalk)
-}
-
 format_lodes <- function(pov, seg, type, vintage, instub, xw, xw_tractzip) {
   
   files <- list.files(paste0(instub, pov, '/', seg, '/', type, '/', vintage), full.names = T)
@@ -94,9 +83,7 @@ format_lodes <- function(pov, seg, type, vintage, instub, xw, xw_tractzip) {
   files <- files[!grepl("pr", files)]          # Ignore Puerto Rico
   files <- files[!grepl("desktop.ini", files)] # Ignore desktop.ini
   
-  cores <- 1 ## Parallelization doesn't work in Windows
-  df <- rbindlist(mclapply(files, mc.cores = cores, function(x) fread(x)))
-  
+  df <- rbindlist(lapply(files, fread))
   
   target_vars <- c('C000', 'CA01', 'CE01', 'CR02', 'CD01', 'CD02')
   target_names <- c('tot', 'njob_29young', 'njob_lowinc', 'njob_black', 'njob_nohs', 'njob_hs')
@@ -153,7 +140,6 @@ make_shares <- function(data, vnames, state.share = TRUE) {
     data[, (ssh_names) := lapply(.SD, function(x) x / st_tot), .SDcols = vnames]
     data[, st_tot := NULL]
   }
-  #data[, (vnames) := NULL]
   
   return(data)
 }
@@ -189,28 +175,23 @@ make_final_vars <- function(data) {
   
   data[, c('w_sttot', 'h_sttot') :=lapply(.SD, function(x) sum(x, na.rm = T)), by = 'st', .SDcols = c('welall_njob_29young', 'helall_njob_29young')]
 
-  data[, walall_29y_lowinc_ssh := lapply(.SD, function(x) x / w_sttot), .SDcols = c('welall_njob_29young')]
-  data[, halall_29y_lowinc_ssh := lapply(.SD, function(x) x / h_sttot), .SDcols = c('helall_njob_29young')]
+  data[, walall_29y_lowinc_ssh := lapply(.SD, function(x) x / w_sttot), 
+        .SDcols = c('welall_njob_29young')]
+  data[, halall_29y_lowinc_ssh := lapply(.SD, function(x) x / h_sttot), 
+        .SDcols = c('helall_njob_29young')]
   
   data[, c('w_sttot', 'h_sttot') := NULL]
   
-    vars <- c('walall_njob_29young_zsh', 
-            'walall_njob_29young_ssh', 
-            'halall_njob_29young_zsh', 
-            'halall_njob_29young_ssh', 
-            'walall_njob_lowinc_zsh', 
-            'walall_njob_lowinc_ssh', 
-            'halall_njob_lowinc_zsh', 
-            'halall_njob_lowinc_ssh',
-            'walall_29y_lowinc_zsh', 
-            'walall_29y_lowinc_ssh', 
-            'halall_29y_lowinc_zsh', 
-            'halall_29y_lowinc_ssh')
+  vars <- c('walall_njob_29young_zsh',  'walall_njob_29young_ssh', 
+            'halall_njob_29young_zsh',  'halall_njob_29young_ssh', 
+            'walall_njob_lowinc_zsh',   'walall_njob_lowinc_ssh', 
+            'halall_njob_lowinc_zsh',   'halall_njob_lowinc_ssh',
+            'walall_29y_lowinc_zsh',    'walall_29y_lowinc_ssh', 
+            'halall_29y_lowinc_zsh',    'halall_29y_lowinc_ssh')
   
   vars <- c('zipcode', vars)
   
-  data <- data[, ..vars]
-  return(data)
+  return(data[, ..vars])
 }
 
 

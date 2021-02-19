@@ -1,14 +1,14 @@
 
- make.py started: 2021-02-14 15:01:12 /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/base/lodes/code 
+ make.py started: 2021-02-18 18:51:58 C:\Users\shermo\Documents\GitHub\min_wage_rent\base\lodes\code 
 
 
 
 
-Execute:  R CMD BATCH --no-save "./make_lodes_ziplevel.R" make_lodes_ziplevel.Rout
+Execute:  R CMD BATCH --no-save "./make_odmatrix_ziplevel.R" make_odmatrix_ziplevel.Rout
 
-R version 4.0.2 (2020-06-22) -- "Taking Off Again"
+R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
 Copyright (C) 2020 The R Foundation for Statistical Computing
-Platform: x86_64-apple-darwin17.0 (64-bit)
+Platform: x86_64-w64-mingw32/x64 (64-bit)
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
 You are welcome to redistribute it under certain conditions.
@@ -34,48 +34,52 @@ Please cite as:
  R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
 
 
-Attaching package: ‘dplyr’
+Attaching package: 'dplyr'
 
-The following objects are masked from ‘package:stats’:
+The following objects are masked from 'package:stats':
 
     filter, lag
 
-The following objects are masked from ‘package:base’:
+The following objects are masked from 'package:base':
 
     intersect, setdiff, setequal, union
 
 
-Attaching package: ‘data.table’
+Attaching package: 'data.table'
 
-The following objects are masked from ‘package:dplyr’:
+The following objects are masked from 'package:dplyr':
 
     between, first, last
 
 > 
+> source("make_xwalk.R")
+> 
 > options(scipen=999)
-> load_packages(c('tidyverse', 'data.table', 'bit64', 
-+                 'purrr', 'readxl', 'parallel', 'R.utils'))
-── Attaching packages ─────────────────────────────────────── tidyverse 1.3.0 ──
-✔ ggplot2 3.3.2     ✔ purrr   0.3.4
-✔ tibble  3.0.4     ✔ stringr 1.4.0
-✔ tidyr   1.1.2     ✔ forcats 0.5.0
-✔ readr   1.3.1     
-── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
-✖ data.table::between() masks dplyr::between()
-✖ dplyr::filter()       masks stats::filter()
-✖ data.table::first()   masks dplyr::first()
-✖ dplyr::lag()          masks stats::lag()
-✖ data.table::last()    masks dplyr::last()
-✖ purrr::transpose()    masks data.table::transpose()
+> 
+> paquetes <- c('tidyverse', 'data.table', 'bit64', 'purrr', 'readxl', 'parallel')
+> 
+> load_packages(paquetes)
+-- Attaching packages --------------------------------------- tidyverse 1.3.0 --
+v ggplot2 3.3.2     v purrr   0.3.4
+v tibble  3.0.4     v stringr 1.4.0
+v tidyr   1.1.2     v forcats 0.5.0
+v readr   1.4.0     
+-- Conflicts ------------------------------------------ tidyverse_conflicts() --
+x data.table::between() masks dplyr::between()
+x dplyr::filter()       masks stats::filter()
+x data.table::first()   masks dplyr::first()
+x dplyr::lag()          masks stats::lag()
+x data.table::last()    masks dplyr::last()
+x purrr::transpose()    masks data.table::transpose()
 Loading required package: bit
 
-Attaching package: ‘bit’
+Attaching package: 'bit'
 
-The following object is masked from ‘package:data.table’:
+The following object is masked from 'package:data.table':
 
     setattr
 
-The following object is masked from ‘package:base’:
+The following object is masked from 'package:base':
 
     xor
 
@@ -97,48 +101,316 @@ WARNING don't use as subscripts
 WARNING semantics differ from integer
 for more help type ?bit64
 
-Attaching package: ‘bit64’
+Attaching package: 'bit64'
 
-The following objects are masked from ‘package:base’:
+The following objects are masked from 'package:base':
 
-    :, %in%, is.double, match, order, rank
+    %in%, :, is.double, match, order, rank
+
+> 
+> library(parallel)
+> n_cores <- 12
+> 
+> main <- function(paquetes, n_cores) {
++   datadir_lodes <- '../../../drive/raw_data/lodes/od/JT00/2017/'
++   datadir_xwalk <- '../../../raw/crosswalk/'
++   outdir        <- '../../../drive/base_large/lodes/'
++ 
++   # Prepare crosswalks 
++   xwalk_list <- make_xwalk_od(datadir_xwalk)
++   blc_tract_xwalk <- xwalk_list[[1]]
++   tract_zip_xwalk <- xwalk_list[[2]]
++   rm(xwalk_list)
++   
++   # Prepare states od matrices
++   files <- list.files(datadir_lodes, 
++                       full.names = T, pattern = "*.gz")
++   files <- files[!grepl("pr", files)]          # Ignore Puerto Rico
++   
++   files_main <- files[grepl("_main_", files)]
++   files_aux  <- files[grepl("_aux_", files)]
++   
++   state_list <- c(tolower(state.abb), 'dc')
++   
++   aux_all <- rbindlist(lapply(files_aux, fread))
++   aux_all[, h_statefips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0), 1, 2))]
++   
++   # Parallel set-up
++   cl <- makeCluster(n_cores, type = "PSOCK")   # Create cluster. Use type = "FORK" in Mac
++   
++   clusterExport(cl, "paquetes")                                         # Load "paquetes" object in nodes
++   clusterEvalQ(cl, lapply(paquetes, require, character.only = TRUE))    # Load packages in nodes
++   clusterExport(cl, "make_odmatrix_state", env = .GlobalEnv)            # Load global environment objects in nodes
++   clusterExport(cl, c("datadir_lodes", "aux_all", "tract_zip_xwalk"), 
++                     env = environment())                                # Load local environment objects in nodes
++ 
++   odzip_list <- parLapply(cl, state_list, function(y) {
++     make_odmatrix_state(stabb = y, datadir = datadir_lodes,
++                         aux = aux_all, xwalk = tract_zip_xwalk, dest_threshold = .9)
++     
++   })
++   stopCluster(cl)
++   
++   for (state in odzip_list) {
++     save_data(state$dt, key = c('h_zipcode', 'w_zipcode'), 
++               filename = paste0(outdir, 'odzip_', state$fips, '.csv'), 
++               logfile  = "../output/odmatrix_data_manifest.log")
++   }
++ }
+> 
+> 
+> make_odmatrix_state <- function(stabb, datadir, aux, xwalk, dest_threshold) {
++   
++   this_state <- fread(paste0(datadir, stabb, '_od_main_JT00_2017.csv.gz'))
++   this_fips  <- as.numeric(substr(str_pad(this_state$h_geocode[1], 15, pad = 0),1 , 2))
++   this_aux   <- aux[h_statefips==this_fips,][, h_statefips := NULL]
++ 
++   this_state <- rbindlist(list(this_state, this_aux))
++   
++   this_state <- this_state[, c('w_geocode', 'h_geocode', 'S000', 'SA01', 'SE01')]
++   setnames(this_state, old = c('S000', 'SA01', 'SE01'), new = c('totjob', 'job_young', 'job_lowinc'))
++   
++   # Collapse at tract level
++   this_state[, w_tractfips := as.numeric(substr(str_pad(w_geocode, 15, pad = 0), 1, 11))]
++   this_state <- this_state[, lapply(.SD, sum, na.rm = T),
++                            .SDcols = c('totjob', 'job_young', 'job_lowinc'), 
++                            by = c('h_geocode', 'w_tractfips')]
++   this_state[, h_tractfips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0), 1, 11))]
++   this_state <- this_state[, lapply(.SD, sum, na.rm = T),
++                            .SDcols = c('totjob', 'job_young', 'job_lowinc'),
++                            by = c('h_tractfips', 'w_tractfips')]
++   
++   # Define function to crosswalk destination tract to zipcode for each origin tract separately
++   tract_to_zip_work <- function(data, xwlk = xwalk) {
++     data <- data[xwlk, on = c('w_tractfips' = 'tract_fips'), nomatch = 0]
++     data <- data[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), 
++                  by = c('h_tractfips', 'zipcode'), .SDcols = c('totjob', 'job_young', 'job_lowinc')]
++     setnames(data, old = 'zipcode', new = 'w_zipcode')
++     return(data)
++   }
++   # Define function to crosswalk origin tract to zipcode for each destination zipcode separately
++   tract_to_zip_home <- function(data, xwlk = xwalk) {
++     data <- data[xwlk, on = c('h_tractfips' = 'tract_fips'), nomatch = 0]
++     data <- data[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), 
++                  by = c('w_zipcode', 'zipcode'), .SDcols = c('totjob', 'job_young', 'job_lowinc')]
++     setnames(data, old = 'zipcode', new = 'h_zipcode')
++     return(data)
++   }
++   
++   this_state_zip <- split(this_state, by = 'h_tractfips')
++   this_state_zip <- rbindlist(lapply(this_state_zip, tract_to_zip_work))
++   this_state_zip <- split(this_state_zip, by = 'w_zipcode')
++   this_state_zip <- rbindlist(lapply(this_state_zip, tract_to_zip_home))
++   
++   this_state_zip <- this_state_zip[order(h_zipcode, - totjob)]
++   this_state_zip[, 'h_totjob' := sum(totjob, na.rm = T), by = 'h_zipcode']
++   this_state_zip[, 'totjob_cum' := cumsum(totjob), by = 'h_zipcode'] 
++   this_state_zip[, 'totjob_cumsh' := totjob_cum / h_totjob]
++ 
++   # Keep only destination zipcode that make up to 90 percent of total workforce
++   this_state_zip <- this_state_zip[totjob_cumsh <= dest_threshold, ][, c('h_totjob', 'totjob_cum', 'totjob_cumsh') := NULL] 
++   
++   return(list("dt" = this_state_zip,
++               "fips" = this_fips))
++ }
+> 
+> # Execute
+> main(paquetes, n_cores) 
+[1] "File '../../../drive/base_large/lodes/odzip_1.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_2.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_4.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_5.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_6.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_8.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_9.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_10.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_12.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_13.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_15.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_16.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_17.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_18.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_19.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_20.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_21.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_22.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_23.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_24.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_25.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_26.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_27.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_28.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_29.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_30.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_31.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_32.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_33.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_34.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_35.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_36.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_37.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_38.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_39.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_40.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_41.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_42.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_44.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_45.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_46.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_47.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_48.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_49.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_50.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_51.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_53.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_54.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_55.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_56.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes/odzip_11.csv' saved successfully."
+There were 50 or more warnings (use warnings() to see the first 50)
+> 
+> proc.time()
+   user  system elapsed 
+ 219.43   40.39 1638.10 
+
+
+Execute:  R CMD BATCH --no-save "./make_lodes_ziplevel.R" make_lodes_ziplevel.Rout
+
+R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list = ls())
+> source("../../../lib/R/load_packages.R")
+> source("../../../lib/R/save_data.R")
+
+Please cite as: 
+
+ Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+ R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
+
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+
+Attaching package: 'data.table'
+
+The following objects are masked from 'package:dplyr':
+
+    between, first, last
+
+> 
+> source("make_xwalk.R")
+> 
+> options(scipen=999)
+> load_packages(c('tidyverse', 'data.table', 'bit64', 
++                 'purrr', 'readxl', 'parallel', 'R.utils'))
+-- Attaching packages --------------------------------------- tidyverse 1.3.0 --
+v ggplot2 3.3.2     v purrr   0.3.4
+v tibble  3.0.4     v stringr 1.4.0
+v tidyr   1.1.2     v forcats 0.5.0
+v readr   1.4.0     
+-- Conflicts ------------------------------------------ tidyverse_conflicts() --
+x data.table::between() masks dplyr::between()
+x dplyr::filter()       masks stats::filter()
+x data.table::first()   masks dplyr::first()
+x dplyr::lag()          masks stats::lag()
+x data.table::last()    masks dplyr::last()
+x purrr::transpose()    masks data.table::transpose()
+Loading required package: bit
+
+Attaching package: 'bit'
+
+The following object is masked from 'package:data.table':
+
+    setattr
+
+The following object is masked from 'package:base':
+
+    xor
+
+Attaching package bit64
+package:bit64 (c) 2011-2017 Jens Oehlschlaegel
+creators: integer64 runif64 seq :
+coercion: as.integer64 as.vector as.logical as.integer as.double as.character as.bitstring
+logical operator: ! & | xor != == < <= >= >
+arithmetic operator: + - * / %/% %% ^
+math: sign abs sqrt log log2 log10
+math: floor ceiling trunc round
+querying: is.integer64 is.vector [is.atomic} [length] format print str
+values: is.na is.nan is.finite is.infinite
+aggregation: any all min max range sum prod
+cumulation: diff cummin cummax cumsum cumprod
+access: length<- [ [<- [[ [[<-
+combine: c rep cbind rbind as.data.frame
+WARNING don't use as subscripts
+WARNING semantics differ from integer
+for more help type ?bit64
+
+Attaching package: 'bit64'
+
+The following objects are masked from 'package:base':
+
+    %in%, :, is.double, match, order, rank
 
 Loading required package: R.oo
 Loading required package: R.methodsS3
 R.methodsS3 v1.8.1 (2020-08-26 16:20:06 UTC) successfully loaded. See ?R.methodsS3 for help.
 R.oo v1.24.0 (2020-08-26 16:11:58 UTC) successfully loaded. See ?R.oo for help.
 
-Attaching package: ‘R.oo’
+Attaching package: 'R.oo'
 
-The following object is masked from ‘package:R.methodsS3’:
+The following object is masked from 'package:R.methodsS3':
 
     throw
 
-The following object is masked from ‘package:bit’:
+The following object is masked from 'package:bit':
 
     clone
 
-The following objects are masked from ‘package:methods’:
+The following objects are masked from 'package:methods':
 
     getClasses, getMethods
 
-The following objects are masked from ‘package:base’:
+The following objects are masked from 'package:base':
 
     attach, detach, load, save
 
 R.utils v2.10.1 (2020-08-26 22:50:31 UTC) successfully loaded. See ?R.utils for help.
 
-Attaching package: ‘R.utils’
+Attaching package: 'R.utils'
 
-The following object is masked from ‘package:tidyr’:
+The following object is masked from 'package:tidyr':
 
     extract
 
-The following object is masked from ‘package:utils’:
+The following object is masked from 'package:utils':
 
     timestamp
 
-The following objects are masked from ‘package:base’:
+The following objects are masked from 'package:base':
 
     cat, commandArgs, getOption, inherits, isOpen, nullfile, parse,
     warnings
@@ -147,10 +419,10 @@ The following objects are masked from ‘package:base’:
 > main <- function() {
 +   datadir_lodes <- '../../../drive/raw_data/lodes/'
 +   datadir_xwalk <- '../../../raw/crosswalk/'
-+   outdir        <- '../../../drive/base_large/output/lodes/'
++   outdir        <- '../../../drive/base_large/lodes/'
 +   log_file      <- '../output/data_file_manifest.log'
 +   
-+   xwalk <- make_xwalk(datadir_xwalk)
++   xwalk <- make_xwalk_raw_wac(datadir_xwalk)
 +   
 +   tract_zip_xwalk <- read_excel(paste0(datadir_xwalk, "TRACT_ZIP_122019.xlsx"), 
 +                                 col_names = c('tract_fips', 'zipcode', 'res_ratio', 'bus_ratio', 'oth_ratio', 'tot_ratio'),
@@ -212,19 +484,6 @@ The following objects are masked from ‘package:base’:
 +             logfile = log_file)
 + }
 > 
-> make_xwalk <- function(instub) {
-+   xwalk_files <- list.files(paste0(instub, 'lodes/'), full.names = T)
-+ 
-+   xwalk <- rbindlist(lapply(xwalk_files, function(x) fread(x)))
-+   
-+   setnames(xwalk, old = c('tabblk2010', 'trct'), new = c('blockfips', 'tract_fips'))
-+   target_xwalk <- c('blockfips', 'tract_fips', 'st')
-+   xwalk[, tract_fips := as.numeric(tract_fips)]
-+   xwalk <- xwalk[, ..target_xwalk]
-+   
-+   return(xwalk)
-+ }
-> 
 > format_lodes <- function(pov, seg, type, vintage, instub, xw, xw_tractzip) {
 +   
 +   files <- list.files(paste0(instub, pov, '/', seg, '/', type, '/', vintage), full.names = T)
@@ -232,9 +491,7 @@ The following objects are masked from ‘package:base’:
 +   files <- files[!grepl("pr", files)]          # Ignore Puerto Rico
 +   files <- files[!grepl("desktop.ini", files)] # Ignore desktop.ini
 +   
-+   cores <- 1 ## Parallelization doesn't work in Windows
-+   df <- rbindlist(mclapply(files, mc.cores = cores, function(x) fread(x)))
-+   
++   df <- rbindlist(lapply(files, fread))
 +   
 +   target_vars <- c('C000', 'CA01', 'CE01', 'CR02', 'CD01', 'CD02')
 +   target_names <- c('tot', 'njob_29young', 'njob_lowinc', 'njob_black', 'njob_nohs', 'njob_hs')
@@ -291,7 +548,6 @@ The following objects are masked from ‘package:base’:
 +     data[, (ssh_names) := lapply(.SD, function(x) x / st_tot), .SDcols = vnames]
 +     data[, st_tot := NULL]
 +   }
-+   #data[, (vnames) := NULL]
 +   
 +   return(data)
 + }
@@ -327,299 +583,34 @@ The following objects are masked from ‘package:base’:
 +   
 +   data[, c('w_sttot', 'h_sttot') :=lapply(.SD, function(x) sum(x, na.rm = T)), by = 'st', .SDcols = c('welall_njob_29young', 'helall_njob_29young')]
 + 
-+   data[, walall_29y_lowinc_ssh := lapply(.SD, function(x) x / w_sttot), .SDcols = c('welall_njob_29young')]
-+   data[, halall_29y_lowinc_ssh := lapply(.SD, function(x) x / h_sttot), .SDcols = c('helall_njob_29young')]
++   data[, walall_29y_lowinc_ssh := lapply(.SD, function(x) x / w_sttot), 
++         .SDcols = c('welall_njob_29young')]
++   data[, halall_29y_lowinc_ssh := lapply(.SD, function(x) x / h_sttot), 
++         .SDcols = c('helall_njob_29young')]
 +   
 +   data[, c('w_sttot', 'h_sttot') := NULL]
 +   
-+     vars <- c('walall_njob_29young_zsh', 
-+             'walall_njob_29young_ssh', 
-+             'halall_njob_29young_zsh', 
-+             'halall_njob_29young_ssh', 
-+             'walall_njob_lowinc_zsh', 
-+             'walall_njob_lowinc_ssh', 
-+             'halall_njob_lowinc_zsh', 
-+             'halall_njob_lowinc_ssh',
-+             'walall_29y_lowinc_zsh', 
-+             'walall_29y_lowinc_ssh', 
-+             'halall_29y_lowinc_zsh', 
-+             'halall_29y_lowinc_ssh')
++   vars <- c('walall_njob_29young_zsh',  'walall_njob_29young_ssh', 
++             'halall_njob_29young_zsh',  'halall_njob_29young_ssh', 
++             'walall_njob_lowinc_zsh',   'walall_njob_lowinc_ssh', 
++             'halall_njob_lowinc_zsh',   'halall_njob_lowinc_ssh',
++             'walall_29y_lowinc_zsh',    'walall_29y_lowinc_ssh', 
++             'halall_29y_lowinc_zsh',    'halall_29y_lowinc_ssh')
 +   
 +   vars <- c('zipcode', vars)
 +   
-+   data <- data[, ..vars]
-+   return(data)
++   return(data[, ..vars])
 + }
 > 
 > 
 > #Execute
 > main()
-[1] "File '../../../drive/base_large/output/lodes/zip_lodes.dta' saved successfully."
+[1] "File '../../../drive/base_large/lodes/zip_lodes.dta' saved successfully."
 [1] "Log file generated successfully."
 There were 50 or more warnings (use warnings() to see the first 50)
 > 
 > proc.time()
    user  system elapsed 
-421.801  24.880 258.684 
+ 224.96   48.60  442.65 
 
-
-Execute:  R CMD BATCH --no-save "./make_odmatrix_ziplevel.R" make_odmatrix_ziplevel.Rout
-
-R version 4.0.2 (2020-06-22) -- "Taking Off Again"
-Copyright (C) 2020 The R Foundation for Statistical Computing
-Platform: x86_64-apple-darwin17.0 (64-bit)
-
-R is free software and comes with ABSOLUTELY NO WARRANTY.
-You are welcome to redistribute it under certain conditions.
-Type 'license()' or 'licence()' for distribution details.
-
-  Natural language support but running in an English locale
-
-R is a collaborative project with many contributors.
-Type 'contributors()' for more information and
-'citation()' on how to cite R or R packages in publications.
-
-Type 'demo()' for some demos, 'help()' for on-line help, or
-'help.start()' for an HTML browser interface to help.
-Type 'q()' to quit R.
-
-> remove(list = ls())
-> source("../../../lib/R/load_packages.R")
-> source("../../../lib/R/save_data.R")
-
-Please cite as: 
-
- Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
- R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
-
-
-Attaching package: ‘dplyr’
-
-The following objects are masked from ‘package:stats’:
-
-    filter, lag
-
-The following objects are masked from ‘package:base’:
-
-    intersect, setdiff, setequal, union
-
-
-Attaching package: ‘data.table’
-
-The following objects are masked from ‘package:dplyr’:
-
-    between, first, last
-
-> 
-> options(scipen=999)
-> load_packages(c('tidyverse', 'data.table', 'bit64', 'purrr', 'readxl', 'parallel'))
-── Attaching packages ─────────────────────────────────────── tidyverse 1.3.0 ──
-✔ ggplot2 3.3.2     ✔ purrr   0.3.4
-✔ tibble  3.0.4     ✔ stringr 1.4.0
-✔ tidyr   1.1.2     ✔ forcats 0.5.0
-✔ readr   1.3.1     
-── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
-✖ data.table::between() masks dplyr::between()
-✖ dplyr::filter()       masks stats::filter()
-✖ data.table::first()   masks dplyr::first()
-✖ dplyr::lag()          masks stats::lag()
-✖ data.table::last()    masks dplyr::last()
-✖ purrr::transpose()    masks data.table::transpose()
-Loading required package: bit
-
-Attaching package: ‘bit’
-
-The following object is masked from ‘package:data.table’:
-
-    setattr
-
-The following object is masked from ‘package:base’:
-
-    xor
-
-Attaching package bit64
-package:bit64 (c) 2011-2017 Jens Oehlschlaegel
-creators: integer64 runif64 seq :
-coercion: as.integer64 as.vector as.logical as.integer as.double as.character as.bitstring
-logical operator: ! & | xor != == < <= >= >
-arithmetic operator: + - * / %/% %% ^
-math: sign abs sqrt log log2 log10
-math: floor ceiling trunc round
-querying: is.integer64 is.vector [is.atomic} [length] format print str
-values: is.na is.nan is.finite is.infinite
-aggregation: any all min max range sum prod
-cumulation: diff cummin cummax cumsum cumprod
-access: length<- [ [<- [[ [[<-
-combine: c rep cbind rbind as.data.frame
-WARNING don't use as subscripts
-WARNING semantics differ from integer
-for more help type ?bit64
-
-Attaching package: ‘bit64’
-
-The following objects are masked from ‘package:base’:
-
-    :, %in%, is.double, match, order, rank
-
-> 
-> main <- function() {
-+   datadir_lodes <- '../../../drive/raw_data/lodes/od/JT00/2017/'
-+   datadir_xwalk <- '../../../raw/crosswalk/'
-+   outdir        <- '../../../drive/base_large/output/lodes/'
-+   
-+   #prepare crosswalks 
-+   xwalk_list <- make_xwalk(datadir_xwalk)
-+   blc_tract_xwalk <- xwalk_list[[1]]
-+   tract_zip_xwalk <- xwalk_list[[2]]
-+   rm(xwalk_list)
-+   
-+   #Prepare states od matrices: 
-+   files <- list.files(datadir_lodes, full.names = T)
-+   files <- files[!grepl("Icon\r$", files)]
-+   files <- files[!grepl("pr", files)]          # Ignore Puerto Rico
-+   files <- files[!grepl("desktop.ini", files)] # Ignore desktop.ini
-+   files_main <- files[grepl("_main_", files)]
-+   files_aux <- files[grepl("_aux_", files)]
-+   
-+   state_list <- c(tolower(state.abb), 'dc')
-+   
-+   aux_all <- rbindlist(lapply(files_aux, function(x) fread(x)))
-+   aux_all[, h_statefips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0),1 , 2))]
-+   
-+   odzip <- lapply(state_list, function(y) {
-+     make_odmatrix_state(stabb = y, datadir = datadir_lodes, out = outdir, aux = aux_all, xwalk = tract_zip_xwalk, dest_threshold = .9)
-+   })
-+ }
-> 
-> make_xwalk <- function(instub) { #crosswalk function
-+   xwalk_files <- list.files(paste0(instub, 'lodes/'), full.names = T)
-+   xwalk <- rbindlist(lapply(xwalk_files, function(x) fread(x)))
-+   setnames(xwalk, old = c('tabblk2010', 'trct'), new = c('blockfips', 'tract_fips'))
-+   target_xwalk <- c('blockfips', 'tract_fips', 'st')
-+   xwalk[, tract_fips := as.numeric(tract_fips)]
-+   xwalk <- xwalk[, ..target_xwalk]
-+   
-+   tract_zip_xwalk <- read_excel(paste0(instub, "TRACT_ZIP_122019.xlsx"), 
-+                                 col_names = c('tract_fips', 'zipcode', 'res_ratio', 'bus_ratio', 'oth_ratio', 'tot_ratio'),
-+                                 col_types = c('numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric'))
-+   tract_zip_xwalk <- setDT(tract_zip_xwalk)
-+   tract_zip_xwalk[, c('res_ratio', 'bus_ratio', 'oth_ratio'):= NULL]
-+   tract_zip_xwalk <- tract_zip_xwalk[!is.na(zipcode), ]
-+   
-+   return(list(xwalk, tract_zip_xwalk))
-+ }
-> 
-> make_odmatrix_state <- function(stabb, datadir, out, aux, xwalk, dest_threshold) {
-+   #for each state (lapply): 
-+   this_state <- fread(paste0(datadir, stabb, '_od_main_JT00_2017.csv.gz'))
-+   this_fips <- as.numeric(substr(str_pad(this_state$h_geocode[1], 15, pad = 0),1 , 2))
-+   this_aux <- aux[h_statefips==this_fips,][, h_statefips:=NULL]
-+   this_state <- rbindlist(list(this_state, this_aux))
-+   
-+   this_state <- this_state[, c('w_geocode', 'h_geocode', 'S000', 'SA01', 'SE01')]
-+   setnames(this_state, old = c('S000', 'SA01', 'SE01'), new = c('totjob', 'job_young', 'job_lowinc'))
-+   
-+   #collapse at tract level
-+   this_state[, w_tractfips := as.numeric(substr(str_pad(w_geocode, 15, pad = 0), 1, 11))]
-+   this_state <- this_state[, lapply(.SD, sum, na.rm = T), 
-+                            .SDcols = c('totjob', 'job_young', 'job_lowinc'), 
-+                            by = c('h_geocode', 'w_tractfips')]
-+   this_state[, h_tractfips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0), 1, 11))]
-+   this_state <- this_state[, lapply(.SD, sum, na.rm = T), 
-+                            .SDcols = c('totjob', 'job_young', 'job_lowinc'), 
-+                            by = c('h_tractfips', 'w_tractfips')]
-+   
-+   #define function to crosswalk destination tract to zipcode for each origin tract separately
-+   tract_to_zip_work <- function(data, xwlk = xwalk) {
-+     data <- data[xwlk, on = c('w_tractfips' = 'tract_fips'), nomatch = 0]
-+     data <- data[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), 
-+                  by = c('h_tractfips', 'zipcode'), .SDcols = c('totjob', 'job_young', 'job_lowinc')]
-+     setnames(data, old = 'zipcode', new = 'w_zipcode')
-+     return(data)
-+   }
-+   #define function to crosswalk origin tract to zipcode for each destination zipcode separately
-+   tract_to_zip_home <- function(data, xwlk = xwalk) {
-+     data <- data[xwlk, on = c('h_tractfips' = 'tract_fips'), nomatch = 0]
-+     data <- data[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), 
-+                  by = c('w_zipcode', 'zipcode'), .SDcols = c('totjob', 'job_young', 'job_lowinc')]
-+     setnames(data, old = 'zipcode', new = 'h_zipcode')
-+     return(data)
-+   }
-+   
-+   this_state_zip <- split(this_state, by = 'h_tractfips')
-+   this_state_zip <- rbindlist(lapply(this_state_zip, tract_to_zip_work))
-+   this_state_zip <- split(this_state_zip, by = 'w_zipcode')
-+   this_state_zip <- rbindlist(lapply(this_state_zip, tract_to_zip_home))
-+   
-+   this_state_zip <- this_state_zip[order(h_zipcode, - totjob)]
-+   this_state_zip[, 'h_totjob' := sum(totjob, na.rm = T), by = 'h_zipcode']
-+   this_state_zip[, 'totjob_cum' := cumsum(totjob), by = 'h_zipcode'] 
-+   this_state_zip[, 'totjob_cumsh' := totjob_cum / h_totjob]
-+   this_state_zip <- this_state_zip[totjob_cumsh<=dest_threshold, ][, c('h_totjob', 'totjob_cum', 'totjob_cumsh'):=NULL] #keep only destination zipcode that make up to 90 percent of total workforce
-+   
-+   this_fips <- str_pad(this_fips, 2, pad = 0)
-+   save_data(this_state_zip, key = c('h_zipcode', 'w_zipcode'), 
-+             filename = paste0(out, 'odzip_', this_fips, '.csv'), 
-+             logfile = "../output/odmatrix_data_manifest.log")
-+ }
-> 
-> 
-> main() 
-[1] "File '../../../drive/base_large/output/lodes/odzip_01.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_02.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_04.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_05.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_06.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_08.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_09.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_10.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_12.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_13.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_15.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_16.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_17.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_18.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_19.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_20.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_21.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_22.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_23.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_24.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_25.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_26.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_27.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_28.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_29.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_30.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_31.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_32.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_33.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_34.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_35.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_36.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_37.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_38.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_39.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_40.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_41.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_42.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_44.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_45.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_46.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_47.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_48.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_49.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_50.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_51.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_53.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_54.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_55.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_56.csv' saved successfully."
-[1] "File '../../../drive/base_large/output/lodes/odzip_11.csv' saved successfully."
-There were 50 or more warnings (use warnings() to see the first 50)
-> 
-> proc.time()
-     user    system   elapsed 
-44102.968   822.726 13796.271 
-
- make.py ended: 2021-02-14 18:55:27
+ make.py ended: 2021-02-18 19:26:40
