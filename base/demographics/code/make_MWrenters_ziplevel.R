@@ -11,7 +11,7 @@ main <- function() {
   
   datadir  <- paste0("../../../drive/raw_data/census/tract/nhgis", data_version, "_csv/")
   xwalkdir <- "../../../raw/crosswalk/" 
-  outdir   <- "../../../drive/base_large/output/"
+  outdir   <- "../../../drive/base_large/demographics/"
   tempdir  <- "../temp"
   log_file <- "../output/data_file_manifest.log"
   
@@ -24,7 +24,7 @@ main <- function() {
   table_final <- Reduce(function(x,y) merge(x,y, all = T, by = c('tract_fips', 'county_fips')), table_clean)
 
   
-  xwalk <- read_excel(paste0(xwalkdir, "TRACT_ZIP_122018.xlsx"), 
+  xwalk <- read_excel(paste0(xwalkdir, "TRACT_ZIP_122019.xlsx"), 
                       col_names = c('tract_fips', 'zipcode', 'res_ratio', 'bus_ratio', 'oth_ratio', 'tot_ratio'),
                       col_types = c('numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric'))
   xwalk <- setDT(xwalk)

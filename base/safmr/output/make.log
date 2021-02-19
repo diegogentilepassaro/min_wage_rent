@@ -1,0 +1,487 @@
+
+ make.py started: 2021-02-18 16:17:46 C:\Users\shermo\Documents\GitHub\min_wage_rent\base\safmr\code 
+
+
+
+
+Execute:  StataMP-64 /e do "./build_safmr.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./build_safmr.do 
+
+. set more off
+
+. clear all
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. 
+. program main 
+  1.         local raw     "../../../drive/raw_data"
+  2.         local outstub "../output"
+  3.         local temp    "../temp"
+  4. 
+.         forval yr = 2012(1)2016 {
+  5.                 prepare_12_16, raw(`raw') temp(`temp') yr(`yr')
+  6.         }
+  7. 
+.     use `temp'/safmrs_2012.dta, clear
+  8.         forval yr = 2013(1)2016 {
+  9.                 append using `temp'/safmrs_`yr'.dta
+ 10.         }
+ 11. 
+.         save_data `outstub'/safrm_2012_2016_by_zipcode_county_cbsa10.dta, ///
+>             key(countyfips cbsa10 zipcode year) replace
+ 12.                 
+.         forval yr = 2017(1)2019 {
+ 13.                 prepare_17_19, raw(`raw') temp(`temp') yr(`yr')
+ 14.         }
+ 15.         
+.     use `temp'/safmrs_2017.dta, clear
+ 16.         forval yr = 2018(1)2019 {
+ 17.                 append using `temp'/safmrs_`yr'.dta
+ 18.         }
+ 19. 
+.         save_data `outstub'/safrm_2017_2019_by_zipcode_cbsa10.dta, ///
+>             key(cbsa10 zipcode year) replace
+ 20. end
+
+. 
+. program prepare_12_16
+  1.         syntax, raw(str) temp(str) yr(int)
+  2. 
+.         cap import excel `raw'/SFMR/fy`yr'_safmrs.xls, first clear case(lower
+> )
+  3.         cap import excel `raw'/SFMR/fy`yr'_safmrs.xlsx, first clear case(l
+> ower)
+  4.         cap import excel `raw'/SFMR/fy`yr'_safmrs_rev.xlsx, first clear ca
+> se(lower)
+  5. 
+.         cap rename zip zipcode
+  6.         cap rename zip_code zipcode
+  7.         
+.         cap rename state statefips
+  8.         cap gen countyfips = statefips + county
+  9.         
+.         cap tostring cbsa, gen(cbsa10)
+ 10.         cap rename cbsamet cbsa10
+ 11.         cap rename metro_code cbsa10
+ 12.         cap rename area_rent_br* safmr*br
+ 13.                 
+.         gen year = `yr'
+ 14.                 
+.         drop if missing(zipcode)
+ 15.         drop if missing(cbsa10)
+ 16.         drop if missing(countyfips)
+ 17. 
+.         sort cbsa10 countyfips zipcode year
+ 18.         order cbsa10 countyfips zipcode year
+ 19.                 
+.         collapse (mean) safmr0br safmr1br safmr2br safmr3br safmr4br, ///
+>                 by(countyfips cbsa10 zipcode year)
+ 20.                         
+.         keep countyfips cbsa10 zipcode year safmr0br ///
+>                 safmr1br safmr2br safmr3br safmr4br
+ 21.         save_data `temp'/safmrs_`yr'.dta, key(countyfips cbsa10 zipcode ye
+> ar) ///
+>                 log(none) replace
+ 22. end
+
+. 
+. program prepare_17_19
+  1.         syntax, raw(str) temp(str) yr(int)
+  2. 
+.         cap import excel `raw'/SFMR/fy`yr'_safmrs.xlsx, first clear case(lowe
+> r)
+  3.         cap import excel `raw'/SFMR/fy`yr'_safmrs_rev.xlsx, first clear ca
+> se(lower)
+  4.         
+.         cap rename zip zipcode
+  5.         cap rename zip_code zipcode
+  6.                 
+.         cap rename metro_code cbsa10
+  7.         
+.         cap gen cbsa = substr(hudareacode, 1, 10)
+  8.         cap gen cbsa10 = subinstr(cbsa, "METRO", "", .)
+  9. 
+.         cap rename area_rent_br* safmr*br
+ 10.         
+.         gen year = `yr'
+ 11.         
+.         drop if missing(zipcode)
+ 12.         drop if missing(cbsa10)
+ 13. 
+.         sort cbsa10 zipcode year
+ 14.         order cbsa10 zipcode year
+ 15.                 
+.         collapse (mean) safmr0br safmr1br safmr2br safmr3br safmr4br, ///
+>                 by(cbsa10 zipcode year)
+ 16. 
+.         keep cbsa10 zipcode year safmr0br ///
+>                 safmr1br safmr2br safmr3br safmr4br
+ 17.         save_data `temp'/safmrs_`yr'.dta, key(cbsa10 zipcode year) ///
+>                 log(none) replace
+ 18. end
+
+. 
+. * Execute
+. main
+(0 observations deleted)
+(0 observations deleted)
+(0 observations deleted)
+(data already sorted by countyfips cbsa10 zipcode year)
+  variable year was float now int
+  variable safmr0br was float now int
+  variable safmr1br was float now int
+  variable safmr2br was float now int
+  variable safmr3br was float now int
+  variable safmr4br was float now int
+  (284,292 bytes saved)
+===============================================================================
+File: ../temp/safmrs_2012.dta
+Key: countyfips cbsa10 zipcode year
+===============================================================================
+  23691:9(81120):2860095643:1993023295
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  countyfips |          0
+      cbsa10 |          0
+     zipcode |          0
+        year |     23,691        2012           0       2012       2012
+    safmr0br |     23,691    645.5667    243.3347        330       1690
+-------------+---------------------------------------------------------
+    safmr1br |     23,691    725.2433    276.3298        370       2060
+    safmr2br |     23,691    868.6003    317.7878        430       2340
+    safmr3br |     23,691    1138.101    416.9569        540       3340
+    safmr4br |     23,691     1298.86    534.2692        610       4020
+
+
+
+
+(note: file ../temp/safmrs_2012.dta not found)
+file ../temp/safmrs_2012.dta saved
+(0 observations deleted)
+(0 observations deleted)
+(0 observations deleted)
+(data already sorted by countyfips cbsa10 zipcode year)
+  variable year was float now int
+  variable safmr0br was float now int
+  variable safmr1br was float now int
+  variable safmr2br was float now int
+  variable safmr3br was float now int
+  variable safmr4br was float now int
+  (289,752 bytes saved)
+===============================================================================
+File: ../temp/safmrs_2013.dta
+Key: countyfips cbsa10 zipcode year
+===============================================================================
+  24146:9(81120):3264058199:1771383429
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  countyfips |          0
+      cbsa10 |          0
+     zipcode |          0
+        year |     24,146        2013           0       2013       2013
+    safmr0br |     24,146     637.207    237.3797        340       1720
+-------------+---------------------------------------------------------
+    safmr1br |     24,146    736.7197    255.1938        380       1800
+    safmr2br |     24,146    919.6312    308.6381        450       2330
+    safmr3br |     24,146    1235.218    417.0932        620       3430
+    safmr4br |     24,146    1428.719    506.4651        680       4130
+
+
+
+
+(note: file ../temp/safmrs_2013.dta not found)
+file ../temp/safmrs_2013.dta saved
+(0 observations deleted)
+(0 observations deleted)
+(0 observations deleted)
+(data already sorted by countyfips cbsa10 zipcode year)
+  variable year was float now int
+  variable safmr0br was float now int
+  variable safmr1br was float now int
+  variable safmr2br was float now int
+  variable safmr3br was float now int
+  variable safmr4br was float now int
+  (289,296 bytes saved)
+===============================================================================
+File: ../temp/safmrs_2014.dta
+Key: countyfips cbsa10 zipcode year
+===============================================================================
+  24108:9(81120):39485196:2727383245
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  countyfips |          0
+      cbsa10 |          0
+     zipcode |          0
+        year |     24,108        2014           0       2014       2014
+    safmr0br |     24,108    641.7214    238.2308        300       1760
+-------------+---------------------------------------------------------
+    safmr1br |     24,108    742.2304    256.6465        310       1860
+    safmr2br |     24,108    926.2527     309.771        370       2320
+    safmr3br |     24,108    1243.798    418.7427        510       3420
+    safmr4br |     24,108    1438.997    509.4123        560       4110
+
+
+
+
+(note: file ../temp/safmrs_2014.dta not found)
+file ../temp/safmrs_2014.dta saved
+(5 observations deleted)
+(0 observations deleted)
+(0 observations deleted)
+(data already sorted by countyfips cbsa10 zipcode year)
+  variable year was float now int
+  variable safmr0br was float now int
+  variable safmr1br was float now int
+  variable safmr2br was float now int
+  variable safmr3br was float now int
+  variable safmr4br was float now int
+  (273,012 bytes saved)
+===============================================================================
+File: ../temp/safmrs_2015.dta
+Key: countyfips cbsa10 zipcode year
+===============================================================================
+  22751:9(81120):3893916537:2976122825
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  countyfips |          0
+      cbsa10 |          0
+     zipcode |          0
+        year |     22,751        2015           0       2015       2015
+    safmr0br |     22,751    652.6474    247.2729        300       1750
+-------------+---------------------------------------------------------
+    safmr1br |     22,751     754.591    267.3317        310       1950
+    safmr2br |     22,751    941.9713    323.0577        370       2490
+    safmr3br |     22,751    1264.395     437.018        510       3510
+    safmr4br |     22,751    1462.323    530.8804        560       4290
+
+
+
+
+(note: file ../temp/safmrs_2015.dta not found)
+file ../temp/safmrs_2015.dta saved
+(0 observations deleted)
+(0 observations deleted)
+(0 observations deleted)
+(data already sorted by countyfips cbsa10 zipcode year)
+  variable year was float now int
+  variable safmr0br was float now int
+  variable safmr1br was float now int
+  variable safmr2br was float now int
+  variable safmr3br was float now int
+  variable safmr4br was float now int
+  (324,000 bytes saved)
+===============================================================================
+File: ../temp/safmrs_2016.dta
+Key: countyfips cbsa10 zipcode year
+===============================================================================
+  27000:9(81120):690532371:4003036294
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  countyfips |          0
+      cbsa10 |          0
+     zipcode |          0
+        year |     27,000        2016           0       2016       2016
+    safmr0br |     27,000    684.2322    262.8878        300       2020
+-------------+---------------------------------------------------------
+    safmr1br |     27,000    782.4467    287.9215        320       2370
+    safmr2br |     27,000    968.7759    343.2968        380       2960
+    safmr3br |     27,000      1296.3    460.5623        510       4090
+    safmr4br |     27,000    1509.654    536.8937        540       4600
+
+
+
+
+(note: file ../temp/safmrs_2016.dta not found)
+file ../temp/safmrs_2016.dta saved
+(note: variable countyfips was str5, now str40 to accommodate using data's
+       values)
+(data now sorted by countyfips cbsa10 zipcode year)
+  (0 bytes saved)
+===============================================================================
+File: ../output/safrm_2012_2016_by_zipcode_county_cbsa10.dta
+Key: countyfips cbsa10 zipcode year
+===============================================================================
+  121696:9(81120):3184850198:504333772
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  countyfips |          0
+      cbsa10 |          0
+     zipcode |          0
+        year |    121,696    2014.043    1.431673       2012       2016
+    safmr0br |    121,696    653.0485    247.0103        300       2020
+-------------+---------------------------------------------------------
+    safmr1br |    121,696    749.0634     270.163        310       2370
+    safmr2br |    121,696    926.0885    322.9981        370       2960
+    safmr3br |    121,696    1237.018    434.3868        510       4090
+    safmr4br |    121,696    1429.714    528.6493        540       4600
+
+
+
+
+(note: file ../output/safrm_2012_2016_by_zipcode_county_cbsa10.dta not found)
+file ../output/safrm_2012_2016_by_zipcode_county_cbsa10.dta saved
+(0 observations deleted)
+(0 observations deleted)
+(data already sorted by cbsa10 zipcode year)
+  variable year was float now int
+  variable safmr0br was float now int
+  variable safmr1br was float now int
+  variable safmr2br was float now int
+  variable safmr3br was float now int
+  variable safmr4br was float now int
+  (297,192 bytes saved)
+===============================================================================
+File: ../temp/safmrs_2017.dta
+Key: cbsa10 zipcode year
+===============================================================================
+  24766:8(91147):4073874541:2613762323
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+      cbsa10 |          0
+     zipcode |          0
+        year |     24,766        2017           0       2017       2017
+    safmr0br |     24,766    721.4104    294.0683        340       3130
+    safmr1br |     24,766    823.3304    327.4149        360       3710
+-------------+---------------------------------------------------------
+    safmr2br |     24,766    1018.622    390.5826        430       4530
+    safmr3br |     24,766    1363.724    523.8397        570       6070
+    safmr4br |     24,766    1589.106    613.8834        590       7250
+
+
+
+
+(note: file ../temp/safmrs_2017.dta not found)
+file ../temp/safmrs_2017.dta saved
+(1 observation deleted)
+(0 observations deleted)
+(data already sorted by cbsa10 zipcode year)
+  variable year was float now int
+  variable safmr0br was float now int
+  variable safmr1br was float now int
+  variable safmr2br was float now int
+  variable safmr3br was float now int
+  variable safmr4br was float now int
+  (298,752 bytes saved)
+===============================================================================
+File: ../temp/safmrs_2018.dta
+Key: cbsa10 zipcode year
+===============================================================================
+  24896:8(91147):1643420704:1524813382
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+      cbsa10 |          0
+     zipcode |          0
+        year |     24,896        2018           0       2018       2018
+    safmr0br |     24,896    764.7293    313.5273        290       3020
+    safmr1br |     24,896    873.4716      360.47        290       3750
+-------------+---------------------------------------------------------
+    safmr2br |     24,896    1084.862    437.5627        390       4680
+    safmr3br |     24,896     1454.76    589.5381        500       6100
+    safmr4br |     24,896    1696.402    689.0171        540       6500
+
+
+
+
+(note: file ../temp/safmrs_2018.dta not found)
+file ../temp/safmrs_2018.dta saved
+(0 observations deleted)
+(0 observations deleted)
+(data already sorted by cbsa10 zipcode year)
+  variable year was float now int
+  variable safmr0br was float now int
+  variable safmr1br was float now int
+  variable safmr2br was float now int
+  variable safmr3br was float now int
+  variable safmr4br was float now int
+  (300,372 bytes saved)
+===============================================================================
+File: ../temp/safmrs_2019.dta
+Key: cbsa10 zipcode year
+===============================================================================
+  25031:8(91147):4005930728:1222057507
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+      cbsa10 |          0
+     zipcode |          0
+        year |     25,031        2019           0       2019       2019
+    safmr0br |     25,031    800.2129    334.5187        330       3110
+    safmr1br |     25,031    908.5406    384.1294        340       3840
+-------------+---------------------------------------------------------
+    safmr2br |     25,031    1125.226    466.7013        420       4760
+    safmr3br |     25,031    1505.005    625.6588        540       6240
+    safmr4br |     25,031    1753.848    726.7148        560       6590
+
+
+
+
+(note: file ../temp/safmrs_2019.dta not found)
+file ../temp/safmrs_2019.dta saved
+(data now sorted by cbsa10 zipcode year)
+  (0 bytes saved)
+===============================================================================
+File: ../output/safrm_2017_2019_by_zipcode_cbsa10.dta
+Key: cbsa10 zipcode year
+===============================================================================
+  74693:8(91147):1150265977:1065797759
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+      cbsa10 |          0
+     zipcode |          0
+        year |     74,693    2018.004     .816508       2017       2019
+    safmr0br |     74,693    762.2572    316.1855        290       3130
+    safmr1br |     74,693    868.5985    359.8912        290       3840
+-------------+---------------------------------------------------------
+    safmr2br |     74,693    1076.426    435.1041        390       4760
+    safmr3br |     74,693    1441.413      584.31        500       6240
+    safmr4br |     74,693    1680.077    681.7743        540       7250
+
+
+
+
+(note: file ../output/safrm_2017_2019_by_zipcode_cbsa10.dta not found)
+file ../output/safrm_2017_2019_by_zipcode_cbsa10.dta saved
+
+. 
+end of do-file
+
+ make.py ended: 2021-02-18 16:18:14

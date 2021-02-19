@@ -6,8 +6,8 @@ load_packages(c('tidyverse', 'data.table', 'matrixStats'))
 
 main <- function() {
   
-  #only problem now is that the base/demographic folder must run AFTER the base/zillow_min_wage, as it uses its output 
-  mw_datadir <- "../../../base/zillow_min_wage/output/"
+  #only problem now is that the base/demographic folder must run AFTER the base/min_wage, as it uses its output 
+  mw_datadir <- "../../../base/min_wage/output/"
   outdir     <- "../temp/"
   log_file   <- "../output/data_file_manifest.log"
   

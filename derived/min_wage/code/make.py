@@ -36,10 +36,7 @@ elif "Stata15" in envir_vars:
 start_make_logging()
 
 
-run_rbatch(program = 'ReshapeMergeZillow_zip.R')
-run_rbatch(program = 'addMinWage.R')
-run_stata(program = 'clean_gen_label.do', executable = stata)
-run_stata(program = 'create_final_panels.do', executable = stata)
+run_rbatch(program = 'make_mw_panel_zip.R')
 
 end_make_logging()
 
