@@ -28,9 +28,9 @@ program main
 		houses_zcta_place_county zcta_name place_name county_name ///
 		cbsa10_name state_abb
 
-	save_data "../output/zcta_county_place_usps_master_xwalk.dta", ///
+	save_data "../output/zip_county_place_usps_master.dta", ///
 		key(zcta zipcode countyfips place_code) replace
-	save_data "../output/zcta_county_place_usps_master_xwalk.csv", outsheet ///
+	save_data "../output/zip_county_place_usps_master.csv", outsheet ///
 		key(zcta zipcode countyfips place_code) replace
 end
 
