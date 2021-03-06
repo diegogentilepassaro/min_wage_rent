@@ -117,9 +117,8 @@ make_mxwalk <- function(instub) {
 manual_correction <- function(data) {
   data[placename=='Louisville/Jefferson County metro government (balance)', placename := 'Lousville']
   data[placename=='New York', placename := 'New York City']
-  data[placename=='Redwood City', placename := 'Readwood City']
   data[placename=='St. Paul', placename := 'Saint Paul']
-  data[placename=='Daly City', placename := 'Daly city']
+  data[placename=='Daly City', placename := 'Daly City']
   #data[zipcode=='94608', placename := 'Emeryville']
 }
 
