@@ -10,7 +10,7 @@ main <- function() {
   data_version <- "0053"
   
   datadir  <- paste0("../../../drive/raw_data/census/tract/nhgis", data_version, "_csv/")
-  xwalkdir <- "../../../raw/crosswalk/" 
+  xwalkdir <- "../../geo_master/output/" 
   outdir   <- "../../../drive/base_large/demographics/"
   tempdir  <- "../temp"
   log_file <- "../output/data_file_manifest.log"
@@ -24,12 +24,8 @@ main <- function() {
   table_final <- Reduce(function(x,y) merge(x,y, all = T, by = c('tract_fips', 'county_fips')), table_clean)
 
   
-  xwalk <- read_excel(paste0(xwalkdir, "TRACT_ZIP_122019.xlsx"), 
-                      col_names = c('tract_fips', 'zipcode', 'res_ratio', 'bus_ratio', 'oth_ratio', 'tot_ratio'),
-                      col_types = c('numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric'))
-  xwalk <- setDT(xwalk)
-  xwalk[, c('res_ratio', 'bus_ratio', 'oth_ratio'):= NULL]
-  xwalk <- xwalk[!is.na(zipcode), ]
+  xwalk <- fread(paste0(xwalkdir, "tract_zip_master.csv"), 
+                 colClasses = c('numeric', 'numeric', 'numeric'))
   
   mw_avg1318 <- fread(paste0(tempdir, '/mw_avg1318.csv'))
   table_final <- mw_avg1318[table_final, on = 'tract_fips']
@@ -52,7 +48,7 @@ main <- function() {
 
   table_final <- table_final[xwalk, on = 'tract_fips']
 
-  table_final_zipshare <- table_final[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), by = 'zipcode', .SDcols = mww_varlist]
+  table_final_zipshare <- table_final[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=res_ratio), by = 'zipcode', .SDcols = mww_varlist]
 
   table_final_zipshare[, c('sh_mww_all2',
                          'sh_mww_all1',

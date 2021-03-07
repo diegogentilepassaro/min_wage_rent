@@ -1,5 +1,5 @@
 
- make.py started: 2021-02-15 16:06:47 /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/base/demographics/code 
+ make.py started: 2021-03-07 15:45:54 /Users/gabriborg/Dropbox (Brown)/research/min_wage_rent/base/demographics/code 
 
 
 
@@ -154,7 +154,7 @@ In `[.data.table`(dfp, , ..mw_vars) :
 > 
 > proc.time()
    user  system elapsed 
- 13.997   0.494   3.577 
+ 14.059   0.370   3.304 
 
 
 Execute:  R CMD BATCH --no-save "./make_MWrenters_ziplevel.R" make_MWrenters_ziplevel.Rout
@@ -269,8 +269,8 @@ The following objects are masked from ‘package:tidyr’:
 +   data_version <- "0053"
 +   
 +   datadir  <- paste0("../../../drive/raw_data/census/tract/nhgis", data_version, "_csv/")
-+   xwalkdir <- "../../../raw/crosswalk/" 
-+   outdir   <- "../../../drive/base_large/output/demographics/"
++   xwalkdir <- "../../geo_master/output/" 
++   outdir   <- "../../../drive/base_large/demographics/"
 +   tempdir  <- "../temp"
 +   log_file <- "../output/data_file_manifest.log"
 +   
@@ -283,12 +283,8 @@ The following objects are masked from ‘package:tidyr’:
 +   table_final <- Reduce(function(x,y) merge(x,y, all = T, by = c('tract_fips', 'county_fips')), table_clean)
 + 
 +   
-+   xwalk <- read_excel(paste0(xwalkdir, "TRACT_ZIP_122019.xlsx"), 
-+                       col_names = c('tract_fips', 'zipcode', 'res_ratio', 'bus_ratio', 'oth_ratio', 'tot_ratio'),
-+                       col_types = c('numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric'))
-+   xwalk <- setDT(xwalk)
-+   xwalk[, c('res_ratio', 'bus_ratio', 'oth_ratio'):= NULL]
-+   xwalk <- xwalk[!is.na(zipcode), ]
++   xwalk <- fread(paste0(xwalkdir, "tract_zip_master.csv"), 
++                  colClasses = c('numeric', 'numeric', 'numeric'))
 +   
 +   mw_avg1318 <- fread(paste0(tempdir, '/mw_avg1318.csv'))
 +   table_final <- mw_avg1318[table_final, on = 'tract_fips']
@@ -311,7 +307,7 @@ The following objects are masked from ‘package:tidyr’:
 + 
 +   table_final <- table_final[xwalk, on = 'tract_fips']
 + 
-+   table_final_zipshare <- table_final[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), by = 'zipcode', .SDcols = mww_varlist]
++   table_final_zipshare <- table_final[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=res_ratio), by = 'zipcode', .SDcols = mww_varlist]
 + 
 +   table_final_zipshare[, c('sh_mww_all2',
 +                          'sh_mww_all1',
@@ -888,13 +884,12 @@ The following objects are masked from ‘package:tidyr’:
 + }
 > 
 > main()
-[1] "File '../../../drive/base_large/output/demographics/zip_mw.csv' saved successfully."
+[1] "File '../../../drive/base_large/demographics/zip_mw.csv' saved successfully."
 [1] "Log file generated successfully."
-There were 50 or more warnings (use warnings() to see the first 50)
 > 
 > proc.time()
    user  system elapsed 
- 53.254   2.016  43.345 
+ 19.903   0.766   8.693 
 
 
 Execute:  R CMD BATCH --no-save "./make_demographics_ziplevel.R" make_demographics_ziplevel.Rout
@@ -1000,8 +995,8 @@ The following objects are masked from ‘package:base’:
 +    data_version <- "0052"
 +    
 +    datadir <- paste0("../../../drive/raw_data/census/tract/nhgis", data_version, "_csv/")
-+    xwalkdir <- "../../../raw/crosswalk/" 
-+    outdir <- "../../../drive/base_large/output/demographics/"
++    xwalkdir <- "../../geo_master/output/" 
++    outdir <- "../../../drive/base_large/demographics/"
 +    tempdir <- "../temp"
 +    log_file <- "../output/data_file_manifest.log"
 +          
@@ -1015,25 +1010,20 @@ The following objects are masked from ‘package:base’:
 +    
 +    table_final <- Reduce(function(x,y) merge(x,y, all = T, by = c('tract_fips', 'county_fips')), table_clean)
 +    
-+    xwalk <- read_excel(paste0(xwalkdir, "TRACT_ZIP_122019.xlsx"), 
-+                        col_names = c('tract_fips', 'zipcode', 'res_ratio', 'bus_ratio', 'oth_ratio', 'tot_ratio'),
-+                        col_types = c('numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric'))
-+    xwalk <- setDT(xwalk)
-+    xwalk[, c('res_ratio', 'bus_ratio', 'oth_ratio'):= NULL]
-+    xwalk <- xwalk[!is.na(zipcode), ]
++    xwalk <- fread(paste0(xwalkdir, "tract_zip_master.csv"), 
++                  colClasses = c('numeric', 'numeric', 'numeric'))
 + 
-+    
 +    table_final <- table_final[xwalk, on = 'tract_fips']
-+    table_final[, tot_ratio_denom := sum(tot_ratio, na.rm = T), by = zipcode]
-+    table_final[, rel_wgt := tot_ratio / tot_ratio_denom]
++    table_final[, res_ratio_denom := sum(res_ratio, na.rm = T), by = zipcode]
++    table_final[, rel_wgt := res_ratio / res_ratio_denom]
 +    
 +    start_geo <- 'tract_fips'
 +    target_geo <- 'zipcode'
-+    wgt <- 'tot_ratio'
++    wgt <- 'res_ratio'
 +    med_demovars <- colnames(table_final)[str_detect(colnames(table_final), "^med")]
 +    share_demovars <- setdiff(colnames(table_final), c(start_geo, target_geo, wgt, 'county_fips', med_demovars))
 +    
-+    table_final_zipshare <- table_final[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), by = target_geo, .SDcols = share_demovars]
++    table_final_zipshare <- table_final[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=res_ratio), by = target_geo, .SDcols = share_demovars]
 +    
 +    
 +    table_final_zipshare[, c('urb_share2010', 
@@ -1250,13 +1240,12 @@ The following objects are masked from ‘package:base’:
 + }
 > 
 > main()
-[1] "File '../../../drive/base_large/output/demographics/zip_demo.csv' saved successfully."
+[1] "File '../../../drive/base_large/demographics/zip_demo.csv' saved successfully."
 [1] "Log file generated successfully."
-There were 50 or more warnings (use warnings() to see the first 50)
 > 
 > proc.time()
    user  system elapsed 
- 62.653   2.416  45.587 
+ 26.015   0.808   9.440 
 
 
 Execute:  R CMD BATCH --no-save "./make_zippop_year.R" make_zippop_year.Rout
@@ -1362,17 +1351,13 @@ The following objects are masked from ‘package:base’:
 +   data_version <- '0055'
 +   
 +   datadir  <- paste0("../../../drive/raw_data/census/tract/nhgis", data_version, "_csv/")
-+   xwalkdir <- "../../../raw/crosswalk/" 
-+   outdir   <- "../../../drive/base_large/output/demographics/"
++   xwalkdir <- "../../geo_master/output/" 
++   outdir   <- "../../../drive/base_large/demographics/"
 +   tempdir  <- "../temp"
 +   log_file <- "../output/data_file_manifest.log"
 +   
-+   xwalk <- read_excel(paste0(xwalkdir, "TRACT_ZIP_122019.xlsx"), 
-+                       col_names = c('tract_fips', 'zipcode', 'res_ratio', 'bus_ratio', 'oth_ratio', 'tot_ratio'),
-+                       col_types = c('numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric'))
-+   xwalk <- setDT(xwalk)
-+   xwalk[, c('res_ratio', 'bus_ratio', 'oth_ratio'):= NULL]
-+   xwalk <- xwalk[!is.na(zipcode), ]
++   xwalk <- fread(paste0(xwalkdir, "tract_zip_master.csv"), 
++                  colClasses = c('numeric', 'numeric', 'numeric'))
 +   
 +   table_list <- list.files(datadir, 
 +                            pattern = "*.csv")
@@ -1436,7 +1421,7 @@ The following objects are masked from ‘package:base’:
 +  
 +   data <- data[xwalk, on = 'tract_fips']
 + 
-+   data <- data[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio),
++   data <- data[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=res_ratio),
 +                                         by = c('zipcode', 'year'),
 +                                         .SDcols = 'acs_pop']
 +   
@@ -1444,12 +1429,11 @@ The following objects are masked from ‘package:base’:
 + }
 > 
 > main()
-[1] "File '../../../drive/base_large/output/demographics/acs_population_zipmonth.csv' saved successfully."
+[1] "File '../../../drive/base_large/demographics/acs_population_zipmonth.csv' saved successfully."
 [1] "Log file generated successfully."
-There were 50 or more warnings (use warnings() to see the first 50)
 > 
 > proc.time()
    user  system elapsed 
-129.956   3.051  97.776 
+ 94.728   2.891  62.430 
 
- make.py ended: 2021-02-15 16:09:57
+ make.py ended: 2021-03-07 15:47:18

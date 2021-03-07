@@ -3,7 +3,16 @@ clear all
 adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
-	import excel "../../../raw/crosswalk/zip_to_zcta_2019.xlsx", ///
+	local xwalk_dir  "../../../raw/crosswalk"
+	local output     "../output"
+
+	build_geomaster_large, instub(`xwalk_dir') outstub(`output')
+	build_geomaster_small, instub(`xwalk_dir') outstub(`output')
+end
+
+program build_geomaster_large
+	syntax, instub(str) outstub(str)
+	import excel "`instub'/zip_to_zcta_2019.xlsx", ///
 		sheet("ZiptoZCTA_crosswalk") firstrow allstring clear
 	rename (ZIP_CODE ZCTA PO_NAME) (zipcode zcta zipcode_name)
 	drop if zipcode == "96898" & zcta == "No ZCTA"
@@ -12,7 +21,7 @@ program main
 		key(zipcode) replace
 	
 	clear
-	import delimited "../../../raw/crosswalk/geocorr2018.csv", ///
+	import delimited "`instub'/geocorr2018.csv", ///
 		varnames(1) stringcols(1 2 3 4 5)
 	drop metdiv10 mdivname10 afact
 	rename (zcta5 placefp county state zipname cntyname placenm cbsaname10 stab) ///
@@ -28,12 +37,28 @@ program main
 		houses_zcta_place_county zcta_name place_name county_name ///
 		cbsa10_name state_abb
 
-	save_data "../output/zip_county_place_usps_master.dta", ///
+	save_data "`outstub'/zip_county_place_usps_master.dta", ///
 		key(zcta zipcode countyfips place_code) replace
-	save_data "../output/zip_county_place_usps_master.csv", outsheet ///
+	save_data "`outstub'/zip_county_place_usps_master.csv", outsheet ///
 		key(zcta zipcode countyfips place_code) replace
 end
 
+program build_geomaster_small
+	syntax, instub(str) outstub(str)
+
+	import excel "`instub'/TRACT_ZIP_122019.xlsx", ///
+		firstrow clear
+
+	drop BUS_RATIO OTH_RATIO TOT_RATIO	
+
+	rename (TRACT ZIP RES_RATIO) (tract_fips zipcode res_ratio)
+
+	save_data "`outstub'/tract_zip_master.dta", ///
+		key(tract_fips zipcode) replace
+	save_data "`outstub'/tract_zip_master.csv", outsheet ///
+		key(tract_fips zipcode) replace
+
+end 
 
 *EXECUTE
 main 

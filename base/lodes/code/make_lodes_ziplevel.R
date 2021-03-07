@@ -9,19 +9,15 @@ load_packages(c('tidyverse', 'data.table', 'bit64',
                 'purrr', 'readxl', 'parallel', 'R.utils'))
 
 main <- function() {
-  datadir_lodes <- '../../../drive/raw_data/lodes/'
-  datadir_xwalk <- '../../../raw/crosswalk/'
-  outdir        <- '../../../drive/base_large/lodes/'
-  log_file      <- '../output/data_file_manifest.log'
+  datadir_lodes       <- '../../../drive/raw_data/lodes/'
+  datadir_xwalk_lodes <- '../../../raw/crosswalk/'
+  datadir_xwalk       <- '../../geo_master/output/'
+  outdir              <- '../../../drive/base_large/lodes/'
+  log_file            <- '../output/data_file_manifest.log'
   
-  xwalk <- make_xwalk_raw_wac(datadir_xwalk)
+  xwalk <- make_xwalk_raw_wac(datadir_xwalk_lodes)
   
-  tract_zip_xwalk <- read_excel(paste0(datadir_xwalk, "TRACT_ZIP_122019.xlsx"), 
-                                col_names = c('tract_fips', 'zipcode', 'res_ratio', 'bus_ratio', 'oth_ratio', 'tot_ratio'),
-                                col_types = c('numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric'))
-  tract_zip_xwalk <- setDT(tract_zip_xwalk)
-  tract_zip_xwalk[, c('res_ratio', 'bus_ratio', 'oth_ratio'):= NULL]
-  tract_zip_xwalk <- tract_zip_xwalk[!is.na(zipcode), ]
+  tract_zip_xwalk <- fread(paste0(datadir_xwalk, "tract_zip_master.csv"))
   
   #Datasets:
   # Point of View (pov) : statistics for either residents ('rac') or workers ('wac') in given geographies
@@ -105,7 +101,7 @@ format_lodes <- function(pov, seg, type, vintage, instub, xw, xw_tractzip) {
   
   dfzip <- dftract[xw_tractzip, on = 'tract_fips']
   
-  dfzip <- dfzip[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), 
+  dfzip <- dfzip[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=res_ratio), 
                   by = c('zipcode', 'st'), .SDcols = target_names]
   
   pr <- set_prefix(p = pov, s = seg, t = type)

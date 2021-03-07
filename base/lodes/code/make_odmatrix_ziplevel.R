@@ -15,7 +15,7 @@ n_cores <- 12
 
 main <- function(paquetes, n_cores) {
   datadir_lodes <- '../../../drive/raw_data/lodes/od/JT00/2017/'
-  datadir_xwalk <- '../../../raw/crosswalk/'
+  datadir_xwalk <- "../../geo_master/output/"
   outdir        <- '../../../drive/base_large/lodes/'
 
   # Prepare crosswalks 
@@ -87,7 +87,7 @@ make_odmatrix_state <- function(stabb, datadir, aux, xwalk, dest_threshold) {
   # Define function to crosswalk destination tract to zipcode for each origin tract separately
   tract_to_zip_work <- function(data, xwlk = xwalk) {
     data <- data[xwlk, on = c('w_tractfips' = 'tract_fips'), nomatch = 0]
-    data <- data[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), 
+    data <- data[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=res_ratio), 
                  by = c('h_tractfips', 'zipcode'), .SDcols = c('totjob', 'job_young', 'job_lowinc')]
     setnames(data, old = 'zipcode', new = 'w_zipcode')
     return(data)
@@ -95,7 +95,7 @@ make_odmatrix_state <- function(stabb, datadir, aux, xwalk, dest_threshold) {
   # Define function to crosswalk origin tract to zipcode for each destination zipcode separately
   tract_to_zip_home <- function(data, xwlk = xwalk) {
     data <- data[xwlk, on = c('h_tractfips' = 'tract_fips'), nomatch = 0]
-    data <- data[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), 
+    data <- data[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=res_ratio), 
                  by = c('w_zipcode', 'zipcode'), .SDcols = c('totjob', 'job_young', 'job_lowinc')]
     setnames(data, old = 'zipcode', new = 'h_zipcode')
     return(data)
