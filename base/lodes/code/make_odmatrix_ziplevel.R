@@ -14,17 +14,15 @@ library(parallel)
 n_cores <- 12
 
 main <- function(paquetes, n_cores) {
-  datadir_lodes <- '../../../drive/raw_data/lodes/od/JT00/2017/'
-  datadir_xwalk <- "../../geo_master/output/"
-  outdir        <- '../../../drive/base_large/lodes/'
+  datadir_lodes       <- '../../../drive/raw_data/lodes/od/JT00/2017/'
+  datadir_xwalk       <- '../../geo_master/output/'
+  datadir_xwalk_lodes <- '../../../raw/crosswalk/'
+  outdir              <- '../../../drive/base_large/lodes/'
 
   # Prepare crosswalks 
-  xwalk_list <- make_xwalk_od(datadir_xwalk)
+  blc_tract_xwalk <- make_xwalk_raw_wac(datadir_xwalk_lodes)
+  tract_zip_xwalk <- make_xwalk_tractzip(datadir_xwalk)
 
-  blc_tract_xwalk <- xwalk_list[[1]]
-  tract_zip_xwalk <- xwalk_list[[2]]
-  rm(xwalk_list)
-  
   # Prepare states od matrices
   files <- list.files(datadir_lodes, 
                       full.names = T, pattern = "*.gz")

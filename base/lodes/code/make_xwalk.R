@@ -30,3 +30,10 @@ make_xwalk_raw_wac <- function(instub) {
   
   return(xwalk)
 }
+
+make_xwalk_tractzip <- function(instub) {
+  xwalk <- fread(paste0(instub, "tract_zip_master.csv"), 
+                 colClasses = c('numeric', 'numeric', 'numeric'))
+
+  return(xwalk)
+}
