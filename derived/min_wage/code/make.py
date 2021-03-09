@@ -35,8 +35,7 @@ elif "Stata15" in envir_vars:
 
 start_make_logging()
 
-
-run_rbatch(program = 'make_mw_panel_zip.R')
+run_rbatch(program = 'build_statutory.R')
 
 end_make_logging()
 
