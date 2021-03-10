@@ -17,7 +17,8 @@ main <- function() {
   
   xwalk <- make_xwalk_raw_wac(datadir_xwalk_lodes)
   
-  tract_zip_xwalk <- fread(paste0(datadir_xwalk, "tract_zip_master.csv"))
+  tract_zip_xwalk <- fread(paste0(datadir_xwalk, "tract_zip_master.csv"), 
+                           colClasses = c('numeric', 'numeric', 'numeric'))
   
   #Datasets:
   # Point of View (pov) : statistics for either residents ('rac') or workers ('wac') in given geographies
