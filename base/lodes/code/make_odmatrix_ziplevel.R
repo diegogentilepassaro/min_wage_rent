@@ -11,7 +11,7 @@ paquetes <- c('tidyverse', 'data.table', 'bit64', 'purrr', 'readxl', 'parallel')
 load_packages(paquetes)
 
 library(parallel)
-n_cores <- 12
+n_cores <- 10
 
 main <- function(paquetes, n_cores) {
   datadir_lodes       <- '../../../drive/raw_data/lodes/od/JT00/2017/'
