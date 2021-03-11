@@ -5,9 +5,14 @@ adopath + ../../../lib/stata/gslab_misc/ado
 program main
 	local xwalk_dir  "../../../raw/crosswalk"
 	local output     "../output"
-
+    
+	build_zillow_zipcode_stats
 	build_geomaster_large, instub(`xwalk_dir') outstub(`output')
 	build_geomaster_small, instub(`xwalk_dir') outstub(`output')
+end
+
+program build_zillow_zipcode_stats
+    import delimited "zillow_zipcode_clean"
 end
 
 program build_geomaster_large
@@ -57,7 +62,6 @@ program build_geomaster_small
 		key(tract_fips zipcode) replace
 	save_data "`outstub'/tract_zip_master.csv", outsheet ///
 		key(tract_fips zipcode) replace
-
 end 
 
 *EXECUTE

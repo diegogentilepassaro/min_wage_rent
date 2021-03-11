@@ -26,6 +26,9 @@ main <- function() {
    save_data(dt, key = c('countyfips', 'date'), 
              filename = file.path(outdir, 'zillow_county_clean.csv'),
              logfile = log_file)
+   save_data(dt, key = c('countyfips', 'date'), 
+             filename = file.path(outdir, 'zillow_county_clean.dta'),
+             logfile = log_file)
 }
 
 load_and_clean <- function(x) {

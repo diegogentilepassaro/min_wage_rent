@@ -27,6 +27,9 @@ main <- function() {
    save_data(dt, key = c('zipcode', 'date'), 
              filename = file.path(outdir, 'zillow_zipcode_clean.csv'),
              logfile = log_file)
+   save_data(dt, key = c('zipcode', 'date'), 
+             filename = file.path(outdir, 'zillow_zipcode_clean.dta'),
+             logfile = log_file)
 }
 
 clean_rawdata <- function(x) {
