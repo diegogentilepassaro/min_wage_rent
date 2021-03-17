@@ -128,7 +128,6 @@ assemble_statutory <- function(dt, dt.mw) {
    dt <- dt.mw$local[dt,  on = c("placename", "statefips", "year", "month")]
    
    # Compute actual MW
-   
    dt[, actual_mw := pmax(local_mw, county_mw, state_mw, fed_mw, na.rm = T)]
    dt[, binding_mw := fcase(
       pmax(local_mw, county_mw, state_mw, fed_mw, na.rm = T) == fed_mw,    1,  # Fed MW
@@ -152,14 +151,12 @@ collapse_datatable <- function(dt, key_vars = c("zipcode", "year", "month")) {
    
    setorder(dt, zipcode, -houses_zcta_place_county)
    dt.max <- dt[, first(.SD), by = key_vars]
-      
-   dt.wmean <- dt[, .(actual_mw_wmean              = weighted.mean(actual_mw, houses_zcta_place_county),
-                      actual_mw_ignore_local_wmean = weighted.mean(actual_mw_ignore_local, houses_zcta_place_county)),
-                  by = key_vars] 
+   
+   dt.wmean <- dt[, .(actual_mw_wg_mean              = weighted.mean(actual_mw, houses_zcta_place_county),
+                      actual_mw_ignore_local_wg_mean = weighted.mean(actual_mw_ignore_local, houses_zcta_place_county)),
+                  by = key_vars]
    
    dt <- dt.wmean[dt.max, on = key_vars]
-   
-   dt <- dt[place_code != 99999, ]  # Drop rural areas
    
    mw_vars <- names(dt)[grepl("mw", names(dt)) & !grepl("abovestate", names(dt))]
    vars_to_keep <- c(key_vars, "year_month", mw_vars)
