@@ -29,7 +29,7 @@ main <- function(){
              logfile  = log_file)
    
    save_data(dt.county, key = c("countyfips", "year", "month"),
-             filename = file.path(outstub, "zip_statutory_mw.csv"),
+             filename = file.path(outstub, "county_statutory_mw.csv"),
              logfile  = log_file)
 }
 
