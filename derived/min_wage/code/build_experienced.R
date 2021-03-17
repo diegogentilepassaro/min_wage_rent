@@ -46,7 +46,8 @@ main <- function(){
   stopCluster(cl)
   
   dt.exp_mw_wg_mean <- rbindlist(dts.exp)
-  exp_mw_vars <- c("exp_mw_tot", "exp_mw_young", "exp_mw_lowinc")
+  exp_mw_vars <- c("exp_mw_tot",    "exp_mw_young",    "exp_mw_lowinc", 
+                   "exp_ln_mw_tot", "exp_ln_mw_young", "exp_ln_mw_lowinc")
   setnames(dt.exp_mw_wg_mean, old = exp_mw_vars,
                               new = paste0(exp_mw_vars, "_wg_mean"))
   
@@ -82,16 +83,23 @@ assemble_expmw_state <- function(x, periods, mw_var, dt.zip, instub_lodes) {
      dt.this_date <- dt.this_date[dt.od, on = 'w_zipcode'] # Paste MW to every residence(h)-workplace(w)
                                                            #  combination in 'dt.od'
      dt.this_date <- dt.this_date[!is.na(year_month),]     # Drop missings (zipcodes not showing up in mw data)
-   
+     
+     dt.this_date[, h_totjob     := sum(totjob),     by = "h_zipcode"]
+     dt.this_date[, h_job_young  := sum(job_young),  by = "h_zipcode"]
+     dt.this_date[, h_job_lowinc := sum(job_lowinc), by = "h_zipcode"]
+
      dt.this_date[, c("sh_tot", "sh_young", "sh_lowinc") := 
                      .((totjob / h_totjob), 
                        (job_young / h_job_young), 
                        (job_lowinc / h_job_lowinc))] #compute share of job for each destination
      
      dt.this_date <- dt.this_date[, 
-         .(exp_mw_tot    = sum(get(mw_var)*sh_tot,    na.rm = T), 
-           exp_mw_young  = sum(get(mw_var)*sh_young,  na.rm = T), 
-           exp_mw_lowinc = sum(get(mw_var)*sh_lowinc, na.rm = T)), 
+         .(exp_mw_tot       = sum(get(mw_var)*sh_tot,    na.rm = T), 
+           exp_mw_young     = sum(get(mw_var)*sh_young,  na.rm = T), 
+           exp_mw_lowinc    = sum(get(mw_var)*sh_lowinc, na.rm = T),
+           exp_ln_mw_tot    = sum(log(get(mw_var))*sh_tot,    na.rm = T), 
+           exp_ln_mw_young  = sum(log(get(mw_var))*sh_young,  na.rm = T), 
+           exp_ln_mw_lowinc = sum(log(get(mw_var))*sh_lowinc, na.rm = T)), 
       by = c("h_zipcode", "year_month")
     ]
      
