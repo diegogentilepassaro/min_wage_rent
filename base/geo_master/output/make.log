@@ -1,5 +1,5 @@
 
- make.py started: 2021-03-05 17:21:25 C:\Users\shermo\Documents\GitHub\min_wage_rent\base\geo_master\code 
+ make.py started: 2021-03-16 19:59:07 C:\Users\shermo\Documents\GitHub\min_wage_rent\base\geo_master\code 
 
 
 
@@ -44,58 +44,142 @@ Notes:
 
 . 
 . program main
-  1.         import excel "../../../raw/crosswalk/zip_to_zcta_2019.xlsx", ///
->                 sheet("ZiptoZCTA_crosswalk") firstrow allstring clear
-  2.         rename (ZIP_CODE ZCTA PO_NAME) (zipcode zcta zipcode_name)
-  3.         drop if zipcode == "96898" & zcta == "No ZCTA"
-  4.         keep zipcode zcta zipcode_name
-  5.         save_data "../temp/usps_master.dta", ///
->                 key(zipcode) replace
-  6.         
-.         clear
-  7.         import delimited "../../../raw/crosswalk/geocorr2018.csv", ///
->                 varnames(1) stringcols(1 2 3 4 5)
-  8.         drop metdiv10 mdivname10 afact
-  9.         rename (zcta5 placefp county state zipname cntyname placenm cbsana
-> me10 stab) ///
->                 (zcta place_code countyfips statefips zcta_name county_name p
-> lace_name ///
->                 cbsa10_name state_abb)
- 10.         rename hus10 houses_zcta_place_county
- 11.         merge m:m zcta using "../temp/usps_master.dta", nogen keep(3)
- 12. 
-.         keep zcta zipcode place_code countyfips cbsa10 statefips ///
->                 houses_zcta_place_county zcta_name place_name county_name ///
->                 cbsa10_name state_abb
- 13.         order zcta zipcode place_code countyfips cbsa10 statefips ///
->                 houses_zcta_place_county zcta_name place_name county_name ///
->                 cbsa10_name state_abb
- 14. 
-.         save_data "../output/zip_county_place_usps_master.dta", ///
->                 key(zcta zipcode countyfips place_code) replace
- 15.         save_data "../output/zip_county_place_usps_master.csv", outsheet /
-> //
->                 key(zcta zipcode countyfips place_code) replace
- 16. end
+  1.     local xwalk_dir  "../../../raw/crosswalk"
+  2.     local zillow_dir "../../../drive/base_large/zillow"
+  3.     local output     "../output"
+  4.     
+.     build_zillow_zipcode_stats, instub(`zillow_dir')
+  5.     build_geomaster_large, instub(`xwalk_dir') outstub(`output')
+  6.     build_geomaster_small, instub(`xwalk_dir') outstub(`output')
+  7. end
 
 . 
+. program build_zillow_zipcode_stats
+  1.     syntax, instub(str)
+  2. 
+.     use "`instub'/zillow_zipcode_clean.dta"
+  3. 
+.     keep if !missing(medrentpricepsqft_SFCC)
+  4.     collapse (count) n_months_zillow_rents = medrentpricepsqft_SFCC, by(zi
+> pcode)
+  5.     tostring zipcode, format(%05.0f) replace
+  6. 
+.     save "../temp/zillow_zipcodes_with_rents.dta", replace
+  7. end
+
+. 
+. program build_geomaster_large
+  1.     syntax, instub(str) outstub(str)
+  2. 
+.     import excel "`instub'/zip_to_zcta_2019.xlsx", ///
+>         sheet("ZiptoZCTA_crosswalk") firstrow allstring clear
+  3. 
+.     rename (ZIP_CODE ZCTA PO_NAME) (zipcode zcta zipcode_name)
+  4.     drop if zipcode == "96898" & zcta == "No ZCTA"
+  5.     keep zipcode zcta zipcode_name
+  6. 
+.     merge 1:1 zipcode using "../temp/zillow_zipcodes_with_rents.dta", ///
+>         assert(1 3)
+  7. 
+.     gen zillow_zipcode = (_merge == 3)
+  8.     replace n_months_zillow_rents = 0 if missing(n_months_zillow_rents)
+  9.     drop _merge
+ 10. 
+.     save_data "../temp/usps_master.dta", key(zipcode) replace log(none)
+ 11.     
+.     clear
+ 12.     import delimited "`instub'/geocorr2018.csv", ///
+>         varnames(1) stringcols(1 2 3 4 5)
+ 13. 
+.     drop metdiv10 mdivname10 afact
+ 14.     rename (zcta5  placefp     county      state)     ///
+>            (zcta   place_code  countyfips  statefips)
+ 15.     rename (zipname    cntyname     placenm     cbsaname10   stab)      //
+> /
+>            (zcta_name  county_name  place_name  cbsa10_name  state_abb)
+ 16.     rename hus10 houses_zcta_place_county
+ 17. 
+.     merge m:m zcta using "../temp/usps_master.dta", nogen keep(3)
+ 18. 
+.     local keep_vars ///
+>         zcta zipcode place_code countyfips cbsa10 statefips       ///
+>         houses_zcta_place_county zcta_name place_name county_name ///
+>         cbsa10_name state_abb zillow_zipcode n_months_zillow_rents
+ 19. 
+.     keep  `keep_vars'
+ 20.     order `keep_vars' 
+ 21.     
+.     bys zcta countyfips place_code: egen max_months_with_data = max(n_months_
+> zillow_rents)
+ 22. 
+.     keep if max_months_with_data == n_months_zillow_rents
+ 23.     drop max_months_with_data
+ 24. 
+.     duplicates tag zcta countyfips place_code, gen(dup)
+ 25.     sum n_months_zillow_rents if dup > 0
+ 26.     assert r(max) == 0
+ 27. 
+.     duplicates drop zcta countyfips place_code, force
+ 28.     replace n_months_zillow_rents = . if n_months_zillow_rents == 0
+ 29. 
+.     save_data "`outstub'/zip_county_place_usps_master.dta", ///
+>         key(zcta zipcode countyfips place_code) replace
+ 30.     save_data "`outstub'/zip_county_place_usps_master.csv", outsheet ///
+>         key(zcta zipcode countyfips place_code) replace
+ 31. end
+
+. 
+. program build_geomaster_small
+  1.     syntax, instub(str) outstub(str)
+  2. 
+.     import excel "`instub'/TRACT_ZIP_122019.xlsx", ///
+>         firstrow clear
+  3. 
+.     drop BUS_RATIO OTH_RATIO TOT_RATIO    
+  4. 
+.     rename (TRACT ZIP RES_RATIO) (tract_fips zipcode res_ratio)
+  5. 
+.     save_data "`outstub'/tract_zip_master.dta", ///
+>         key(tract_fips zipcode) replace
+  6.     save_data "`outstub'/tract_zip_master.csv", outsheet ///
+>         key(tract_fips zipcode) replace
+  7. end 
+
 . 
 . *EXECUTE
 . main 
+(9,066,669 observations deleted)
+zipcode was long now str5
+(note: file ../temp/zillow_zipcodes_with_rents.dta not found)
+file ../temp/zillow_zipcodes_with_rents.dta saved
 (1 observation deleted)
-(data now sorted by zipcode)
-  (0 bytes saved)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                        37,790
+        from master                    37,790  (_merge==1)
+        from using                          0  (_merge==2)
+
+    matched                             3,316  (_merge==3)
+    -----------------------------------------
+(37,790 real changes made)
+(data already sorted by zipcode)
+  variable n_months_zillow_rents was long now int
+  variable zillow_zipcode was float now byte
+  (205,530 bytes saved)
 ===============================================================================
 File: ../temp/usps_master.dta
 Key: zipcode
 ===============================================================================
-  41106:3(76453):4239886574:3006094094
+  41106:5(53297):2847124819:2269243045
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
      zipcode |          0
 zipcode_name |          0
         zcta |          0
+n_months_z~s |     41,106     4.81628     18.9409          0        119
+zillow_zip~e |     41,106    .0806695    .2723302          0          1
 
 
 
@@ -110,14 +194,26 @@ file ../temp/usps_master.dta saved
     not matched                             0
     matched                            87,799  
     -----------------------------------------
+(1,308 observations deleted)
+
+Duplicates in terms of zcta countyfips place_code
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+n_months_z~s |      2,837           0           0          0          0
+
+Duplicates in terms of zcta countyfips place_code
+
+(1,930 observations deleted)
+(77,215 real changes made, 77,215 to missing)
 (data now sorted by zcta zipcode countyfips place_code)
   variable zcta was str7 now str5
-  (175,598 bytes saved)
+  (169,122 bytes saved)
 ===============================================================================
 File: ../output/zip_county_place_usps_master.dta
 Key: zcta zipcode countyfips place_code
 ===============================================================================
-  87799:12(78582):2652824511:3918715433
+  84561:15(23265):1658122355:1853492490
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -128,13 +224,16 @@ Key: zcta zipcode countyfips place_code
       cbsa10 |          0
 -------------+---------------------------------------------------------
    statefips |          0
-houses_zct~y |     87,799    1796.605    3756.885          1      47617
+houses_zct~y |     84,561    1557.409     3325.88          1      47617
    zcta_name |          0
   place_name |          0
  county_name |          0
 -------------+---------------------------------------------------------
  cbsa10_name |          0
    state_abb |          0
+zillow_zip~e |     84,561    .0868722    .2816494          0          1
+n_months_z~s |      7,346    58.76354    33.90895         12        119
+         dup |     84,561    .0228238     .379992          0         34
 
 
 
@@ -143,12 +242,12 @@ houses_zct~y |     87,799    1796.605    3756.885          1      47617
 file ../output/zip_county_place_usps_master.dta saved
 (data now sorted by zcta zipcode countyfips place_code)
   variable zcta was str7 now str5
-  (175,598 bytes saved)
+  (169,122 bytes saved)
 ===============================================================================
 File: ../output/zip_county_place_usps_master.csv
 Key: zcta zipcode countyfips place_code
 ===============================================================================
-  87799:12(78582):2652824511:3918715433
+  84561:15(23265):1658122355:1853492490
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -159,20 +258,60 @@ Key: zcta zipcode countyfips place_code
       cbsa10 |          0
 -------------+---------------------------------------------------------
    statefips |          0
-houses_zct~y |     87,799    1796.605    3756.885          1      47617
+houses_zct~y |     84,561    1557.409     3325.88          1      47617
    zcta_name |          0
   place_name |          0
  county_name |          0
 -------------+---------------------------------------------------------
  cbsa10_name |          0
    state_abb |          0
+zillow_zip~e |     84,561    .0868722    .2816494          0          1
+n_months_z~s |      7,346    58.76354    33.90895         12        119
+         dup |     84,561    .0228238     .379992          0         34
 
 
 
 
 (note: file ../output/zip_county_place_usps_master.csv not found)
+(data now sorted by tract_fips zipcode)
+  (0 bytes saved)
+===============================================================================
+File: ../output/tract_zip_master.dta
+Key: tract_fips zipcode
+===============================================================================
+  170189:3(55294):342765164:372020979
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  tract_fips |          0
+     zipcode |          0
+   res_ratio |    170,189    .4305214    .4102205          0          1
+
+
+
+
+(note: file ../output/tract_zip_master.dta not found)
+file ../output/tract_zip_master.dta saved
+(data now sorted by tract_fips zipcode)
+  (0 bytes saved)
+===============================================================================
+File: ../output/tract_zip_master.csv
+Key: tract_fips zipcode
+===============================================================================
+  170189:3(55294):342765164:372020979
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  tract_fips |          0
+     zipcode |          0
+   res_ratio |    170,189    .4305214    .4102205          0          1
+
+
+
+
+(note: file ../output/tract_zip_master.csv not found)
 
 . 
 end of do-file
 
- make.py ended: 2021-03-05 17:21:37
+ make.py ended: 2021-03-16 20:00:04

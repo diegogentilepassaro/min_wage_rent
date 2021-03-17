@@ -9,7 +9,6 @@ main <- function() {
    
    datadir  <- "../../../drive/raw_data/zillow/County_122019"
    outdir   <- "../../../drive/base_large/zillow"
-   xwalkdir <- "../../geo_master/output"
    log_file <- "../output/data_file_manifest.log"
    
    raw_filenames <- list.files(datadir, pattern = "*.csv", full.names = T)
@@ -23,11 +22,12 @@ main <- function() {
    for (i in 1:length(dts)) {
       dt <- merge(dt, dts[[i]], by = c('countyfips', 'date'), all.x = TRUE)
    }
-   
-   dt <- add_geographies(dt, xwalkdir)
-   
+
    save_data(dt, key = c('countyfips', 'date'), 
              filename = file.path(outdir, 'zillow_county_clean.csv'),
+             logfile = log_file)
+   save_data(dt, key = c('countyfips', 'date'), 
+             filename = file.path(outdir, 'zillow_county_clean.dta'),
              logfile = log_file)
 }
 
@@ -74,19 +74,6 @@ build_frame <- function(dts){
       "countyfips" = rep(counties, each = length(dates)),
       "date"       = rep(dates, times = length(counties))
    ))
-}
-
-add_geographies <- function(dt, xwalkdir) {
-   
-   geo_master <- fread(file.path(xwalkdir, "zcta_county_place_usps_master_xwalk.csv"),
-                       colClasses = 'character')
-   target_geovars <- c("countyfips", "place_code", "cbsa10", "statefips")
-   
-   geo_master <- geo_master[, ..target_geovars][, first(.SD), by = "countyfips"]
-   
-   dt <- left_join(dt, geo_master, by = "countyfips")
-   
-   return(dt)
 }
 
 # Execute

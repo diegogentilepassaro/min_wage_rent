@@ -1,7 +1,7 @@
 
 make_xwalk_od <- function(instub) {
 
-  xwalk_files <- list.files(paste0(instub, 'lodes/'), 
+  xwalk_files <- list.files('../../../raw/crosswalk/lodes/', 
                             full.names = T, pattern = "*.gz")
   xwalk <- rbindlist(lapply(xwalk_files, function(x) fread(x)))
 
@@ -12,14 +12,8 @@ make_xwalk_od <- function(instub) {
 
   xwalk <- xwalk[, c('blockfips', 'tract_fips', 'st')]
   
-  tract_zip_xwalk <- read_excel(paste0(instub, "TRACT_ZIP_122019.xlsx"), 
-                                col_names = c('tract_fips', 'zipcode', 'res_ratio', 
-                                              'bus_ratio', 'oth_ratio', 'tot_ratio'),
-                                col_types = rep('numeric', 6))
-  tract_zip_xwalk <- setDT(tract_zip_xwalk)
-
-  tract_zip_xwalk[, c('res_ratio', 'bus_ratio', 'oth_ratio') := NULL]
-  tract_zip_xwalk <- tract_zip_xwalk[!is.na(zipcode), ]
+  tract_zip_xwalk <- fread(paste0(instub, "tract_zip_master.csv"), 
+                 colClasses = c('numeric', 'numeric', 'numeric'))
   
   return(list(xwalk, tract_zip_xwalk))
 }
@@ -34,5 +28,12 @@ make_xwalk_raw_wac <- function(instub) {
   xwalk[, tract_fips := as.numeric(tract_fips)]
   xwalk <- xwalk[, ..target_xwalk]
   
+  return(xwalk)
+}
+
+make_xwalk_tractzip <- function(instub) {
+  xwalk <- fread(paste0(instub, "tract_zip_master.csv"), 
+                 colClasses = c('numeric', 'numeric', 'numeric'))
+
   return(xwalk)
 }
