@@ -9,17 +9,13 @@ main <- function() {
   data_version <- '0055'
   
   datadir  <- paste0("../../../drive/raw_data/census/tract/nhgis", data_version, "_csv/")
-  xwalkdir <- "../../../raw/crosswalk/" 
+  xwalkdir <- "../../geo_master/output/" 
   outdir   <- "../../../drive/base_large/demographics/"
   tempdir  <- "../temp"
   log_file <- "../output/data_file_manifest.log"
   
-  xwalk <- read_excel(paste0(xwalkdir, "TRACT_ZIP_122019.xlsx"), 
-                      col_names = c('tract_fips', 'zipcode', 'res_ratio', 'bus_ratio', 'oth_ratio', 'tot_ratio'),
-                      col_types = c('numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric'))
-  xwalk <- setDT(xwalk)
-  xwalk[, c('res_ratio', 'bus_ratio', 'oth_ratio'):= NULL]
-  xwalk <- xwalk[!is.na(zipcode), ]
+  xwalk <- fread(paste0(xwalkdir, "tract_zip_master.csv"), 
+                 colClasses = c('numeric', 'numeric', 'numeric'))
   
   table_list <- list.files(datadir, 
                            pattern = "*.csv")
@@ -83,7 +79,7 @@ crosswalk_table_tractzip <- function(data, xwalk) {
  
   data <- data[xwalk, on = 'tract_fips']
 
-  data <- data[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio),
+  data <- data[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=res_ratio),
                                         by = c('zipcode', 'year'),
                                         .SDcols = 'acs_pop']
   
