@@ -2,7 +2,11 @@ remove(list = ls())
 source("../../../lib/R/load_packages.R")
 source("../../../lib/R/save_data.R")
 
-load_packages(c("data.table", "usmap", "zoo"))
+paquetes <- c("data.table", "usmap", "zoo")
+load_packages(paquetes)
+
+library(parallel)
+n_cores <- 6
 
 main <- function(){
   instub_mw    <- "../../../drive/derived_large/min_wage"
@@ -15,8 +19,18 @@ main <- function(){
   periods <- unique(dt.zip$year_month)
   states  <- fips(c(state.abb, 'DC'))
   
+  # Parallel set-up
+  cl <- makeCluster(n_cores, type = "PSOCK")   # Create cluster. Use type = "FORK" in Mac
+  
+  clusterExport(cl, "paquetes")                                         # Load "paquetes" object in nodes
+  clusterEvalQ(cl, lapply(paquetes, require, character.only = TRUE))    # Load packages in nodes
+  clusterExport(cl, "load_od_matrix", env = .GlobalEnv)                 # Load global environment objects in nodes
+  clusterExport(cl, "assemble_expmw_state", env = .GlobalEnv)           # Load global environment objects in nodes
+  clusterExport(cl, c("dt.zip", "periods", "states", "instub_mw", "instub_lodes", "outstub"), 
+                    env = environment())                                # Load local environment objects in nodes
+
   # Build exp MW data
-  dts.exp <- lapply(states, function(st) {
+  dts.exp <- parLapply(cl, states, function(st) {
       
     dt.st <- assemble_expmw_state(st, periods, "actual_mw", dt.zip, instub_lodes)
     return(dt.st)
@@ -24,11 +38,12 @@ main <- function(){
   
   dt.exp_mw <- rbindlist(dts.exp)
   
-  dts.exp_wg_mean <- lapply(states, function(st) {
+  dts.exp_wg_mean <- parLapply(cl, states, function(st) {
      
     dt.st <- assemble_expmw_state(st, periods, "actual_mw_wg_mean", dt.zip, instub_lodes)
     return(dt.st)
   })
+  stopCluster(cl)
   
   dt.exp_mw_wg_mean <- rbindlist(dts.exp)
   exp_mw_vars <- c("exp_mw_tot", "exp_mw_young", "exp_mw_lowinc")
