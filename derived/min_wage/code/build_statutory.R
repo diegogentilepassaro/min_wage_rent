@@ -19,7 +19,7 @@ main <- function(){
    
    dt.mw <- load_mw(base_mw_dir)
    
-   dt <- assemble_statutory(dt, dt.mw)
+   dt <- assemble_statutory_mw(dt, dt.mw)
    
    dt.zip    <- collapse_datatable(copy(dt), key_vars = c("zipcode",    "year", "month"))
    dt.county <- collapse_datatable(copy(dt), key_vars = c("countyfips", "year", "month"))
@@ -27,10 +27,16 @@ main <- function(){
    save_data(dt.zip, key = c("zipcode", "year", "month"),
              filename = file.path(outstub, "zip_statutory_mw.csv"),
              logfile  = log_file)
-   
+   save_data(dt.zip, key = c("zipcode", "year", "month"),
+             filename = file.path(outstub, "zip_statutory_mw.dta"),
+             nolog    = TRUE)
+
    save_data(dt.county, key = c("countyfips", "year", "month"),
              filename = file.path(outstub, "county_statutory_mw.csv"),
              logfile  = log_file)
+   save_data(dt.county, key = c("countyfips", "year", "month"),
+             filename = file.path(outstub, "county_statutory_mw.dta"),
+             nolog    = TRUE)
 }
 
 build_frame <- function(instub, start_date, end_date, freq = "month") {
@@ -121,7 +127,7 @@ load_mw <- function(instub) {
                "county" = county_mw, "local" = local_mw))
 }
 
-assemble_statutory <- function(dt, dt.mw) {
+assemble_statutory_mw <- function(dt, dt.mw) {
    
    dt <- dt.mw$state[dt,  on = c(             "statefips", "year", "month")]
    dt <- dt.mw$county[dt, on = c("county",    "statefips", "year", "month")]
