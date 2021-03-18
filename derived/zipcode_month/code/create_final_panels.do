@@ -73,7 +73,7 @@ end
 program prepare_aux_data
 	syntax, instub(str) outstub(str)
 
-	import delim using `instub'/zip_demo.csv, clear
+	import delim using `instub'/zip_demo_2010.csv, clear
 	save_data `outstub'/zip_ready.dta, replace key(zipcode) log(none)
 	use `instub'/exp_mw.dta, clear 
 	g year_month = mofd(yearmonth)

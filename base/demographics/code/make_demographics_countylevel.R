@@ -9,7 +9,6 @@ main <- function() {
   data_version <- "0056"
   
   datadir <- paste0("../../../drive/raw_data/census/county/nhgis", data_version, "_csv/")
-  xwalkdir <- "../../../raw/crosswalk/" 
   outdir <- "../../../drive/base_large/demographics/"
   tempdir <- "../temp"
   log_file <- "../output/data_file_manifest.log"
@@ -63,7 +62,7 @@ main <- function() {
   table_final[, (denom_cols):= NULL]
   
   save_data(table_final, key = c('county_fips'),
-            filename = paste0(outdir, 'county_demo.csv'),
+            filename = paste0(outdir, 'county_demo_2010.csv'),
             logfile = log_file)
 }
 

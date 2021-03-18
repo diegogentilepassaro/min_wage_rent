@@ -93,7 +93,7 @@ main <- function() {
    table_final_all <- zip_mw[table_final_all, on = 'zipcode']
    
    save_data(table_final_all, key = c('zipcode'),
-             filename = paste0(outdir, 'zip_demo.csv'),
+             filename = paste0(outdir, 'zip_demo_2010.csv'),
              logfile = log_file)
 }
 
