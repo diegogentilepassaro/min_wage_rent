@@ -17,7 +17,7 @@ main <- function() {
    table_list <- list.files(datadir, 
                             pattern = "*.csv")
    
-   table_list <- table_list[table_list != "nhgis0043_ds176_20105_2010_tract.csv"] # We are not using this file
+   table_list <- table_list[table_list != "nhgis0052_ds176_20105_2010_tract.csv"] # We are not using this file
    table_list <- str_remove_all(table_list, paste0("nhgis", data_version, "_"))
    
    table_clean <- lapply(table_list, format_tables, datadir = datadir, data_version = data_version)
@@ -88,7 +88,7 @@ main <- function() {
    table_final_all <- zip_mw[table_final_all, on = 'zipcode']
    
    save_data(table_final_all, key = c('zipcode'),
-             filename = paste0(outdir, 'zip_demo.csv'),
+             filename = paste0(outdir, 'zip_demo_2010.csv'),
              logfile = log_file)
 }
 
