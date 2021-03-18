@@ -19,7 +19,7 @@ from gslab_make.dir_mod import *
 set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
-delete_files('../../../drive/derived_large/output/*')
+delete_files('../../../drive/derived_large/min_wage/*')
 delete_files('../output/*')
 
 envir_vars = os.getenv('PATH')
@@ -35,8 +35,8 @@ elif "Stata15" in envir_vars:
 
 start_make_logging()
 
-
-run_rbatch(program = 'make_mw_panel_zip.R')
+run_rbatch(program = 'build_statutory.R')
+run_rbatch(program = 'build_experienced.R')
 
 end_make_logging()
 

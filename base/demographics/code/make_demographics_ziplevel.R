@@ -9,7 +9,7 @@ main <- function() {
    data_version <- "0052"
    
    datadir <- paste0("../../../drive/raw_data/census/tract/nhgis", data_version, "_csv/")
-   xwalkdir <- "../../../raw/crosswalk/" 
+   xwalkdir <- "../../geo_master/output/" 
    outdir <- "../../../drive/base_large/demographics/"
    tempdir <- "../temp"
    log_file <- "../output/data_file_manifest.log"
@@ -24,25 +24,20 @@ main <- function() {
    
    table_final <- Reduce(function(x,y) merge(x,y, all = T, by = c('tract_fips', 'county_fips')), table_clean)
    
-   xwalk <- read_excel(paste0(xwalkdir, "TRACT_ZIP_122019.xlsx"), 
-                       col_names = c('tract_fips', 'zipcode', 'res_ratio', 'bus_ratio', 'oth_ratio', 'tot_ratio'),
-                       col_types = c('numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric'))
-   xwalk <- setDT(xwalk)
-   xwalk[, c('res_ratio', 'bus_ratio', 'oth_ratio'):= NULL]
-   xwalk <- xwalk[!is.na(zipcode), ]
+   xwalk <- fread(paste0(xwalkdir, "tract_zip_master.csv"), 
+                 colClasses = c('numeric', 'numeric', 'numeric'))
 
-   
    table_final <- table_final[xwalk, on = 'tract_fips']
-   table_final[, tot_ratio_denom := sum(tot_ratio, na.rm = T), by = zipcode]
-   table_final[, rel_wgt := tot_ratio / tot_ratio_denom]
+   table_final[, res_ratio_denom := sum(res_ratio, na.rm = T), by = zipcode]
+   table_final[, rel_wgt := res_ratio / res_ratio_denom]
    
    start_geo <- 'tract_fips'
    target_geo <- 'zipcode'
-   wgt <- 'tot_ratio'
+   wgt <- 'res_ratio'
    med_demovars <- colnames(table_final)[str_detect(colnames(table_final), "^med")]
    share_demovars <- setdiff(colnames(table_final), c(start_geo, target_geo, wgt, 'county_fips', med_demovars))
    
-   table_final_zipshare <- table_final[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), by = target_geo, .SDcols = share_demovars]
+   table_final_zipshare <- table_final[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=res_ratio), by = target_geo, .SDcols = share_demovars]
    
    
    table_final_zipshare[, c('urb_share2010', 

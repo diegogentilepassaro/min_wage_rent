@@ -11,20 +11,18 @@ paquetes <- c('tidyverse', 'data.table', 'bit64', 'purrr', 'readxl', 'parallel')
 load_packages(paquetes)
 
 library(parallel)
-n_cores <- 12
+n_cores <- 10
 
 main <- function(paquetes, n_cores) {
-  datadir_lodes <- '../../../drive/raw_data/lodes/od/JT00/2017/'
-  datadir_xwalk <- '../../../raw/crosswalk/'
-  outdir        <- '../../../drive/base_large/lodes/'
+  datadir_lodes       <- '../../../drive/raw_data/lodes/od/JT00/2017/'
+  datadir_xwalk       <- '../../geo_master/output/'
+  datadir_xwalk_lodes <- '../../../raw/crosswalk/'
+  outdir              <- '../../../drive/base_large/lodes/'
 
   # Prepare crosswalks 
-  xwalk_list <- make_xwalk_od(datadir_xwalk)
+  blc_tract_xwalk <- make_xwalk_raw_wac(datadir_xwalk_lodes)
+  tract_zip_xwalk <- make_xwalk_tractzip(datadir_xwalk)
 
-  blc_tract_xwalk <- xwalk_list[[1]]
-  tract_zip_xwalk <- xwalk_list[[2]]
-  rm(xwalk_list)
-  
   # Prepare states od matrices
   files <- list.files(datadir_lodes, 
                       full.names = T, pattern = "*.gz")
@@ -87,7 +85,7 @@ make_odmatrix_state <- function(stabb, datadir, aux, xwalk, dest_threshold) {
   # Define function to crosswalk destination tract to zipcode for each origin tract separately
   tract_to_zip_work <- function(data, xwlk = xwalk) {
     data <- data[xwlk, on = c('w_tractfips' = 'tract_fips'), nomatch = 0]
-    data <- data[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), 
+    data <- data[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=res_ratio), 
                  by = c('h_tractfips', 'zipcode'), .SDcols = c('totjob', 'job_young', 'job_lowinc')]
     setnames(data, old = 'zipcode', new = 'w_zipcode')
     return(data)
@@ -95,7 +93,7 @@ make_odmatrix_state <- function(stabb, datadir, aux, xwalk, dest_threshold) {
   # Define function to crosswalk origin tract to zipcode for each destination zipcode separately
   tract_to_zip_home <- function(data, xwlk = xwalk) {
     data <- data[xwlk, on = c('h_tractfips' = 'tract_fips'), nomatch = 0]
-    data <- data[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=tot_ratio), 
+    data <- data[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=res_ratio), 
                  by = c('w_zipcode', 'zipcode'), .SDcols = c('totjob', 'job_young', 'job_lowinc')]
     setnames(data, old = 'zipcode', new = 'h_zipcode')
     return(data)
@@ -111,8 +109,10 @@ make_odmatrix_state <- function(stabb, datadir, aux, xwalk, dest_threshold) {
   this_state_zip[, 'totjob_cum' := cumsum(totjob), by = 'h_zipcode'] 
   this_state_zip[, 'totjob_cumsh' := totjob_cum / h_totjob]
 
-  # Keep only destination zipcode that make up to 90 percent of total workforce
-  this_state_zip <- this_state_zip[totjob_cumsh <= dest_threshold, ][, c('h_totjob', 'totjob_cum', 'totjob_cumsh') := NULL] 
+  # Keep destination zipcodes that make up to `dest_threshold` percent of total workforce
+  this_state_zip <- this_state_zip[totjob_cumsh <= dest_threshold, ]
+
+  this_state_zip[, c('h_totjob', 'totjob_cum', 'totjob_cumsh') := NULL] 
   
   return(list("dt"   = this_state_zip,
               "fips" = str_pad(this_fips, 2, pad = 0)))

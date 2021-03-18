@@ -9,7 +9,6 @@ main <- function() {
    
    datadir  <- "../../../drive/raw_data/zillow/Zip_122019"
    outdir   <- "../../../drive/base_large/zillow"
-   xwalkdir <- "../../geo_master/output"
    log_file <- "../output/data_file_manifest.log"
    
    raw_filenames <- list.files(datadir, pattern = "*.csv", full.names = T)
@@ -25,10 +24,11 @@ main <- function() {
       dt <- merge(dt, dts[[name]], by = c('zipcode', 'date'), all.x = TRUE)
    }
 
-   dt <- add_geographies(dt, xwalkdir)
-   
    save_data(dt, key = c('zipcode', 'date'), 
              filename = file.path(outdir, 'zillow_zipcode_clean.csv'),
+             logfile = log_file)
+   save_data(dt, key = c('zipcode', 'date'), 
+             filename = file.path(outdir, 'zillow_zipcode_clean.dta'),
              logfile = log_file)
 }
 
@@ -79,20 +79,6 @@ build_frame <- function(dts){
       "zipcode" = rep(zipcodes, each = length(dates)),
       "date"    = rep(dates, times = length(zipcodes))
    ))
-}
-
-add_geographies <- function(dt, xwalkdir) {
-
-   geo_master <- fread(file.path(xwalkdir, "zcta_county_place_usps_master_xwalk.csv"),
-                       colClasses = 'character')
-   target_geovars <- c("zipcode", "countyfips", "place_code", "cbsa10", "statefips")
-   
-   geo_master <- geo_master[, ..target_geovars][, first(.SD), by = "zipcode"]
-   geo_master[, zipcode := as.integer(zipcode)]
-   
-   dt <- left_join(dt, geo_master, by = "zipcode")
-
-   return(dt)
 }
 
 # Execute
