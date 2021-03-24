@@ -54,8 +54,8 @@ main <- function(){
   # Put data together and format
   dt.exp_mw <- merge(dt.exp_mw, dt.exp_mw_wg_mean, by = c("zipcode", "year_month"))
   dt.exp_mw[, year_month := as.yearmon(year_month)]
-  dt.exp_mw[, month := format(dt.exp_mw$year_month)]
-  dt.exp_mw[, year  := format(dt.exp_mw$year_month, "%Y")]
+  dt.exp_mw[, month := as.numeric(format(dt.exp_mw$year_month, "%m"))]
+  dt.exp_mw[, year  := as.numeric(format(dt.exp_mw$year_month, "%Y"))]
   
   # Save data
   save_data(dt.exp_mw, key = c("zipcode", "year", "month"),

@@ -64,11 +64,8 @@ build_frame <- function(instub, start_date, end_date, freq = "month") {
    
    dt[, c('year', 'month') :=  .(as.numeric(format(as.Date(daily_date), "%Y")),
                                  as.numeric(format(as.Date(daily_date), "%m")))]
-   
-   if (freq == "month") {
-      dt[, year_month := as.yearmon(daily_date)]
-      dt[, daily_date := NULL]
-   }
+   dt[, year_month := as.yearmon(daily_date)]
+   dt[, daily_date := NULL]
    
    return(dt)
 }
