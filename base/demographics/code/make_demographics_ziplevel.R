@@ -90,6 +90,9 @@ main <- function() {
    save_data(table_final_all, key = c('zipcode'),
              filename = paste0(outdir, 'zip_demo_2010.csv'),
              logfile = log_file)
+   save_data(table_final_all, key = c('zipcode'),
+             filename = paste0(outdir, 'zip_demo_2010.dta'),
+             logfile = log_file)
 }
 
 

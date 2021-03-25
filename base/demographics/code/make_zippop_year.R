@@ -39,6 +39,10 @@ main <- function() {
             filename = paste0(outdir, 'acs_population_zipmonth.csv'), 
             logfile = log_file, 
             key = c('zipcode', 'year_month'))
+  save_data(table_clean, 
+            filename = paste0(outdir, 'acs_population_zipmonth.dta'), 
+            logfile = log_file, 
+            key = c('zipcode', 'year_month'))
 }
 
 format_tables <- function(x, datadir, data_version, xwalk) {

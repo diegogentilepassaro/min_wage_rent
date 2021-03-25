@@ -4,16 +4,22 @@ adopath + ../../../lib/stata/gslab_misc/ado
 adopath + ../../../lib/stata/mental_coupons/ado
 
 program main
-	local instub  "../../../drive/derived_large/min_wage"
+	local instub_derived  "../../../drive/derived_large"
+	local instub_base  "../../../drive/base_large"
 	local outstub "../output"
 
-	use "`instub'/zip_statutory_mw.dta"
-    merge 1:1 zipcode year month using "`instub'/zip_experienced_mw.dta"
-
-	gen_vars
+	use "`instub_derived'/min_wage/zip_statutory_mw.dta"
+    merge 1:1 zipcode year month using "`instub_derived'/min_wage//zip_experienced_mw.dta"
+	gen wrong_matches = (_merge != 3)
+	drop _merge
+    gen_vars
+    merge m:1 zipcode using "`instub_base'/demographics/zip_demo_2010.dta", nogen keep(3)
+    merge 1:1 zipcode year_month using "`instub_base'/demographics/acs_population_zipmonth.dta"
+	sabelo
+	
 
 	compress
-	save_data `outstub'/zipcode_yearmonth_panel.dta, key(zipcode year_month) ///
+	save_data "`outstub'/zipcode_yearmonth_panel.dta", key(zipcode year_month) ///
 		log(none) replace
 end
 

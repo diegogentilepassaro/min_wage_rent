@@ -64,6 +64,9 @@ main <- function() {
   save_data(table_final, key = c('county_fips'),
             filename = paste0(outdir, 'county_demo_2010.csv'),
             logfile = log_file)
+  save_data(table_final, key = c('county_fips'),
+            filename = paste0(outdir, 'county_demo_2010.dta'),
+            logfile = log_file)
 }
 
 
