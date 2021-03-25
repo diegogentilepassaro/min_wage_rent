@@ -9,16 +9,15 @@ program main
 
 	use "`instub'/zip_statutory_mw.dta"
     merge 1:1 zipcode year month using "`instub'/zip_experienced_mw.dta"
-	
+
 	gen_vars
-sabelo
+
 	compress
 	save_data `outstub'/zipcode_yearmonth_panel.dta, key(zipcode year_month) ///
 		log(none) replace
 end
 
 program gen_vars
-    
 	drop year_month
 	gen day = 1
 	gen date = mdy(month, day, year)
@@ -37,14 +36,11 @@ program gen_vars
 	
 	gen event_month = mw_event == 1
 	replace event_month = 1 if year_month != year_month[_n-1] + 1  // zipcode changes
-
 	gen event_month_id = sum(event_month)
 
 	bysort event_month_id: gen months_since = _n - 1
 	bysort event_month_id: gen months_until = _N - months_since
-
 	bysort event_month_id: replace months_until = 0 if _N == months_until
-
 	drop event_month_id event_month        
 	
 	gen sal_mw_event = (d_actual_mw >= 0.5)
