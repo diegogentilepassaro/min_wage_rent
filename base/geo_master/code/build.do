@@ -58,12 +58,8 @@ program build_geomaster_large
 
     merge m:m zcta using "../temp/usps_master.dta", nogen keep(3)
 
-    * Select one out of zcta-zipcode-county-place combinations
-    * (reminder: `sort' sorts vars in ascending order)
-    gen   neg_months = -n_months_zillow_rents
-    gsort zipcode countyfips place_code neg_months rural
-    bys   zipcode countyfips place_code: keep if _n == 1
-    drop  neg_months
+    * Make sure zipcode-county-place combinations are unique
+    isid zipcode place_code countyfips
 
     replace n_months_zillow_rents = . if n_months_zillow_rents == 0
 
