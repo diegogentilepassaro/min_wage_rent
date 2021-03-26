@@ -58,11 +58,12 @@ program build_geomaster_large
 
     merge m:m zcta using "../temp/usps_master.dta", nogen keep(3)
 
-    * Select one zipcode per county place  (remind that `sort' makes vars ascending)
-    gen  neg_months = -n_months_zillow_rents
-    sort zipcode countyfips place_code neg_months rural
-    bys  zipcode countyfips place_code: keep if _n == 1
-    drop neg_months
+    * Select one out of zcta-zipcode-county-place combinations
+    * (reminder: `sort' sorts vars in ascending order)
+    gen   neg_months = -n_months_zillow_rents
+    gsort zipcode countyfips place_code neg_months rural
+    bys   zipcode countyfips place_code: keep if _n == 1
+    drop  neg_months
 
     replace n_months_zillow_rents = . if n_months_zillow_rents == 0
 
@@ -73,11 +74,12 @@ program build_geomaster_large
 
     keep  `keep_vars'
     order `keep_vars'
-
+    
+    * Make dummy to select prefer ZIP code within zipcode-county-place combinations
     gsort zipcode -houses_zcta_place_county countyfips place_code
-    g temp_houses = -houses_zcta_place_county
-    bys zipcode (temp_houses): g zipsample_house = (_n==1)
-    drop temp_houses
+    gen   neg_houses = -houses_zcta_place_county
+    bys   zipcode (neg_houses): gen zip_max_houses = (_n == 1)
+    drop  neg_houses
 
     save_data "`outstub'/zip_county_place_usps_master.dta", ///
         key(zipcode countyfips place_code) replace
