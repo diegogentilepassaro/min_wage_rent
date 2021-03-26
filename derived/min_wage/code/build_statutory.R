@@ -152,8 +152,11 @@ assemble_statutory_mw <- function(dt, dt.mw) {
 
 collapse_datatable <- function(dt, key_vars = c("zipcode", "year", "month")) {
    
+   # Don't use zip_max_houses var here, to be robust to collapsing at county level
    setorder(dt, zipcode, -houses_zcta_place_county)
    dt.max <- dt[, first(.SD), by = key_vars]
+   
+   if (any("zipcode" %in% key_vars)) dt.max[, zip_max_houses := NULL]
    
    dt.wmean <- dt[, .(actual_mw_wg_mean              = weighted.mean(actual_mw, houses_zcta_place_county),
                       actual_mw_ignore_local_wg_mean = weighted.mean(actual_mw_ignore_local, houses_zcta_place_county)),
