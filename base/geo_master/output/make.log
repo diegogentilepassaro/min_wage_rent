@@ -1,5 +1,5 @@
 
- make.py started: 2021-03-26 06:35:40 C:\Users\shermo\Documents\GitHub\min_wage_rent\base\geo_master\code 
+ make.py started: 2021-03-26 07:38:25 C:\Users\shermo\Documents\GitHub\min_wage_rent\base\geo_master\code 
 
 
 
@@ -100,15 +100,16 @@ Notes:
 >            (zcta_name  county_name  place_name  cbsa10_name  state_abb)
  16.     rename hus10 houses_zcta_place_county
  17. 
-.     gen urban = place_code != "99999"
+.     gen rural = place_code == "99999"
  18. 
 .     merge m:m zcta using "../temp/usps_master.dta", nogen keep(3)
  19. 
-.     * Select one zipcode per county place
-.     gen  neg_months = -n_months_zillow_rents
- 20.     sort zipcode countyfips place_code neg_months urban
- 21.     bys  zipcode countyfips place_code: keep if _n == 1
- 22.     drop neg_months
+.     * Select one out of zcta-zipcode-county-place combinations
+.     * (reminder: `sort' sorts vars in ascending order)
+.     gen   neg_months = -n_months_zillow_rents
+ 20.     gsort zipcode countyfips place_code neg_months rural
+ 21.     bys   zipcode countyfips place_code: keep if _n == 1
+ 22.     drop  neg_months
  23. 
 .     replace n_months_zillow_rents = . if n_months_zillow_rents == 0
  24. 
@@ -118,13 +119,20 @@ Notes:
 >         houses_zcta_place_county n_months_zillow_rents
  25. 
 .     keep  `keep_vars'
- 26.     order `keep_vars' 
- 27. 
+ 26.     order `keep_vars'
+ 27.     
+.     * Make dummy to select prefer ZIP code within zipcode-county-place combin
+> ations
+.     gsort zipcode -houses_zcta_place_county countyfips place_code
+ 28.     gen   neg_houses = -houses_zcta_place_county
+ 29.     bys   zipcode (neg_houses): gen zip_max_houses = (_n == 1)
+ 30.     drop  neg_houses
+ 31. 
 .     save_data "`outstub'/zip_county_place_usps_master.dta", ///
 >         key(zipcode countyfips place_code) replace
- 28.     save_data "`outstub'/zip_county_place_usps_master.csv", outsheet ///
+ 32.     save_data "`outstub'/zip_county_place_usps_master.csv", outsheet ///
 >         key(zipcode countyfips place_code) replace
- 29. end
+ 33. end
 
 . 
 . program build_geomaster_small
@@ -213,14 +221,15 @@ file ../temp/usps_master.dta saved
     -----------------------------------------
 (0 observations deleted)
 (80,453 real changes made, 80,453 to missing)
-(data already sorted by zipcode countyfips place_code)
+(data now sorted by zipcode countyfips place_code)
+  variable zip_max_houses was float now byte
   variable zcta was str7 now str5
-  (175,598 bytes saved)
+  (438,995 bytes saved)
 ===============================================================================
 File: ../output/zip_county_place_usps_master.dta
 Key: zipcode countyfips place_code
 ===============================================================================
-  87799:12(86151):3600324269:163070523
+  87799:13(78026):1023705753:2054576064
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -238,20 +247,22 @@ Key: zipcode countyfips place_code
 -------------+---------------------------------------------------------
 houses_zct~y |     87,799    1796.605    3756.885          1      47617
 n_months_z~s |      7,346    58.76354    33.90895         12        119
+zip_max_ho~s |     87,799    .4611442    .4984908          0          1
 
 
 
 
 (note: file ../output/zip_county_place_usps_master.dta not found)
 file ../output/zip_county_place_usps_master.dta saved
-(data already sorted by zipcode countyfips place_code)
+(data now sorted by zipcode countyfips place_code)
+  variable zip_max_houses was float now byte
   variable zcta was str7 now str5
-  (175,598 bytes saved)
+  (438,995 bytes saved)
 ===============================================================================
 File: ../output/zip_county_place_usps_master.csv
 Key: zipcode countyfips place_code
 ===============================================================================
-  87799:12(86151):3600324269:163070523
+  87799:13(78026):1023705753:2054576064
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -269,6 +280,7 @@ Key: zipcode countyfips place_code
 -------------+---------------------------------------------------------
 houses_zct~y |     87,799    1796.605    3756.885          1      47617
 n_months_z~s |      7,346    58.76354    33.90895         12        119
+zip_max_ho~s |     87,799    .4611442    .4984908          0          1
 
 
 
@@ -357,4 +369,4 @@ Key: tract_fips zcta
 . 
 end of do-file
 
- make.py ended: 2021-03-26 06:36:42
+ make.py ended: 2021-03-26 07:39:09
