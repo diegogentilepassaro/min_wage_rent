@@ -37,9 +37,9 @@ program build_geomaster_large
     merge 1:1 zipcode using "../temp/zillow_zipcodes_with_rents.dta", ///
         assert(1 3)
 
-    gen zillow_zipcode = (_merge == 3)
+    gen     zillow_zipcode = (_merge == 3)
     replace n_months_zillow_rents = 0 if missing(n_months_zillow_rents)
-    drop _merge
+    drop    _merge
 
     save_data "../temp/usps_master.dta", key(zipcode) replace log(none)
     
@@ -48,38 +48,39 @@ program build_geomaster_large
         varnames(1) stringcols(1 2 3 4 5)
 
     drop metdiv10 mdivname10 afact
-    rename (zcta5  placefp     county      state)     ///
-           (zcta   place_code  countyfips  statefips)
+    rename (zcta5      county       placefp     state)                  ///
+           (zcta       countyfips   place_code  statefips)
     rename (zipname    cntyname     placenm     cbsaname10   stab)      ///
            (zcta_name  county_name  place_name  cbsa10_name  state_abb)
     rename hus10 houses_zcta_place_county
 
+    gen rural = place_code == "99999"
+
     merge m:m zcta using "../temp/usps_master.dta", nogen keep(3)
 
-    local keep_vars ///
-    	zcta zipcode place_code countyfips cbsa10 statefips       ///
-        houses_zcta_place_county zcta_name place_name county_name ///
-        cbsa10_name state_abb zillow_zipcode n_months_zillow_rents
+    * Make sure zipcode-county-place combinations are unique
+    isid zipcode place_code countyfips
 
-    keep  `keep_vars'
-    order `keep_vars' 
-    
-    bys zcta countyfips place_code: egen max_months_with_data = max(n_months_zillow_rents)
-
-    keep if max_months_with_data == n_months_zillow_rents
-    drop max_months_with_data
-
-    duplicates tag zcta countyfips place_code, gen(dup)
-    sum n_months_zillow_rents if dup > 0
-    assert r(max) == 0
-
-    duplicates drop zcta countyfips place_code, force
     replace n_months_zillow_rents = . if n_months_zillow_rents == 0
 
+    local keep_vars ///
+    	zipcode     place_code   countyfips   cbsa10     zcta       ///
+        place_name  county_name  cbsa10_name  state_abb  statefips  ///
+        houses_zcta_place_county n_months_zillow_rents
+
+    keep  `keep_vars'
+    order `keep_vars'
+    
+    * Make dummy to select prefer ZIP code within zipcode-county-place combinations
+    gsort zipcode -houses_zcta_place_county countyfips place_code
+    gen   neg_houses = -houses_zcta_place_county
+    bys   zipcode (neg_houses): gen zip_max_houses = (_n == 1)
+    drop  neg_houses
+
     save_data "`outstub'/zip_county_place_usps_master.dta", ///
-        key(zcta zipcode countyfips place_code) replace
+        key(zipcode countyfips place_code) replace
     save_data "`outstub'/zip_county_place_usps_master.csv", outsheet ///
-        key(zcta zipcode countyfips place_code) replace
+        key(zipcode countyfips place_code) replace
 end
 
 program build_geomaster_small
@@ -96,6 +97,25 @@ program build_geomaster_small
         key(tract_fips zipcode) replace
     save_data "`outstub'/tract_zip_master.csv", outsheet ///
         key(tract_fips zipcode) replace
+
+    local instub  "../../../raw/crosswalk"
+    import delim "`instub'/tract_zcta_xwalk.csv", ///
+        varnames(1) stringcols(3 4 5) clear
+
+    replace tract = tract * 100
+    replace tract = round(tract, 1)     
+    g tract_fips = string(tract, "%06.0f")
+    g county_fips = string(county, "%05.0f")
+    replace tract_fips = county_fips + tract_fips      
+    order tract_fips, first
+
+    rename (zcta5 afact) (zcta res_ratio)
+    keep tract_fips zcta res_ratio
+
+    save_data "`outstub'/tract_zcta_master.dta", ///
+        key(tract_fips zcta) replace
+    save_data "`outstub'/tract_zcta_master.csv", outsheet ///
+        key(tract_fips zcta) replace   
 end 
 
 *EXECUTE
