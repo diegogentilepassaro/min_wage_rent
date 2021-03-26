@@ -64,22 +64,19 @@ program build_geomaster_large
     keep  `keep_vars'
     order `keep_vars' 
     
-    bys zcta countyfips place_code: egen max_months_with_data = max(n_months_zillow_rents)
+    gsort zipcode -houses_zcta_place_county countyfips place_code
+    g temp_houses = -houses_zcta_place_county
+    bys zipcode (temp_houses): g zipsample_house = (_n==1)
+    drop temp_houses
 
-    keep if max_months_with_data == n_months_zillow_rents
-    drop max_months_with_data
-
-    duplicates tag zcta countyfips place_code, gen(dup)
-    sum n_months_zillow_rents if dup > 0
-    assert r(max) == 0
-
-    duplicates drop zcta countyfips place_code, force
-    replace n_months_zillow_rents = . if n_months_zillow_rents == 0
-
+    //I left these two lines in case you want to check how the two sets of duplicates don't overlap
+    *duplicates tag zipcode, g(zipdup)
+    *duplicates tag zcta countyfips place_code, g(dup)
+    
     save_data "`outstub'/zip_county_place_usps_master.dta", ///
-        key(zcta zipcode countyfips place_code) replace
+        key(zipcode countyfips place_code) replace
     save_data "`outstub'/zip_county_place_usps_master.csv", outsheet ///
-        key(zcta zipcode countyfips place_code) replace
+        key(zipcode countyfips place_code) replace
 end
 
 program build_geomaster_small
