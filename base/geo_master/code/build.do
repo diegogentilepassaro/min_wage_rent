@@ -37,9 +37,9 @@ program build_geomaster_large
     merge 1:1 zipcode using "../temp/zillow_zipcodes_with_rents.dta", ///
         assert(1 3)
 
-    gen zillow_zipcode = (_merge == 3)
+    gen     zillow_zipcode = (_merge == 3)
     replace n_months_zillow_rents = 0 if missing(n_months_zillow_rents)
-    drop _merge
+    drop    _merge
 
     save_data "../temp/usps_master.dta", key(zipcode) replace log(none)
     
@@ -48,31 +48,37 @@ program build_geomaster_large
         varnames(1) stringcols(1 2 3 4 5)
 
     drop metdiv10 mdivname10 afact
-    rename (zcta5  placefp     county      state)     ///
-           (zcta   place_code  countyfips  statefips)
+    rename (zcta5      county       placefp     state)                  ///
+           (zcta       countyfips   place_code  statefips)
     rename (zipname    cntyname     placenm     cbsaname10   stab)      ///
            (zcta_name  county_name  place_name  cbsa10_name  state_abb)
     rename hus10 houses_zcta_place_county
 
+    gen rural = place_code == "99999"
+
     merge m:m zcta using "../temp/usps_master.dta", nogen keep(3)
 
+    * Select one zipcode per county place  (remind that `sort' makes vars ascending)
+    gen  neg_months = -n_months_zillow_rents
+    sort zipcode countyfips place_code neg_months rural
+    bys  zipcode countyfips place_code: keep if _n == 1
+    drop neg_months
+
+    replace n_months_zillow_rents = . if n_months_zillow_rents == 0
+
     local keep_vars ///
-    	zcta zipcode place_code countyfips cbsa10 statefips       ///
-        houses_zcta_place_county zcta_name place_name county_name ///
-        cbsa10_name state_abb zillow_zipcode n_months_zillow_rents
+    	zipcode     place_code   countyfips   cbsa10     zcta       ///
+        place_name  county_name  cbsa10_name  state_abb  statefips  ///
+        houses_zcta_place_county n_months_zillow_rents
 
     keep  `keep_vars'
-    order `keep_vars' 
-    
+    order `keep_vars'
+
     gsort zipcode -houses_zcta_place_county countyfips place_code
     g temp_houses = -houses_zcta_place_county
     bys zipcode (temp_houses): g zipsample_house = (_n==1)
     drop temp_houses
 
-    //I left these two lines in case you want to check how the two sets of duplicates don't overlap
-    *duplicates tag zipcode, g(zipdup)
-    *duplicates tag zcta countyfips place_code, g(dup)
-    
     save_data "`outstub'/zip_county_place_usps_master.dta", ///
         key(zipcode countyfips place_code) replace
     save_data "`outstub'/zip_county_place_usps_master.csv", outsheet ///

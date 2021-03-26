@@ -1,30 +1,31 @@
 
- make.py started: 2021-03-26 09:25:25 /Volumes/GoogleDrive/My Drive/Brown/research/min_wage_rent/base/geo_master/code 
+ make.py started: 2021-03-26 06:35:40 C:\Users\shermo\Documents\GitHub\min_wage_rent\base\geo_master\code 
 
 
 
 
-Execute:  stataSE -e do "./build.do"
+Execute:  StataMP-64 /e do "./build.do"
 
   ___  ____  ____  ____  ____ (R)
  /__    /   ____/   /   ____/
-___/   /   /___/   /   /___/   16.1   Copyright 1985-2019 StataCorp LLC
-  Statistics/Data analysis            StataCorp
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
                                       4905 Lakeway Drive
-     Special Edition                  College Station, Texas 77845 USA
-                                      800-STATA-PC        https://www.stata.com
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
                                       979-696-4600        stata@stata.com
                                       979-696-4601 (fax)
 
-Stata license: 120-user network perpetual
-Serial number: 401606201670
-  Licensed to: Brown University
-               Brown University
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
 
 Notes:
-      1. Stata is running in batch mode.
-      2. Unicode is supported; see help unicode_advice.
-      3. Maximum number of variables is set to 5,000; see help set_maxvar.
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
 
 . do ./build.do 
 
@@ -33,13 +34,12 @@ Notes:
 . clear all
 
 . adopath + ../../../lib/stata/gslab_misc/ado
-  [1]  (BASE)      "/Applications/Stata/ado/base/"
-  [2]  (SITE)      "/Applications/Stata/ado/site/"
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
   [3]              "."
-  [4]  (PERSONAL)  "/Users/gabriborg/Documents/Stata/ado/personal/"
-  [5]  (PLUS)      "/Users/gabriborg/Library/Application Support/Stata/ado/plus
-> /"
-  [6]  (OLDPLACE)  "~/ado/"
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
   [7]              "../../../lib/stata/gslab_misc/ado"
 
 . 
@@ -81,9 +81,9 @@ Notes:
 .     merge 1:1 zipcode using "../temp/zillow_zipcodes_with_rents.dta", ///
 >         assert(1 3)
   7. 
-.     gen zillow_zipcode = (_merge == 3)
+.     gen     zillow_zipcode = (_merge == 3)
   8.     replace n_months_zillow_rents = 0 if missing(n_months_zillow_rents)
-  9.     drop _merge
+  9.     drop    _merge
  10. 
 .     save_data "../temp/usps_master.dta", key(zipcode) replace log(none)
  11.     
@@ -92,38 +92,39 @@ Notes:
 >         varnames(1) stringcols(1 2 3 4 5)
  13. 
 .     drop metdiv10 mdivname10 afact
- 14.     rename (zcta5  placefp     county      state)     ///
->            (zcta   place_code  countyfips  statefips)
+ 14.     rename (zcta5      county       placefp     state)                  //
+> /
+>            (zcta       countyfips   place_code  statefips)
  15.     rename (zipname    cntyname     placenm     cbsaname10   stab)      //
 > /
 >            (zcta_name  county_name  place_name  cbsa10_name  state_abb)
  16.     rename hus10 houses_zcta_place_county
  17. 
-.     merge m:m zcta using "../temp/usps_master.dta", nogen keep(3)
+.     gen urban = place_code != "99999"
  18. 
-.     local keep_vars ///
->         zcta zipcode place_code countyfips cbsa10 statefips       ///
->         houses_zcta_place_county zcta_name place_name county_name ///
->         cbsa10_name state_abb zillow_zipcode n_months_zillow_rents
+.     merge m:m zcta using "../temp/usps_master.dta", nogen keep(3)
  19. 
-.     keep  `keep_vars'
- 20.     order `keep_vars' 
- 21.     
-.     gsort zipcode -houses_zcta_place_county countyfips place_code
- 22.     g temp_houses = -houses_zcta_place_county
- 23.     bys zipcode (temp_houses): g zipsample_house = (_n==1)
- 24.     drop temp_houses
+.     * Select one zipcode per county place
+.     gen  neg_months = -n_months_zillow_rents
+ 20.     sort zipcode countyfips place_code neg_months urban
+ 21.     bys  zipcode countyfips place_code: keep if _n == 1
+ 22.     drop neg_months
+ 23. 
+.     replace n_months_zillow_rents = . if n_months_zillow_rents == 0
+ 24. 
+.     local keep_vars ///
+>         zipcode     place_code   countyfips   cbsa10     zcta       ///
+>         place_name  county_name  cbsa10_name  state_abb  statefips  ///
+>         houses_zcta_place_county n_months_zillow_rents
  25. 
-.     //I left these two lines in case you want to check how the two sets of du
-> plicates don't overlap
-.     *duplicates tag zipcode, g(zipdup)
-.     *duplicates tag zcta countyfips place_code, g(dup)
-.     
+.     keep  `keep_vars'
+ 26.     order `keep_vars' 
+ 27. 
 .     save_data "`outstub'/zip_county_place_usps_master.dta", ///
 >         key(zipcode countyfips place_code) replace
- 26.     save_data "`outstub'/zip_county_place_usps_master.csv", outsheet ///
+ 28.     save_data "`outstub'/zip_county_place_usps_master.csv", outsheet ///
 >         key(zipcode countyfips place_code) replace
- 27. end
+ 29. end
 
 . 
 . program build_geomaster_small
@@ -168,7 +169,6 @@ Notes:
 zipcode was long now str5
 (note: file ../temp/zillow_zipcodes_with_rents.dta not found)
 file ../temp/zillow_zipcodes_with_rents.dta saved
-(6 vars, 41,107 obs)
 (1 observation deleted)
 
     Result                           # of obs.
@@ -211,76 +211,69 @@ file ../temp/usps_master.dta saved
     not matched                             0
     matched                            87,799  
     -----------------------------------------
-(data now sorted by zipcode countyfips place_code)
-  variable zipsample_house was float now byte
+(0 observations deleted)
+(80,453 real changes made, 80,453 to missing)
+(data already sorted by zipcode countyfips place_code)
   variable zcta was str7 now str5
-  (438,995 bytes saved)
+  (175,598 bytes saved)
 ===============================================================================
 File: ../output/zip_county_place_usps_master.dta
 Key: zipcode countyfips place_code
 ===============================================================================
-  87799:15(83343):4266112377:3185218740
+  87799:12(86151):3600324269:163070523
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
      zipcode |          0
   countyfips |          0
   place_code |          0
-        zcta |          0
       cbsa10 |          0
+        zcta |          0
 -------------+---------------------------------------------------------
-   statefips |          0
-houses_zct~y |     87,799    1796.605    3756.885          1      47617
-   zcta_name |          0
   place_name |          0
  county_name |          0
--------------+---------------------------------------------------------
  cbsa10_name |          0
    state_abb |          0
-zillow_zip~e |     87,799    .0838506    .2771652          0          1
-n_months_z~s |     87,799    4.929692     19.0345          0        119
-zipsample_~e |     87,799    .4611442    .4984908          0          1
+   statefips |          0
+-------------+---------------------------------------------------------
+houses_zct~y |     87,799    1796.605    3756.885          1      47617
+n_months_z~s |      7,346    58.76354    33.90895         12        119
 
 
 
 
 (note: file ../output/zip_county_place_usps_master.dta not found)
 file ../output/zip_county_place_usps_master.dta saved
-(data now sorted by zipcode countyfips place_code)
-  variable zipsample_house was float now byte
+(data already sorted by zipcode countyfips place_code)
   variable zcta was str7 now str5
-  (438,995 bytes saved)
+  (175,598 bytes saved)
 ===============================================================================
 File: ../output/zip_county_place_usps_master.csv
 Key: zipcode countyfips place_code
 ===============================================================================
-  87799:15(83343):4266112377:3185218740
+  87799:12(86151):3600324269:163070523
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
      zipcode |          0
   countyfips |          0
   place_code |          0
-        zcta |          0
       cbsa10 |          0
+        zcta |          0
 -------------+---------------------------------------------------------
-   statefips |          0
-houses_zct~y |     87,799    1796.605    3756.885          1      47617
-   zcta_name |          0
   place_name |          0
  county_name |          0
--------------+---------------------------------------------------------
  cbsa10_name |          0
    state_abb |          0
-zillow_zip~e |     87,799    .0838506    .2771652          0          1
-n_months_z~s |     87,799    4.929692     19.0345          0        119
-zipsample_~e |     87,799    .4611442    .4984908          0          1
+   statefips |          0
+-------------+---------------------------------------------------------
+houses_zct~y |     87,799    1796.605    3756.885          1      47617
+n_months_z~s |      7,346    58.76354    33.90895         12        119
 
 
 
 
 (note: file ../output/zip_county_place_usps_master.csv not found)
-(6 vars, 170,189 obs)
 (data now sorted by tract_fips zipcode)
   (0 bytes saved)
 ===============================================================================
@@ -364,4 +357,4 @@ Key: tract_fips zcta
 . 
 end of do-file
 
- make.py ended: 2021-03-26 09:28:37
+ make.py ended: 2021-03-26 06:36:42
