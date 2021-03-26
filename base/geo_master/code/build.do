@@ -54,13 +54,13 @@ program build_geomaster_large
            (zcta_name  county_name  place_name  cbsa10_name  state_abb)
     rename hus10 houses_zcta_place_county
 
-    gen urban = place_code != "99999"
+    gen rural = place_code == "99999"
 
     merge m:m zcta using "../temp/usps_master.dta", nogen keep(3)
 
-    * Select one zipcode per county place
+    * Select one zipcode per county place  (remind that `sort' makes vars ascending)
     gen  neg_months = -n_months_zillow_rents
-    sort zipcode countyfips place_code neg_months urban
+    sort zipcode countyfips place_code neg_months rural
     bys  zipcode countyfips place_code: keep if _n == 1
     drop neg_months
 
@@ -72,7 +72,7 @@ program build_geomaster_large
         houses_zcta_place_county n_months_zillow_rents
 
     keep  `keep_vars'
-    order `keep_vars' 
+    order `keep_vars'
 
     save_data "`outstub'/zip_county_place_usps_master.dta", ///
         key(zipcode countyfips place_code) replace
