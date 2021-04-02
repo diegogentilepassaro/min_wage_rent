@@ -37,7 +37,8 @@ main <- function() {
    med_demovars <- colnames(table_final)[str_detect(colnames(table_final), "^med")]
    share_demovars <- setdiff(colnames(table_final), c(start_geo, target_geo, wgt, 'county_fips', med_demovars))
    
-   table_final_zipshare <- table_final[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=res_ratio), by = target_geo, .SDcols = share_demovars]
+   table_final_zipshare <- table_final[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=res_ratio), 
+                                       by = target_geo, .SDcols = share_demovars]
    
    
    table_final_zipshare[, c('urb_share2010', 
@@ -82,10 +83,6 @@ main <- function() {
                                  by = target_geo, .SDcols = med_demovars]
    
    table_final_all <- table_final_zipshare[table_final_med, on = 'zipcode']
-   
-   zip_mw <- fread(paste0(outdir,'zip_mw.csv'))
-   
-   table_final_all <- zip_mw[table_final_all, on = 'zipcode']
    
    save_data(table_final_all, key = c('zipcode'),
              filename = paste0(outdir, 'zip_demo_2010.csv'),

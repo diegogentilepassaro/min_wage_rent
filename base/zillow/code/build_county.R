@@ -22,11 +22,15 @@ main <- function() {
    for (i in 1:length(dts)) {
       dt <- merge(dt, dts[[i]], by = c('countyfips', 'date'), all.x = TRUE)
    }
+   
+   dt[, c('year', 'month') :=  .(as.numeric(substr(date, 1, 4)),
+                                 as.numeric(substr(date, 6, 7)))]
+   dt[, date := NULL]
 
-   save_data(dt, key = c('countyfips', 'date'), 
+   save_data(dt, key = c('countyfips', 'year', 'month'), 
              filename = file.path(outdir, 'zillow_county_clean.csv'),
              logfile = log_file)
-   save_data(dt, key = c('countyfips', 'date'), 
+   save_data(dt, key = c('countyfips', 'year', 'month'), 
              filename = file.path(outdir, 'zillow_county_clean.dta'),
              logfile = log_file)
 }

@@ -70,43 +70,36 @@ program main
 		log(`logfile') replace
 end
 
-program prepare_aux_data
-	syntax, instub(str) outstub(str)
-
-	import delim using `instub'/zip_demo_2010.csv, clear
-	save_data `outstub'/zip_ready.dta, replace key(zipcode) log(none)
-	use `instub'/exp_mw.dta, clear 
-	g year_month = mofd(yearmonth)
+program gen_vars
+    drop year_month
+	gen day = 1
+	gen date = mdy(month, day, year)
+	gen year_month = mofd(date)
 	format year_month %tm
-	drop yearmonth
-	save_data `outstub'/exp_mw.dta, replace key(zipcode year_month) log(none)
-end
-
-program add_covars 
-	syntax, demo(str) indemo(str) qcew(str) inqcew(str) bps(str) inbps(str) lodes(str) inlodes(str)
-
-	if "`demo'" == "yes" {
-		merge m:1 zipcode using `indemo'/zip_ready.dta, nogen assert(1 2 3) keep(1 3) force
-	}
-	if "`qcew'" == "yes" {
-		merge m:1 countyfips statefips year_month using `inqcew'/ind_emp_wage_countymonth.dta, nogen assert(1 2 3) keep(1 3)
-	}
-	if "`bps'" == "yes" {
-		merge m:1 countyfips statefips year_month using `inbps'/bps_sf_cty_mon.dta, nogen assert(1 2 3) keep(1 3)
-	}
-	if "`lodes'" == "yes" {
-		merge m:1 zipcode using `inlodes'/zip_lodes.dta, nogen assert(1 2 3) keep(1 3)
-		merge m:1 zipcode year_month using `indemo'/exp_mw.dta, nogen assert(1 2 3) keep(1 3)
-	}
+	drop day date
 	
-	gen date = dofm(year_month)
-	format date %d
+	qui sum year_month
+	gen trend = year_month - r(min) + 1
+	gen trend_sq = trend^2
+	gen trend_cu = trend^3
 
-	gen month = month(date)
-	gen year = year(date)
+	xtset zipcode year_month
+	gen d_actual_mw = D.actual_mw
+	gen mw_event = (d_actual_mw > 0)
+	
+	gen event_month = mw_event == 1
+	replace event_month = 1 if year_month != year_month[_n-1] + 1  // zipcode changes
+	gen event_month_id = sum(event_month)
 
-	drop date
-end 
+	bysort event_month_id: gen months_since = _n - 1
+	bysort event_month_id: gen months_until = _N - months_since
+	bysort event_month_id: replace months_until = 0 if _N == months_until
+	drop event_month_id event_month        
+	
+	gen sal_mw_event = (d_actual_mw >= 0.5)
+	gen mw_event025  = (d_actual_mw >= 0.25)
+	gen mw_event075  = (d_actual_mw >= 0.75)
+end
 
 program create_baseline_panel
 	syntax, instub(str) var(str) balance_date(str) start_date(str) end_date(str)

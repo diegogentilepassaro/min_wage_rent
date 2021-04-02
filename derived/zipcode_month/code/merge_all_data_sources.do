@@ -8,50 +8,28 @@ program main
 	local instub_base  "../../../drive/base_large"
 	local outstub "../output"
 
-	use "`instub_derived'/min_wage/zip_statutory_mw.dta"
-    merge 1:1 zipcode year month using "`instub_derived'/min_wage//zip_experienced_mw.dta"
-	gen wrong_matches = (_merge != 3)
+	use "`instub_derived'/min_wage/zip_statutory_mw.dta", clear
+    merge 1:1 zipcode year month using "`instub_base'/zillow/zillow_zipcode_clean.dta"
+	qui sum medrentpricepsqft_SFCC if _merge == 2 & inrange(year, 2010, 2019)	
+	assert r(N) == 0
+	keep if inlist(_merge, 1, 3)
 	drop _merge
-    gen_vars
-    merge m:1 zipcode using "`instub_base'/demographics/zip_demo_2010.dta", nogen keep(3)
-    merge 1:1 zipcode year_month using "`instub_base'/demographics/acs_population_zipmonth.dta"
-	sabelo
 	
+    merge 1:1 zipcode year month using "`instub_derived'/min_wage/zip_experienced_mw.dta", ///
+	    nogen keep(1 3)
+	qui sum medrentpricepsqft_SFCC if !missing(medrentpricepsqft_SFCC)
+	local observations_with_rents = r(N)
+	sum exp_ln_mw_tot if !missing(medrentpricepsqft_SFCC)
+	assert `observations_with_rents' == r(N)
 
+    merge m:1 zipcode year using "`instub_base'/demographics/acs_population_zipyear.dta", ///
+	    nogen keep(1 3)
+    qui sum acs_pop if !missing(medrentpricepsqft_SFCC)
+	assert `observations_with_rents' == r(N)
+	
 	compress
-	save_data "`outstub'/zipcode_yearmonth_panel.dta", key(zipcode year_month) ///
+	save_data "`outstub'/zipcode_yearmonth_panel.dta", key(zipcode year month) ///
 		log(none) replace
-end
-
-program gen_vars
-	drop year_month
-	gen day = 1
-	gen date = mdy(month, day, year)
-	gen year_month = mofd(date)
-	format year_month %tm
-	drop day date
-	
-	qui sum year_month
-	gen trend = year_month - r(min) + 1
-	gen trend_sq = trend^2
-	gen trend_cu = trend^3
-
-	xtset zipcode year_month
-	gen d_actual_mw = D.actual_mw
-	gen mw_event = (d_actual_mw > 0)
-	
-	gen event_month = mw_event == 1
-	replace event_month = 1 if year_month != year_month[_n-1] + 1  // zipcode changes
-	gen event_month_id = sum(event_month)
-
-	bysort event_month_id: gen months_since = _n - 1
-	bysort event_month_id: gen months_until = _N - months_since
-	bysort event_month_id: replace months_until = 0 if _N == months_until
-	drop event_month_id event_month        
-	
-	gen sal_mw_event = (d_actual_mw >= 0.5)
-	gen mw_event025  = (d_actual_mw >= 0.25)
-	gen mw_event075  = (d_actual_mw >= 0.75)
 end
 
 main

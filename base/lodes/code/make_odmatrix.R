@@ -54,10 +54,13 @@ main <- function(paquetes, n_cores) {
   # Save OD matrices  
   for (state in odzip_list) {
     save_data(state$dt, key = c("h_zipcode", "w_zipcode"),
-              filename = file.path(outdir, paste0"odzip_", state$fips, ".csv")),
+              filename = file.path(outdir, paste0("odzip_", state$fips, ".csv")),
               logfile  = "../output/odmatrix_data_manifest.log")
   }
-
+  
+  list_of_file_names <- list.files(outdir, pattern = "od_*", full.names = T)
+  odzip_list <- lapply(list_of_file_names, fread)
+  
   # Compute share that work in same zipcode
   odzip_list <- lapply(odzip_list, function(dt.st) {
     dt.st[, c("residents_tot", "residents_young", "resident_lowinc") := 
@@ -67,20 +70,20 @@ main <- function(paquetes, n_cores) {
     setnames(dt.st, old = "h_zipcode", new = "zipcode")
     dt.st[, w_zipcode := NULL]
 
-    dt.st[, share_tot    = totjob/residents_tot]
-    dt.st[, share_young  = job_young/residents_young]
-    dt.st[, share_lowinc = job_lowinc/resident_lowinc]
+    dt.st[, share_tot    := totjob/residents_tot]
+    dt.st[, share_young  := job_young/residents_young]
+    dt.st[, share_lowinc := job_lowinc/resident_lowinc]
 
     return(dt.st)
   })
 
   dt.shares <- rbindlist(odzip_list)
   
-  save_data(state$dt, key = c("zipcode"), 
+  save_data(dt.shares, key = c("zipcode"), 
             filename = file.path(outdir, "zipcode_shares.csv"), 
             logfile  = "../output/shares_data_manifest.log")
             
-  save_data(state$dt, key = c("zipcode"), 
+  save_data(dt.shares, key = c("zipcode"), 
             filename = file.path(outdir, "zipcode_shares.dta"), 
             logfile  = "../output/shares_data_manifest.log")
 }

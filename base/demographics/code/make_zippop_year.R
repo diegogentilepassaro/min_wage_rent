@@ -26,23 +26,16 @@ main <- function() {
   
   table_clean <- rbindlist(table_clean, use.names = TRUE)
   setorderv(table_clean, cols = c('zipcode', 'year'))
-  
   table_clean <- table_clean[!is.na(year)]
-  table_clean[, c('from', 'to') := list(paste0(year, '-01-01'), paste0(year, '-12-31'))]
-  table_clean[, c('from', 'to') := list(as.Date(from), as.Date(to))]
-  
-  table_clean <- table_clean[, list(zipcode, acs_pop, year_month = seq(from, to, by = "month")), 
-                               by = 1:nrow(table_clean)][
-                                 , nrow:= NULL]
-  
+
   save_data(table_clean, 
-            filename = paste0(outdir, 'acs_population_zipmonth.csv'), 
+            filename = paste0(outdir, 'acs_population_zipyear.csv'), 
             logfile = log_file, 
-            key = c('zipcode', 'year_month'))
+            key = c('zipcode', 'year'))
   save_data(table_clean, 
-            filename = paste0(outdir, 'acs_population_zipmonth.dta'), 
+            filename = paste0(outdir, 'acs_population_zipyear.dta'), 
             logfile = log_file, 
-            key = c('zipcode', 'year_month'))
+            key = c('zipcode', 'year'))
 }
 
 format_tables <- function(x, datadir, data_version, xwalk) {
