@@ -41,7 +41,7 @@ main <- function(){
 
 build_frame <- function(instub, start_date, end_date, freq = "month") {
    
-   dt <- fread(file.path(instub, "zip_county_place_usps_master.csv"))
+   dt <- fread(file.path(instub, "zip_county_place_usps_all.csv"))
    
    dt[, statefips := str_pad(as.character(statefips), 2, pad = 0)]
    

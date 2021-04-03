@@ -8,16 +8,30 @@ program main
 	local instub_geo  "../../../base/geo_master/output"
 	local outstub "../output"
 
+    build_zillow_zipcode_stats, instub(`instub_base')
+
 	use "`instub_geo'/zip_county_place_usps_master.dta", clear
-	keep if zip_max_houses == 1
+    merge m:1 zipcode using "../temp/zillow_zipcodes_with_rents.dta", ///
+        nogen assert(1 3)
+	destring zipcode, replace
     merge m:1 zipcode using "`instub_base'/demographics/zip_demo_2010.dta", ///
 	    nogen keep(1 3)
-    qui sum urb_share2010 if !missing(medrentpricepsqft_SFCC)
-	assert `observations_with_rents' == r(N)
 
-	compress
+	strcompress
 	save_data "`outstub'/zipcode_panel.dta", key(zipcode) ///
 		log(none) replace
+end
+
+program build_zillow_zipcode_stats
+    syntax, instub(str)
+
+    use "`instub'/zillow/zillow_zipcode_clean.dta"
+
+    keep if !missing(medrentpricepsqft_SFCC)
+    collapse (count) n_months_zillow_rents = medrentpricepsqft_SFCC, by(zipcode)
+    tostring zipcode, format(%05.0f) replace
+
+    save "../temp/zillow_zipcodes_with_rents.dta", replace
 end
 
 main

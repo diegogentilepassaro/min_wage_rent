@@ -68,9 +68,6 @@ end
 program clean_vars 
     drop naics ownership county 
 
-    destring countyfips, replace 
-    destring statefips, replace 
-
     rename (employment_month1 employment_month2 employment_month3 estab_count avg_week_wage) ///
            (emp_1             emp_2             emp_3             estcount_   avgwwage_)
 
