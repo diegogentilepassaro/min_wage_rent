@@ -11,10 +11,12 @@ program main
     build_zillow_zipcode_stats, instub(`instub_base')
 
 	use "`instub_geo'/zip_county_place_usps_master.dta", clear
-    merge m:1 zipcode using "../temp/zillow_zipcodes_with_rents.dta", ///
+    merge 1:1 zipcode using "../temp/zillow_zipcodes_with_rents.dta", ///
         nogen assert(1 3)
 	destring zipcode, replace
-    merge m:1 zipcode using "`instub_base'/demographics/zip_demo_2010.dta", ///
+    merge 1:1 zipcode using "`instub_base'/demographics/zip_demo_2010.dta", ///
+	    nogen keep(1 3)
+	merge 1:1 zipcode using "`instub_base'/lodes/zipcode_own_shares.dta", ///
 	    nogen keep(1 3)
 
 	strcompress
