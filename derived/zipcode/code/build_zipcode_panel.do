@@ -20,8 +20,8 @@ program main
 	    nogen keep(1 3)
 
 	strcompress
-	save_data "`outstub'/zipcode_panel.dta", key(zipcode) ///
-		log(none) replace
+	save_data "`outstub'/zipcode_panel.dta", ///
+	    key(zipcode) replace
 end
 
 program build_zillow_zipcode_stats

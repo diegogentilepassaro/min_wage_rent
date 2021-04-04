@@ -9,6 +9,7 @@ program main
 	local instub_base  "../../../drive/base_large"
 	local instub_qcew "../../../base/qcew/output"
 	local outstub "../../../drive/derived_large/zipcode_month"
+	local logfile "../output/data_file_manifest.log"
 
 	use zipcode place_code countyfips cbsa10 zcta statefips rural ///
 	    using "`instub_geo'/zip_county_place_usps_master.dta", clear
@@ -43,8 +44,8 @@ program main
 	    using "`instub_qcew'/ind_emp_wage_countymonth.dta", nogen keep(1 3)
 
 	strcompress
-	save_data "`outstub'/zipcode_yearmonth_panel.dta", key(zipcode year month) ///
-		log(none) replace
+	save_data "`outstub'/zipcode_month_panel.dta", replace ///
+	    key(zipcode year month) log(`logfile')
 end
 
 program add_dates

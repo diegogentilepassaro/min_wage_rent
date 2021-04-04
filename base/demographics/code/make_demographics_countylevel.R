@@ -21,7 +21,7 @@ main <- function() {
   
   table_clean <- lapply(table_list, format_tables, datadir = datadir, data_version = data_version)
   
-  table_final <- Reduce(function(x,y) merge(x,y, all = T, by = 'county_fips'), table_clean)
+  table_final <- Reduce(function(x,y) merge(x,y, all = T, by = 'countyfips'), table_clean)
   
   table_final[, c('urb_share2010', 
                            'white_share2010', 'black_share2010', 'hisp_share2010', 'asian_share2010', 'natam_share2010', 
@@ -61,10 +61,10 @@ main <- function() {
   
   table_final[, (denom_cols):= NULL]
   
-  save_data(table_final, key = c('county_fips'),
+  save_data(table_final, key = c('countyfips'),
             filename = paste0(outdir, 'county_demo_2010.csv'),
             logfile = log_file)
-  save_data(table_final, key = c('county_fips'),
+  save_data(table_final, key = c('countyfips'),
             filename = paste0(outdir, 'county_demo_2010.dta'),
             logfile = log_file)
 }
@@ -76,7 +76,7 @@ format_tables <- function(x, datadir, data_version) {
   make_geo <-  function(y) {
     if (class(y)[1] != "data.table") y <- setDT(y)
     
-    y[, c('county_fips') := list(
+    y[, c('countyfips') := list(
       as.numeric(paste0(str_pad(STATEA, 2, pad = "0"),
                         str_pad(COUNTYA, 3, pad = "0"))))]
     setnames(y, old = "CBSAA", new = "cbsa")
@@ -120,7 +120,7 @@ format_tables <- function(x, datadir, data_version) {
     
     data[, 'housing_units2010':= IFC001]
     
-    target_vars <- c('county_fips', 
+    target_vars <- c('countyfips', 
                      'pop2010', 
                      'urb_share2010', 'urb_share2010D',
                      'white_share2010', 'black_share2010', 'hisp_share2010', 'asian_share2010', 'natam_share2010', 'race_share2010D',
@@ -135,7 +135,7 @@ format_tables <- function(x, datadir, data_version) {
            list((IC6002 + IC6013), IC6001, 
                 (IC6004 + IC6009 + IC6015 + IC6020 + IC6025 + IC6030), (IC6002 + IC6013))]
     
-    target_vars <- c('county_fips', 
+    target_vars <- c('countyfips', 
                      'hh_couple_share2010', 'hh_couple_share2010D', 'hh_couple_child_share2010', 'hh_couple_child_share2010D')
     
   } 
@@ -143,7 +143,7 @@ format_tables <- function(x, datadir, data_version) {
     data[, c('renthouse_share2010', 'renthouse_share2010D') :=  #share of housing units that are renter-occupied 
            list(LHT004,LHT001)]
     
-    target_vars <- c('county_fips', 
+    target_vars <- c('countyfips', 
                      'renthouse_share2010', 'renthouse_share2010D')
     
   } 
@@ -185,7 +185,7 @@ format_tables <- function(x, datadir, data_version) {
     
     data[, c('tot_pinc20105', 'tot_pinc_ft20105') := list(QXGE001, (QXGE003 + QXGE006))]
     
-    target_vars <- c('county_fips',
+    target_vars <- c('countyfips',
                      'workers20105', 'workers_prsal20105',
                      'work_county_share20105', 
                      'worktravel_10_share20105', 'worktravel_10_60_share20105', 'worktravel_60_share20105', 
@@ -214,7 +214,7 @@ format_tables <- function(x, datadir, data_version) {
                 REPE025, 
                 REPE033)]
     
-    target_vars <- c('county_fips', 
+    target_vars <- c('countyfips', 
                      paste0('med_earn_', c('healthsup_20105', 'protectserv_20105', 'foodserv_20105', 
                                            'cleaning_20105', 'perscare_20105', 'prodtransp_20105')))
     

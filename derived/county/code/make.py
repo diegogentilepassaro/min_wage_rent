@@ -34,9 +34,7 @@ elif "Stata15" in envir_vars:
 
 start_make_logging()
 
-run_stata(program = 'preclean_qcew.do', executable = stata)
-run_stata(program = 'create_county_quarter_panels.do', executable = stata)
-run_stata(program = 'make_mw_qcewcontrol_ctyquarter.do', executable = stata)
+run_stata(program = 'build_county_panel.do', executable = stata)
 
 end_make_logging()
 
