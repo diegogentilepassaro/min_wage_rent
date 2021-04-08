@@ -14,15 +14,14 @@ main <- function() {
   tempdir  <- "../temp"
   log_file <- "../output/data_file_manifest.log"
   
-  xwalk <- fread(paste0(xwalkdir, "tract_zip_master.csv"), 
-                 colClasses = c('numeric', 'numeric', 'numeric'))
+  xwalk <- fread(paste0(xwalkdir, "tract_zip_master.csv"),
+                 colClasses = c("tract_fips" = "character", "zipcode" = "character"))
   
   table_list <- list.files(datadir, 
-                           pattern = "*.csv")
+                           pattern = "*.csv", 
+                           full.names = T)
   
-  table_list <- str_remove_all(table_list, paste0("nhgis", data_version, "_"))
-  
-  table_clean <- lapply(table_list, format_tables, datadir = datadir, data_version = data_version, xwalk = xwalk)
+  table_clean <- lapply(table_list, format_tables, xwalk = xwalk)
   
   table_clean <- rbindlist(table_clean, use.names = TRUE)
   setorderv(table_clean, cols = c('zipcode', 'year'))
@@ -38,32 +37,24 @@ main <- function() {
             key = c('zipcode', 'year'))
 }
 
-format_tables <- function(x, datadir, data_version, xwalk) {
-  data <- fread(paste0(datadir, "nhgis", data_version, "_", x))
+format_tables <- function(x, xwalk) {
+  data <- fread(x, colClasses = c("STATEA"  = "character",
+                                  "COUNTYA" = "character",
+                                  "TRACTA"  = "character"))
   
-  make_geo <-  function(y) {
-    if (class(y)[1] != "data.table") y <- setDT(y)
-    
-    y[, c('tract_fips', 'county_fips') := list(
-      as.numeric(paste0(
-        str_pad(STATEA, 2, pad = "0"),
-        str_pad(COUNTYA, 3, pad = "0"),
-        str_pad(TRACTA, 6, pad = "0"))),
-      as.numeric(paste0(str_pad(STATEA, 2, pad = "0"),
-                        str_pad(COUNTYA, 3, pad = "0"))))]
-    setnames(y, old = c("CBSAA", "YEAR"), new = c("cbsa", "year"))
-    
-    return(y)
-  }
-  data <- make_geo(data)
-  
-  data[, year := as.numeric(substring(year, nchar(year)-4 +1))]
+  data[, countyfips := paste0(STATEA, COUNTYA)]
+  data[, tract_fips := paste0(countyfips, TRACTA)]
+  setnames(data, old = c("CBSAA", "YEAR"), 
+                 new = c("cbsa", "year"))
+  data[, year := as.numeric(substring(year, nchar(year)-4 + 1))]
   
   #The population variable has a different name in each ACS
-  varname_list <- c('JMAE001', 'MNTE001', 'QSPE001', 'UEPE001', 'ABA1E001', 'ADKWE001', 'AF2LE001', 'AHY1E001', 'AJWME001', 'ALUBE001')
+  varname_list <- c('JMAE001', 'MNTE001', 'QSPE001', 
+                    'UEPE001', 'ABA1E001', 'ADKWE001', 
+                    'AF2LE001', 'AHY1E001', 'AJWME001', 'ALUBE001')
   target_pop <- intersect(varname_list, names(data))
   setnames(data, old = target_pop, new = 'acs_pop')
-  target_vars <- c('tract_fips', 'county_fips', 'year', 'acs_pop')
+  target_vars <- c('tract_fips', 'countyfips', 'year', 'acs_pop')
   
   data <- data[, ..target_vars]  
   
@@ -73,12 +64,10 @@ format_tables <- function(x, datadir, data_version, xwalk) {
 }
 
 crosswalk_table_tractzip <- function(data, xwalk) {
- 
   data <- data[xwalk, on = 'tract_fips']
 
-  data <- data[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=res_ratio),
-                                        by = c('zipcode', 'year'),
-                                        .SDcols = 'acs_pop']
+  data <- data[, .(acs_pop = sum(acs_pop*res_ratio, na.rm = T)),
+               by = c('zipcode', 'year')]
   
   return(data)
 }
