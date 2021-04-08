@@ -73,26 +73,7 @@ program build_geomaster_small
     save_data "`outstub'/tract_zip_master.dta", ///
         key(tract_fips zipcode) replace
     save_data "`outstub'/tract_zip_master.csv", outsheet ///
-        key(tract_fips zipcode) replace
-
-    local instub  "../../../raw/crosswalk"
-    import delim "`instub'/tract_zcta_xwalk.csv", ///
-        varnames(1) stringcols(3 4 5) clear
-
-    replace tract = tract * 100
-    replace tract = round(tract, 1)     
-    g tract_fips = string(tract, "%06.0f")
-    g county_fips = string(county, "%05.0f")
-    replace tract_fips = county_fips + tract_fips      
-    order tract_fips, first
-
-    rename (zcta5 afact) (zcta res_ratio)
-    keep tract_fips zcta res_ratio
-
-    save_data "`outstub'/tract_zcta_master.dta", ///
-        key(tract_fips zcta) replace
-    save_data "`outstub'/tract_zcta_master.csv", outsheet ///
-        key(tract_fips zcta) replace   
+        key(tract_fips zipcode) replace 
 end 
 
 *EXECUTE
