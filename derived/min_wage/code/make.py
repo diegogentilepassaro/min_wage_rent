@@ -37,6 +37,8 @@ start_make_logging()
 
 run_rbatch(program = 'build_statutory.R')
 run_rbatch(program = 'build_experienced.R')
+run_rbatch(program = 'build_experienced_county.R')
+
 
 end_make_logging()
 
