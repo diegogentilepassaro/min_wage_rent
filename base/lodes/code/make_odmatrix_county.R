@@ -19,7 +19,6 @@ main <- function(paquetes, n_cores) {
   # Prepare crosswalks 
   blc_cty_xwalk <- make_xwalk_raw_wac_county(datadir_xwalk_lodes)
   
-  
   # Prepare states od matrices
   files <- list.files(datadir_lodes, 
                       full.names = T, pattern = "*.gz")

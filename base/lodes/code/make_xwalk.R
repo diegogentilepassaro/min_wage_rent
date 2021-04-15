@@ -36,10 +36,10 @@ make_xwalk_raw_wac_county <- function(instub) {
   
   xwalk <- rbindlist(lapply(xwalk_files, function(x) fread(x)))
   
-  setnames(xwalk, old = c('tabblk2010', 'cty'), new = c('blockfips', 'county_fips'))
+  setnames(xwalk, old = c('tabblk2010', 'cty'), new = c('blockfips', 'countyfips'))
 
   target_xwalk <- c('blockfips', 'county_fips', 'st')
-  xwalk[, tract_fips := as.numeric(tract_fips)]
+  xwalk[, countyfips := as.numeric(countyfips)]
   xwalk <- xwalk[, ..target_xwalk]
   
   return(xwalk)
