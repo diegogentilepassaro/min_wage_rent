@@ -23,7 +23,8 @@ make_xwalk_raw_wac <- function(instub) {
 
   xwalk <- rbindlist(lapply(xwalk_files, function(x) fread(x)))
   
-  setnames(xwalk, old = c('tabblk2010', 'trct'), new = c('blockfips', 'tract_fips'))
+  setnames(xwalk, old = c('tabblk2010', 'trct'),
+           new = c('blockfips', 'tract_fips'))
   target_xwalk <- c('blockfips', 'tract_fips', 'st')
   xwalk[, tract_fips := as.numeric(tract_fips)]
   xwalk <- xwalk[, ..target_xwalk]
@@ -36,9 +37,10 @@ make_xwalk_raw_wac_county <- function(instub) {
   
   xwalk <- rbindlist(lapply(xwalk_files, function(x) fread(x)))
   
-  setnames(xwalk, old = c('tabblk2010', 'cty'), new = c('blockfips', 'countyfips'))
+  setnames(xwalk, old = c('tabblk2010', 'cty'), 
+           new = c('blockfips', 'countyfips'))
 
-  target_xwalk <- c('blockfips', 'county_fips', 'st')
+  target_xwalk <- c('blockfips', 'countyfips', 'st')
   xwalk[, countyfips := as.numeric(countyfips)]
   xwalk <- xwalk[, ..target_xwalk]
   

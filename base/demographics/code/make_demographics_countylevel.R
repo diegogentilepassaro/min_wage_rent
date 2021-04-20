@@ -16,7 +16,6 @@ main <- function() {
   table_list <- list.files(datadir, 
                            pattern = "*.csv")
   
-  table_list <- table_list[table_list != "nhgis0056_ds176_20105_2010_county.csv"] # We are not using this file
   table_list <- str_remove_all(table_list, paste0("nhgis", data_version, "_"))
   
   table_clean <- lapply(table_list, format_tables, 

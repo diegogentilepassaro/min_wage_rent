@@ -47,7 +47,6 @@ main <- function(paquetes, n_cores) {
   odzip_list <- parLapply(cl, state_list, function(y) {
     make_odmatrix_state(stabb = y, datadir = datadir_lodes,
                         aux = aux_all, xwalk = tract_zip_xwalk)
-    
   })
   stopCluster(cl)
   
@@ -58,7 +57,7 @@ main <- function(paquetes, n_cores) {
               logfile  = "../output/odmatrix_data_manifest.log")
   }
   
-  list_of_file_names <- list.files(outdir, pattern = "od_*", full.names = T)
+  list_of_file_names <- list.files(outdir, pattern = "odzip_*", full.names = T)
   odzip_list <- lapply(list_of_file_names, fread)
   
   # Compute share that work in same zipcode
@@ -79,7 +78,7 @@ main <- function(paquetes, n_cores) {
   })
 
   dt.shares <- rbindlist(odzip_list)
-  
+  dt.shares[, zipcode := str_pad(zipcode, 5, pad = 0)]
   save_data(dt.shares, key = c("zipcode"), 
             filename = file.path(outdir, "zipcode_own_shares.csv"), 
             logfile  = "../output/shares_data_manifest.log")
@@ -149,7 +148,9 @@ make_odmatrix_state <- function(stabb, datadir, aux, xwalk, dest_threshold = 1) 
   this_state_zip[, totjob_cumsh := totjob_cum / h_totjob]
 
   this_state_zip <- this_state_zip[totjob_cumsh <= dest_threshold, ]
-  this_state_zip[, c("h_totjob", "totjob_cum", "totjob_cumsh") := NULL] 
+  this_state_zip[, c("h_totjob", "totjob_cum", "totjob_cumsh") := NULL]
+  this_state_zip[, h_zipcode := str_pad(h_zipcode, 5, pad = 0)]
+  this_state_zip[, w_zipcode := str_pad(w_zipcode, 5, pad = 0)]
   
   return(list("dt"   = this_state_zip,
               "fips" = str_pad(this_fips, 2, pad = 0)))

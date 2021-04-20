@@ -18,8 +18,6 @@ main <- function() {
                             pattern = "*.csv", 
                             full.names = T)
    
-   table_list <- table_list[table_list != "nhgis0052_ds176_20105_2010_tract.csv"] # We are not using this file
-
    table_clean <- lapply(table_list, format_tables)
    
    table_final <- Reduce(function(x,y) merge(x, y, all = T, 

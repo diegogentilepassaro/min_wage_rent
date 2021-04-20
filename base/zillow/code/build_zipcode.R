@@ -27,6 +27,7 @@ main <- function() {
    dt[, c('year', 'month') :=  .(as.numeric(substr(date, 1, 4)),
                                  as.numeric(substr(date, 6, 7)))]
    dt[, date := NULL]
+   dt[, zipcode := str_pad(zipcode, 5, pad = 0)]
    
    save_data(dt, key = c('zipcode', 'year', 'month'), 
              filename = file.path(outdir, 'zillow_zipcode_clean.csv'),

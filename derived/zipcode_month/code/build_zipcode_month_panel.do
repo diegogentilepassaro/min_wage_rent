@@ -53,6 +53,7 @@ program add_dates
     gen date = mdy(month, day, year)
     gen year_month = mofd(date)
     format year_month %tm
+    gen quarter = quarter(dofm(year_month))
     gen year_quarter = qofd(date)
     format year_quarter %tq
     drop day date

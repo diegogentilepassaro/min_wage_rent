@@ -45,7 +45,6 @@ main <- function(paquetes, n_cores) {
   odcounty_list <- parLapply(cl, state_list, function(y) {
     make_odmatrix_state(stabb = y, datadir = datadir_lodes,
                         aux = aux_all)
-    
   })
   stopCluster(cl)
   
@@ -55,17 +54,12 @@ main <- function(paquetes, n_cores) {
               filename = file.path(outdir, paste0("odcounty_", state$fips, ".csv")),
               logfile  = "../output/odmatrix_data_manifest.log")
   }
-  
-  # I am not sure why in the line below we originally we select od_* while we saved odzip_ originally. 
-  # you may want to check which files are loaded down here when changing line 56 filename to odcounty_*:
-  #
-  # OLD:
-  # list_of_file_names <- list.files(outdir, pattern = "od_*", full.names = T)
+
   list_of_file_names <- list.files(outdir, pattern = "odcounty_*", full.names = T)
   odcounty_list <- lapply(list_of_file_names, fread)
   
   # Compute share that work in same zipcode
-  odzip_list <- lapply(odcounty_list, function(dt.st) {
+  odcounty_list <- lapply(odcounty_list, function(dt.st) {
     dt.st[, c("residents_tot", "residents_young", "resident_lowinc") := 
             list(sum(totjob),    sum(job_young),    sum(job_lowinc)),
           by = "h_countyfips"]
@@ -82,7 +76,7 @@ main <- function(paquetes, n_cores) {
   })
   
   dt.shares <- rbindlist(odcounty_list)
-  
+  dt.shares[, countyfips := str_pad(countyfips, 5, pad = 0)]
   save_data(dt.shares, key = c("countyfips"), 
             filename = file.path(outdir, "county_own_shares.csv"), 
             logfile  = "../output/shares_data_manifest.log")
@@ -125,6 +119,8 @@ make_odmatrix_state <- function(stabb, datadir, aux, xwalk, dest_threshold = 1) 
   
   this_state <- this_state[totjob_cumsh <= dest_threshold, ]
   this_state[, c("h_totjob", "totjob_cum", "totjob_cumsh") := NULL] 
+  this_state[, h_countyfips := str_pad(h_countyfips, 5, pad = 0)]
+  this_state[, w_countyfips := str_pad(w_countyfips, 5, pad = 0)]
   
   return(list("dt"   = this_state,
               "fips" = str_pad(this_fips, 2, pad = 0)))
