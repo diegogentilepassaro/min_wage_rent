@@ -68,6 +68,7 @@ main <- function() {
   
   lodes_final <- make_final_vars(lodes_final)
   
+  lodes_final[, zipcode := str_pad(zipcode, 5, pad = 0)]
   save_data(lodes_final, key = c('zipcode'),
             filename = paste0(outdir, 'zip_lodes.dta'),
             logfile = log_file)
