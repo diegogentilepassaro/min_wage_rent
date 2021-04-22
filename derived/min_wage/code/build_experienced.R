@@ -55,6 +55,12 @@ main <- function(){
       dt.st <- assemble_expmw_state(st, periods, "actual_mw_wg_mean", dt, instub_lodes, geo)
       return(dt.st)
     })
+    
+    dts.exp_max <- parLapply(cl, states, function(st) {
+      
+      dt.st <- assemble_expmw_state(st, periods, "actual_mw_max", dt, instub_lodes, geo)
+      return(dt.st)
+    })
     stopCluster(cl)
     
     dt.exp_mw_wg_mean <- rbindlist(dts.exp)
@@ -63,8 +69,16 @@ main <- function(){
     setnames(dt.exp_mw_wg_mean, old = exp_mw_vars,
                                 new = paste0(exp_mw_vars, "_wg_mean"))
     
+    dt.exp_max <- rbindlist(dts.exp_max)
+    exp_mw_vars <- c("exp_mw_tot",    "exp_mw_young",    "exp_mw_lowinc", 
+                     "exp_ln_mw_tot", "exp_ln_mw_young", "exp_ln_mw_lowinc")
+    setnames(dt.exp_max, old = exp_mw_vars,
+                         new = paste0(exp_mw_vars, "_max"))
+    
     # Put data together and format
     dt.exp_mw <- merge(dt.exp_mw, dt.exp_mw_wg_mean, by = c(geo, "year_month"))
+    dt.exp_mw <- merge(dt.exp_mw, dt.exp_max,        by = c(geo, "year_month"))
+    
     dt.exp_mw[, year_month := as.yearmon(year_month)]
     dt.exp_mw[, month := as.numeric(format(dt.exp_mw$year_month, "%m"))]
     dt.exp_mw[, year  := as.numeric(format(dt.exp_mw$year_month, "%Y"))]
