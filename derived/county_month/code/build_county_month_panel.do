@@ -15,32 +15,35 @@ program main
         using "`instub_geo'/zip_county_place_usps_all.dta", clear
     duplicates drop
     isid countyfips
-
-    destring countyfips, replace
+   
     merge 1:m countyfips using "`instub_derived'/min_wage/county_statutory_mw.dta", ///
        nogen assert(3) keepusing(year month actual_mw_wg_mean ///
        actual_mw_ignore_local_wg_mean local_mw county_mw fed_mw state_mw ///
        actual_mw binding_mw actual_mw_ignore_local binding_mw_ignore_local)
-       
-    tostring countyfips, replace
+    
+    merge 1:1 countyfips year month using "`instub_derived'/min_wage/countyfips_experienced_mw.dta", ///
+        assert(1 2 3) nogen keepusing(exp_ln_mw_lowinc exp_ln_mw_lowinc_max exp_ln_mw_lowinc_wg_mean ///
+                                exp_mw_lowinc exp_mw_lowinc_max exp_mw_lowinc_wg_mean ///
+                                exp_ln_mw_tot exp_ln_mw_tot_max exp_ln_mw_tot_wg_mean          ///
+                                exp_mw_tot exp_mw_tot_max exp_mw_tot_wg_mean         ///
+                                exp_ln_mw_young exp_ln_mw_young_max exp_ln_mw_young_wg_mean ///
+                                exp_mw_young exp_mw_young_max exp_mw_young_wg_mean)   
+    
     merge 1:1 countyfips year month using "`instub_base'/zillow/zillow_county_clean.dta"
     qui sum medrentpricepsqft_SFCC if _merge == 2 & inrange(year, 2010, 2019)    
-    *assert r(N) == 0 /* This assertion fails and it should't. We are loosing counties with Zillow data.*/
-    /* Among the _merge == 2 I found pretty important counties like Sacramento, New Haven, or New London. */
-    /* I wonder why they are not in our geo master? */
+    assert r(N)==0
     keep if inlist(_merge, 1, 3)
     drop _merge
     
-
-    /* Should we build experienced MW data by county? Probably we should! */
-    
     /* Should we build ACS population by county-year? Probably we should! */
 
+    merge m:1 statefips countyfips month year ///
+        using "`instub_qcew'/ind_emp_wage_countymonth.dta", ///
+        nogen keep(3) assert(1 2 3)
     add_dates
-    merge m:1 statefips countyfips year_month ///
-        using "`instub_qcew'/ind_emp_wage_countymonth.dta", nogen keep(1 3)
 
     strcompress
+    
     save_data "`outstub'/county_month_panel.dta", replace ///
         key(countyfips year month) log(`logfile')
 end

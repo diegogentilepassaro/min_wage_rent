@@ -6,12 +6,11 @@ program main
 	local instub "../../../drive/raw_data/qcew/county"
 	local outstub "../output"
 
-	foreach year in 09 10 11 12 13 14 15 16 17 18 {
+	foreach year in 10 11 12 13 14 15 16 17 18 19 {
 		process_hl_county_year_file, instub(`instub') year(`year')
 	}
-	process_hl_county_year_file, instub(`instub') year(19) quarters(3)
 	
-	use "../temp/09.dta", clear
+	clear
 	foreach year in 10 11 12 13 14 15 16 17 18 19 {
 		append using "../temp/`year'.dta"
 	}
