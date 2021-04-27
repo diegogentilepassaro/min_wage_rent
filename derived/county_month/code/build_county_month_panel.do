@@ -21,13 +21,14 @@ program main
        actual_mw_ignore_local_wg_mean local_mw county_mw fed_mw state_mw ///
        actual_mw binding_mw actual_mw_ignore_local binding_mw_ignore_local)
     
-    merge 1:1 countyfips year month using "`instub_derived'/min_wage/countyfips_experienced_mw.dta", ///
-        assert(1 2 3) nogen keepusing(exp_ln_mw_lowinc exp_ln_mw_lowinc_max exp_ln_mw_lowinc_wg_mean ///
-                                exp_mw_lowinc exp_mw_lowinc_max exp_mw_lowinc_wg_mean ///
-                                exp_ln_mw_tot exp_ln_mw_tot_max exp_ln_mw_tot_wg_mean          ///
-                                exp_mw_tot exp_mw_tot_max exp_mw_tot_wg_mean         ///
-                                exp_ln_mw_young exp_ln_mw_young_max exp_ln_mw_young_wg_mean ///
-                                exp_mw_young exp_mw_young_max exp_mw_young_wg_mean)   
+    merge 1:1 countyfips year month ///
+	    using "`instub_derived'/min_wage/countyfips_experienced_mw.dta", ///
+        assert(1 2 3) nogen keepusing(exp_ln_mw_lowinc exp_ln_mw_lowinc_max ///
+		exp_ln_mw_lowinc_wg_mean exp_mw_lowinc exp_mw_lowinc_max ///
+		exp_mw_lowinc_wg_mean exp_ln_mw_tot exp_ln_mw_tot_max exp_ln_mw_tot_wg_mean          ///
+		exp_mw_tot exp_mw_tot_max exp_mw_tot_wg_mean         ///
+		exp_ln_mw_young exp_ln_mw_young_max exp_ln_mw_young_wg_mean ///
+		exp_mw_young exp_mw_young_max exp_mw_young_wg_mean)   
     
     merge 1:1 countyfips year month using "`instub_base'/zillow/zillow_county_clean.dta"
     qui sum medrentpricepsqft_SFCC if _merge == 2 & inrange(year, 2010, 2019)    
@@ -43,7 +44,6 @@ program main
     add_dates
 
     strcompress
-    
     save_data "`outstub'/county_month_panel.dta", replace ///
         key(countyfips year month) log(`logfile')
 end

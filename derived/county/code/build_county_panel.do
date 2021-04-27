@@ -17,11 +17,9 @@ program main
 
     merge 1:1 countyfips using "../temp/zillow_counties_with_rents.dta", ///
         nogen assert(1 3)
-    destring countyfips, replace
     merge 1:1 countyfips using "`instub_base'/demographics/county_demo_2010.dta", ///
         nogen keep(1 3)
-
-    /* Should we build own shares for county? */
+    merge 1:1 countyfips using "`instub_base'/lodes/county_own_shares.dta"
 
     strcompress
     save_data "`outstub'/county_panel.dta", ///
