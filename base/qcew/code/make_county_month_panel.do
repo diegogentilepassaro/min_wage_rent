@@ -11,6 +11,7 @@ program main
     select_sectors, ownership(`" "Total Covered" "') industries("10")
     clean_vars
     create_monthly_panel
+    manual_correction
     save_data `outstub'/tot_emp_wage_countymonth.dta, ///
         key(countyfips year month) replace
 
@@ -19,6 +20,7 @@ program main
                     industries("1011 1012 1013 1021 1022 1023 1024 1025 1026 1019")
     clean_vars
     create_monthly_panel
+    manual_correction
     save_data `outstub'/ind_emp_wage_countymonth.dta, ///
         key(countyfips year month) replace 
 
@@ -98,6 +100,10 @@ program  create_monthly_panel
     reshape wide estcount avgwwage emp, i(countyfips statefips year month) ///
 	    j(industry) string
 
+end 
+
+program manual_correction
+    replace countyfips= "46102" if countyfips=="46113"
 end 
 
 
