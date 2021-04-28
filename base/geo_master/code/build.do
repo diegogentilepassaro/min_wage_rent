@@ -46,9 +46,7 @@ program build_geomaster_large
 
     keep  `keep_vars'
     order `keep_vars'
-	
-	replace countyfips = "46102" if countyfips == "46113"
-    
+	    
 	save_data "`outstub'/zip_county_place_usps_all.dta", ///
         key(zipcode countyfips place_code) replace
     export delimited "`outstub'/zip_county_place_usps_all.csv", replace

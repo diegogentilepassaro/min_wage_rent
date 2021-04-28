@@ -82,6 +82,10 @@ main <- function(){
     dt.exp_mw[, year_month := as.yearmon(year_month)]
     dt.exp_mw[, month := as.numeric(format(dt.exp_mw$year_month, "%m"))]
     dt.exp_mw[, year  := as.numeric(format(dt.exp_mw$year_month, "%Y"))]
+
+    if (geo == "countyfips") {
+      dt.exp_mw[countyfips=='46113', countyfips := '46002']
+    }
     
     # Save data
     save_data(dt.exp_mw, key = c(geo, "year", "month"),
