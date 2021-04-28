@@ -23,7 +23,7 @@ program main
     
     merge 1:1 countyfips year month ///
 	    using "`instub_derived'/min_wage/countyfips_experienced_mw.dta", ///
-        assert(1 2 3) nogen keepusing(exp_ln_mw_lowinc exp_ln_mw_lowinc_max ///
+        assert(1 2 3) keep(1 3) nogen keepusing(exp_ln_mw_lowinc exp_ln_mw_lowinc_max ///
 		exp_ln_mw_lowinc_wg_mean exp_mw_lowinc exp_mw_lowinc_max ///
 		exp_mw_lowinc_wg_mean exp_ln_mw_tot exp_ln_mw_tot_max exp_ln_mw_tot_wg_mean          ///
 		exp_mw_tot exp_mw_tot_max exp_mw_tot_wg_mean         ///
