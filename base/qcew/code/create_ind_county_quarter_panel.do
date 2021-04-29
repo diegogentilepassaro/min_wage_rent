@@ -6,17 +6,16 @@ program main
 	local instub "../../../drive/raw_data/qcew/county"
 	local outstub "../output"
 
-	foreach year in 09 10 11 12 13 14 15 16 17 18 {
+	foreach year in 10 11 12 13 14 15 16 17 18 19 {
 		process_hl_county_year_file, instub(`instub') year(`year')
 	}
-	process_hl_county_year_file, instub(`instub') year(19) quarters(3)
 	
-	use "../temp/09.dta", clear
+	clear
 	foreach year in 10 11 12 13 14 15 16 17 18 19 {
 		append using "../temp/`year'.dta"
 	}
     save_data "`outstub'/industry_county_qtr_emp_wage.dta", ///
-		key(year_quarter countyfips naics ownership) replace
+		key(year quarter countyfips naics ownership) replace
 end
 
 program process_hl_county_year_file
@@ -32,10 +31,7 @@ program process_hl_county_year_file
 		destring Year, replace
 		destring Qtr, replace
 		gen end_month = Qtr*3
-		
-		gen year_quarter = qofd(mdy(end_month, 1, Year))
-		format year_quarter %tq
-		drop Year Qtr end_month
+		rename (Year Qtr) (year quarter)
 		
 		rename (AreaCode Area St NAICS Ownership Industry Establishment AverageWeekly) ///
 			(countyfips county statefips naics ownership industry estab_count avg_week_wage)
@@ -65,9 +61,9 @@ program process_hl_county_year_file
 		append using "../temp/`year'`qtr'.dta"
 	}
 	
-	order year_quarter countyfips county statefips ///
+	order year quarter countyfips county statefips ///
 		naics ownership industry estab_count
-	save_data "../temp/`year'.dta", key(year_quarter countyfips naics ownership) ///
+	save_data "../temp/`year'.dta", key(year quarter countyfips naics ownership) ///
 		replace log(none)
 end
 

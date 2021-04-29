@@ -9,25 +9,20 @@ program main
     use `instub'/industry_county_qtr_emp_wage.dta, clear
 
     select_sectors, ownership(`" "Total Covered" "') industries("10")
-
     clean_vars
-
     create_monthly_panel
-
+    manual_correction
     save_data `outstub'/tot_emp_wage_countymonth.dta, ///
-        key(countyfips year_month) replace
+        key(countyfips year month) replace
 
     use `instub'/industry_county_qtr_emp_wage.dta, clear
-
     select_sectors, ownership(`""Federal Government" "State Government" "Local Government" "Private""') ///
                     industries("1011 1012 1013 1021 1022 1023 1024 1025 1026 1019")
-
     clean_vars
-
     create_monthly_panel
-
+    manual_correction
     save_data `outstub'/ind_emp_wage_countymonth.dta, ///
-        key(countyfips year_month) replace 
+        key(countyfips year month) replace 
 
 end 
 
@@ -68,9 +63,6 @@ end
 program clean_vars 
     drop naics ownership county 
 
-    destring countyfips, replace 
-    destring statefips, replace 
-
     rename (employment_month1 employment_month2 employment_month3 estab_count avg_week_wage) ///
            (emp_1             emp_2             emp_3             estcount_   avgwwage_)
 
@@ -94,19 +86,24 @@ end
 
 program  create_monthly_panel
     
-    reshape long emp_, i(year_quarter countyfips statefips industry estcount avgwwage) j(qmon)
+    reshape long emp_, ///
+	    i(year quarter countyfips statefips industry estcount avgwwage) ///
+		j(qmon)
 
-    replace qmon = qmon + 3 if quarter(dofq(year_quarter)) == 2
-    replace qmon = qmon + 6 if quarter(dofq(year_quarter)) == 3
-    replace qmon = qmon + 9 if quarter(dofq(year_quarter)) == 4
+    replace qmon = qmon + 3 if quarter == 2
+    replace qmon = qmon + 6 if quarter == 3
+    replace qmon = qmon + 9 if quarter == 4
 
-    g year_month = ym(year(dofq(year_quarter)), qmon)
-    format year_month %tm
-    drop year_quarter qmon
-    order year_month, after(countyfips)
+    gen month = qmon
+    order year month, after(countyfips)
 
-    reshape wide estcount avgwwage emp, i(countyfips statefips year_month) j(industry) string
+    reshape wide estcount avgwwage emp, i(countyfips statefips year month) ///
+	    j(industry) string
 
+end 
+
+program manual_correction
+    replace countyfips= "46102" if countyfips=="46113"
 end 
 
 

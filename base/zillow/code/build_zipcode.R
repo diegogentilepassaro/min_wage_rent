@@ -13,9 +13,9 @@ main <- function() {
    
    raw_filenames <- list.files(datadir, pattern = "*.csv", full.names = T)
    raw_filenames <- raw_filenames[!str_detect(raw_filenames, "_Summary.csv")]
-   
+
    l <- lapply(raw_filenames, clean_rawdata) # Recursively rename vars and save files in ../temp
-   
+
    dts <- reshape_zillow("../temp")
    
    dt <- build_frame(dts)
@@ -24,10 +24,15 @@ main <- function() {
       dt <- merge(dt, dts[[name]], by = c('zipcode', 'date'), all.x = TRUE)
    }
 
-   save_data(dt, key = c('zipcode', 'date'), 
+   dt[, c('year', 'month') :=  .(as.numeric(substr(date, 1, 4)),
+                                 as.numeric(substr(date, 6, 7)))]
+   dt[, date := NULL]
+   dt[, zipcode := str_pad(zipcode, 5, pad = 0)]
+   
+   save_data(dt, key = c('zipcode', 'year', 'month'), 
              filename = file.path(outdir, 'zillow_zipcode_clean.csv'),
              logfile = log_file)
-   save_data(dt, key = c('zipcode', 'date'), 
+   save_data(dt, key = c('zipcode', 'year', 'month'), 
              filename = file.path(outdir, 'zillow_zipcode_clean.dta'),
              logfile = log_file)
 }
@@ -38,10 +43,10 @@ clean_rawdata <- function(x) {
    all_names <- colnames(dt)
    date_names <- all_names[str_detect(all_names, "[0-9]")]
    vars_to_keep <- c("RegionName", date_names)
-
+   
    dt <- dt[, ..vars_to_keep]
    setnames(dt, old = "RegionName", new = "zipcode")
-
+   
    save_data(dt, key = "zipcode", 
              filename = file.path("../temp", basename(x)),
              nolog = T)

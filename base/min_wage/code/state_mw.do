@@ -105,7 +105,8 @@ program state_min_wage_change
 
     merge m:1 statefips using `temp'/crosswalk.dta, nogen assert(3)
 
-    order statefips statename stateabb year month day date mw* source source_2 source_notes
+    order statefips statename stateabb year month day date mw* ///
+	    source source_2 source_notes
     label var statefips "State FIPS Code"
     label var statename "State"
 

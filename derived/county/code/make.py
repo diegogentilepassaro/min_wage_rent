@@ -34,7 +34,7 @@ elif "Stata15" in envir_vars:
 
 start_make_logging()
 
-run_rbatch(program = "simulate.R")
+run_stata(program = 'build_county_panel.do', executable = stata)
 
 end_make_logging()
 

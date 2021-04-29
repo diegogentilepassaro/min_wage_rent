@@ -1,5 +1,5 @@
 
- make.py started: 2020-11-30 14:39:41 C:\Users\diegog\Desktop\Diego\min_wage_rent\base\bps\code 
+ make.py started: 2021-04-08 11:09:02 C:\Users\diegog\Desktop\Diego\min_wage_rent\base\bps\code 
 
 
 
@@ -53,7 +53,8 @@ Notes:
   3. 
 .     forval y = 10/19 {
   4.         foreach m in 01 02 03 04 05 06 07 08 09 10 11 12 {
-  5.             import delim `instub'/co`y'`m'y.txt, clear rowr(4:) varnames(2
+  5.             import delim `instub'/co`y'`m'y.txt, ///
+>                             clear rowr(4:) varnames(2) stringcols(1 2 3 4 5 6
 > )
   6.             set_colnames
   7.             save ../temp/co`y'`m'.dta, replace 
@@ -68,62 +69,62 @@ Notes:
  16. 
 .     format_clean_vars
  17. 
-.     save_data `outsub'/bps_sf_cty_mon.dta, replace key(countyfips year_month)
- 18. 
-. end 
+.     save_data `outsub'/bps_sf_cty_mon.dta, ///
+>             replace key(countyfips year month)
+ 18. end 
 
 . 
 . program set_colnames 
   1.     rename (date    state      county  code        v5            name) ///
 >            (strdate statefips  cfips   region_code division_code countyname)
   2.     
-.     rename (bldgs    units    value    v10      v11      v12      v13      v1
-> 4      v15      v16      v17      v18) ///
->            (u1_bldgs u1_units u1_value u2_bldgs u2_units u2_value u3_bldgs u3
-> _units u3_value u5_bldgs u5_units u5_value)
+.     rename (bldgs    units    value    v10      v11      v12      ///
+>             v13      v14      v15      v16      v17      v18) ///
+>         (u1_bldgs u1_units u1_value u2_bldgs u2_units u2_value ///
+>                 u3_bldgs u3_units u3_value u5_bldgs u5_units u5_value)
   3. 
-.     rename (v19 v20 v21 v22 v23 v24 v25 v26 v27 v28 v29 v30) ///
->            (u1rep_bldgs u1rep_units u1rep_value u2rep_bldgs u2rep_units u2rep
-> _value u3rep_bldgs u3rep_units u3rep_value u5rep_bldgs u5rep_units u5rep_valu
-> e)
+.     rename (v19 v20 v21 v22 v23 v24 ///
+>             v25 v26 v27 v28 v29 v30) ///
+>         (u1rep_bldgs u1rep_units u1rep_value u2rep_bldgs u2rep_units u2rep_va
+> lue ///
+>                 u3rep_bldgs u3rep_units u3rep_value u5rep_bldgs u5rep_units u
+> 5rep_value)
   4. end 
 
 . 
 . program format_clean_vars 
-  1.     
-.     drop region_code division_code countyname
+  1.     drop region_code division_code countyname
   2. 
 .     g year = substr(strdate, 1, 4)
-  3.     g mon  = substr(strdate, 5, 6)
-  4.     destring year mon, replace
-  5.     g year_month = ym(year, mon)
+  3.     g month  = substr(strdate, 5, 6)
+  4.     destring year month, replace
+  5.     g year_month = ym(year, month)
   6.     format year_month %tm
   7.     order year_month, first
   8.     drop strdate
   9. 
-.     g countyfips = string(statefips) + string(cfips, "%03.0f")
- 10.     destring countyfips, replace 
- 11.     order countyfips, before(cfips)
- 12.     drop cfips
- 13. 
+.     g countyfips = statefips + cfips
+ 10.     order countyfips, before(cfips)
+ 11.     drop cfips
+ 12. 
 .     duplicates drop countyfips year_month, force
- 14. 
-.     xtset countyfips year_month
+ 13.     
+.         destring countyfips, gen(cfips)
+ 14.     xtset cfips year_month
  15. 
-.     g invmon = - mon
+.     g invmon = - month
  16.     unab cumvar_list: u* 
  17.     foreach var in `cumvar_list' {
  18.         bys countyfips year (invmon): replace `var' = `var' - `var'[_n+1] 
 > if _n<12
  19.     }
  20. 
-.     sort countyfips year_month
- 21.     drop year mon invmon
+.     gsort countyfips year_month
+ 21.     drop year_month invmon cfips
  22. 
 .     unab final_varlist: u1*
- 23.     keep year_month statefips countyfips `final_varlist'
- 24. 
-. end 
+ 23.     keep year month statefips countyfips `final_varlist'
+ 24. end 
 
 . 
 . 
@@ -518,13 +519,13 @@ file ../temp/co1912.dta saved
 (note: variable u5rep_value was long, now double to accommodate using data's
        values)
 year: all characters numeric; replaced as int
-mon: all characters numeric; replaced as byte
-countyfips: all characters numeric; replaced as long
+month: all characters numeric; replaced as byte
 
 Duplicates in terms of countyfips year_month
 
 (251 observations deleted)
-       panel variable:  countyfips (unbalanced)
+countyfips: all characters numeric; cfips generated as long
+       panel variable:  cfips (unbalanced)
         time variable:  year_month, 2010m1 to 2019m12, but with gaps
                 delta:  1 month
 (79,928 real changes made, 103 to missing)
@@ -551,25 +552,25 @@ Duplicates in terms of countyfips year_month
 (25,081 real changes made, 103 to missing)
 (25,081 real changes made, 103 to missing)
 (25132 real changes made, 103 to missing)
-(data already sorted by countyfips year_month)
-  variable year_month was float now int
+(data now sorted by countyfips year month)
   variable u1_value was double now long
   variable u1rep_value was double now long
-  (938,460 bytes saved)
-============================================================================
+  (750,768 bytes saved)
+===============================================================================
 File: ../output/bps_sf_cty_mon.dta
-Key: countyfips year_month
-============================================================================
-  93846:9(40843):2159863659:3931761896
+Key: countyfips year month
+===============================================================================
+  93846:10(90952):2342548701:2627857919
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
-  countyfips |     93,846     29852.6    15658.34       1001      56039
-  year_month |     93,846    657.9632    34.58856        600        719
-   statefips |     93,846    29.74209    15.62723          1         56
+  countyfips |          0
+        year |     93,846    2014.372    2.868098       2010       2019
+       month |     93,846    6.500266    3.451957          1         12
+   statefips |          0
     u1_bldgs |     93,743    46.08891    105.5821      -1622       2687
-    u1_units |     93,743    46.08891    105.5821      -1622       2687
 -------------+---------------------------------------------------------
+    u1_units |     93,743    46.08891    105.5821      -1622       2687
     u1_value |     93,743    1.10e+07    2.62e+07  -1.94e+08   6.43e+08
  u1rep_bldgs |     93,743    41.99292    104.1207       -478       3758
  u1rep_units |     93,743    41.99292    104.1207       -478       3758
@@ -584,4 +585,4 @@ file ../output/bps_sf_cty_mon.dta saved
 . 
 end of do-file
 
- make.py ended: 2020-11-30 14:40:01
+ make.py ended: 2021-04-08 11:09:19

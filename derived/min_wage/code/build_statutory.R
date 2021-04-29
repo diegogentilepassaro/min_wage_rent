@@ -4,6 +4,8 @@ source("../../../lib/R/save_data.R")
 
 load_packages(c("data.table", "zoo", "stringr"))
 
+setDTthreads(20)
+
 main <- function(){
    base_geo_dir <- "../../../base/geo_master/output"
    base_mw_dir  <- "../../../base/min_wage/output"
@@ -41,9 +43,8 @@ main <- function(){
 
 build_frame <- function(instub, start_date, end_date, freq = "month") {
    
-   dt <- fread(file.path(instub, "zip_county_place_usps_master.csv"))
-   
-   dt[, statefips := str_pad(as.character(statefips), 2, pad = 0)]
+   dt <- fread(file.path(instub, "zip_county_place_usps_all.csv"), 
+               colClasses = c(rep("character", 10), "numeric", "numeric"))
    
    setnames(dt, old = c('state_abb', 'place_name', 'county_name'), 
                 new = c('stateabb',  'placename',  'county'))
@@ -64,11 +65,8 @@ build_frame <- function(instub, start_date, end_date, freq = "month") {
    
    dt[, c('year', 'month') :=  .(as.numeric(format(as.Date(daily_date), "%Y")),
                                  as.numeric(format(as.Date(daily_date), "%m")))]
-   
-   if (freq == "month") {
-      dt[, year_month := as.yearmon(daily_date)]
-      dt[, daily_date := NULL]
-   }
+   dt[, year_month := as.yearmon(daily_date)]
+   dt[, daily_date := NULL]
    
    return(dt)
 }
@@ -155,10 +153,13 @@ assemble_statutory_mw <- function(dt, dt.mw) {
 
 collapse_datatable <- function(dt, key_vars = c("zipcode", "year", "month")) {
    
+   # Don't use zip_max_houses var here, to be robust to collapsing at county level
    setorder(dt, zipcode, -houses_zcta_place_county)
    dt.max <- dt[, first(.SD), by = key_vars]
-   
-   dt.wmean <- dt[, .(actual_mw_wg_mean              = weighted.mean(actual_mw, houses_zcta_place_county),
+
+   dt.wmean <- dt[, .(actual_mw_max                  = max(actual_mw),
+                      actual_mw_ignore_local_max     = max(actual_mw_ignore_local),
+                      actual_mw_wg_mean              = weighted.mean(actual_mw, houses_zcta_place_county),
                       actual_mw_ignore_local_wg_mean = weighted.mean(actual_mw_ignore_local, houses_zcta_place_county)),
                   by = key_vars]
    

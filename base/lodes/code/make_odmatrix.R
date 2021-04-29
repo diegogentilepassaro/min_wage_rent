@@ -47,15 +47,45 @@ main <- function(paquetes, n_cores) {
   odzip_list <- parLapply(cl, state_list, function(y) {
     make_odmatrix_state(stabb = y, datadir = datadir_lodes,
                         aux = aux_all, xwalk = tract_zip_xwalk)
-    
   })
   stopCluster(cl)
   
+  # Save OD matrices  
   for (state in odzip_list) {
-    save_data(state$dt, key = c("h_zipcode", "w_zipcode"), 
-              filename = paste0(outdir, "odzip_", state$fips, ".csv"), 
+    save_data(state$dt, key = c("h_zipcode", "w_zipcode"),
+              filename = file.path(outdir, paste0("odzip_", state$fips, ".csv")),
               logfile  = "../output/odmatrix_data_manifest.log")
   }
+  
+  list_of_file_names <- list.files(outdir, pattern = "odzip_*", full.names = T)
+  odzip_list <- lapply(list_of_file_names, fread)
+  
+  # Compute share that work in same zipcode
+  odzip_list <- lapply(odzip_list, function(dt.st) {
+    dt.st[, c("residents_tot", "residents_young", "resident_lowinc") := 
+          list(sum(totjob),    sum(job_young),    sum(job_lowinc)),
+          by = "h_zipcode"]
+
+    dt.st <- dt.st[h_zipcode == w_zipcode]
+    setnames(dt.st, old = "h_zipcode", new = "zipcode")
+    dt.st[, w_zipcode := NULL]
+
+    dt.st[, share_tot    := totjob/residents_tot]
+    dt.st[, share_young  := job_young/residents_young]
+    dt.st[, share_lowinc := job_lowinc/resident_lowinc]
+
+    return(dt.st)
+  })
+
+  dt.shares <- rbindlist(odzip_list)
+  dt.shares[, zipcode := str_pad(zipcode, 5, pad = 0)]
+  save_data(dt.shares, key = c("zipcode"), 
+            filename = file.path(outdir, "zipcode_own_shares.csv"), 
+            logfile  = "../output/shares_data_manifest.log")
+            
+  save_data(dt.shares, key = c("zipcode"), 
+            filename = file.path(outdir, "zipcode_own_shares.dta"), 
+            logfile  = "../output/shares_data_manifest.log")
 }
 
 
@@ -118,7 +148,9 @@ make_odmatrix_state <- function(stabb, datadir, aux, xwalk, dest_threshold = 1) 
   this_state_zip[, totjob_cumsh := totjob_cum / h_totjob]
 
   this_state_zip <- this_state_zip[totjob_cumsh <= dest_threshold, ]
-  this_state_zip[, c("h_totjob", "totjob_cum", "totjob_cumsh") := NULL] 
+  this_state_zip[, c("h_totjob", "totjob_cum", "totjob_cumsh") := NULL]
+  this_state_zip[, h_zipcode := str_pad(h_zipcode, 5, pad = 0)]
+  this_state_zip[, w_zipcode := str_pad(w_zipcode, 5, pad = 0)]
   
   return(list("dt"   = this_state_zip,
               "fips" = str_pad(this_fips, 2, pad = 0)))

@@ -19,7 +19,7 @@ from gslab_make.dir_mod import *
 set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
-delete_files('../../../drive/derived_large/zipcode_month/*')
+delete_files('../../../drive/derived_large/county_month/*')
 delete_files('../output/*')
 
 envir_vars = os.getenv('PATH')
@@ -35,7 +35,7 @@ elif "Stata15" in envir_vars:
 
 start_make_logging()
 
-run_stata(program = 'build_zipcode_month_panel.do', executable = stata)
+run_stata(program = 'build_county_month_panel.do', executable = stata)
 
 end_make_logging()
 
