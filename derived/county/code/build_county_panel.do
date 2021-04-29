@@ -19,7 +19,8 @@ program main
         nogen assert(1 3)
     merge 1:1 countyfips using "`instub_base'/demographics/county_demo_2010.dta", ///
         nogen keep(1 3)
-    merge 1:1 countyfips using "`instub_base'/lodes/county_own_shares.dta"
+    merge 1:1 countyfips using "`instub_base'/lodes/county_own_shares.dta", ///
+	    nogen keep(1 3) /*making a note here that we have 2 _merge == 2 rogue counties*/
 
     strcompress
     save_data "`outstub'/county_panel.dta", ///
