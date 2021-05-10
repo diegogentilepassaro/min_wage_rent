@@ -17,7 +17,7 @@ program main
 	}
 
 	save_data `outstub'/safrm_2012_2016_by_zipcode_county_cbsa10.dta, ///
-	    key(countyfips cbsa10 zipcode year) replace
+		key(countyfips cbsa10 zipcode year) replace
 	
 	forval yr = 2017(1)2019 {
 		prepare_17_19, raw(`raw') temp(`temp') yr(`yr')
@@ -29,7 +29,7 @@ program main
 	}
 
 	save_data `outstub'/safrm_2017_2019_by_zipcode_cbsa10.dta, ///
-	    key(cbsa10 zipcode year) replace
+		key(cbsa10 zipcode year) replace
 end
 
 program prepare_12_16
