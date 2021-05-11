@@ -1,12 +1,11 @@
 set more off
 clear all
 adopath + ../../../lib/stata/gslab_misc/ado
-adopath + ../../../lib/stata/mental_coupons/ado
 
 program main
     local instub_base  "../../../drive/base_large"
-    local instub_geo  "../../../base/geo_master/output"
-    local outstub "../output"
+    local instub_geo   "../../../base/geo_master/output"
+    local outstub      "../output"
 
     build_zillow_county_stats, instub(`instub_base')
 
@@ -20,7 +19,7 @@ program main
     merge 1:1 countyfips using "`instub_base'/demographics/county_demo_2010.dta", ///
         nogen keep(1 3)
     merge 1:1 countyfips using "`instub_base'/lodes/county_own_shares.dta", ///
-	    nogen keep(1 3) /*making a note here that we have 2 _merge == 2 rogue counties*/
+        nogen keep(1 3) /*making a note here that we drop two `_merge == 2` rogue counties*/
 
     strcompress
     save_data "`outstub'/county_panel.dta", ///
