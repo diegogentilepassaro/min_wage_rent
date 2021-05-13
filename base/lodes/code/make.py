@@ -19,7 +19,9 @@ from gslab_make.dir_mod import *
 set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
+clear_dirs('../../../drive/base_large/lodes/')
 delete_files('../output/*')
+
 
 envir_vars = os.getenv('PATH')
 if envir_vars is None:
@@ -34,9 +36,9 @@ elif "Stata15" in envir_vars:
 
 start_make_logging()
 
-run_rbatch(program = 'make_lodes_ziplevel.R')
-run_rbatch(program = 'make_odmatrix_ziplevel.R')
-run_rbatch(program = 'make_lodes_experienced_ziplevel.R')
+run_rbatch(program = 'make_odmatrix.R')
+run_rbatch(program = 'make_odmatrix_county.R')
+run_rbatch(program = 'make_lodes.R')
 
 end_make_logging()
 

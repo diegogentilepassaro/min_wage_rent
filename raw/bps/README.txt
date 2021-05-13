@@ -1,6 +1,9 @@
 OVERVIEW
 ========================================================
-The files contains monthly information on buildingn permit statistics for new privately-owned residential construction. The data comes aggregated at the county level for all counties in which permit offices are requested to report that information. To see the full files' description, please read "raw/bps/ctyasc.pdf".
+The files contains monthly information on buildingn permit statistics for new
+privately-owned residential construction. The data comes aggregated at the county
+level for all counties in which permit offices are requested to report that 
+information. To see the full files' description, please read "raw/bps/ctyasc.pdf".
 
 
 SOURCE

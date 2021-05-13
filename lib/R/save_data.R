@@ -11,7 +11,7 @@ save_data <- function(df, key, filename, logfile = NULL, nolog = FALSE) {
   
   df <- check_key(df, key)
   
-  if (filetype == "csv") {
+  if (filetype %in% c("csv", "CSV")) {
     
     fwrite(df, file = filename)
     print(paste0("File '", filename, "' saved successfully."))
@@ -21,8 +21,13 @@ save_data <- function(df, key, filename, logfile = NULL, nolog = FALSE) {
     write_dta(df, filename)
     print(paste0("File '", filename, "' saved successfully."))
     
+  } else if (filetype == "RDS") {
+    
+    saveRDS(df, filename)
+    print(paste0("File '", filename, "' saved successfully."))
+    
   } else {
-    stop("Incorrect format. Only .csv and .dta are allowed.")
+    stop("Incorrect format. Only .csv, .dta, and .RDS are allowed.")
   }
   
   if (!nolog) {
@@ -90,30 +95,19 @@ generate_log_file <- function(df, key, filename, logname) {
   hash <- digest(df, algo="md5")
   
   if (!file.exists(logname)) {
-    
     cat("\n", file = logname, append = F)
-    cat("============================================================================", "\n", file = logname, append = T)
-    
-    cat("File:", filename, '\n', file = logname, append = T)
-    cat("MD5: ", hash, '\n', file = logname, append = T)
-    cat("Key: ", key, '\n', file = logname, append = T)
-    
-    s = capture.output(stargazer(summary_table, summary = F, type = 'text'))
-    cat(paste(s,"\n"), file = logname, append = T)
-    
   } else {
-    
     cat("\n", file = logname, append = T)
-    cat("============================================================================", "\n", file = logname, append = T)
+  }
     
-    cat("File:", filename, '\n', file = logname, append = T)
-    cat("MD5: ", hash, '\n', file = logname, append = T)
-    cat("Key: ", key, '\n', file = logname, append = T)
+  cat("==========================================================================", "\n", file = logname, append = T)
     
-    s = capture.output(stargazer(summary_table, summary = F, type = 'text'))
-    cat(paste(s,"\n"), file = logname, append = T)
-
-  }  
+  cat("File:", filename, '\n', file = logname, append = T)
+  cat("MD5: ", hash, '\n', file = logname, append = T)
+  cat("Key: ", key, '\n', file = logname, append = T)
+    
+  s = capture.output(stargazer(summary_table, summary = F, type = 'text'))
+  cat(paste(s,"\n"), file = logname, append = T)
   
   return("Log file generated successfully.")
 }

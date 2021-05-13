@@ -10,7 +10,8 @@ program main
 
     forval y = 10/19 {
         foreach m in 01 02 03 04 05 06 07 08 09 10 11 12 {
-            import delim `instub'/co`y'`m'y.txt, clear rowr(4:) varnames(2)
+            import delim `instub'/co`y'`m'y.txt, ///
+			    clear rowr(4:) varnames(2) stringcols(1 2 3 4 5 6)
             set_colnames
             save ../temp/co`y'`m'.dta, replace 
         }
@@ -24,54 +25,56 @@ program main
 
     format_clean_vars
 
-    save_data `outsub'/bps_sf_cty_mon.dta, replace key(countyfips year_month)
-
+    save_data `outsub'/bps_sf_cty_mon.dta, ///
+	    replace key(countyfips year month)
 end 
 
 program set_colnames 
     rename (date    state      county  code        v5            name) ///
            (strdate statefips  cfips   region_code division_code countyname)
     
-    rename (bldgs    units    value    v10      v11      v12      v13      v14      v15      v16      v17      v18) ///
-           (u1_bldgs u1_units u1_value u2_bldgs u2_units u2_value u3_bldgs u3_units u3_value u5_bldgs u5_units u5_value)
+    rename (bldgs    units    value    v10      v11      v12      ///
+	    v13      v14      v15      v16      v17      v18) ///
+        (u1_bldgs u1_units u1_value u2_bldgs u2_units u2_value ///
+		u3_bldgs u3_units u3_value u5_bldgs u5_units u5_value)
 
-    rename (v19 v20 v21 v22 v23 v24 v25 v26 v27 v28 v29 v30) ///
-           (u1rep_bldgs u1rep_units u1rep_value u2rep_bldgs u2rep_units u2rep_value u3rep_bldgs u3rep_units u3rep_value u5rep_bldgs u5rep_units u5rep_value)
+    rename (v19 v20 v21 v22 v23 v24 ///
+	    v25 v26 v27 v28 v29 v30) ///
+        (u1rep_bldgs u1rep_units u1rep_value u2rep_bldgs u2rep_units u2rep_value ///
+		u3rep_bldgs u3rep_units u3rep_value u5rep_bldgs u5rep_units u5rep_value)
 end 
 
 program format_clean_vars 
-    
     drop region_code division_code countyname
 
     g year = substr(strdate, 1, 4)
-    g mon  = substr(strdate, 5, 6)
-    destring year mon, replace
-    g year_month = ym(year, mon)
+    g month  = substr(strdate, 5, 6)
+    destring year month, replace
+    g year_month = ym(year, month)
     format year_month %tm
     order year_month, first
     drop strdate
 
-    g countyfips = string(statefips) + string(cfips, "%03.0f")
-    destring countyfips, replace 
+    g countyfips = statefips + cfips
     order countyfips, before(cfips)
     drop cfips
 
     duplicates drop countyfips year_month, force
+    
+	destring countyfips, gen(cfips)
+    xtset cfips year_month
 
-    xtset countyfips year_month
-
-    g invmon = - mon
+    g invmon = - month
     unab cumvar_list: u* 
     foreach var in `cumvar_list' {
         bys countyfips year (invmon): replace `var' = `var' - `var'[_n+1] if _n<12
     }
 
-    sort countyfips year_month
-    drop year mon invmon
+    gsort countyfips year_month
+    drop year_month invmon cfips
 
     unab final_varlist: u1*
-    keep year_month statefips countyfips `final_varlist'
-
+    keep year month statefips countyfips `final_varlist'
 end 
 
 

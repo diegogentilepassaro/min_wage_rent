@@ -1,6 +1,8 @@
 OVERVIEW
 ==============================================================
-The dataset contains the estimated count (in thousands) of rental houses for types making up the "single family / Condo Coop" Zillow category, broken down by number of bedrooms in the house. 
+The dataset contains the estimated count (in thousands) of rental houses for types 
+making up the "single family / Condo Coop" Zillow category, broken down by number of 
+bedrooms in the house. 
 
 Geographic level: national 
 Time level:       years 2011, 2013, 2015, 2017, 2019
