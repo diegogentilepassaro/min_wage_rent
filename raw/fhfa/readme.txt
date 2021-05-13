@@ -1,6 +1,7 @@
 OVERVIEW
 ========================================================
-Federal Housing Finance Agency (FHFA) House Price Index data. Monthly panel covering single-family house price Index (HPI) based on data from all 50 States and over 400 American cities. Geographic detail: Division, State, and MSA level. 
+Federal Housing Finance Agency (FHFA) House Price Index data. Monthly panel covering single-family house price Index (HPI) based on data from 
+all 50 States and over 400 American cities. Geographic detail: Division, State, and MSA level. 
 
 
 SOURCE
