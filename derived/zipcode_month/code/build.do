@@ -27,6 +27,7 @@ program main
 
     merge m:1 statefips countyfips year month                                     ///
         using "`in_qcew'/ind_emp_wage_countymonth.dta", nogen keep(1 3)
+	drop qmon end_month
 
     strcompress
     save_data "`outstub'/zipcode_panel.dta", replace ///
