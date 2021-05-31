@@ -30,7 +30,7 @@ program main
 	drop qmon end_month
 
     strcompress
-    save_data "`outstub'/zipcode_panel.dta", replace ///
+    save_data "`outstub'/zipcode_month_panel.dta", replace ///
         key(zipcode year month) log(`logfile')
 end
 
