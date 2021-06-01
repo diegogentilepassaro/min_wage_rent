@@ -5,53 +5,44 @@ adopath + ../../../lib/stata/min_wage/ado
 set maxvar 32000
 
 program main
-	local instub "../temp"
+	local instub "../../../drive/derived_large/estimation_samples"
 	local outstub "../output"
 
-	use "`instub'/fd_rent_panel.dta", clear
+	use "`instub'/baseline_zipcode_months.dta", clear
+	
+	destring zipcode, gen(zipode_num)
+	xtset zipode_num year_month
 
 	make_results_labels, w(5)
 	local estlabels_dyn "`r(estlabels_dyn)'"
 	local estlabels_static "`r(estlabels_static)'"
 
-	run_models, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
+	run_models, depvar(ln_med_rent_var) absorb(year_month) ///
 		cluster(statefips)
 	esttab using "`outstub'/expmw_static_results.tex", replace compress se substitute(\_ _) ///
-		keep(D.ln_mw D.ln_expmw) b(%9.4f) se(%9.4f) ///
-		coeflabels(D.ln_mw "$\Delta \ln \underline{w}_{ict}$" D.ln_expmw "$\Delta \ln \underline{w}_{ict}^{\text{exp}}$") ///
-		stats(space ctrl_wage ctrl_emp ctrl_estab p_value_F r2 N, fmt(%s1 %s3 %s3 %s3 %9.3f %9.3f %9.0gc) ///
-		labels("\vspace{-2mm}" "Wage controls" "Employment controls" "Establishment-count controls" "P-value equality" "R-squared" "Observations")) ///
+		keep(D.ln_mw D.exp_ln_mw) b(%9.4f) se(%9.4f) ///
+		coeflabels(D.ln_mw "$\Delta \ln \underline{w}_{ict}$" ///
+		D.exp_ln_mw "$\Delta \ln \underline{w}_{ict}^{\text{exp}}$") ///
+		stats(space ctrl_wage ctrl_emp ctrl_estab p_value_F r2 N, ///
+		fmt(%s1 %s3 %s3 %s3 %9.3f %9.3f %9.0gc) ///
+		labels("\vspace{-2mm}" "Wage controls" "Employment controls" ///
+		"Establishment-count controls" "P-value equality" "R-squared" "Observations")) ///
 		mgroups("$\Delta \ln \underline{w}_{ict}^{\text{exp}}$" "$\Delta \ln y_{ict}$", ///
-			pattern(1 1 0 0) prefix(\multicolumn{@span}{c}{) suffix(}) span erepeat(\cmidrule(lr){@span})) ///
-		nomtitles star(* 0.10 ** 0.05 *** 0.01) nonote
-
-
-	/* static_dynamic_comp, depvar(ln_med_rent_psqft_sfcc) absorb(year_month) ///
-		cluster(statefips)
-	esttab using "`outstub'/static_dynamic_comptable.tex", replace compress se substitute(\_ _) ///
-	rename(D.ln_expmw D.ln_mw) keep(D.ln_mw) b(%9.4f) se(%9.4f) coeflabels(D.ln_mw "Static Effect") ///
-	stats(space cumsum_b cumsum_V space p_value_F ctrl_wage ctrl_emp ctrl_estab r2 N,  ///
-	fmt(%s1 %s7 %s7 %s1 %9.3f %s3 %s3 %s3 %9.3f %9.0gc) ///
-	labels("\vspace{-1mm}" "Cumulative effect" " " "\hline" "P-value no pretrends" ///
-		"Wage controls" "Employment controls" "Establishment-count controls"  ///
-			"R-squared" "Observations")) ///
-	mtitles("Baseline" "Experienced MW")  ///
-	star(* 0.10 ** 0.05 *** 0.01) nonote */
+		pattern(1 1 0 0) prefix(\multicolumn{@span}{c}{) suffix(}) span ///
+		erepeat(\cmidrule(lr){@span})) nomtitles star(* 0.10 ** 0.05 *** 0.01) nonote
 end 
 
 program run_models 
 	syntax, depvar(str) absorb(str) cluster(str) [w(int 5)]
 
 	eststo clear
-
 	define_controls
 	local controls "`r(economic_controls)'"
 
 	* exp_mw vs actual_mw
-	eststo: reghdfe D.ln_expmw D.ln_mw D.(`controls') if !missing(D.ln_med_rent_psqft_sfcc), ///
+	eststo: reghdfe D.exp_ln_mw D.ln_mw D.(`controls') if !missing(D.ln_med_rent_var), ///
 		absorb(`absorb') vce(cluster `cluster') nocons
 	comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing("No")
-
 	estadd local space ""
 
 	*baseline
@@ -59,68 +50,30 @@ program run_models
 	eststo: reghdfe D.`depvar' D.ln_mw D.(`controls'), ///
 		absorb(`absorb') vce(cluster `cluster') nocons
 	comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing("No")
-	
 	estadd local space ""
 
 	*experienced
 
-	eststo: reghdfe D.`depvar' D.ln_expmw D.(`controls'), ///
+	eststo: reghdfe D.`depvar' D.exp_ln_mw D.(`controls'), ///
 		absorb(`absorb') vce(cluster `cluster') nocons
 	comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing("No")
-
 	estadd local space ""
 
-	/* reghdfe D.`depvar' c.Dln_exp_mw_totjob##i.ziptreated_ind D.(`controls'), ///
-		absorb(`absorb') vce(cluster `cluster') nocons */
-
-
 	*both 
-	eststo: qui reghdfe D.`depvar' D.ln_mw D.ln_expmw D.(`controls'), ///
+	eststo: qui reghdfe D.`depvar' D.ln_mw D.exp_ln_mw D.(`controls'), ///
 		absorb(`absorb') vce(cluster `cluster') nocons
 	comment_table_control, emp("Yes") estab("Yes") wage("Yes") housing("No")
-
 	estadd local space ""
 	
 	
 	file open myfile using "../output/test_coefficients_static.log", write replace
 	file write myfile "Static model when including both actual and exp MW" _n
 
-	test (D.ln_mw = D.ln_expmw)
+	test (D.ln_mw = D.exp_ln_mw)
 	estadd scalar p_value_F = r(p)
 	file write myfile "P-value static coefficients are the same: `r(p)'" _n
 	
 	file close myfile
-
-	/* 	local lincomest_coeffs "D1.ln_mw + LD.ln_mw"
-	local pretrend_test "(F1D.ln_mw = 0)"
-	local lincomest_coeffs_exp "D1.ln_expmw + LD.ln_expmw"
-	local pretrend_test_exp "(F1D.ln_expmw = 0)"
-	forvalues i = 2(1)`w'{
-		local lincomest_coeffs "`lincomest_coeffs' + L`i'D.ln_mw"
-	    local pretrend_test " `pretrend_test' (F`i'D.ln_mw = 0)"
-		local lincomest_coeffs_exp "`lincomest_coeffs_exp' + L`i'D.ln_expmw"
-	    local pretrend_test_exp " `pretrend_test_exp' (F`i'D.ln_expmw = 0)"
-
-	}
-	reghdfe D.`depvar' L(0/`w').D.ln_mw D.(`controls'), ///
-		absorb(`absorb') vce(cluster `cluster') nocons	
-	compute_cumsum, coefficients(`lincomest_coeffs')
-
-	local cumsum_b "`r(cumsum_b)'"
-	local cumsum_V "`r(cumsum_V)'"
-
-	ivreghdfe D.`depvar' L(0/`w').D.ln_mw (L.D.`depvar' = L2.D.`depvar') D.(`controls'), ///
-		absorb(`absorb') cluster(`cluster') nocons
-	compute_longrun, depvar(`depvar')
-
-	local longrun_b "`r(longrun_b)'"
-	local longrun_V "`r(longrun_V)'" */
-	
-	/* estadd local space ""
-	estadd local cumsum_b "`cumsum_b'"
-	estadd local cumsum_V "`cumsum_V'"
-	estadd local longrun_b "`longrun_b'"
-	estadd local longrun_V "`longrun_V'" */
 end 
 
 
@@ -187,12 +140,5 @@ program comment_table_control
 	estadd local ctrl_wage  "`wage'"
 	estadd local ctrl_building "`housing'"
 end
-
-*program comment_table_treatindicator
-*	syntax, treat_dir(str) treat_ind(str)
-*
-*	estadd local trdir   "`treat_dir'"
-*	estadd local trind "`treat_ind'"
-*end
 
 main 

@@ -19,6 +19,7 @@ program main
 		create_baseline_panel, instub(`in_derived_large') geo(`geo') ///
 			rent_var(`rent_var') target_year_month(`target_year_month') ///
 			start_year_month(`start_year_month') end_year_month(`end_year_month')
+		gen_vars, rent_var(`rent_var')
 		add_weights, geo(`geo') target_vars(`target_vars') ///
 		    targets(`targets') target_year_month(`target_year_month')
 		save_data "`outstub'/baseline_`geo'_months.dta", key(`geo' year_month) ///
@@ -26,6 +27,7 @@ program main
 					
 		create_full_panel, instub(`in_derived_large') geo(`geo') ///
 			start_year_month(`start_year_month') end_year_month(`end_year_month')
+		gen_vars, rent_var(`rent_var')
 		add_weights, geo(`geo') target_vars(`target_vars') ///
 		    targets(`targets') target_year_month(`target_year_month')
 		save_data "`outstub'/all_`geo'_months.dta", key(`geo' year_month) ///
@@ -81,6 +83,19 @@ program create_balanced_panel
 	keep if year_month >= `=tm(`target_year_month')'
 end
 
+program gen_vars
+    syntax, rent_var(str)
+
+    gen ln_med_rent_var = log(`rent_var')
+	gen ln_mw = log(actual_mw)
+	rename exp_ln_mw_tot exp_ln_mw
+	
+    foreach ctrl_type in emp estcount avgwwage {
+	    gen ln_`ctrl_type'_bizserv = log(`ctrl_type'_bizserv)
+	    gen ln_`ctrl_type'_info = log(`ctrl_type'_info)
+	    gen ln_`ctrl_type'_fin = log(`ctrl_type'_fin)
+	}
+end
 program add_weights
 	syntax, geo(str) target_vars(str) ///
 	    targets(str) target_year_month(str)

@@ -8,6 +8,6 @@ program define_controls, rclass
 	}
 	return local economic_controls "`economic_controls'"
 
-	local housing_cont   "ln_u1rep_units ln_u1rep_value"
-	return local housing_cont "`housing_cont'"
+	/*local housing_cont   "ln_u1rep_units ln_u1rep_value"
+	return local housing_cont "`housing_cont'"*/
 end
