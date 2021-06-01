@@ -1,3 +1,260 @@
+
+ make.py started: 2021-06-01 10:27:29 C:\Users\diegog\Desktop\Diego\min_wage_rent\derived\estimation_samples\code 
+
+
+
+
+Execute:  StataMP-64 /e do "./build.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./build.do 
+
+. set more off
+
+. clear all
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. adopath + ../../../lib/stata/mental_coupons/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+  [8]              "../../../lib/stata/mental_coupons/ado"
+
+. 
+. program main
+  1.     local in_derived_large "../../../drive/derived_large"
+  2.     local outstub          "../../../drive/derived_large/estimation_sample
+> s"
+  3.     local logfile          "../output/data_file_manifest.log"
+  4.         
+.         local rent_var "medrentpricepsqft_SFCC"
+  5.         local start_year_month "2010m1"
+  6.         local end_year_month "2019m12"
+  7.         local target_year_month "2015m1"
+  8.         local target_vars "renthouse_share2010 black_share2010 med_hhinc20
+> 105 college_share20105"
+  9.     local targets ".347 .124 62774 .386"
+ 10. 
+.     foreach geo in zipcode county {
+ 11.                 create_baseline_panel, instub(`in_derived_large') geo(`geo
+> ') ///
+>                         rent_var(`rent_var') target_year_month(`target_year_m
+> onth') ///
+>                         start_year_month(`start_year_month') end_year_month(`
+> end_year_month')
+ 12.                 add_weights, geo(`geo') target_vars(`target_vars') ///
+>                     targets(`targets') target_year_month(`target_year_month')
+ 13.                 save_data "`outstub'/baseline_`geo'_months.dta", key(`geo'
+>  year_month) ///
+>                         replace log(`logfile')
+ 14.                                         
+.                 create_full_panel, instub(`in_derived_large') geo(`geo') ///
+>                         start_year_month(`start_year_month') end_year_month(`
+> end_year_month')
+ 15.                 add_weights, geo(`geo') target_vars(`target_vars') ///
+>                     targets(`targets') target_year_month(`target_year_month')
+ 16.                 save_data "`outstub'/all_`geo'_months.dta", key(`geo' year
+> _month) ///
+>                         replace log(`logfile')
+ 17.                         
+.                 create_balanced_panel, instub(`in_derived_large') geo(`geo') 
+> ///
+>                         target_year_month(`target_year_month')
+ 18.                 add_weights, geo(`geo') target_vars(`target_vars') ///
+>                     targets(`targets') target_year_month(`target_year_month')
+ 19.                 save_data "`outstub'/balanced_`geo'_months.dta", key(`geo'
+>  year_month) ///
+>                         replace log(`logfile')
+ 20.         }
+ 21. end
+
+. 
+. program create_baseline_panel
+  1.     syntax, instub(str) geo(str) ///
+>             rent_var(str) target_year_month(str) ///
+>                 start_year_month(str) end_year_month(str)
+  2. 
+.     use "`instub'/`geo'_month/`geo'_month_panel.dta", clear
+  3.         keep if !missing(`rent_var')
+  4.     gcollapse (min) min_year_month = year_month, by(`geo')
+  5.         keep if min_year_month <= `=tm(`target_year_month')'
+  6.         save_data "../temp/baseline_`geo's.dta", key(`geo') ///
+>             replace log(none)
+  7.         
+.     use "`instub'/`geo'_month/`geo'_month_panel.dta", clear
+  8.         merge m:1 `geo' using "`instub'/`geo'/`geo'_cross.dta", ///
+>             nogen assert(2 3) keep(3)
+  9.     merge m:1 `geo' using "../temp/baseline_`geo's.dta", nogen ///
+>             assert(1 3) keep(3)
+ 10.         keep if inrange(year_month, `=tm(`start_year_month')', `=tm(`end_y
+> ear_month')')
+ 11. end
+
+. 
+. program create_full_panel
+  1.     syntax, instub(str) geo(str) ///
+>             start_year_month(str) end_year_month(str)
+  2.                 
+.     use "`instub'/`geo'_month/`geo'_month_panel.dta", clear
+  3.         merge m:1 `geo' using "`instub'/`geo'/`geo'_cross.dta", ///
+>             nogen assert(2 3) keep(3)
+  4.         keep if inrange(year_month, `=tm(`start_year_month')', `=tm(`end_y
+> ear_month')')
+  5. end
+
+. 
+. program create_balanced_panel
+  1.     syntax, instub(str) geo(str) ///
+>             target_year_month(str)
+  2.                 
+.         use "`instub'/estimation_samples/baseline_`geo'_months.dta", clear
+  3.         drop wgt_cbsa100
+  4.         merge m:1 `geo' using "`instub'/`geo'/`geo'_cross.dta", ///
+>             nogen assert(2 3) keep(3)
+  5.         keep if year_month >= `=tm(`target_year_month')'
+  6. end
+
+. 
+. program add_weights
+  1.         syntax, geo(str) target_vars(str) ///
+>             targets(str) target_year_month(str)
+  2.         * balancing procedure: add ,in the right order the target average 
+> values from analysis/descriptive/output/desc_stats.tex
+.         
+.         preserve
+  3.                 keep if year_month == `=tm(`target_year_month')'
+  4.                 ebalance `target_vars', manualtargets(`targets')
+  5.                 rename _webal wgt_cbsa100
+  6.                 keep `geo' wgt_cbsa100
+  7.                 tempfile cbsa_weights
+  8.                 save "`cbsa_weights'", replace 
+  9.         restore
+ 10.         merge m:1 `geo' using `cbsa_weights', ///
+>             nogen assert(1 3) keep(1 3)
+ 11. end 
+
+. 
+. main
+(4,660,582 observations deleted)
+(1,971 observations deleted)
+(data already sorted by zipcode)
+  (0 bytes saved)
+===============================================================================
+File: ../temp/baseline_zipcodes.dta
+Key: zipcode
+===============================================================================
+  1345:2(68156):387888261:495002822
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+min_year_m~h |      1,345    620.6691    12.19923        601        660
+
+
+
+
+(note: file ../temp/baseline_zipcodes.dta not found)
+file ../temp/baseline_zipcodes.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                         4,858,560  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           161,400  
+    -----------------------------------------
+(0 observations deleted)
+(160,055 observations deleted)
+
+
+Data Setup
+Covariate adjustment: renthouse_share2010 black_share2010 med_hhinc20105 colleg
+> e_share20105
+
+
+Optimizing...
+Iteration 1: Max Difference = 9132.78186
+Iteration 2: Max Difference = 3358.10499
+Iteration 3: Max Difference = 1233.72188
+Iteration 4: Max Difference = 452.209894
+Iteration 5: Max Difference = 164.720899
+Iteration 6: Max Difference = 58.9950222
+Iteration 7: Max Difference = 20.1934378
+Iteration 8: Max Difference = 6.14561959
+Iteration 9: Max Difference = 1.42244391
+Iteration 10: Max Difference = .19139884
+Iteration 11: Max Difference = .006748794
+maximum difference smaller than the tolerance level; convergence achieved
+
+
+No. of units adjusted: 1345 total of weights: 1345
+
+
+Before: without weighting
+
+             |      mean   variance   skewness 
+-------------+---------------------------------
+renthou~2010 |      .373     .02632       .737 
+black_s~2010 |     .1569     .03671      2.245 
+med_hh~20105 |     67948   6.38e+08      1.005 
+colleg~20105 |      .452     .02856      .3896 
+
+
+After:  _webal as the weighting variable
+
+             |      mean   variance   skewness 
+-------------+---------------------------------
+renthou~2010 |     .3471     .02109      .8949 
+black_s~2010 |     .1241     .02024      2.757 
+med_hh~20105 |     62781   4.68e+08      1.132 
+colleg~20105 |     .3861     .02149      .6712 
+(note: file C:\Users\diegog\AppData\Local\Temp\4\ST_76bc_000002.tmp not found)
+file C:\Users\diegog\AppData\Local\Temp\4\ST_76bc_000002.tmp saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           161,400  
+    -----------------------------------------
+(data now sorted by zipcode year_month)
+  variable county_name was str34 now str23
+  (1,775,400 bytes saved)
 ===============================================================================
 File: ../../../drive/derived_large/estimation_samples/baseline_zipcode_months.d
 > ta
@@ -220,6 +477,74 @@ min_year_m~h |    161,400    620.6691    12.19473        601        660
 
 
 
+(note: file ../../../drive/derived_large/estimation_samples/baseline_zipcode_mo
+> nths.dta not found)
+file ../../../drive/derived_large/estimation_samples/baseline_zipcode_months.dt
+> a saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                         4,858,560  
+    -----------------------------------------
+(0 observations deleted)
+(4,818,072 observations deleted)
+
+
+Data Setup
+Covariate adjustment: renthouse_share2010 black_share2010 med_hhinc20105 colleg
+> e_share20105
+
+
+Optimizing...
+Iteration 1: Max Difference = 181898.916
+Iteration 2: Max Difference = 66915.2129
+Iteration 3: Max Difference = 24615.0726
+Iteration 4: Max Difference = 9053.72083
+Iteration 5: Max Difference = 3329.02023
+Iteration 6: Max Difference = 1223.02265
+Iteration 7: Max Difference = 448.275085
+Iteration 8: Max Difference = 163.276683
+Iteration 9: Max Difference = 58.4727452
+Iteration 10: Max Difference = 20.0255696
+Iteration 11: Max Difference = 6.14402091
+Iteration 12: Max Difference = 1.51236295
+Iteration 13: Max Difference = .228877605
+Iteration 14: Max Difference = .007691984
+maximum difference smaller than the tolerance level; convergence achieved
+
+
+No. of units adjusted: 34561 total of weights: 34561
+
+
+Before: without weighting
+
+             |      mean   variance   skewness 
+-------------+---------------------------------
+renthou~2010 |     .2866     .02965      1.799 
+black_s~2010 |    .08349     .02519      2.916 
+med_hh~20105 |     52633   4.62e+08      1.872 
+colleg~20105 |     .3114     .02221      1.169 
+
+
+After:  _webal as the weighting variable
+
+             |      mean   variance   skewness 
+-------------+---------------------------------
+renthou~2010 |     .3469     .04944       1.16 
+black_s~2010 |     .1239     .04124      2.268 
+med_hh~20105 |     62757   1.14e+09      1.765 
+colleg~20105 |     .3858     .03838      .7396 
+(note: file C:\Users\diegog\AppData\Local\Temp\4\ST_76bc_000002.tmp not found)
+file C:\Users\diegog\AppData\Local\Temp\4\ST_76bc_000002.tmp saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                         4,858,560  
+    -----------------------------------------
+(data now sorted by zipcode year_month)
+  (0 bytes saved)
 ===============================================================================
 File: ../../../drive/derived_large/estimation_samples/all_zipcode_months.dta
 Key: zipcode year_month
@@ -440,6 +765,74 @@ share_lowinc |  4,149,720    .0901598    .1077136          0   .9285714
 
 
 
+(note: file ../../../drive/derived_large/estimation_samples/all_zipcode_months.
+> dta not found)
+file ../../../drive/derived_large/estimation_samples/all_zipcode_months.dta sav
+> ed
+(note: variable county_name was str23, now str34 to accommodate using data's
+       values)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           161,400  
+    -----------------------------------------
+(80,700 observations deleted)
+(79,355 observations deleted)
+
+
+Data Setup
+Covariate adjustment: renthouse_share2010 black_share2010 med_hhinc20105 colleg
+> e_share20105
+
+
+Optimizing...
+Iteration 1: Max Difference = 9132.78186
+Iteration 2: Max Difference = 3358.10499
+Iteration 3: Max Difference = 1233.72188
+Iteration 4: Max Difference = 452.209894
+Iteration 5: Max Difference = 164.720899
+Iteration 6: Max Difference = 58.9950222
+Iteration 7: Max Difference = 20.1934378
+Iteration 8: Max Difference = 6.14561959
+Iteration 9: Max Difference = 1.42244391
+Iteration 10: Max Difference = .19139884
+Iteration 11: Max Difference = .006748794
+maximum difference smaller than the tolerance level; convergence achieved
+
+
+No. of units adjusted: 1345 total of weights: 1345
+
+
+Before: without weighting
+
+             |      mean   variance   skewness 
+-------------+---------------------------------
+renthou~2010 |      .373     .02632       .737 
+black_s~2010 |     .1569     .03671      2.245 
+med_hh~20105 |     67948   6.38e+08      1.005 
+colleg~20105 |      .452     .02856      .3896 
+
+
+After:  _webal as the weighting variable
+
+             |      mean   variance   skewness 
+-------------+---------------------------------
+renthou~2010 |     .3471     .02109      .8949 
+black_s~2010 |     .1241     .02024      2.757 
+med_hh~20105 |     62781   4.68e+08      1.132 
+colleg~20105 |     .3861     .02149      .6712 
+(note: file C:\Users\diegog\AppData\Local\Temp\4\ST_76bc_000002.tmp not found)
+file C:\Users\diegog\AppData\Local\Temp\4\ST_76bc_000002.tmp saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            80,700  
+    -----------------------------------------
+(data now sorted by zipcode year_month)
+  variable county_name was str34 now str23
+  (887,700 bytes saved)
 ===============================================================================
 File: ../../../drive/derived_large/estimation_samples/balanced_zipcode_months.d
 > ta
@@ -662,6 +1055,98 @@ min_year_m~h |     80,700    620.6691    12.19477        601        660
 
 
 
+(note: file ../../../drive/derived_large/estimation_samples/balanced_zipcode_mo
+> nths.dta not found)
+file ../../../drive/derived_large/estimation_samples/balanced_zipcode_months.dt
+> a saved
+(320,186 observations deleted)
+(237 observations deleted)
+(data already sorted by county)
+  (0 bytes saved)
+===============================================================================
+File: ../temp/baseline_countys.dta
+Key: county
+===============================================================================
+  466:2(62771):3653149733:2411985936
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+      county |          0
+min_year_m~h |        466    614.9399    12.53368        600        659
+
+
+
+
+(note: file ../temp/baseline_countys.dta not found)
+file ../temp/baseline_countys.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           376,902  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            55,920  
+    -----------------------------------------
+(0 observations deleted)
+(55,454 observations deleted)
+
+
+Data Setup
+Covariate adjustment: renthouse_share2010 black_share2010 med_hhinc20105 colleg
+> e_share20105
+
+
+Optimizing...
+Iteration 1: Max Difference = 2706.2696
+Iteration 2: Max Difference = 993.925718
+Iteration 3: Max Difference = 363.995637
+Iteration 4: Max Difference = 132.273612
+Iteration 5: Max Difference = 47.0714764
+Iteration 6: Max Difference = 15.8408398
+Iteration 7: Max Difference = 4.62122444
+Iteration 8: Max Difference = .977067679
+Iteration 9: Max Difference = .104820743
+Iteration 10: Max Difference = .001942645
+maximum difference smaller than the tolerance level; convergence achieved
+
+
+No. of units adjusted: 466 total of weights: 466
+
+
+Before: without weighting
+
+             |      mean   variance   skewness 
+-------------+---------------------------------
+renthou~2010 |     .3344    .009373      .8168 
+black_s~2010 |     .1291     .01692      1.675 
+med_hh~20105 |     58209   2.25e+08          1 
+colleg~20105 |     .3842    .009057      .5843 
+
+
+After:  _webal as the weighting variable
+
+             |      mean   variance   skewness 
+-------------+---------------------------------
+renthou~2010 |      .347     .01369      1.156 
+black_s~2010 |      .124     .01583      1.859 
+med_hh~20105 |     62771   3.06e+08       .785 
+colleg~20105 |      .386     .01079      .7266 
+(note: file C:\Users\diegog\AppData\Local\Temp\4\ST_76bc_000002.tmp not found)
+file C:\Users\diegog\AppData\Local\Temp\4\ST_76bc_000002.tmp saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            55,920  
+    -----------------------------------------
+(data now sorted by county year_month)
+  variable med_earn_foodserv_20105 was long now int
+  variable med_earn_perscare_20105 was long now int
+  (223,680 bytes saved)
 ===============================================================================
 File: ../../../drive/derived_large/estimation_samples/baseline_county_months.dt
 > a
@@ -826,6 +1311,75 @@ min_year_m~h |     55,920    614.9399    12.52034        600        659
 
 
 
+(note: file ../../../drive/derived_large/estimation_samples/baseline_county_mon
+> ths.dta not found)
+file ../../../drive/derived_large/estimation_samples/baseline_county_months.dta
+>  saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           376,902  
+    -----------------------------------------
+(0 observations deleted)
+(373,762 observations deleted)
+
+
+Data Setup
+Covariate adjustment: renthouse_share2010 black_share2010 med_hhinc20105 colleg
+> e_share20105
+
+
+Optimizing...
+Iteration 1: Max Difference = 14318.9242
+Iteration 2: Max Difference = 5265.98065
+Iteration 3: Max Difference = 1935.59151
+Iteration 4: Max Difference = 710.417107
+Iteration 5: Max Difference = 259.720392
+Iteration 6: Max Difference = 93.9717236
+Iteration 7: Max Difference = 33.1385303
+Iteration 8: Max Difference = 11.1178354
+Iteration 9: Max Difference = 3.66840473
+Iteration 10: Max Difference = 1.10695039
+Iteration 11: Max Difference = .156605326
+Iteration 12: Max Difference = .004119164
+maximum difference smaller than the tolerance level; convergence achieved
+
+
+No. of units adjusted: 3138 total of weights: 3138
+
+
+Before: without weighting
+
+             |      mean   variance   skewness 
+-------------+---------------------------------
+renthou~2010 |     .2773    .005801      1.411 
+black_s~2010 |    .08756     .02082      2.294 
+med_hh~20105 |     45651   1.42e+08       1.42 
+colleg~20105 |     .2726    .008817      1.021 
+
+
+After:  _webal as the weighting variable
+
+             |      mean   variance   skewness 
+-------------+---------------------------------
+renthou~2010 |      .347     .01725      1.103 
+black_s~2010 |     .1239     .02578      1.878 
+med_hh~20105 |     62764   5.78e+08      .8743 
+colleg~20105 |     .3859     .02679       .664 
+(note: file C:\Users\diegog\AppData\Local\Temp\4\ST_76bc_000002.tmp not found)
+file C:\Users\diegog\AppData\Local\Temp\4\ST_76bc_000002.tmp saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                           102
+        from master                       102  
+        from using                          0  
+
+    matched                           376,800  
+    -----------------------------------------
+(data now sorted by county year_month)
+  (0 bytes saved)
 ===============================================================================
 File: ../../../drive/derived_large/estimation_samples/all_county_months.dta
 Key: county year_month
@@ -987,6 +1541,76 @@ share_lowinc |    376,728    .4456322    .1485672          0   .9679408
 
 
 
+(note: file ../../../drive/derived_large/estimation_samples/all_county_months.d
+> ta not found)
+file ../../../drive/derived_large/estimation_samples/all_county_months.dta save
+> d
+(note: variable med_earn_foodserv_20105 was int, now long to accommodate
+       using data's values)
+(note: variable med_earn_perscare_20105 was int, now long to accommodate
+       using data's values)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            55,920  
+    -----------------------------------------
+(27,960 observations deleted)
+(27,494 observations deleted)
+
+
+Data Setup
+Covariate adjustment: renthouse_share2010 black_share2010 med_hhinc20105 colleg
+> e_share20105
+
+
+Optimizing...
+Iteration 1: Max Difference = 2706.2696
+Iteration 2: Max Difference = 993.925718
+Iteration 3: Max Difference = 363.995637
+Iteration 4: Max Difference = 132.273612
+Iteration 5: Max Difference = 47.0714764
+Iteration 6: Max Difference = 15.8408398
+Iteration 7: Max Difference = 4.62122444
+Iteration 8: Max Difference = .977067679
+Iteration 9: Max Difference = .104820743
+Iteration 10: Max Difference = .001942645
+maximum difference smaller than the tolerance level; convergence achieved
+
+
+No. of units adjusted: 466 total of weights: 466
+
+
+Before: without weighting
+
+             |      mean   variance   skewness 
+-------------+---------------------------------
+renthou~2010 |     .3344    .009373      .8168 
+black_s~2010 |     .1291     .01692      1.675 
+med_hh~20105 |     58209   2.25e+08          1 
+colleg~20105 |     .3842    .009057      .5843 
+
+
+After:  _webal as the weighting variable
+
+             |      mean   variance   skewness 
+-------------+---------------------------------
+renthou~2010 |      .347     .01369      1.156 
+black_s~2010 |      .124     .01583      1.859 
+med_hh~20105 |     62771   3.06e+08       .785 
+colleg~20105 |      .386     .01079      .7266 
+(note: file C:\Users\diegog\AppData\Local\Temp\4\ST_76bc_000002.tmp not found)
+file C:\Users\diegog\AppData\Local\Temp\4\ST_76bc_000002.tmp saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            27,960  
+    -----------------------------------------
+(data now sorted by county year_month)
+  variable med_earn_foodserv_20105 was long now int
+  variable med_earn_perscare_20105 was long now int
+  (111,840 bytes saved)
 ===============================================================================
 File: ../../../drive/derived_large/estimation_samples/balanced_county_months.dt
 > a
@@ -1151,3 +1775,12 @@ min_year_m~h |     27,960    614.9399    12.52045        600        659
 
 
 
+(note: file ../../../drive/derived_large/estimation_samples/balanced_county_mon
+> ths.dta not found)
+file ../../../drive/derived_large/estimation_samples/balanced_county_months.dta
+>  saved
+
+. 
+end of do-file
+
+ make.py ended: 2021-06-01 10:31:08
