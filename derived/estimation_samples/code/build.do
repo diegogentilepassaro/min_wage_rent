@@ -22,6 +22,7 @@ program main
 		gen_vars, rent_var(`rent_var')
 		add_weights, geo(`geo') target_vars(`target_vars') ///
 			targets(`targets') target_year_month(`target_year_month')
+			
 		save_data "`outstub'/baseline_`geo'_months.dta", key(`geo' year_month) ///
 			replace log(`logfile')
 		
@@ -30,6 +31,7 @@ program main
 		gen_vars, rent_var(`rent_var')
 		add_weights, geo(`geo') target_vars(`target_vars') ///
 			targets(`targets') target_year_month(`target_year_month')
+
 		save_data "`outstub'/all_`geo'_months.dta", key(`geo' year_month) ///
 			replace log(`logfile')
 		
@@ -37,6 +39,7 @@ program main
 			target_year_month(`target_year_month')
 		add_weights, geo(`geo') target_vars(`target_vars') ///
 			targets(`targets') target_year_month(`target_year_month')
+
 		save_data "`outstub'/balanced_`geo'_months.dta", key(`geo' year_month) ///
 			replace log(`logfile')
 	}
@@ -49,8 +52,10 @@ program create_baseline_panel
 
 	use "`instub'/`geo'_month/`geo'_month_panel.dta", clear
 	keep if !missing(`rent_var')
+
 	gcollapse (min) min_year_month = year_month, by(`geo')
 	keep if min_year_month <= `=tm(`target_year_month')'
+
 	save_data "../temp/baseline_`geo's.dta", key(`geo') ///
 		replace log(none)
 	
@@ -59,6 +64,7 @@ program create_baseline_panel
 		nogen assert(2 3) keep(3)
 	merge m:1 `geo' using "../temp/baseline_`geo's.dta", nogen ///
 		assert(1 3) keep(3)
+	
 	keep if inrange(year_month, `=tm(`start_year_month')', `=tm(`end_year_month')')
 end
 
@@ -87,13 +93,13 @@ program gen_vars
 	syntax, rent_var(str)
 
 	gen ln_med_rent_var = log(`rent_var')
-	gen ln_mw = log(actual_mw)
+	gen ln_mw           = log(actual_mw)
 	rename exp_ln_mw_tot exp_ln_mw
 	
 	foreach ctrl_type in emp estcount avgwwage {
 		gen ln_`ctrl_type'_bizserv = log(`ctrl_type'_bizserv)
-		gen ln_`ctrl_type'_info = log(`ctrl_type'_info)
-		gen ln_`ctrl_type'_fin = log(`ctrl_type'_fin)
+		gen ln_`ctrl_type'_info    = log(`ctrl_type'_info)
+		gen ln_`ctrl_type'_fin     = log(`ctrl_type'_fin)
 	}
 end
 program add_weights
