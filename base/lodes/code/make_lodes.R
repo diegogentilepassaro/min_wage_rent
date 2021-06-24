@@ -5,7 +5,7 @@ source("../../../lib/R/save_data.R")
 source("make_xwalk.R")
 
 options(scipen=999)
-load_packages(c('tidyverse', 'data.table', 'bit64', 
+load_packages(c('data.table', 'bit64', 
                 'purrr', 'readxl', 'parallel', 'R.utils'))
 
 main <- function() {
