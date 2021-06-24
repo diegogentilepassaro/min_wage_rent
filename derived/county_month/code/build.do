@@ -31,7 +31,7 @@ program main
         nogen keep(3) assert(1 2 3)
 
     strcompress
-	rename countyfips county
+    rename countyfips county
     save_data "`outstub'/county_month_panel.dta", replace ///
         key(county year month) log(`logfile')
 end
