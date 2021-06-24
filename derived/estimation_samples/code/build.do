@@ -1,7 +1,6 @@
 set more off
 clear all
 adopath + ../../../lib/stata/gslab_misc/ado
-adopath + ../../../lib/stata/mental_coupons/ado
 
 program main
 	local in_derived_large "../../../drive/derived_large"
