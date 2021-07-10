@@ -9,15 +9,15 @@ load_packages(c('data.table', 'bit64',
                 'purrr', 'readxl', 'parallel', 'R.utils'))
 
 main <- function() {
-  datadir_lodes       <- '../../../drive/raw_data/lodes/'
-  datadir_xwalk_lodes <- '../../../raw/crosswalk/'
-  datadir_xwalk       <- '../../geo_master/output/'
-  outdir              <- '../../../drive/base_large/lodes/'
+  datadir_lodes       <- '../../../drive/raw_data/lodes'
+  datadir_xwalk_lodes <- '../../../raw/crosswalk'
+  datadir_xwalk       <- '../../geo_master/output'
+  outdir              <- '../../../drive/base_large/lodes'
   log_file            <- '../output/data_file_manifest.log'
   
   xwalk <- make_xwalk_raw_wac(datadir_xwalk_lodes)
   
-  tract_zip_xwalk <- fread(paste0(datadir_xwalk, "tract_zip_master.csv"), 
+  tract_zip_xwalk <- fread(file.path(datadir_xwalk, "tract_zip_master.csv"), 
                            colClasses = c('numeric', 'numeric', 'numeric'))
   
   #Datasets:
@@ -70,47 +70,48 @@ main <- function() {
   
   lodes_final[, zipcode := str_pad(zipcode, 5, pad = 0)]
   save_data(lodes_final, key = c('zipcode'),
-            filename = paste0(outdir, 'zip_lodes.dta'),
+            filename = file.path(outdir, 'zip_lodes.dta'),
             logfile = log_file)
 }
 
 format_lodes <- function(pov, seg, type, vintage, instub, xw, xw_tractzip) {
   
-  files <- list.files(paste0(instub, pov, '/', seg, '/', type, '/', vintage), full.names = T)
-  files <- files[!grepl("Icon\r$", files)]
+  files <- list.files(file.path(instub, pov, seg, type, vintage),
+                      full.names = T, pattern = "*.gz")
   files <- files[!grepl("pr", files)]          # Ignore Puerto Rico
-  files <- files[!grepl("desktop.ini", files)] # Ignore desktop.ini
   
   df <- rbindlist(lapply(files, fread))
   
   target_vars <- c('C000', 'CA01', 'CE01', 'CR02', 'CD01', 'CD02')
   target_names <- c('tot', 'njob_29young', 'njob_lowinc', 'njob_black', 'njob_nohs', 'njob_hs')
   final_names <- c('blockfips', target_names)
-  if (pov=='rac') {
-    setnames(df, old = c('h_geocode', target_vars), new = final_names)
-  } else if (pov=='wac') {
-    setnames(df, old = c('w_geocode', target_vars), new = final_names)
+
+  if (pov == 'rac') {
+    setnames(df, old = c('h_geocode', target_vars), 
+                 new = final_names)
+  } else if (pov == 'wac') {
+    setnames(df, old = c('w_geocode', target_vars),
+                 new = final_names)
   }
   df <- df[, ..final_names]
   
   df[, 'njob_lowedu' := njob_nohs + njob_hs][, c('njob_nohs', 'njob_hs'):= NULL]
   target_names <- c(target_names[1:(length(target_names)-2)], 'njob_lowedu')
   
-  dftract <- xw[df, on = 'blockfips'][, 'blockfips':= NULL]
-  
-  dftract <- dftract[, lapply(.SD, sum, na.rm = T),by=c('tract_fips', 'st')]
-  
+  dftract <- xw[df, on = 'blockfips'][, 'blockfips':= NULL]  
+  dftract <- dftract[, lapply(.SD, sum, na.rm = T),
+                    by = c('tract_fips', 'st')]
   
   dfzip <- dftract[xw_tractzip, on = 'tract_fips']
   
-  dfzip <- dfzip[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w=res_ratio), 
+  dfzip <- dfzip[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w = res_ratio), 
                   by = c('zipcode', 'st'), .SDcols = target_names]
   
   pr <- set_prefix(p = pov, s = seg, t = type)
   setnames(dfzip, old = target_names, new = paste(pr, target_names, sep = '_'))
   
   dfzip <- make_shares(data = dfzip, 
-                        vnames = paste(pr, target_names, sep = '_'))
+                       vnames = paste(pr, target_names, sep = '_'))
   
   sortvar <- names(dfzip)[grepl("tot$", names(dfzip))]
   setorderv(dfzip, c('zipcode',sortvar))
@@ -130,12 +131,15 @@ make_shares <- function(data, vnames, state.share = TRUE) {
   
   zsh_names <- paste0(vnames, '_zsh')
   
-  data[, (zsh_names) := lapply(.SD, function(x) x / data[[denom]]), .SDcols = vnames]
+  data[, (zsh_names) := lapply(.SD, function(x) x / data[[denom]]), 
+      .SDcols = vnames]
   
   if (state.share == TRUE) {
-    data[, st_tot:=lapply(.SD, function(x) sum(x, na.rm = T)), by = 'st', .SDcols = denom]
+    data[, st_tot: = lapply(.SD, function(x) sum(x, na.rm = T)),
+         by = 'st', .SDcols = denom]
     ssh_names <- paste0(vnames, '_ssh')
-    data[, (ssh_names) := lapply(.SD, function(x) x / st_tot), .SDcols = vnames]
+    data[, (ssh_names) := lapply(.SD, function(x) x / st_tot), 
+         .SDcols = vnames]
     data[, st_tot := NULL]
   }
   
@@ -145,7 +149,7 @@ make_shares <- function(data, vnames, state.share = TRUE) {
 set_prefix <- function(p, s, t) {
   if (p=='rac') prefix <- 'h' else if (p=='wac') prefix <- 'w'
   
-  if (s=='S000') {prefix <- paste0(prefix, 'al')}      # all jobs
+  if (s=='S000')      {prefix <- paste0(prefix, 'al')} # all jobs
   else if (s=="SE01") {prefix <- paste0(prefix, 'el')} # earnings lo w
   else if (s=='SE02') {prefix <- paste0(prefix, 'em')} # earnings med
   else if (s=='SE03') {prefix <- paste0(prefix, 'eh')} # earnings high
@@ -156,13 +160,12 @@ set_prefix <- function(p, s, t) {
   else if (s=='SI02') {prefix <- paste0(prefix, 'it')} # industry trade, transports
   else if (s=='SI03') {prefix <- paste0(prefix, 'io')} # industry other
   
-  if (t=='JT00') {prefix <- paste0(prefix, 'all')}        # all jobs
+  if (t=='JT00')      {prefix <- paste0(prefix, 'all')}   # all jobs
   else if (t=='JT01') {prefix <- paste0(prefix, 'main')}  # main job s
   else if (t=='JT02') {prefix <- paste0(prefix, 'priv')}  # all private jobs
   else if (t=='JT03') {prefix <- paste0(prefix, 'mpriv')} # main private jobs
   else if (t=='JT04') {prefix <- paste0(prefix, 'fed')}   # federal job
-  else if (t=='JT05') {prefix <- paste0(prefix, 'mfed')}  # main federal job
-  
+  else if (t=='JT05') {prefix <- paste0(prefix, 'mfed')}  # main federal job  
   
   return(prefix) 
 }

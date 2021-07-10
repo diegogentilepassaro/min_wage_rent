@@ -12,10 +12,10 @@ library(parallel)
 n_cores <- 10
 
 main <- function(paquetes, n_cores) {
-  datadir_lodes       <- "../../../drive/raw_data/lodes/od/JT00/2017/"
-  datadir_xwalk       <- "../../geo_master/output/"
-  datadir_xwalk_lodes <- "../../../raw/crosswalk/"
-  outdir              <- "../../../drive/base_large/lodes/"
+  datadir_lodes       <- "../../../drive/raw_data/lodes/od/JT00/2017"
+  datadir_xwalk       <- "../../geo_master/output"
+  datadir_xwalk_lodes <- "../../../raw/crosswalk"
+  outdir              <- "../../../drive/base_large/lodes"
 
   # Prepare crosswalks 
   blc_tract_xwalk <- make_xwalk_raw_wac(datadir_xwalk_lodes)
@@ -91,7 +91,7 @@ main <- function(paquetes, n_cores) {
 
 make_odmatrix_state <- function(stabb, datadir, aux, xwalk, dest_threshold = 1) {
   
-  this_state <- fread(paste0(datadir, stabb, "_od_main_JT00_2017.csv.gz"))
+  this_state <- fread(file.path(datadir, paste0(stabb, "_od_main_JT00_2017.csv.gz")))
   this_fips  <- as.numeric(substr(str_pad(this_state$h_geocode[1], 15, pad = 0),1 , 2))
   this_aux   <- aux[h_statefips==this_fips,][, h_statefips := NULL]
 
@@ -158,4 +158,3 @@ make_odmatrix_state <- function(stabb, datadir, aux, xwalk, dest_threshold = 1) 
 
 # Execute
 main(paquetes, n_cores) 
-

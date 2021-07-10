@@ -12,14 +12,14 @@ make_xwalk_od <- function(instub) {
 
   xwalk <- xwalk[, c('blockfips', 'tract_fips', 'st')]
   
-  tract_zip_xwalk <- fread(paste0(instub, "tract_zip_master.csv"), 
+  tract_zip_xwalk <- fread(file.path(instub, "tract_zip_master.csv"), 
                  colClasses = c('numeric', 'numeric', 'numeric'))
   
   return(list(xwalk, tract_zip_xwalk))
 }
 
 make_xwalk_raw_wac <- function(instub) {
-  xwalk_files <- list.files(paste0(instub, 'lodes/'), full.names = T)
+  xwalk_files <- list.files(file.path(instub, 'lodes'), full.names = T)
 
   xwalk <- rbindlist(lapply(xwalk_files, function(x) fread(x)))
   
@@ -33,7 +33,7 @@ make_xwalk_raw_wac <- function(instub) {
 }
 
 make_xwalk_raw_wac_county <- function(instub) {
-  xwalk_files <- list.files(paste0(instub, 'lodes/'), full.names = T)
+  xwalk_files <- list.files(file.path(instub, 'lodes'), full.names = T)
   
   xwalk <- rbindlist(lapply(xwalk_files, function(x) fread(x)))
   
@@ -49,7 +49,7 @@ make_xwalk_raw_wac_county <- function(instub) {
 
 
 make_xwalk_tractzip <- function(instub) {
-  xwalk <- fread(paste0(instub, "tract_zip_master.csv"), 
+  xwalk <- fread(file.path(instub, "tract_zip_master.csv"), 
                  colClasses = c('numeric', 'numeric', 'numeric'))
 
   return(xwalk)
