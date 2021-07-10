@@ -5,8 +5,8 @@ source("../../../lib/R/save_data.R")
 source("make_xwalk.R")
 
 options(scipen=999)
-load_packages(c('data.table', 'bit64', 
-                'purrr', 'readxl', 'parallel', 'R.utils'))
+load_packages(c("stringr", "data.table", "bit64", 
+                "purrr", "readxl", "parallel", "R.utils"))
 
 main <- function() {
   datadir_lodes       <- '../../../drive/raw_data/lodes'
@@ -135,7 +135,7 @@ make_shares <- function(data, vnames, state.share = TRUE) {
       .SDcols = vnames]
   
   if (state.share == TRUE) {
-    data[, st_tot: = lapply(.SD, function(x) sum(x, na.rm = T)),
+    data[, st_tot := lapply(.SD, function(x) sum(x, na.rm = T)),
          by = 'st', .SDcols = denom]
     ssh_names <- paste0(vnames, '_ssh')
     data[, (ssh_names) := lapply(.SD, function(x) x / st_tot), 

@@ -5,7 +5,7 @@ source("../../../lib/R/load_packages.R")
 source("../../../lib/R/save_data.R")
 source("make_xwalk.R")
 
-paquetes <- c("data.table", "bit64", "purrr", "parallel")
+paquetes <- c("stringr", "data.table", "bit64", "purrr", "parallel")
 load_packages(paquetes)
 
 library(parallel)
