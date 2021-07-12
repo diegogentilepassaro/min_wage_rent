@@ -8,10 +8,10 @@ program main
 	local instub "../../../drive/derived_large/estimation_samples"
 	local outstub "../output"
 
-	use "`instub'/baseline_zipcode_months.dta", clear
+	use "`instub'/balanced_county_months.dta", clear
 	
-	destring zipcode, gen(zipode_num)
-	xtset zipode_num year_month
+	destring county, gen(county_num)
+	xtset county_num year_month
 
 	make_results_labels, w(5)
 	local estlabels_dyn "`r(estlabels_dyn)'"
@@ -19,7 +19,7 @@ program main
 
 	run_models, depvar(ln_med_rent_var) absorb(year_month) ///
 		cluster(statefips)
-	esttab using "`outstub'/expmw_static_results.tex", replace compress se substitute(\_ _) ///
+	esttab using "`outstub'/expmw_static_results_county.tex", replace compress se substitute(\_ _) ///
 		keep(D.ln_mw D.exp_ln_mw) b(%9.4f) se(%9.4f) ///
 		coeflabels(D.ln_mw "$\Delta \ln \underline{w}_{ict}$" ///
 		D.exp_ln_mw "$\Delta \underline{w}_{ict}^{\text{exp}}$") ///

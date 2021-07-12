@@ -19,7 +19,8 @@ from gslab_make.dir_mod import *
 set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
-clear_dirs('../output/')
+delete_files('../../../drive/derived_large/estimation_samples/*')
+delete_files('../output/*')
 
 envir_vars = os.getenv('PATH')
 if envir_vars is None:
@@ -31,11 +32,10 @@ if "StataSE" in envir_vars:
 
 start_make_logging()
 
-run_stata(program = 'preclean.do', executable = stata)
-run_stata(program = 'estimates.do', executable = stata)
-run_stata(program = 'figures.do', executable = stata)
+run_stata(program = 'build.do', executable = stata)
 
 end_make_logging()
 
 shutil.rmtree('gslab_make')
 input('\n Press <Enter> to exit.')
+

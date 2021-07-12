@@ -23,8 +23,9 @@ program main
         nogen keep(1 3) /*making a note here that we drop two `_merge == 2` rogue counties*/
 
     strcompress
+	rename countyfips county
     save_data "`outstub'/county_cross.dta", replace ///
-        key(countyfips) log(`logfile')
+        key(county) log(`logfile')
 end
 
 program build_zillow_county_stats

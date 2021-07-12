@@ -31,8 +31,9 @@ program main
         nogen keep(3) assert(1 2 3)
 
     strcompress
-    save_data "`outstub'/county_panel.dta", replace ///
-        key(countyfips year month) log(`logfile')
+    rename countyfips county
+    save_data "`outstub'/county_month_panel.dta", replace ///
+        key(county year month) log(`logfile')
 end
 
 program merge_exp_mw

@@ -5,16 +5,16 @@ source("../../../lib/R/load_packages.R")
 source("../../../lib/R/save_data.R")
 source("make_xwalk.R")
 
-paquetes <- c("tidyverse", "data.table", "bit64", "purrr", "parallel")
+paquetes <- c("stringr", "data.table", "bit64", "purrr", "parallel")
 load_packages(paquetes)
 
 library(parallel)
 n_cores <- 10
 
 main <- function(paquetes, n_cores) {
-  datadir_lodes       <- "../../../drive/raw_data/lodes/od/JT00/2017/"
-  datadir_xwalk_lodes <- "../../../raw/crosswalk/"
-  outdir              <- "../../../drive/base_large/lodes/"
+  datadir_lodes       <- "../../../drive/raw_data/lodes/od/JT00/2017"
+  datadir_xwalk_lodes <- "../../../raw/crosswalk"
+  outdir              <- "../../../drive/base_large/lodes"
   
   # Prepare crosswalks 
   blc_cty_xwalk <- make_xwalk_raw_wac_county(datadir_xwalk_lodes)
@@ -89,7 +89,7 @@ main <- function(paquetes, n_cores) {
 
 make_odmatrix_state <- function(stabb, datadir, aux, xwalk, dest_threshold = 1) {
   
-  this_state <- fread(paste0(datadir, stabb, "_od_main_JT00_2017.csv.gz"))
+  this_state <- fread(file.path(datadir, paste0(stabb, "_od_main_JT00_2017.csv.gz")))
   this_fips  <- as.numeric(substr(str_pad(this_state$h_geocode[1], 15, pad = 0),1 , 2))
   this_aux   <- aux[h_statefips==this_fips,][, h_statefips := NULL]
   
@@ -97,18 +97,18 @@ make_odmatrix_state <- function(stabb, datadir, aux, xwalk, dest_threshold = 1) 
   
   this_state <- this_state[, c("w_geocode", "h_geocode", "S000", "SA01", "SE01")]
   setnames(this_state, old = c("S000",   "SA01",      "SE01"), 
-           new = c("totjob", "job_young", "job_lowinc"))
+                       new = c("totjob", "job_young", "job_lowinc"))
   
   # Collapse at tract level
   this_state[, w_countyfips := as.numeric(substr(str_pad(w_geocode, 15, pad = 0), 1, 5))]
   this_state <- this_state[, lapply(.SD, sum, na.rm = T),
                            .SDcols = c("totjob", "job_young", "job_lowinc"), 
                            by = c("h_geocode", "w_countyfips")]
+
   this_state[, h_countyfips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0), 1, 5))]
   this_state <- this_state[, lapply(.SD, sum, na.rm = T),
                            .SDcols = c("totjob", "job_young", "job_lowinc"),
                            by = c("h_countyfips", "w_countyfips")]
-  
   
   # Keep destination zipcodes that make up to `dest_threshold` percent of total workforce
   this_state <- this_state[order(h_countyfips, -totjob)]
@@ -128,5 +128,3 @@ make_odmatrix_state <- function(stabb, datadir, aux, xwalk, dest_threshold = 1) 
 
 # Execute
 main(paquetes, n_cores) 
-
-    
