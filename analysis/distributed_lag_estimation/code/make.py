@@ -25,12 +25,9 @@ envir_vars = os.getenv('PATH')
 if envir_vars is None:
     envir_vars = os.getenv('Path')
 
+stata = "StataMP-64"
 if "StataSE" in envir_vars:
-    stata = "stataSE"
-elif "StataMP-64" in envir_vars:
-    stata = "StataMP-64"
-elif "Stata15" in envir_vars:
-    stata = "StataMP-64"
+    stata = "StataSE-64"
 
 start_make_logging()
 
