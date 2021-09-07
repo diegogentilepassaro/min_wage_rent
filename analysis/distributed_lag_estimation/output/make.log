@@ -1,0 +1,797 @@
+
+ make.py started: 2021-09-07 09:15:47 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\distributed_lag_estimation\code 
+
+
+
+
+Execute:  StataMP-64 /e do "./estimates.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./estimates.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. adopath + ../../../lib/stata/min_wage/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+  [8]              "../../../lib/stata/min_wage/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.         local instub "../../../drive/derived_large/estimation_samples"
+  2.         local outstub "../output"
+  3.         
+.         define_controls
+  4.         local controls "`r(economic_controls)'"
+  5.         di "`controls'"
+  6.         
+.         use "`instub'/baseline_zipcode_months.dta", clear
+  7.         xtset zipcode_num year_month
+  8.         
+.     estimate_dist_lag_model, depvar(ln_med_rent_var) ///
+>             dyn_var(exp_ln_mw) w(0) stat_var(ln_mw) ///
+>                 controls(`controls') absorb(year_month) cluster(cbsa10) ///
+>                 model_name(baseline_static)
+  9.                 
+.     estimate_dist_lag_model if !missing(D.ln_med_rent_var), depvar(exp_ln_mw)
+>  ///
+>             dyn_var(ln_mw) w(0) stat_var(ln_mw) ///
+>                 controls(`controls') absorb(year_month) cluster(cbsa10) ///
+>                 model_name(exp_mw_is_not_mw)
+ 10.         
+.     estimate_dist_lag_model, depvar(ln_med_rent_var) ///
+>             dyn_var(exp_ln_mw) w(6) stat_var(ln_mw) ///
+>                 controls(`controls') absorb(year_month) cluster(cbsa10) ///
+>                 model_name(baseline_dynamic)
+ 11.                 
+.     estimate_dist_lag_model, depvar(ln_med_rent_var) ///
+>             dyn_var(ln_mw) w(6) stat_var(exp_ln_mw) ///
+>                 controls(`controls') absorb(year_month) cluster(cbsa10) ///
+>                 model_name(ln_mw_dynamic)
+ 12. end
+
+. 
+. program estimate_dist_lag_model 
+  1.         syntax [if], depvar(str) dyn_var(str) stat_var(str) ///
+>             controls(str) absorb(str) cluster(str) model_name(str) [w(int 6)]
+  2. 
+.         preserve
+  3.                 reghdfe D.`depvar' L(-`w'/`w').D.`dyn_var' D.`stat_var' D.
+> (`controls'), ///
+>                         absorb(`absorb') vce(cluster `cluster') nocons
+  4.                 estimate save "../temp/estimates.dta", replace
+  5.                 
+.                 coefplot, vertical base gen
+  6.                 keep __at __b __se
+  7.                 rename (__at __b __se) (at b se)
+  8. 
+.                 local winspan = 2*`w' + 1
+  9.                 keep if _n <= `winspan' + 1
+ 10.                 keep if !missing(at)
+ 11.                 
+.                 gen model = "`model_name'"
+ 12.                 gen var = "`dyn_var'" if _n <= `winspan'
+ 13.                 replace var = "`stat_var'" if _n == `winspan' + 1
+ 14.                 replace at = at - (`w' + 1)
+ 15.                 replace at = 0 if _n == `winspan' + 1
+ 16.                 save "../temp/estimates_`model_name'.dta", replace
+ 17.                 
+.                 estimate use "../temp/estimates.dta"
+ 18.                 if "`dyn_var'" == "`stat_var'" {
+ 19.                     local sum_string "D.`stat_var'"
+ 20.                 }
+ 21.                 else {
+ 22.                     local sum_string "D.`dyn_var' + D.`stat_var'"  
+ 23.                 }
+ 24.                 lincom `sum_string'
+ 25.                 matrix cumsum = (0, r(estimate), r(se))
+ 26.                 if `w' > 0 {
+ 27.                         forval t = 1(1)`w'{
+ 28.                                 estimate use "../temp/estimates.dta"
+ 29.                                 local sum_string "`sum_string' + L`w'.D.`d
+> yn_var'"
+ 30.                                 lincom `sum_string'
+ 31.                         matrix cumsum = (matrix(cumsum) \ `t', r(estimate)
+> , r(se))
+ 32.                         mat list cumsum
+ 33.                         }
+ 34.                 }
+ 35.                 clear
+ 36.                 svmat cumsum
+ 37.                 rename (cumsum1 cumsum2 cumsum3) ///
+>                         (at b se)
+ 38.                 gen model = "`model_name'"
+ 39.                 gen var = "cumsum_from0"
+ 40.                 save "../temp/estimates_`model_name'_sumsum_from0.dta", re
+> place
+ 41. 
+.                 use "../temp/estimates_`model_name'.dta", clear
+ 42.                 append using "../temp/estimates_`model_name'_sumsum_from0.
+> dta"
+ 43.                 save "../output/estimates_`model_name'.dta", replace
+ 44.                 export delimited "../output/estimates_`model_name'.csv", r
+> eplace
+ 45.         restore
+ 46. end 
+
+. 
+. main
+ ln_emp_bizserv ln_emp_info ln_emp_fin ln_estcount_bizserv ln_estcount_info ln_
+> estcount_fin ln_avgwwage_bizserv ln_avgwwage_info ln_avgwwage_fin
+       panel variable:  zipcode_num (strongly balanced)
+        time variable:  year_month, 2010m1 to 2019m12
+                delta:  1 month
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    131,196
+Absorbing 1 HDFE group                            F(  11,    132) =       1.76
+Statistics robust to heteroskedasticity           Prob > F        =     0.0671
+                                                  R-squared       =     0.0209
+                                                  Adj R-squared   =     0.0200
+                                                  Within R-sq.    =     0.0002
+Number of clusters (cbsa10)  =        133         Root MSE        =     0.0291
+
+                               (Std. Err. adjusted for 133 clusters in cbsa10)
+------------------------------------------------------------------------------
+D.           |               Robust
+ln_med_ren~r |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+   exp_ln_mw |
+         D1. |   .0662388   .0308254     2.15   0.033     .0052632    .1272144
+             |
+       ln_mw |
+         D1. |  -.0320162   .0168505    -1.90   0.060    -.0653481    .0013157
+             |
+ln_emp_biz~v |
+         D1. |   .0087961      .0048     1.83   0.069    -.0006988    .0182909
+             |
+ ln_emp_info |
+         D1. |    .000236   .0030355     0.08   0.938    -.0057685    .0062405
+             |
+  ln_emp_fin |
+         D1. |   .0121101   .0076549     1.58   0.116     -.003032    .0272523
+             |
+ln_estcoun~v |
+         D1. |   .0029195     .01442     0.20   0.840    -.0256047    .0314437
+             |
+ln_estcoun~o |
+         D1. |   .0009898   .0050883     0.19   0.846    -.0090753     .011055
+             |
+ln_estcoun~n |
+         D1. |   .0053712   .0091864     0.58   0.560    -.0128004    .0235427
+             |
+ln_avgwwag~v |
+         D1. |   .0025844   .0026284     0.98   0.327    -.0026149    .0077836
+             |
+ln_avgwwag~o |
+         D1. |  -.0000166   .0016148    -0.01   0.992    -.0032107    .0031776
+             |
+ln_avgwwag~n |
+         D1. |  -.0017648   .0013377    -1.32   0.189    -.0044108    .0008813
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       118           0         118     |
+-----------------------------------------------------+
+(note: file ../temp/estimates.dta not found)
+file ../temp/estimates.dta saved
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            int     %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(161,398 observations deleted)
+(0 observations deleted)
+(1 missing value generated)
+(1 real change made)
+(2 real changes made)
+(1 real change made)
+(note: file ../temp/estimates_baseline_static.dta not found)
+file ../temp/estimates_baseline_static.dta saved
+
+ ( 1)  D.exp_ln_mw + D.ln_mw = 0
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~r |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0342226    .017548     1.95   0.053    -.0004889    .0689342
+------------------------------------------------------------------------------
+number of observations will be reset to 1
+Press any key to continue, or Break to abort
+number of observations (_N) was 0, now 1
+(note: file ../temp/estimates_baseline_static_sumsum_from0.dta not found)
+file ../temp/estimates_baseline_static_sumsum_from0.dta saved
+(note: variable at was byte, now float to accommodate using data's values)
+(note: variable var was str9, now str12 to accommodate using data's values)
+(note: file ../output/estimates_baseline_static.dta not found)
+file ../output/estimates_baseline_static.dta saved
+(note: file ../output/estimates_baseline_static.csv not found)
+file ../output/estimates_baseline_static.csv saved
+(MWFE estimator converged in 1 iterations)
+note: D.ln_mw omitted because of collinearity
+
+HDFE Linear regression                            Number of obs   =    158,791
+Absorbing 1 HDFE group                            F(  10,    132) =     205.18
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9478
+                                                  Adj R-squared   =     0.9477
+                                                  Within R-sq.    =     0.9347
+Number of clusters (cbsa10)  =        133         Root MSE        =     0.0025
+
+                               (Std. Err. adjusted for 133 clusters in cbsa10)
+------------------------------------------------------------------------------
+             |               Robust
+ D.exp_ln_mw |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+         D1. |   .8748367   .0293632    29.79   0.000     .8167535      .93292
+         D1. |          0  (omitted)
+             |
+ln_emp_biz~v |
+         D1. |  -.0008207   .0011579    -0.71   0.480    -.0031111    .0014697
+             |
+ ln_emp_info |
+         D1. |   .0004293   .0004843     0.89   0.377    -.0005286    .0013873
+             |
+  ln_emp_fin |
+         D1. |  -.0020318    .001975    -1.03   0.305    -.0059386     .001875
+             |
+ln_estcoun~v |
+         D1. |  -.0072795   .0069502    -1.05   0.297    -.0210277    .0064687
+             |
+ln_estcoun~o |
+         D1. |   .0010536   .0009654     1.09   0.277     -.000856    .0029632
+             |
+ln_estcoun~n |
+         D1. |   .0035591   .0032637     1.09   0.277    -.0028967     .010015
+             |
+ln_avgwwag~v |
+         D1. |  -.0012001   .0010953    -1.10   0.275    -.0033668    .0009665
+             |
+ln_avgwwag~o |
+         D1. |  -.0004876   .0005302    -0.92   0.359    -.0015363    .0005612
+             |
+ln_avgwwag~n |
+         D1. |    .001073   .0005659     1.90   0.060    -.0000464    .0021924
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       119           0         119     |
+-----------------------------------------------------+
+file ../temp/estimates.dta saved
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            int     %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(161,398 observations deleted)
+(0 observations deleted)
+(1 missing value generated)
+(1 real change made)
+(2 real changes made)
+(1 real change made)
+(note: file ../temp/estimates_exp_mw_is_not_mw.dta not found)
+file ../temp/estimates_exp_mw_is_not_mw.dta saved
+
+ ( 1)  D.ln_mw = 0
+
+------------------------------------------------------------------------------
+ D.exp_ln_mw |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .8748367   .0293632    29.79   0.000     .8167535      .93292
+------------------------------------------------------------------------------
+number of observations will be reset to 1
+Press any key to continue, or Break to abort
+number of observations (_N) was 0, now 1
+(note: file ../temp/estimates_exp_mw_is_not_mw_sumsum_from0.dta not found)
+file ../temp/estimates_exp_mw_is_not_mw_sumsum_from0.dta saved
+(note: variable at was byte, now float to accommodate using data's values)
+(note: variable var was str5, now str12 to accommodate using data's values)
+(note: file ../output/estimates_exp_mw_is_not_mw.dta not found)
+file ../output/estimates_exp_mw_is_not_mw.dta saved
+(note: file ../output/estimates_exp_mw_is_not_mw.csv not found)
+file ../output/estimates_exp_mw_is_not_mw.csv saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    123,105
+Absorbing 1 HDFE group                            F(  23,    132) =       2.40
+Statistics robust to heteroskedasticity           Prob > F        =     0.0010
+                                                  R-squared       =     0.0213
+                                                  Adj R-squared   =     0.0202
+                                                  Within R-sq.    =     0.0003
+Number of clusters (cbsa10)  =        133         Root MSE        =     0.0292
+
+                               (Std. Err. adjusted for 133 clusters in cbsa10)
+------------------------------------------------------------------------------
+D.           |               Robust
+ln_med_ren~r |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+   exp_ln_mw |
+        F6D. |   .0033767   .0077912     0.43   0.665     -.012035    .0187884
+        F5D. |  -.0090278   .0103879    -0.87   0.386     -.029576    .0115204
+        F4D. |  -.0063727   .0096211    -0.66   0.509    -.0254042    .0126589
+        F3D. |   .0024519   .0090113     0.27   0.786    -.0153732    .0202771
+        F2D. |   .0028772   .0106633     0.27   0.788    -.0182158    .0239702
+         FD. |  -.0018555   .0167106    -0.11   0.912    -.0349108    .0311998
+         D1. |   .0757076   .0312287     2.42   0.017     .0139342     .137481
+         LD. |  -.0029316   .0147722    -0.20   0.843    -.0321524    .0262891
+        L2D. |   -.002243   .0124286    -0.18   0.857    -.0268279    .0223419
+        L3D. |   .0039529   .0080739     0.49   0.625    -.0120182    .0199239
+        L4D. |   .0095548   .0115205     0.83   0.408    -.0132339    .0323435
+        L5D. |  -.0034897   .0071178    -0.49   0.625    -.0175694    .0105901
+        L6D. |  -.0055708   .0079314    -0.70   0.484    -.0212599    .0101184
+             |
+       ln_mw |
+         D1. |  -.0391282    .018017    -2.17   0.032    -.0747675   -.0034888
+             |
+ln_emp_biz~v |
+         D1. |   .0092196   .0048768     1.89   0.061    -.0004271    .0188664
+             |
+ ln_emp_info |
+         D1. |   .0004236   .0030577     0.14   0.890    -.0056247     .006472
+             |
+  ln_emp_fin |
+         D1. |   .0138596   .0077506     1.79   0.076    -.0014719    .0291912
+             |
+ln_estcoun~v |
+         D1. |    .003499   .0149039     0.23   0.815    -.0259823    .0329803
+             |
+ln_estcoun~o |
+         D1. |   .0009142   .0054884     0.17   0.868    -.0099425    .0117709
+             |
+ln_estcoun~n |
+         D1. |   .0043581   .0094209     0.46   0.644    -.0142773    .0229935
+             |
+ln_avgwwag~v |
+         D1. |   .0026475   .0027288     0.97   0.334    -.0027503    .0080453
+             |
+ln_avgwwag~o |
+         D1. |  -.0002684   .0017063    -0.16   0.875    -.0036436    .0031067
+             |
+ln_avgwwag~n |
+         D1. |  -.0017391   .0014722    -1.18   0.240    -.0046513    .0011731
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       107           0         107     |
+-----------------------------------------------------+
+file ../temp/estimates.dta saved
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            int     %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(161,386 observations deleted)
+(0 observations deleted)
+(1 missing value generated)
+(1 real change made)
+(14 real changes made)
+(1 real change made)
+(note: file ../temp/estimates_baseline_dynamic.dta not found)
+file ../temp/estimates_baseline_dynamic.dta saved
+
+ ( 1)  D.exp_ln_mw + D.ln_mw = 0
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~r |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0365794   .0180475     2.03   0.045     .0008796    .0722792
+------------------------------------------------------------------------------
+
+ ( 1)  D.exp_ln_mw + L6D.exp_ln_mw + D.ln_mw = 0
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~r |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0310086   .0222981     1.39   0.167    -.0130993    .0751166
+------------------------------------------------------------------------------
+
+cumsum[2,3]
+           c1         c2         c3
+r1          0  .03657938  .01804752
+r2          1  .03100861  .02229815
+
+ ( 1)  D.exp_ln_mw + 2*L6D.exp_ln_mw + D.ln_mw = 0
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~r |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0254378   .0281872     0.90   0.368    -.0303192    .0811949
+------------------------------------------------------------------------------
+
+cumsum[3,3]
+           c1         c2         c3
+r1          0  .03657938  .01804752
+r2          1  .03100861  .02229815
+r3          2  .02543785  .02818718
+
+ ( 1)  D.exp_ln_mw + 3*L6D.exp_ln_mw + D.ln_mw = 0
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~r |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0198671   .0348947     0.57   0.570    -.0491581    .0888923
+------------------------------------------------------------------------------
+
+cumsum[4,3]
+           c1         c2         c3
+r1          0  .03657938  .01804752
+r2          1  .03100861  .02229815
+r3          2  .02543785  .02818718
+r4          3  .01986708  .03489473
+
+ ( 1)  D.exp_ln_mw + 4*L6D.exp_ln_mw + D.ln_mw = 0
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~r |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0142963   .0420307     0.34   0.734    -.0688446    .0974373
+------------------------------------------------------------------------------
+
+cumsum[5,3]
+           c1         c2         c3
+r1          0  .03657938  .01804752
+r2          1  .03100861  .02229815
+r3          2  .02543785  .02818718
+r4          3  .01986708  .03489473
+r5          4  .01429631  .04203073
+
+ ( 1)  D.exp_ln_mw + 5*L6D.exp_ln_mw + D.ln_mw = 0
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~r |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0087255   .0494099     0.18   0.860    -.0890121    .1064632
+------------------------------------------------------------------------------
+
+cumsum[6,3]
+           c1         c2         c3
+r1          0  .03657938  .01804752
+r2          1  .03100861  .02229815
+r3          2  .02543785  .02818718
+r4          3  .01986708  .03489473
+r5          4  .01429631  .04203073
+r6          5  .00872554   .0494099
+
+ ( 1)  D.exp_ln_mw + 6*L6D.exp_ln_mw + D.ln_mw = 0
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~r |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0031548   .0569378     0.06   0.956    -.1094738    .1157833
+------------------------------------------------------------------------------
+
+cumsum[7,3]
+           c1         c2         c3
+r1          0  .03657938  .01804752
+r2          1  .03100861  .02229815
+r3          2  .02543785  .02818718
+r4          3  .01986708  .03489473
+r5          4  .01429631  .04203073
+r6          5  .00872554   .0494099
+r7          6  .00315478  .05693777
+number of observations will be reset to 7
+Press any key to continue, or Break to abort
+number of observations (_N) was 0, now 7
+(note: file ../temp/estimates_baseline_dynamic_sumsum_from0.dta not found)
+file ../temp/estimates_baseline_dynamic_sumsum_from0.dta saved
+(note: variable at was byte, now float to accommodate using data's values)
+(note: variable var was str9, now str12 to accommodate using data's values)
+(note: file ../output/estimates_baseline_dynamic.dta not found)
+file ../output/estimates_baseline_dynamic.dta saved
+(note: file ../output/estimates_baseline_dynamic.csv not found)
+file ../output/estimates_baseline_dynamic.csv saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    123,105
+Absorbing 1 HDFE group                            F(  23,    132) =       2.48
+Statistics robust to heteroskedasticity           Prob > F        =     0.0007
+                                                  R-squared       =     0.0213
+                                                  Adj R-squared   =     0.0202
+                                                  Within R-sq.    =     0.0003
+Number of clusters (cbsa10)  =        133         Root MSE        =     0.0292
+
+                               (Std. Err. adjusted for 133 clusters in cbsa10)
+------------------------------------------------------------------------------
+D.           |               Robust
+ln_med_ren~r |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+        F6D. |   .0026649   .0068631     0.39   0.698     -.010911    .0162408
+        F5D. |  -.0079365   .0093167    -0.85   0.396    -.0263659     .010493
+        F4D. |    -.00703   .0081868    -0.86   0.392    -.0232244    .0091644
+        F3D. |   .0031765   .0089079     0.36   0.722    -.0144442    .0207971
+        F2D. |   .0041031   .0094931     0.43   0.666    -.0146753    .0228815
+         FD. |   -.001671   .0141141    -0.12   0.906      -.02959     .026248
+         D1. |  -.0385694   .0182025    -2.12   0.036    -.0745757    -.002563
+         LD. |  -.0035633   .0131974    -0.27   0.788    -.0296691    .0225425
+        L2D. |  -.0016611   .0103322    -0.16   0.873    -.0220991    .0187769
+        L3D. |   .0021378   .0069111     0.31   0.758     -.011533    .0158086
+        L4D. |   .0083315   .0104714     0.80   0.428    -.0123819    .0290449
+        L5D. |  -.0035878   .0066899    -0.54   0.593     -.016821    .0096455
+        L6D. |  -.0039737   .0081007    -0.49   0.625    -.0199977    .0120503
+             |
+   exp_ln_mw |
+         D1. |   .0751764   .0306972     2.45   0.016     .0144544    .1358985
+             |
+ln_emp_biz~v |
+         D1. |   .0092388    .004877     1.89   0.060    -.0004083     .018886
+             |
+ ln_emp_info |
+         D1. |   .0004101    .003054     0.13   0.893     -.005631    .0064513
+             |
+  ln_emp_fin |
+         D1. |   .0138354   .0077468     1.79   0.076    -.0014885    .0291593
+             |
+ln_estcoun~v |
+         D1. |   .0036252   .0148229     0.24   0.807     -.025696    .0329465
+             |
+ln_estcoun~o |
+         D1. |   .0008945   .0054779     0.16   0.871    -.0099414    .0117304
+             |
+ln_estcoun~n |
+         D1. |   .0042937   .0094228     0.46   0.649    -.0143456     .022933
+             |
+ln_avgwwag~v |
+         D1. |   .0026588   .0027331     0.97   0.332    -.0027476    .0080652
+             |
+ln_avgwwag~o |
+         D1. |  -.0002551   .0017176    -0.15   0.882    -.0036526    .0031424
+             |
+ln_avgwwag~n |
+         D1. |  -.0017548   .0014754    -1.19   0.236    -.0046733    .0011637
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       107           0         107     |
+-----------------------------------------------------+
+file ../temp/estimates.dta saved
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            int     %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(161,386 observations deleted)
+(0 observations deleted)
+(1 missing value generated)
+variable var was str5 now str9
+(1 real change made)
+(14 real changes made)
+(1 real change made)
+(note: file ../temp/estimates_ln_mw_dynamic.dta not found)
+file ../temp/estimates_ln_mw_dynamic.dta saved
+
+ ( 1)  D.ln_mw + D.exp_ln_mw = 0
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~r |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0366071   .0180174     2.03   0.044     .0009669    .0722473
+------------------------------------------------------------------------------
+
+ ( 1)  D.ln_mw + L6D.ln_mw + D.exp_ln_mw = 0
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~r |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0326334   .0217811     1.50   0.136    -.0104518    .0757187
+------------------------------------------------------------------------------
+
+cumsum[2,3]
+           c1         c2         c3
+r1          0  .03660709  .01801742
+r2          1  .03263343  .02178115
+
+ ( 1)  D.ln_mw + 2*L6D.ln_mw + D.exp_ln_mw = 0
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~r |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0286598   .0274855     1.04   0.299    -.0257092    .0830288
+------------------------------------------------------------------------------
+
+cumsum[3,3]
+           c1         c2         c3
+r1          0  .03660709  .01801742
+r2          1  .03263343  .02178115
+r3          2  .02865977  .02748549
+
+ ( 1)  D.ln_mw + 3*L6D.ln_mw + D.exp_ln_mw = 0
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~r |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0246861    .034172     0.72   0.471    -.0429096    .0922818
+------------------------------------------------------------------------------
+
+cumsum[4,3]
+           c1         c2         c3
+r1          0  .03660709  .01801742
+r2          1  .03263343  .02178115
+r3          2  .02865977  .02748549
+r4          3  .02468611  .03417205
+
+ ( 1)  D.ln_mw + 4*L6D.ln_mw + D.exp_ln_mw = 0
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~r |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0207125   .0413672     0.50   0.617     -.061116    .1025409
+------------------------------------------------------------------------------
+
+cumsum[5,3]
+           c1         c2         c3
+r1          0  .03660709  .01801742
+r2          1  .03263343  .02178115
+r3          2  .02865977  .02748549
+r4          3  .02468611  .03417205
+r5          4  .02071245  .04136724
+
+ ( 1)  D.ln_mw + 5*L6D.ln_mw + D.exp_ln_mw = 0
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~r |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0167388   .0488468     0.34   0.732     -.079885    .1133626
+------------------------------------------------------------------------------
+
+cumsum[6,3]
+           c1         c2         c3
+r1          0  .03660709  .01801742
+r2          1  .03263343  .02178115
+r3          2  .02865977  .02748549
+r4          3  .02468611  .03417205
+r5          4  .02071245  .04136724
+r6          5  .01673879  .04884681
+
+ ( 1)  D.ln_mw + 6*L6D.ln_mw + D.exp_ln_mw = 0
+
+------------------------------------------------------------------------------
+D.           |
+ln_med_ren~r |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0127651   .0564979     0.23   0.822    -.0989934    .1245236
+------------------------------------------------------------------------------
+
+cumsum[7,3]
+           c1         c2         c3
+r1          0  .03660709  .01801742
+r2          1  .03263343  .02178115
+r3          2  .02865977  .02748549
+r4          3  .02468611  .03417205
+r5          4  .02071245  .04136724
+r6          5  .01673879  .04884681
+r7          6  .01276513  .05649793
+number of observations will be reset to 7
+Press any key to continue, or Break to abort
+number of observations (_N) was 0, now 7
+(note: file ../temp/estimates_ln_mw_dynamic_sumsum_from0.dta not found)
+file ../temp/estimates_ln_mw_dynamic_sumsum_from0.dta saved
+(note: variable at was byte, now float to accommodate using data's values)
+(note: variable var was str9, now str12 to accommodate using data's values)
+(note: file ../output/estimates_ln_mw_dynamic.dta not found)
+file ../output/estimates_ln_mw_dynamic.dta saved
+(note: file ../output/estimates_ln_mw_dynamic.csv not found)
+file ../output/estimates_ln_mw_dynamic.csv saved
+
+. 
+end of do-file
+
+ make.py ended: 2021-09-07 09:16:14
