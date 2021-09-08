@@ -2,7 +2,11 @@ cap program drop estimate_dist_lag_model
 program estimate_dist_lag_model 
 	syntax [if], depvar(str) dyn_var(str) stat_var(str)        ///
 		controls(str) absorb(str) cluster(str) model_name(str) ///
-		[test_equality w(int 6)]
+		[test_equality outfolder(str) w(int 6)]
+
+	if "`outfolder'"==""{
+		local outfolder "../output"
+	}
 
 	preserve
 		reghdfe D.`depvar' L(-`w'/`w').D.`dyn_var' D.`stat_var' D.(`controls'), ///
@@ -92,7 +96,7 @@ program estimate_dist_lag_model
 		order model var at b se
 		sort  model var at b se
 
-		save "../output/estimates_`model_name'.dta", replace
-		export delimited "../output/estimates_`model_name'.csv", replace
+		save             "`outfolder'/estimates_`model_name'.dta", replace
+		export delimited "`outfolder'/estimates_`model_name'.csv", replace
 	restore
 end 
