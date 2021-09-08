@@ -53,12 +53,29 @@ program main
     estimate_dist_lag_model, depvar(ln_med_rent_var) ///
 	    dyn_var(exp_ln_mw) w(6) stat_var(ln_mw) ///
 		controls(`controls') absorb(year_month) cluster(`cluster') ///
-		model_name(baseline_dynamic)
+		model_name(baseline_exp_ln_mw_dynamic) outfolder("../temp")
 		
     estimate_dist_lag_model, depvar(ln_med_rent_var) ///
 	    dyn_var(ln_mw) w(6) stat_var(exp_ln_mw) ///
 		controls(`controls') absorb(year_month) cluster(`cluster') ///
-		model_name(ln_mw_dynamic)
+		model_name(both_ln_mw_dynamic) outfolder("../temp")
+		
+    estimate_dist_lag_model, depvar(ln_med_rent_var) ///
+	    dyn_var(exp_ln_mw) w(6) stat_var(exp_ln_mw) ///
+		controls(`controls') absorb(year_month) cluster(`cluster') ///
+		model_name(exp_ln_mw_only_dynamic) outfolder("../temp")
+		
+    estimate_dist_lag_model, depvar(ln_med_rent_var) ///
+	    dyn_var(ln_mw) w(6) stat_var(ln_mw) ///
+		controls(`controls') absorb(year_month) cluster(`cluster') ///
+		model_name(ln_mw_only_dynamic) outfolder("../temp")
+		
+	use ../temp/estimates_baseline_exp_ln_mw_dynamic.dta, clear
+	foreach ff in both_ln_mw_dynamic exp_ln_mw_only_dynamic ln_mw_only_dynamic {
+		append using ../temp/estimates_`ff'.dta
+	}
+	save             `outstub'/estimates_dynamic.dta, replace
+	export delimited `outstub'/estimates_dynamic.csv, replace
 end
 
 main

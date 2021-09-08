@@ -9,8 +9,9 @@ program estimate_dist_lag_model
     }
 
     preserve
-        reghdfe D.`depvar' L(-`w'/`w').D.`dyn_var' D.`stat_var' D.(`controls'), ///
-            absorb(`absorb') vce(cluster `cluster') nocons
+        reghdfe D.`depvar' L(-`w'/`w').D.`dyn_var' D.`stat_var' ///
+		    D.(`controls') `if', absorb(`absorb') ///
+			vce(cluster `cluster') nocons
 
         ** Model diagnostics
         local N  = e(N)
@@ -97,7 +98,7 @@ program estimate_dist_lag_model
         sort  model var at b se
 
         if "`dyn_var'"=="`stat_var'" {
-            drop if b == 0 & se == 0
+            drop if b == 0 & se == 0 & at != -1
         }
 
         save             "`outfolder'/estimates_`model_name'.dta", replace
