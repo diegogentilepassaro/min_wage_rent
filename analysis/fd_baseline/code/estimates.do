@@ -25,12 +25,12 @@ program main
 	estimate_dist_lag_model, depvar(ln_med_rent_var) ///
 		dyn_var(ln_mw) w(0) stat_var(ln_mw) ///
 		controls(`controls') absorb(year_month) cluster(cbsa10) ///
-		model_name(static_statutory) test_equality outfolder("../temp")
+		model_name(static_statutory) outfolder("../temp")
 
 	estimate_dist_lag_model, depvar(ln_med_rent_var) ///
 		dyn_var(exp_ln_mw) w(0) stat_var(exp_ln_mw) ///
 		controls(`controls') absorb(year_month) cluster(cbsa10) ///
-		model_name(static_experienced) test_equality outfolder("../temp")
+		model_name(static_experienced) outfolder("../temp")
 
 	estimate_dist_lag_model, depvar(ln_med_rent_var) ///
 		dyn_var(exp_ln_mw) w(0) stat_var(ln_mw) ///
@@ -48,7 +48,7 @@ program main
 	** DYNAMIC
 	use "`instub'/baseline_zipcode_months.dta", clear
 	xtset zipcode_num year_month
-	
+
     estimate_dist_lag_model, depvar(ln_med_rent_var) ///
 	    dyn_var(exp_ln_mw) w(6) stat_var(ln_mw) ///
 		controls(`controls') absorb(year_month) cluster(cbsa10) ///
