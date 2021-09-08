@@ -96,6 +96,10 @@ program estimate_dist_lag_model
 		order model var at b se
 		sort  model var at b se
 
+		if "`dyn_var'"=="`stat_var'" {
+			drop if b == 0 & se == 0
+		}
+
 		save             "`outfolder'/estimates_`model_name'.dta", replace
 		export delimited "`outfolder'/estimates_`model_name'.csv", replace
 	restore
