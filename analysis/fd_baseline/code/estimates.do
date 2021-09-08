@@ -11,6 +11,7 @@ program main
 	define_controls
 	local controls "`r(economic_controls)'"
 	di "`controls'"
+	local cluster "statefips"
 	
 	
 	** STATIC
@@ -19,22 +20,22 @@ program main
 
 	estimate_dist_lag_model if !missing(D.ln_med_rent_var), depvar(exp_ln_mw) ///
 		dyn_var(ln_mw) w(0) stat_var(ln_mw) ///
-		controls(`controls') absorb(year_month) cluster(cbsa10) ///
+		controls(`controls') absorb(year_month) cluster(`cluster') ///
 		model_name(exp_mw_on_mw) outfolder("../temp")
 
 	estimate_dist_lag_model, depvar(ln_med_rent_var) ///
 		dyn_var(ln_mw) w(0) stat_var(ln_mw) ///
-		controls(`controls') absorb(year_month) cluster(cbsa10) ///
+		controls(`controls') absorb(year_month) cluster(`cluster') ///
 		model_name(static_statutory) outfolder("../temp")
 
 	estimate_dist_lag_model, depvar(ln_med_rent_var) ///
 		dyn_var(exp_ln_mw) w(0) stat_var(exp_ln_mw) ///
-		controls(`controls') absorb(year_month) cluster(cbsa10) ///
+		controls(`controls') absorb(year_month) cluster(`cluster') ///
 		model_name(static_experienced) outfolder("../temp")
 
 	estimate_dist_lag_model, depvar(ln_med_rent_var) ///
 		dyn_var(exp_ln_mw) w(0) stat_var(ln_mw) ///
-		controls(`controls') absorb(year_month) cluster(cbsa10) ///
+		controls(`controls') absorb(year_month) cluster(`cluster') ///
 		model_name(static_both) test_equality outfolder("../temp")
 	
 	use ../temp/estimates_exp_mw_on_mw.dta, clear
@@ -51,12 +52,12 @@ program main
 
     estimate_dist_lag_model, depvar(ln_med_rent_var) ///
 	    dyn_var(exp_ln_mw) w(6) stat_var(ln_mw) ///
-		controls(`controls') absorb(year_month) cluster(cbsa10) ///
+		controls(`controls') absorb(year_month) cluster(`cluster') ///
 		model_name(baseline_dynamic)
 		
     estimate_dist_lag_model, depvar(ln_med_rent_var) ///
 	    dyn_var(ln_mw) w(6) stat_var(exp_ln_mw) ///
-		controls(`controls') absorb(year_month) cluster(cbsa10) ///
+		controls(`controls') absorb(year_month) cluster(`cluster') ///
 		model_name(ln_mw_dynamic)
 end
 
