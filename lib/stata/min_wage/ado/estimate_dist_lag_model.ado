@@ -23,8 +23,7 @@ program estimate_dist_lag_model
         }
 
         if `w' > 0 {
-            local pretrend_test "(F1D.`dyn_var' = 0)"
-            forvalues i = 2(1)`w'{
+            forvalues i = 1(1)`w'{
                 local pretrend_test " `pretrend_test' (F`i'D.`dyn_var' = 0)"
             }
             test `pretrend_test'
