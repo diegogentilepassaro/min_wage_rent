@@ -31,7 +31,7 @@ start_make_logging()
 fd_baseline_dir = "../../fd_baseline/output"
 
 tablefill(input    = fd_baseline_dir + '/static.txt', 
-	      template = '../input/static.tex', 
+          template = '../input/static.tex', 
           output   = '../output/static.tex')
 
 end_make_logging()
