@@ -85,6 +85,9 @@ program create_baseline_panel
 	zhvi_2BR zhvi_SFCC zhvi_C zhvi_SF zri_SFCCMF zri_MF {
 	    cap drop `var'
 	}
+
+	destring `geo', gen(`geo'_num)
+	xtset `geo'_num year_month
 end
 
 program gen_vars
@@ -144,6 +147,9 @@ program create_full_panel
 	zhvi_2BR zhvi_SFCC zhvi_C zhvi_SF zri_SFCCMF zri_MF {
 	    cap drop `var'
 	}
+
+	destring `geo', gen(`geo'_num)
+	xtset `geo'_num year_month
 end
 
 program create_balanced_panel
