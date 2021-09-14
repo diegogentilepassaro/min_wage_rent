@@ -24,6 +24,7 @@ program main
 			
 		save_data "`outstub'/baseline_`geo'_months.dta", key(`geo' year_month) ///
 			replace log(`logfile')
+		export delimited "`outstub'/baseline_`geo'_months.csv", replace
 		
 		create_full_panel, instub(`in_derived_large') geo(`geo') ///
 			start_year_month(`start_year_month') end_year_month(`end_year_month')
@@ -33,6 +34,7 @@ program main
 
 		save_data "`outstub'/all_`geo'_months.dta", key(`geo' year_month) ///
 			replace log(`logfile')
+		export delimited "`outstub'/all_`geo'_months.csv", replace
 		
 		create_balanced_panel, instub(`in_derived_large') geo(`geo') ///
 			target_year_month(`target_year_month')
@@ -41,6 +43,7 @@ program main
 
 		save_data "`outstub'/balanced_`geo'_months.dta", key(`geo' year_month) ///
 			replace log(`logfile')
+		export delimited "`outstub'/balanced_`geo'_months.csv", replace
 	}
 end
 
@@ -85,6 +88,9 @@ program create_baseline_panel
 	zhvi_2BR zhvi_SFCC zhvi_C zhvi_SF zri_SFCCMF zri_MF {
 	    cap drop `var'
 	}
+
+	destring `geo', gen(`geo'_num)
+	xtset `geo'_num year_month
 end
 
 program gen_vars
@@ -144,6 +150,9 @@ program create_full_panel
 	zhvi_2BR zhvi_SFCC zhvi_C zhvi_SF zri_SFCCMF zri_MF {
 	    cap drop `var'
 	}
+
+	destring `geo', gen(`geo'_num)
+	xtset `geo'_num year_month
 end
 
 program create_balanced_panel
