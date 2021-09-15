@@ -32,6 +32,7 @@ program main
     strcompress
     save_data "`outstub'/zipcode_month_panel.dta", replace ///
         key(zipcode year month) log(`logfile')
+	export delimited "`outstub'/zipcode_month_panel.csv", replace
 end
 
 program merge_zillow

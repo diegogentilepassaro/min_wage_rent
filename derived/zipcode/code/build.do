@@ -22,6 +22,7 @@ program main
     strcompress
     save_data "`outstub'/zipcode_cross.dta",                                  ///
         key(zipcode) log(`logfile') replace
+	export delimited "`outstub'/zipcode_cross.csv", replace
 end
 
 program build_zillow_zipcode_stats
