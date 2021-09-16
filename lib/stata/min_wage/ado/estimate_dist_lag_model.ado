@@ -55,7 +55,7 @@ program estimate_dist_lag_model
             local sum_string "D.`stat_var'"
         }
         else {
-            local sum_string "D.`dyn_var' + D.`stat_var'"  
+            local sum_string "D.`stat_var' + D.`dyn_var'"  
         }
         lincom `sum_string'
 
