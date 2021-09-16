@@ -50,11 +50,11 @@ main <- function(){
 
   for(cbsa in c("san_diego", "seattle", "nyc", "kc")){
     build_map(get(cbsa), "change_ln_actual_mw", 
-              "Change in log(MW)", paste0(cbsa, "_ln_mw_change"))
+              "Change in \n log(MW)", paste0(cbsa, "_ln_mw_change"))
     build_map(get(cbsa), "change_exp_ln_mw", 
-              "Change in experienced log(MW)", paste0(cbsa, "_exp_ln_mw_change"))
+              "Change in \n experienced log(MW)", paste0(cbsa, "_exp_ln_mw_change"))
     build_map(get(cbsa), "change_ln_rents", 
-              "Change in log(MW)", paste0(cbsa, "_ln_rents_change"))
+              "Change in \n log(MW)", paste0(cbsa, "_ln_rents_change"))
   }
 }
 
@@ -75,7 +75,7 @@ build_map <- function(data, var, var_legend, map_name){
     tm_fill(col = var,
             title = var_legend,
             style = "cont",
-            palette = "BuGn") +
+            palette = c("white", "green")) +
     tm_borders(lwd = .01, alpha = 0.5) +
     tm_layout(legend.position = c("left", "bottom"))
   tmap_save(map, 
