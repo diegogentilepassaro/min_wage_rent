@@ -75,7 +75,7 @@ build_map <- function(data, var, var_legend, map_name){
     tm_fill(col = var,
             title = var_legend,
             style = "cont",
-            palette = c("white", "green")) +
+            palette = c("white", "#077187")) +
     tm_borders(lwd = .01, alpha = 0.5) +
     tm_layout(legend.position = c("left", "bottom"))
   tmap_save(map, 
