@@ -1,5 +1,5 @@
 
- make.py started: 2021-09-15 14:59:32 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\maps\code 
+ make.py started: 2021-09-16 14:43:30 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\maps\code 
 
 
 
@@ -84,9 +84,6 @@ package 'leaflet' was built under R version 4.0.5
 > merged_for_maps <- merged %>%
 +   filter(state_abb != "AK" & state_abb != "HI")
 > 
-> # test <- merged_for_maps%>%
-> #   filter(state_abb == "NY")
-> 
 > USPS_zipcodes_density_map <- tm_shape(merged_for_maps) + 
 +   tm_fill(col = "pop2020_per_sq_miles",
 +           title = "Population density",
@@ -101,10 +98,10 @@ Warning message:
 The shape merged_for_maps is invalid. See sf::st_is_valid 
 > tmap_save(USPS_zipcodes_density_map, 
 +           "../output/USPS_zipcodes_pop_density.png",
-+           dpi = 100)
++           dpi = 50)
 Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\maps\output\USPS_zipcodes_pop_density.png
-Resolution: 954.1991 by 513.5196 pixels
-Size: 9.541991 by 5.135196 inches (100 dpi)
+Resolution: 477.0996 by 256.7598 pixels
+Size: 9.541991 by 5.135196 inches (50 dpi)
 Warning messages:
 1: The shape merged_for_maps is invalid. See sf::st_is_valid 
 2: The shape merged_for_maps is invalid. See sf::st_is_valid 
@@ -113,7 +110,7 @@ Warning messages:
 +   tm_fill(col = "in_zillow",
 +           title = "Has Zillow rents data",
 +           style ="cat", 
-+           palette = "BuGn") +
++           palette = "Reds") +
 +   tm_borders(lwd = .0001, alpha = 0.1) +
 +   tmap_mode("plot") + tmap_options(check.and.fix = TRUE)
 tmap mode set to plotting
@@ -122,17 +119,17 @@ Warning message:
 The shape merged_for_maps is invalid. See sf::st_is_valid 
 > tmap_save(USPS_zipcodes_zillow_data, 
 +           "../output/USPS_zipcodes_zillow_data.png",
-+           dpi = 100)
++           dpi = 50)
 Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\maps\output\USPS_zipcodes_zillow_data.png
-Resolution: 954.1991 by 513.5196 pixels
-Size: 9.541991 by 5.135196 inches (100 dpi)
+Resolution: 477.0996 by 256.7598 pixels
+Size: 9.541991 by 5.135196 inches (50 dpi)
 Warning messages:
 1: The shape merged_for_maps is invalid. See sf::st_is_valid 
 2: The shape merged_for_maps is invalid. See sf::st_is_valid 
 > 
 > proc.time()
    user  system elapsed 
-1381.06  349.00 1734.12 
+1300.81  198.64 1523.42 
 
 
 Execute:  R CMD BATCH --no-save "./plot_mw_rents_maps.R" plot_mw_rents_maps.Rout
@@ -190,128 +187,1459 @@ Warning message:
 package 'leaflet' was built under R version 4.0.5 
 > library(ggplot2)
 > 
-> USPS_zipcodes <- read_sf(dsn = "../../../drive/raw_data/shapefiles/USPS_zipcodes", 
-+                          layer = "USPS_zipcodes_July2020")
-> USPS_zipcodes <- USPS_zipcodes %>%
-+   select(ZIP_CODE, PO_NAME, STATE, POPULATION, SQMI, POP_SQMI) %>%
-+   rename(zipcode = ZIP_CODE, zipcode_name = PO_NAME,
-+          state_name = STATE, pop2020 = POPULATION, 
-+          area_sq_miles = SQMI, pop2020_per_sq_miles = POP_SQMI)
+> main <- function(){
++   USPS_zipcodes <- read_sf(dsn = "../../../drive/raw_data/shapefiles/USPS_zipcodes", 
++                            layer = "USPS_zipcodes_July2020")
++   USPS_zipcodes <- USPS_zipcodes %>%
++     select(ZIP_CODE, PO_NAME, STATE, POPULATION, SQMI, POP_SQMI) %>%
++     rename(zipcode = ZIP_CODE, zipcode_name = PO_NAME,
++            state_name = STATE, pop2020 = POPULATION, 
++            area_sq_miles = SQMI, pop2020_per_sq_miles = POP_SQMI)
++   
++   mw_rent_data <- fread("../../../drive/derived_large/estimation_samples/all_zipcode_months.csv",
++                         colClasses = c(zipcode ="character", place_code ="character", 
++                                        countyfips = "character", cbsa10 = "character",
++                                        zcta ="character", place_name = "character", 
++                                        county_name = "character", cbsa10_name = "character",
++                                        state_abb = "character", statefips = "character")) %>%
++     select(zipcode, cbsa10, year, month, actual_mw, exp_ln_mw, medrentpricepsqft_SFCC) %>%
++     mutate(ln_actual_mw = log(actual_mw),
++            ln_rent_var = log(medrentpricepsqft_SFCC))
++   
++   merged <- left_join(USPS_zipcodes, mw_rent_data, by = "zipcode")
++   
++   cbsa10_code_san_diego <- 41740
++   cbsa10_code_seattle <- 42660
++   cbsa10_code_nyc <- 35620
++   cbsa10_code_kc <- 28140
++   
++   san_diego <- restrict_and_build_changes(merged, cbsa10_code_san_diego, 
++                                           2018, 10, 
++                                           2019, 3)
++   seattle <- restrict_and_build_changes(merged, cbsa10_code_seattle, 
++                                           2018, 10, 
++                                           2019, 3)
++   nyc <- restrict_and_build_changes(merged, cbsa10_code_nyc, 
++                                           2018, 10, 
++                                           2019, 3)
++   kc <- restrict_and_build_changes(merged, cbsa10_code_kc, 
++                                           2018, 10, 
++                                           2019, 3)
++ 
++   for(cbsa in c("san_diego", "seattle", "nyc", "kc")){
++     build_map(get(cbsa), "change_ln_actual_mw", 
++               "Change in log(MW)", paste0(cbsa, "_ln_mw_change"))
++     build_map(get(cbsa), "change_exp_ln_mw", 
++               "Change in experienced log(MW)", paste0(cbsa, "_exp_ln_mw_change"))
++     build_map(get(cbsa), "change_ln_rents", 
++               "Change in log(MW)", paste0(cbsa, "_ln_rents_change"))
++   }
++ }
 > 
-> cbsa10_code_san_diego <- 41740
-> cbsa10_code_seattle <- 42660
-> mw_rent_data <- fread("../../../drive/derived_large/estimation_samples/all_zipcode_months.csv",
-+                       colClasses = c(zipcode ="character", place_code ="character", 
-+                                      countyfips = "character", cbsa10 = "character",
-+                                      zcta ="character", place_name = "character", 
-+                                      county_name = "character", cbsa10_name = "character",
-+                                      state_abb = "character", statefips = "character")) %>%
-+   filter((year == 2018 & month == 10) | (year == 2019 & month == 3)) %>%
-+   filter(cbsa10 == cbsa10_code_san_diego | cbsa10 == cbsa10_code_seattle) %>%
-+   select(zipcode, cbsa10, year, month, actual_mw, exp_ln_mw, medrentpricepsqft_SFCC) %>%
-+   mutate(ln_actual_mw = log(actual_mw),
-+          ln_rent_var = log(medrentpricepsqft_SFCC)) %>%
-+   group_by(zipcode, cbsa10) %>%
-+   summarise(change_actual_mw = last(actual_mw) - first(actual_mw), 
-+             change_ln_actual_mw = last(ln_actual_mw) - first(ln_actual_mw),
-+             change_exp_ln_mw = last(exp_ln_mw) - first(exp_ln_mw),
-+             change_ln_rents = last(ln_rent_var) - first(ln_rent_var))
-`summarise()` regrouping output by 'zipcode' (override with `.groups` argument)
+> restrict_and_build_changes <- function(data, cbsa10_code, year_lb, month_lb, 
++                                        year_ub, month_ub){
++   restricted <- data %>%
++     filter(cbsa10 == cbsa10_code) %>%
++     filter((year == year_lb & month == month_lb) | (year == year_ub & month == month_ub)) %>%
++     group_by(zipcode) %>%
++     summarise(change_actual_mw = last(actual_mw) - first(actual_mw), 
++               change_ln_actual_mw = last(ln_actual_mw) - first(ln_actual_mw),
++               change_exp_ln_mw = last(exp_ln_mw) - first(exp_ln_mw),
++               change_ln_rents = last(ln_rent_var) - first(ln_rent_var))
++ }
 > 
-> merged <- left_join(USPS_zipcodes, mw_rent_data, by = "zipcode")
-> san_diego <- merged %>%
-+   filter(cbsa10 == cbsa10_code_san_diego)
-> seattle <- merged %>%
-+   filter(cbsa10 == cbsa10_code_seattle)
+> build_map <- function(data, var, var_legend, map_name){
++   map <- tm_shape(data) + 
++     tm_fill(col = var,
++             title = var_legend,
++             style = "cont",
++             palette = "BuGn") +
++     tm_borders(lwd = .01, alpha = 0.5) +
++     tm_layout(legend.position = c("left", "bottom"))
++   tmap_save(map, 
++             paste0("../output/", map_name, ".png"),
++             dpi = 50)  
++ }
 > 
-> san_diego_ln_mw_change <- tm_shape(san_diego) + 
-+   tm_fill(col = "change_ln_actual_mw",
-+           title = "Change in log(MW)",
-+           style = "cont",
-+           palette = "BuGn") +
-+   tm_borders(lwd = .01, alpha = 0.5) +
-+   tm_layout(legend.position = c("left", "bottom"))
-> tmap_save(san_diego_ln_mw_change, 
-+           "../output/san_diego_ln_mw_change.png",
-+           dpi = 100)
+> main()
+`summarise()` ungrouping output (override with `.groups` argument)
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+`summarise()` ungrouping output (override with `.groups` argument)
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+`summarise()` ungrouping output (override with `.groups` argument)
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+`summarise()` ungrouping output (override with `.groups` argument)
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
+although coordinates are longitude/latitude, st_union assumes that they are planar
 Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\maps\output\san_diego_ln_mw_change.png
-Resolution: 817.1347 by 599.6563 pixels
-Size: 8.171347 by 5.996563 inches (100 dpi)
-> 
-> san_diego_exp_ln_mw_change <- tm_shape(san_diego) + 
-+   tm_fill(col = "change_exp_ln_mw",
-+           title = "Change in experienced log(MW)",
-+           style = "cont",
-+           palette = "BuGn") +
-+   tm_borders(lwd = .01, alpha = 0.5) +
-+   tm_layout(legend.position = c("left", "bottom"))
-> tmap_save(san_diego_exp_ln_mw_change, 
-+           "../output/san_diego_exp_ln_mw_change.png",
-+           dpi = 100)
+Resolution: 408.5674 by 299.8282 pixels
+Size: 8.171347 by 5.996563 inches (50 dpi)
 Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\maps\output\san_diego_exp_ln_mw_change.png
-Resolution: 817.1347 by 599.6563 pixels
-Size: 8.171347 by 5.996563 inches (100 dpi)
-> 
-> san_diego_ln_rents_change <- tm_shape(san_diego) + 
-+   tm_fill(col = "change_ln_rents",
-+           title = "Change in log(rents per square foot)",
-+           style = "cont",
-+           palette = "BuGn") +
-+   tm_borders(lwd = .01, alpha = 0.5) +
-+   tm_layout(legend.position = c("left", "bottom"))
-> tmap_save(san_diego_ln_rents_change, 
-+           "../output/san_diego_ln_rents_change.png",
-+           dpi = 100)
+Resolution: 408.5674 by 299.8282 pixels
+Size: 8.171347 by 5.996563 inches (50 dpi)
 Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\maps\output\san_diego_ln_rents_change.png
-Resolution: 817.1347 by 599.6563 pixels
-Size: 8.171347 by 5.996563 inches (100 dpi)
-> 
-> seattle_ln_mw_change <- tm_shape(seattle) + 
-+   tm_fill(col = "change_ln_actual_mw",
-+           title = "Change in log(MW)",
-+           style = "cont",
-+           palette = "BuGn") +
-+   tm_borders(lwd = .01, alpha = 0.5) +
-+   tm_layout(legend.position = c("left", "bottom"))
-> seattle_ln_mw_change
-> tmap_save(seattle_ln_mw_change, 
-+           "../output/seattle_ln_mw_change.png",
-+           dpi = 100)
+Resolution: 408.5674 by 299.8282 pixels
+Size: 8.171347 by 5.996563 inches (50 dpi)
 Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\maps\output\seattle_ln_mw_change.png
-Resolution: 621.7924 by 788.0443 pixels
-Size: 6.217924 by 7.880443 inches (100 dpi)
-> 
-> seattle_exp_ln_mw_change <- tm_shape(seattle) + 
-+   tm_fill(col = "change_exp_ln_mw",
-+           title = "Change in experienced log(MW)",
-+           style = "cont",
-+           palette = "BuGn") +
-+   tm_borders(lwd = .01, alpha = 0.5) +
-+   tm_layout(legend.position = c("left", "bottom"))
-> tmap_save(seattle_exp_ln_mw_change, 
-+           "../output/seattle_exp_ln_mw_change.png",
-+           dpi = 100)
+Resolution: 310.8962 by 394.0222 pixels
+Size: 6.217924 by 7.880443 inches (50 dpi)
 Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\maps\output\seattle_exp_ln_mw_change.png
-Resolution: 621.7924 by 788.0443 pixels
-Size: 6.217924 by 7.880443 inches (100 dpi)
-> 
-> seattle_ln_rents_change <- tm_shape(seattle) + 
-+   tm_fill(col = "change_ln_rents",
-+           title = "Change in log(rents per square foot)",
-+           style = "cont",
-+           palette = "BuGn") +
-+   tm_borders(lwd = .01, alpha = 0.5) +
-+   tm_layout(legend.position = c("left", "bottom"))
-> seattle_ln_rents_change
-> tmap_save(seattle_ln_rents_change, 
-+           "../output/seattle_ln_rents_change.png",
-+           dpi = 100)
+Resolution: 310.8962 by 394.0222 pixels
+Size: 6.217924 by 7.880443 inches (50 dpi)
 Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\maps\output\seattle_ln_rents_change.png
-Resolution: 621.7924 by 788.0443 pixels
-Size: 6.217924 by 7.880443 inches (100 dpi)
+Resolution: 310.8962 by 394.0222 pixels
+Size: 6.217924 by 7.880443 inches (50 dpi)
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\maps\output\nyc_ln_mw_change.png
+Resolution: 395.9387 by 309.3913 pixels
+Size: 7.918774 by 6.187827 inches (50 dpi)
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\maps\output\nyc_exp_ln_mw_change.png
+Resolution: 395.9387 by 309.3913 pixels
+Size: 7.918774 by 6.187827 inches (50 dpi)
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\maps\output\nyc_ln_rents_change.png
+Resolution: 395.9387 by 309.3913 pixels
+Size: 7.918774 by 6.187827 inches (50 dpi)
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\maps\output\kc_ln_mw_change.png
+Resolution: 317.2857 by 386.0874 pixels
+Size: 6.345714 by 7.721747 inches (50 dpi)
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\maps\output\kc_exp_ln_mw_change.png
+Resolution: 317.2857 by 386.0874 pixels
+Size: 6.345714 by 7.721747 inches (50 dpi)
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\maps\output\kc_ln_rents_change.png
+Resolution: 317.2857 by 386.0874 pixels
+Size: 6.345714 by 7.721747 inches (50 dpi)
 > 
 > proc.time()
    user  system elapsed 
-  55.87   16.56   37.06 
+ 171.06   19.60  155.85 
 
- make.py ended: 2021-09-15 15:29:28
+ make.py ended: 2021-09-16 15:11:55

@@ -34,9 +34,6 @@ matched <- merged %>%
 merged_for_maps <- merged %>%
   filter(state_abb != "AK" & state_abb != "HI")
 
-# test <- merged_for_maps%>%
-#   filter(state_abb == "NY")
-
 USPS_zipcodes_density_map <- tm_shape(merged_for_maps) + 
   tm_fill(col = "pop2020_per_sq_miles",
           title = "Population density",
@@ -48,16 +45,16 @@ USPS_zipcodes_density_map <- tm_shape(merged_for_maps) +
 USPS_zipcodes_density_map
 tmap_save(USPS_zipcodes_density_map, 
           "../output/USPS_zipcodes_pop_density.png",
-          dpi = 100)
+          dpi = 50)
 
 USPS_zipcodes_zillow_data <- tm_shape(merged_for_maps) + 
   tm_fill(col = "in_zillow",
           title = "Has Zillow rents data",
           style ="cat", 
-          palette = "BuGn") +
+          palette = "Reds") +
   tm_borders(lwd = .0001, alpha = 0.1) +
   tmap_mode("plot") + tmap_options(check.and.fix = TRUE)
 USPS_zipcodes_zillow_data
 tmap_save(USPS_zipcodes_zillow_data, 
           "../output/USPS_zipcodes_zillow_data.png",
-          dpi = 100)
+          dpi = 50)
