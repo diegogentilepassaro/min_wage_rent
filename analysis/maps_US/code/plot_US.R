@@ -20,8 +20,8 @@ main <- function(){
     tm_fill(col   = "pop2020_per_sq_miles",
             title = "Population\ndensity",
             style = "quantile",
-            n     = 10,
-            palette = c("white", "red")) +
+            n     = 5,
+            palette = c("white", "#fff0f0", "#ffd6d6", "#ff9494", "#ff0000")) +
     tm_borders(lwd = .0001, alpha = 0.1) +
     tmap_mode("plot") + 
     tmap_options(check.and.fix = TRUE)
