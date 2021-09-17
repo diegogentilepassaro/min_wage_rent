@@ -29,8 +29,6 @@ main <- function(){
   tmap_save(pop_density_map,
             "../output/USPS_zipcodes_pop_density.png",
             dpi = 300)
-  tmap_save(pop_density_map,
-            "../output/USPS_zipcodes_pop_density.eps")
   
   zillow_zipcodes_map <- tm_shape(df_all) + 
     tm_fill(col   = "in_zillow",
@@ -44,8 +42,6 @@ main <- function(){
   tmap_save(zillow_zipcodes_map, 
             "../output/USPS_zipcodes_zillow_data.png",
             dpi = 300)
-  tmap_save(zillow_zipcodes_map, 
-            "../output/USPS_zipcodes_zillow_data.eps")
 }
 
 
