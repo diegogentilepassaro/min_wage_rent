@@ -25,12 +25,12 @@ main <- function(){
       df <- restrict_and_build_changes(df_all, event[[2]],
                                        event[[3]], event[[4]], event[[5]], event[[6]]) 
       
-      build_map(df, "change_ln_actual_mw",
-                "Change in\nlog(MW)", paste0(event[[1]], "_", events[[2]], "_", events[[3]], "_actual_mw"))
-      build_map(df, "change_exp_ln_mw", 
-                "Change in\nexp. log(MW)", paste0(event[[1]], events[[2]], "_", events[[3]], "_exp_mw"))
-      build_map(df, "change_ln_rents", 
-                "Change in\nlog(rents)", paste0(event[[1]], events[[2]], "_", events[[3]], "_rents"))
+      build_map(df, "change_ln_actual_mw", "Change in\nlog(MW)", 
+                paste0(event[[1]], "_", event[[3]], "-", event[[4]], "_actual_mw"))
+      build_map(df, "change_exp_ln_mw", "Change in\nexp. log(MW)", 
+                paste0(event[[1]], event[[3]], "-", event[[4]], "_exp_mw"))
+      build_map(df, "change_ln_rents", "Change in\nlog(rents)",
+                paste0(event[[1]], event[[3]], "-", event[[4]], "_rents"))
     }
   ) -> l
 }

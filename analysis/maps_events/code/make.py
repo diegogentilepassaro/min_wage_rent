@@ -31,8 +31,7 @@ if "StataSE" in envir_vars:
 
 start_make_logging()
 
-run_rbatch(program = 'plot_descriptive_maps.R')
-run_rbatch(program = 'plot_mw_rents_maps.R')
+run_rbatch(program = 'plot_events.R')
 
 end_make_logging()
 
