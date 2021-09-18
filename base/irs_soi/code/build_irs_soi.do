@@ -12,7 +12,28 @@ program main
 	    "14" "15" "16" "17" "18" {
 		    append using "../temp/irs_zip_`y'.dta"
 		}
-	save_data "../output/irs_zip.dta", key(zipcode year) clear
+		
+	drop if num_ret == 0.0001
+	drop if num_ret == 0
+	collapse (sum) num_ret num_exemp num_dep agi ///
+	    num_ret_wage total_wage num_ret_int total_int ///
+		num_ret_div total_div num_ret_bus tot_bus num_ret_farm, ///
+		by(zipcode statefips year)
+		
+	gen agi_per_hhld = agi/num_ret
+	gen agi_per_cap = agi/num_exemp
+	
+	gen wage_per_worker = total_wage/num_ret_wage
+	gen wage_per_hhld = total_wage/num_ret
+	gen wage_per_cap = total_wage/num_exemp
+	
+	gen bussines_rev_per_owner = tot_bus/num_ret_bus
+	
+	gen share_wage_hhlds = num_ret_wage/num_ret
+	gen share_bussiness_hhlds = num_ret_bus/num_ret
+	gen share_farmer_hhlds = num_ret_farm/num_ret
+	
+	save_data "../output/irs_zip.dta", key(zipcode statefips year) replace
 end
 
 program read_excel_files
