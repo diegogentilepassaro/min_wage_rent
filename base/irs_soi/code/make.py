@@ -32,15 +32,14 @@ if "StataSE" in envir_vars:
 start_make_logging()
 
 path = '../../../drive/raw_data/irs_soi'
-files = os.listdir(path)
-files.remove('readme.txt')
+files = [f for f in os.listdir(path) if '.zip' in f]
 
-year = 2009
 for file in files:
+    year = file.replace('zipcode', '').replace('.zip', '')
+
     zf = ZipFile(os.path.join(path, file), 'r')
-    zf.extractall('../temp/' + str(year))
+    zf.extractall('../temp/' + year)
     zf.close()
-    year = year + 1
 
 run_stata(program = 'build_irs_soi.do', executable = stata)
 

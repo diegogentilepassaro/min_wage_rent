@@ -1,5 +1,5 @@
 
- make.py started: 2021-09-18 09:02:54 C:\Users\diegog\Desktop\Diego\min_wage_rent\base\irs_soi\code 
+ make.py started: 2021-09-18 20:34:00 C:\Users\shermo\Documents\GitHub\min_wage_rent\base\irs_soi\code 
 
 
 
@@ -44,56 +44,68 @@ Notes:
 
 . 
 . program main
-  1.     foreach y in "09" "10" "11" "12" "13" ///
->             "14" "15" "16" "17" "18" {
-  2.                     read_excel_files, yr(`y')
-  3.                 }
-  4.         use "../temp/irs_zip_09.dta", clear
-  5.     foreach y in "10" "11" "12" "13" ///
->             "14" "15" "16" "17" "18" {
-  6.                     append using "../temp/irs_zip_`y'.dta"
-  7.                 }
-  8.                 
-.         drop if num_ret == 0.0001
-  9.         drop if num_ret == 0
- 10.         collapse (sum) num_ret num_exemp num_dep agi ///
->             num_ret_wage total_wage num_ret_int total_int ///
->                 num_ret_div total_div num_ret_bus tot_bus num_ret_farm, ///
->                 by(zipcode statefips year)
- 11.                 
-.         gen agi_per_hhld = agi/num_ret
- 12.         gen agi_per_cap = agi/num_exemp
- 13.         
-.         gen wage_per_worker = total_wage/num_ret_wage
- 14.         gen wage_per_hhld = total_wage/num_ret
- 15.         gen wage_per_cap = total_wage/num_exemp
- 16.         
-.         gen bussines_rev_per_owner = tot_bus/num_ret_bus
- 17.         
-.         gen share_wage_hhlds = num_ret_wage/num_ret
- 18.         gen share_bussiness_hhlds = num_ret_bus/num_ret
- 19.         gen share_farmer_hhlds = num_ret_farm/num_ret
- 20.         
-.         save_data "../output/irs_zip.dta", key(zipcode statefips year) replac
-> e
- 21. end
+  1.     local instub "../temp"
+  2. 
+.     foreach y in "09" "10" "11" "12" "13" "14" "15" "16" "17" "18" {
+  3.         read_excel_files, instub(`instub') yr(`y')
+  4.     }
+  5. 
+.     foreach y in "09" "10" "11" "12" "13" "14" "15" "16" "17" "18" {
+  6.         append using "../temp/irs_zip_`y'.dta"
+  7.     }
+  8.         
+.     drop if num_ret == 0.0001
+  9.     drop if num_ret == 0
+ 10.     collapse (sum) num_ret num_exemp num_dep adj_gross_inc      ///
+>         num_ret_wage total_wage num_ret_int total_int           ///
+>         num_ret_div total_div num_ret_bus tot_bus num_ret_farm, ///
+>       by(zipcode statefips year)
+ 11.     
+.     create_variables
+ 12. 
+.     save_data "../output/irs_zip.dta", key(zipcode statefips year) replace
+ 13. end
 
 . 
 . program read_excel_files
-  1.         syntax, yr(str)
+  1.     syntax, instub(str) yr(str)
   2. 
-.         import delimited "../temp/20`yr'/`yr'zpallagi.csv", clear ///
->             stringcols(1 2 3)
-  3.         keep statefips zipcode n1 n2 numdep a00100 n00200 a00200 ///
->             n00300 a00300 n00600 a00600 n00900 a00900 schf
-  4.     rename (n1 n2 numdep a00100 n00200 a00200 ///
->             n00300 a00300 n00600 a00600 n00900 a00900 schf) ///
->                 (num_ret num_exemp num_dep agi num_ret_wage total_wage ///
->                 num_ret_int total_int num_ret_div total_div num_ret_bus tot_b
-> us num_ret_farm)
-  5.         gen year = int(`yr') + 2000
-  6.         save "../temp/irs_zip_`yr'.dta", replace
-  7. end
+.     import delimited "`instub'/20`yr'/`yr'zpallagi.csv", clear ///
+>         stringcols(1 2 3)
+  3. 
+.     keep statefips zipcode n1 n2 numdep a00100 n00200 a00200 ///
+>         n00300 a00300 n00600 a00600 n00900 a00900 schf
+  4. 
+.     rename (n1      n2        numdep  a00100        n00200       a00200) ///
+>            (num_ret num_exemp num_dep adj_gross_inc num_ret_wage total_wage)
+  5. 
+.     rename (n00300      a00300    n00600      a00600    n00900      a00900  s
+> chf) ///
+>            (num_ret_int total_int num_ret_div total_div num_ret_bus tot_bus n
+> um_ret_farm)
+  6. 
+.     gen year = int(`yr') + 2000
+  7. 
+.     save "../temp/irs_zip_`yr'.dta", replace
+  8.     clear
+  9. end
+
+. 
+. program create_variables
+  1. 
+.     gen agi_per_hhld = adj_gross_inc/num_ret
+  2.     gen agi_per_cap  = adj_gross_inc/num_exemp
+  3. 
+.     gen wage_per_worker = total_wage/num_ret_wage
+  4.     gen wage_per_hhld   = total_wage/num_ret
+  5.     gen wage_per_cap    = total_wage/num_exemp
+  6. 
+.     gen bussines_rev_per_owner = tot_bus/num_ret_bus
+  7. 
+.     gen share_wage_hhlds      = num_ret_wage/num_ret
+  8.     gen share_bussiness_hhlds = num_ret_bus/num_ret
+  9.     gen share_farmer_hhlds    = num_ret_farm/num_ret
+ 10. end
 
 . 
 . * Execute
@@ -134,7 +146,8 @@ file ../temp/irs_zip_18.dta saved
        values)
 (note: variable num_dep was float, now double to accommodate using data's
        values)
-(note: variable agi was float, now double to accommodate using data's values)
+(note: variable adj_gross_inc was float, now double to accommodate using
+       data's values)
 (note: variable num_ret_wage was float, now double to accommodate using
        data's values)
 (note: variable total_wage was float, now double to accommodate using data's
@@ -164,7 +177,7 @@ file ../temp/irs_zip_18.dta saved
 File: ../output/irs_zip.dta
 Key: zipcode statefips year
 ===============================================================================
-  280155:25(21696):486289814:114325826
+  280155:25(106067):1838072616:79979298
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -175,7 +188,7 @@ Key: zipcode statefips year
    num_exemp |    280,155     20223.5    359590.7         50   3.58e+07
 -------------+---------------------------------------------------------
      num_dep |    280,155    6686.209    123100.6          0   1.36e+07
-         agi |    280,155    680432.1    1.28e+07        886   1.65e+09
+adj_gross_~c |    280,155    680432.1    1.28e+07        886   1.65e+09
 num_ret_wage |    280,155    8584.603    150098.9          0   1.48e+07
   total_wage |    280,155    469612.7     8689154          0   1.09e+09
  num_ret_int |    280,155    3299.302    58894.39          0    6565245
@@ -207,4 +220,4 @@ file ../output/irs_zip.dta saved
 . 
 end of do-file
 
- make.py ended: 2021-09-18 09:05:48
+ make.py ended: 2021-09-18 20:36:49
