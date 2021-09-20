@@ -13,11 +13,11 @@ program main
     	append using "../temp/irs_zip_`y'.dta"
     }
     	
-    drop if num_ret == 0.0001
-    drop if num_ret == 0
-    collapse (sum) num_ret num_exemp num_dep adj_gross_inc      ///
-        num_ret_wage total_wage num_ret_int total_int           ///
-        num_ret_div total_div num_ret_bus tot_bus num_ret_farm, ///
+    drop if num_hhlds_irs == 0.0001
+    drop if num_hhlds_irs == 0
+    collapse (sum) num_hhlds_irs pop_irs num_dep adj_gross_inc      ///
+        num_wage_hhlds_irs total_wage num_ret_int total_int           ///
+        num_ret_div total_div num_bus_hhlds_irs tot_bus num_farm_hhlds_irs, ///
       by(zipcode statefips year)
     
     create_variables
@@ -35,10 +35,10 @@ program read_excel_files
         n00300 a00300 n00600 a00600 n00900 a00900 schf
 
     rename (n1      n2        numdep  a00100        n00200       a00200) ///
-           (num_ret num_exemp num_dep adj_gross_inc num_ret_wage total_wage)
+           (num_hhlds_irs pop_irs num_dep adj_gross_inc num_wage_hhlds_irs total_wage)
 
     rename (n00300      a00300    n00600      a00600    n00900      a00900  schf) ///
-           (num_ret_int total_int num_ret_div total_div num_ret_bus tot_bus num_ret_farm)
+           (num_ret_int total_int num_ret_div total_div num_bus_hhlds_irs tot_bus num_farm_hhlds_irs)
 
     gen year = int(`yr') + 2000
 
@@ -48,18 +48,18 @@ end
 
 program create_variables
 
-    gen agi_per_hhld = adj_gross_inc/num_ret
-    gen agi_per_cap  = adj_gross_inc/num_exemp
+    gen agi_per_hhld = adj_gross_inc/pop_irs
+    gen agi_per_cap  = adj_gross_inc/num_hhlds_irs
 
-    gen wage_per_worker = total_wage/num_ret_wage
-    gen wage_per_hhld   = total_wage/num_ret
-    gen wage_per_cap    = total_wage/num_exemp
+    gen wage_per_wage_hhld = total_wage/num_wage_hhlds_irs
+    gen wage_per_hhld      = total_wage/num_hhlds_irs
+    gen wage_per_cap       = total_wage/pop_irs
 
-    gen bussines_rev_per_owner = tot_bus/num_ret_bus
+    gen bussines_rev_per_owner = tot_bus/num_bus_hhlds_irs
 
-    gen share_wage_hhlds      = num_ret_wage/num_ret
-    gen share_bussiness_hhlds = num_ret_bus/num_ret
-    gen share_farmer_hhlds    = num_ret_farm/num_ret
+    gen share_wage_hhlds      = num_wage_hhlds_irs/num_hhlds_irs
+    gen share_bussiness_hhlds = num_bus_hhlds_irs/num_hhlds_irs
+    gen share_farmer_hhlds    = num_farm_hhlds_irs/num_hhlds_irs
 end
 
 * Execute
