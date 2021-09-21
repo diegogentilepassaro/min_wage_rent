@@ -13,8 +13,10 @@ main <- function() {
   
   data_with_sqft <- data %>%
     filter(is.na(sqft) == 0) %>%
-    select(post_id, year, month, nhood, city, county,
-           price, beds, baths, sqft, room_in_apt)
+    select(year, month, nhood, city, county,
+           price, beds, baths, sqft, room_in_apt) %>%
+    mutate(post_id = row_number(),
+           beds = as.integer(str_remove(beds, "\\s+")))
   
   save_data(data_with_sqft, key = c('post_id'),
             filename = paste0(outdir, 'clean_pennington_bay_area.csv'),
