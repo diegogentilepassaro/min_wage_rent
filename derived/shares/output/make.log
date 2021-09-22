@@ -1,0 +1,135 @@
+
+ make.py started: 2021-09-22 12:49:35 C:\Users\shermo\Documents\GitHub\min_wage_rent\derived\shares\code 
+
+
+
+
+Execute:  R CMD BATCH --no-save "./build.R" build.Rout
+
+R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
+Copyright (C) 2020 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list = ls())
+> options(scipen=999)
+> 
+> source("../../../lib/R/load_packages.R")
+> source("../../../lib/R/save_data.R")
+
+Please cite as: 
+
+ Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+ R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
+
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+
+Attaching package: 'data.table'
+
+The following objects are masked from 'package:dplyr':
+
+    between, first, last
+
+Warning messages:
+1: package 'dplyr' was built under R version 4.0.5 
+2: package 'data.table' was built under R version 4.0.5 
+> 
+> library("data.table")
+> 
+> main <- function() {
++   instub  <- "../../../drive/base_large/lodes"
++   outstub <- "../../../drive/derived_large/shares"
++   
++   fnames_list <- list.files(instub, pattern = "odzip_*", full.names = T)
++   
++   od_matrix  <- rbindlist(lapply(fnames_list, fread,
++                                  colClasses = c("h_zipcode" = "character",
++                                                 "w_zipcode" = "character")))
++   
++   dt <- group_matrix_sum(od_matrix)
++   
++   dt <- compute_shares(dt)
++ 
++   save_data(dt, key = c("zipcode"),
++             filename = file.path(outstub, "zipcode_shares.csv"),
++             logfile  = "../output/shares_data_manifest.log")
++ }
+> 
+> group_matrix_sum <- function(od) {
++   
++   residents <- od[, .(residents        = sum(totjob), 
++                       residents_young  = sum(job_young),
++                       residents_lowinc = sum(job_lowinc)),
++                   by = "h_zipcode"]
++   setnames(residents, "h_zipcode", "zipcode")
++   
++   
++   workers <- od[, .(workers        = sum(totjob), 
++                     workers_young  = sum(job_young),
++                     workers_lowinc = sum(job_lowinc)),
++                 by = "w_zipcode"]
++   setnames(workers, "w_zipcode", "zipcode")
++   
++   workers_own_zip <- od[h_zipcode == w_zipcode]
++   workers_own_zip <- workers_own_zip[, .(h_zipcode, totjob, job_young, job_lowinc)]
++   
++   setnames(workers_own_zip, old = c("h_zipcode", "totjob", "job_young", "job_lowinc"),
++                             new = c("zipcode", "ownzip_jobs", "ownzip_jobs_young", "ownzip_jobs_lowinc"))
++   
++   dt <- merge(workers, residents, 
++               all.x = T, by = "zipcode")
++   dt <- merge(dt, workers_own_zip, 
++               all.x = T, by = "zipcode")
++   
++   return(dt)
++ }
+> 
+> compute_shares <- function(dt) {
++   
++   
++   dt[, share_residents_young  := residents_young/residents]
++   dt[, share_residents_lowinc := residents_lowinc/residents]
++ 
++   dt[, share_workers_young  := workers_young/workers]
++   dt[, share_workers_lowinc := workers_lowinc/workers]
++   
++   dt[, share_work_same_zip        := ownzip_jobs/residents]
++   dt[, share_work_same_zip_young  := ownzip_jobs_young/residents]
++   dt[, share_work_same_zip_lowinc := ownzip_jobs_lowinc/residents]
++   
++   return(dt)
++ }
+> 
+> # Execute
+> main() 
+[1] "File '../../../drive/derived_large/shares/zipcode_shares.csv' saved successfully."
+[1] "Log file generated successfully."
+> 
+> proc.time()
+   user  system elapsed 
+  27.65    8.34   13.79 
+
+ make.py ended: 2021-09-22 12:49:50
