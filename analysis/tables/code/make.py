@@ -34,6 +34,11 @@ tablefill(input    = fd_baseline_dir + '/static.txt',
           template = '../input/static.tex', 
           output   = '../output/static.tex')
 
+
+tablefill(input    = fd_baseline_dir + '/static.txt', 
+          template = '../input/static_slides.tex', 
+          output   = '../output/static_slides.tex')
+
 end_make_logging()
 
 shutil.rmtree('gslab_make')
