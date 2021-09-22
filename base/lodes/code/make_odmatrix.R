@@ -59,33 +59,6 @@ main <- function(paquetes, n_cores) {
   
   list_of_file_names <- list.files(outdir, pattern = "odzip_*", full.names = T)
   odzip_list <- lapply(list_of_file_names, fread)
-  
-  # Compute share that work in same zipcode
-  odzip_list <- lapply(odzip_list, function(dt.st) {
-    dt.st[, c("residents_tot", "residents_young", "resident_lowinc") := 
-          list(sum(totjob),    sum(job_young),    sum(job_lowinc)),
-          by = "h_zipcode"]
-
-    dt.st <- dt.st[h_zipcode == w_zipcode]
-    setnames(dt.st, old = "h_zipcode", new = "zipcode")
-    dt.st[, w_zipcode := NULL]
-
-    dt.st[, share_tot    := totjob/residents_tot]
-    dt.st[, share_young  := job_young/residents_young]
-    dt.st[, share_lowinc := job_lowinc/resident_lowinc]
-
-    return(dt.st)
-  })
-
-  dt.shares <- rbindlist(odzip_list)
-  dt.shares[, zipcode := str_pad(zipcode, 5, pad = 0)]
-  save_data(dt.shares, key = c("zipcode"), 
-            filename = file.path(outdir, "zipcode_own_shares.csv"), 
-            logfile  = "../output/shares_data_manifest.log")
-            
-  save_data(dt.shares, key = c("zipcode"), 
-            filename = file.path(outdir, "zipcode_own_shares.dta"), 
-            logfile  = "../output/shares_data_manifest.log")
 }
 
 
