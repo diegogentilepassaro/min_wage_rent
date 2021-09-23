@@ -19,15 +19,27 @@ program main
 	define_controls
 	local controls "`r(economic_controls)'"
 	local cluster "statefips"
-	
+	local absorb "year#statefips_num"
+	eststo clear
+	eststo: reghdfe D.ln_med_rent_var D.ln_agi_per_cap D.(`controls'), ///
+	    absorb(`absorb') cluster(`cluster')
+	eststo: ivreghdfe D.ln_med_rent_var (D.ln_agi_per_cap = D.ln_mw) D.(`controls'), ///
+	    absorb(`absorb') cluster(`cluster')
+	eststo: ivreghdfe D.ln_med_rent_var (D.ln_agi_per_cap = D.exp_ln_mw) D.(`controls'), ///
+	    absorb(`absorb') cluster(`cluster')
+	eststo: ivreghdfe D.ln_med_rent_var (D.ln_agi_per_cap = D.ln_mw D.exp_ln_mw) D.(`controls'), ///
+	    absorb(`absorb') cluster(`cluster')
+	esttab *, se keep(D.ln_agi_per_cap)
+		
+		
     reghdfe D.ln_agi_per_cap D.exp_ln_mw D.ln_mw D.(`controls'), ///
-	    absorb(year#statefips_num) cluster(`cluster')
+	    absorb(`absorb') cluster(`cluster')
     reghdfe D.ln_wage_per_cap D.exp_ln_mw D.ln_mw D.(`controls'), ///
-	    absorb(year#statefips_num) cluster(`cluster')
+	    absorb(`absorb') cluster(`cluster')
     reghdfe D.ln_wage_per_wage_hhld D.exp_ln_mw D.ln_mw D.(`controls'), ///
-	    absorb(year#statefips_num) cluster(`cluster')
+	    absorb(`absorb') cluster(`cluster')
     reghdfe D.ln_bussines_rev_per_owner D.exp_ln_mw D. ln_mw D.(`controls'), ///
-	    absorb(year#statefips_num) cluster(`cluster')
+	    absorb(`absorb') cluster(`cluster')
 end
 
 main
