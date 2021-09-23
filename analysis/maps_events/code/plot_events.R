@@ -17,7 +17,8 @@ main <- function(){
   events <- list(list("san_diego", 41740, 2018, 12, 2019, 6),
                  list("seattle",   42660, 2018, 12, 2019, 6),
                  list("nyc",       35620, 2018, 12, 2019, 6),
-                 list("kc",        28140, 2018, 12, 2019, 6))
+                 list("kc",        28140, 2018, 12, 2019, 6),
+                 list("bay_area",  41860, 2018, 12, 2019, 6))
                  # Name CBSA10, Code CBSA10, start date, end date
   
   lapply(events,
