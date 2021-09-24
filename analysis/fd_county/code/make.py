@@ -11,7 +11,6 @@ from gslab_make.make_links import *
 from gslab_make.make_link_logs import *
 from gslab_make.run_program import *
 from gslab_make.dir_mod import *
-from gslab_fill.tablefill import tablefill
 
 #****************************************************
 # MAKE.PY STARTS
@@ -26,22 +25,17 @@ envir_vars = os.getenv('PATH')
 if envir_vars is None:
     envir_vars = os.getenv('Path')
 
+stata = "StataMP-64"
+if "StataSE" in envir_vars:
+    stata = "StataSE-64"
+
 start_make_logging()
 
-fd_baseline_dir = "../../fd_baseline/output"
-fd_county_dir   = "../../fd_county/output"
+run_stata(program = 'estimates.do', executable = stata)
+run_rbatch(program = 'tables.R')
+run_stata(program = 'figures.do', executable = stata)
 
-tablefill(input    = fd_baseline_dir + '/static.txt', 
-          template = '../input/static.tex', 
-          output   = '../output/static.tex')
 
-tablefill(input    = fd_baseline_dir + '/static.txt', 
-          template = '../input/static_slides.tex', 
-          output   = '../output/static_slides.tex')
-
-tablefill(input    = fd_county_dir + '/static_county.txt', 
-          template = '../input/static_county.tex', 
-          output   = '../output/static_county.tex')
 
 end_make_logging()
 
