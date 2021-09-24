@@ -15,33 +15,33 @@ import multiprocessing
 from multiprocessing import Pool, freeze_support
 import re
 import logging
+import time
 
 
-def create_directories(types, path, years, work_segs, work_types):
+def create_directories(types, path, year, work_segs, work_types):
     """
     Function:
         Create directories in `path` folder to store LODES data
     """
 
+    path_year = os.path.join(path, str(year))
+    os.mkdir(path_year)
+
     for p in types:
-        new_dir = os.path.join(path, p)
+        new_dir = os.path.join(path_year, p)
         os.mkdir(new_dir)
 
         if p == "od":
             for typ in work_types:
                 os.mkdir(os.path.join(new_dir, typ))
-                for year in range(years[0], years[1] + 1):
-                    os.mkdir(os.path.join(new_dir, typ, str(year)))
         else:
             for seg in work_segs:
                 os.mkdir(os.path.join(new_dir, seg))
                 for typ in work_types:
                     os.mkdir(os.path.join(new_dir, seg, typ))
-                    for year in range(years[0], years[1] + 1):
-                        os.mkdir(os.path.join(new_dir, seg, typ, str(year)))
 
 
-def process_files(types, states, years, logger, work_segs, work_types, 
+def process_files(types, states, year, logger, work_segs, work_types, 
                   path, n_cores = 2, unzip = True):
     """
     function: 
@@ -50,7 +50,7 @@ def process_files(types, states, years, logger, work_segs, work_types,
         If unzip is set equal to True, the files will be unzipped
     """
     
-    build_links_args = [types, states, years, work_segs, work_types]
+    build_links_args = [types, states, year, work_segs, work_types]
     urls = build_links(build_links_args)
     log_and_print("Links created.", logger)
 
@@ -67,10 +67,10 @@ def process_files(types, states, years, logger, work_segs, work_types,
 def build_links(args):
     """
     function:
-        Build links to download LODES7 data for given years
+        Build links to download LODES7 data for a single year
     """
 
-    types, states, years, work_segs, work_types = args
+    types, states, year, work_segs, work_types = args
 
     url_base = "https://lehd.ces.census.gov/data/lodes/LODES7"
     all_links = []
@@ -78,15 +78,15 @@ def build_links(args):
         for p in types:
             if p == "od":
                 for typ in work_types:
-                    for year in range(years[0], years[1] + 1):
-                        url = f"{url_base}/{st}/od/{st}_od_aux_{typ}_{year}.csv.gz"
-                        all_links.append(url)
+                    
+                    url = f"{url_base}/{st}/od/{st}_od_aux_{typ}_{year}.csv.gz"
+                    all_links.append(url)
             else:
                 for seg in work_segs:
                     for typ in work_types:
-                        for year in range(years[0], years[1] + 1):
-                            url = f"{url_base}/{st}/{p}/{st}_{p}_{seg}_{typ}_{year}.csv.gz"
-                            all_links.append(url)
+
+                        url = f"{url_base}/{st}/{p}/{st}_{p}_{seg}_{typ}_{year}.csv.gz"
+                        all_links.append(url)
    
 
     return all_links
@@ -113,9 +113,9 @@ def download_file(args):
 
     else:
         if points[1] == "od":
-            loc = os.path.join(path, points[1], points[3], year)
+            loc = os.path.join(path, points[1], points[3])
         else: 
-            loc = os.path.join(path, points[1], points[2], points[3], year)
+            loc = os.path.join(path, points[1], points[2], points[3])
 
         r = requests.get(url, stream = True)
         f = open(os.path.join(loc, fname), "wb")
@@ -127,6 +127,8 @@ def download_file(args):
         f.close()
         if unzip:
             unzip_file(fname, loc)
+
+    time.sleep(0.5) # Sleep to prevent too many requests error
 
     return fname
 
@@ -163,17 +165,13 @@ if __name__ == "__main__":
     ## Preliminaries
     LODES_PATH = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     ROOT_PATH  = os.path.dirname(os.path.dirname(LODES_PATH))
+    DATA_PATH  = os.path.join(ROOT_PATH, "drive", "raw_data", "lodes")
 
-    start_end_year = [2016, 2016]
-    DATA_PATH  = os.path.join(ROOT_PATH, "drive", "raw_data", "lodes_" + str(start_end_year[0]))
+    years = [2016, 2016] # Make sure folder `lodes` is in shape (drop folders named as desired years)
 
     logging.basicConfig(filename = os.path.join(LODES_PATH, 'build.log'), filemode = 'w', 
                         format = '%(asctime)s %(message)s', level = logging.INFO, datefmt = '%Y-%m-%d %H:%M:%S')
     logger = logging.getLogger()
-
-    empty_folder = len(os.listdir(DATA_PATH)) == 0
-    if not empty_folder:
-        sys.exit("Error: Please clear the corresponding folder before downloading the data.")
 
     freeze_support() # Prevent Windows system to freeze when running multiprocessing
     cores = 8        # Choose number of cores
@@ -192,15 +190,18 @@ if __name__ == "__main__":
     current_time = datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
     log_and_print(f"Start downloading process. Time is {current_time}", logger)
 
-    try:
-        create_directories(data_types, DATA_PATH, start_end_year, work_segs, work_types)
-        log_and_print("\nDirectories created.", logger)
+    for year in range(years[0], years[1] + 1):
+        try:
+            create_directories(data_types, DATA_PATH, year, work_segs, work_types)
+            log_and_print("\nDirectories created.", logger)
 
-        process_files(data_types, states, start_end_year, logger, work_segs, work_types, 
-                      DATA_PATH, n_cores = cores, unzip = False)
-        log_and_print(f"\nDownloaded CSV files available in ROOT/drive/raw_data/lodes.", logger)
+            process_files(data_types, states, year, logger, work_segs, work_types, 
+                          os.path.join(DATA_PATH, str(year)), n_cores = cores, unzip = False)
+            log_and_print(f"\nDownloaded CSV files available in ROOT/drive/raw_data/lodes.", logger)
 
-    except Exception as e:
-        log_and_print("\nThere was an error. See details below:", logger)
-        logging.fatal(e, exc_info = True)  # log exception info at FATAL log level
-        print(e)
+        except Exception as e:
+            log_and_print("\nThere was an error. See details below:", logger)
+            logging.fatal(e, exc_info = True)  # log exception info at FATAL log level
+            print(e)
+
+    time.sleep(15) # Sleep to prevent too many requests error
