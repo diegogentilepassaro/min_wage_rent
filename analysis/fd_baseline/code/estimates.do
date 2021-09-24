@@ -10,7 +10,6 @@ program main
 	
 	define_controls
 	local controls "`r(economic_controls)'"
-	di "`controls'"
 	local cluster "statefips"
 	
 	

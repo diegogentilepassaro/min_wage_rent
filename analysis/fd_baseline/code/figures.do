@@ -83,11 +83,11 @@ program plot_dynamics_both
 			    mcol(`color_stat_var') msymbol(`symbol_stat_var')) ///
 		    (rcap b_lb b_ub at_right if var == "`stat_var'", ///
 			    col(`color_stat_var') lw(thin)) ///
-			(line b at_left if var == "cumsum_from0", col(`color_dyn_var')) ///
+			/*(line b at_left if var == "cumsum_from0", col(`color_dyn_var')) ///
 				(line b_lb at_left if var == "cumsum_from0", ///
 				    col(`color_dyn_var') lw(thin) lp(dash)) ///
 				(line b_ub at_left if var == "cumsum_from0", ///
-				    col(`color_dyn_var') lw(thin) lp(dash)), ///
+				    col(`color_dyn_var') lw(thin) lp(dash))*/, ///
 			yline(0, lcol(black)) ///
 			xlabel(-6(1)6, labsize(small)) xtitle("") ///
 			ylabel(-0.06(0.02).16, grid labsize(small)) ytitle("Coefficient") ///
