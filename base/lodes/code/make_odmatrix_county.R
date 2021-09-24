@@ -54,36 +54,6 @@ main <- function(paquetes, n_cores) {
               filename = file.path(outdir, paste0("odcounty_", state$fips, ".csv")),
               logfile  = "../output/odmatrix_data_manifest.log")
   }
-
-  list_of_file_names <- list.files(outdir, pattern = "odcounty_*", full.names = T)
-  odcounty_list <- lapply(list_of_file_names, fread)
-  
-  # Compute share that work in same zipcode
-  odcounty_list <- lapply(odcounty_list, function(dt.st) {
-    dt.st[, c("residents_tot", "residents_young", "resident_lowinc") := 
-            list(sum(totjob),    sum(job_young),    sum(job_lowinc)),
-          by = "h_countyfips"]
-    
-    dt.st <- dt.st[h_countyfips == w_countyfips]
-    setnames(dt.st, old = "h_countyfips", new = "countyfips")
-    dt.st[, w_countyfips := NULL]
-    
-    dt.st[, share_tot    := totjob/residents_tot]
-    dt.st[, share_young  := job_young/residents_young]
-    dt.st[, share_lowinc := job_lowinc/resident_lowinc]
-    
-    return(dt.st)
-  })
-  
-  dt.shares <- rbindlist(odcounty_list)
-  dt.shares[, countyfips := str_pad(countyfips, 5, pad = 0)]
-  save_data(dt.shares, key = c("countyfips"), 
-            filename = file.path(outdir, "county_own_shares.csv"), 
-            logfile  = "../output/shares_data_manifest.log")
-  
-  save_data(dt.shares, key = c("countyfips"), 
-            filename = file.path(outdir, "county_own_shares.dta"), 
-            logfile  = "../output/shares_data_manifest.log")
 }
 
 
