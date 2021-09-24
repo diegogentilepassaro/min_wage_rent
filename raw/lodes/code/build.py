@@ -175,7 +175,7 @@ if __name__ == "__main__":
     cores = 6        # Choose number of cores
 
     # start_end_year = [2002, 2017]
-    start_end_year = [2017, 2017]
+    start_end_year = [2010, 2017]
     data_types = ["od","rac","wac"]                                   # LODES data categories 
     states = ["al", "ak", "az", "ar", "ca", "co", "ct", "de", "dc",   # States acronyms
               "fl", "ga", "hi", "id", "il", "in", "ia", "ks", "ky",
