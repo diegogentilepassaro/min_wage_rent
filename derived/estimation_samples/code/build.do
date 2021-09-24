@@ -53,7 +53,7 @@ program create_baseline_panel
 		start_year_month(str) end_year_month(str)
 
 	use year_month `geo' medrentpricepsqft_SFCC using ///
-	    "`instub'/`geo'_month/`geo'_month_panel.dta", clear
+		"`instub'/`geo'_month/`geo'_month_panel.dta", clear
 	keep if !missing(`rent_var')
 
 	gcollapse (min) min_year_month = year_month, by(`geo')
@@ -70,26 +70,9 @@ program create_baseline_panel
 	
 	keep if inrange(year_month, `=tm(`start_year_month')', `=tm(`end_year_month')')
 	
-	drop exp_mw_young exp_mw_lowinc exp_ln_mw_young ///
-	exp_ln_mw_lowinc exp_mw_young_wg_mean exp_mw_lowinc_wg_mean ///
-	exp_ln_mw_young_wg_mean exp_ln_mw_lowinc_wg_mean exp_mw_young_max ///
-	exp_mw_lowinc_max exp_ln_mw_young_max exp_ln_mw_lowinc_max
-	
-	foreach var in medlistingprice_SFCC medlistingprice_low_tier ///
-	medlistingprice_top_tier medpctpricereduction_SFCC ///
-	medrentprice_1BR medrentprice_2BR medrentprice_3BR ///
-	medrentprice_4BR medrentprice_5BR medrentprice_SFCC ///
-	medrentprice_CC medrentprice_MFdxtx medrentprice_Mfr5Plus ///
-	medrentprice_SF medrentprice_Studio medrentpricepsqft_1BR ///
-	medrentpricepsqft_4BR medrentpricepsqft_5BR medrentpricepsqft_CC ///
-	medrentpricepsqft_MFdxtx medrentpricepsqft_Mfr5Plus ///
-	medrentpricepsqft_SF medrentpricepsqft_Studio ///
-	pctlistings_pricedown_SFCC SalesPrevForeclosed_Share ///
-	zhvi_2BR zhvi_SFCC zhvi_C zhvi_SF zri_SFCCMF zri_MF {
-	    cap drop `var'
-	}
+	drop_vars
+	destring_geographies
 
-	destring `geo', gen(`geo'_num)
 	xtset `geo'_num year_month
 end
 
@@ -132,26 +115,9 @@ program create_full_panel
 		nogen assert(2 3) keep(3)
 	keep if inrange(year_month, `=tm(`start_year_month')', `=tm(`end_year_month')')
 	
-	drop exp_mw_young exp_mw_lowinc exp_ln_mw_young ///
-	exp_ln_mw_lowinc exp_mw_young_wg_mean exp_mw_lowinc_wg_mean ///
-	exp_ln_mw_young_wg_mean exp_ln_mw_lowinc_wg_mean exp_mw_young_max ///
-	exp_mw_lowinc_max exp_ln_mw_young_max exp_ln_mw_lowinc_max
-	
-	foreach var in medlistingprice_SFCC medlistingprice_low_tier ///
-	medlistingprice_top_tier medpctpricereduction_SFCC ///
-	medrentprice_1BR medrentprice_2BR medrentprice_3BR ///
-	medrentprice_4BR medrentprice_5BR medrentprice_SFCC ///
-	medrentprice_CC medrentprice_MFdxtx medrentprice_Mfr5Plus ///
-	medrentprice_SF medrentprice_Studio medrentpricepsqft_1BR ///
-	medrentpricepsqft_4BR medrentpricepsqft_5BR medrentpricepsqft_CC ///
-	medrentpricepsqft_MFdxtx medrentpricepsqft_Mfr5Plus ///
-	medrentpricepsqft_SF medrentpricepsqft_Studio ///
-	pctlistings_pricedown_SFCC SalesPrevForeclosed_Share ///
-	zhvi_2BR zhvi_SFCC zhvi_C zhvi_SF zri_SFCCMF zri_MF {
-	    cap drop `var'
-	}
+	drop_vars
+	destring_geographies
 
-	destring `geo', gen(`geo'_num)
 	xtset `geo'_num year_month
 end
 
@@ -165,5 +131,37 @@ program create_balanced_panel
 		nogen assert(2 3) keep(3)
 	keep if year_month >= `=tm(`target_year_month')'
 end
+
+program drop_vars
+
+	drop exp_mw_young exp_mw_lowinc exp_mw_young_wg_mean ///
+		exp_mw_lowinc_wg_mean exp_ln_mw_young_wg_mean ///
+		exp_ln_mw_lowinc_wg_mean exp_mw_young_max ///
+		exp_mw_lowinc_max exp_ln_mw_young_max exp_ln_mw_lowinc_max
+
+	foreach var in medlistingprice_SFCC medlistingprice_low_tier ///
+		medlistingprice_top_tier medpctpricereduction_SFCC ///
+		medrentprice_1BR medrentprice_2BR medrentprice_3BR ///
+		medrentprice_4BR medrentprice_5BR medrentprice_SFCC ///
+		medrentprice_CC medrentprice_MFdxtx medrentprice_Mfr5Plus ///
+		medrentprice_SF medrentprice_Studio medrentpricepsqft_1BR ///
+		medrentpricepsqft_4BR medrentpricepsqft_5BR medrentpricepsqft_CC ///
+		medrentpricepsqft_MFdxtx medrentpricepsqft_Mfr5Plus ///
+		medrentpricepsqft_SF medrentpricepsqft_Studio ///
+		pctlistings_pricedown_SFCC SalesPrevForeclosed_Share ///
+		zhvi_2BR zhvi_SFCC zhvi_C zhvi_SF zri_SFCCMF zri_MF {
+		cap drop `var'
+	}
+end
+
+program destring_geographies
+
+	destring statefips, gen(statefips_num)
+	destring cbsa10, gen(cbsa10_num)
+	cap destring county, gen(county_num)
+	cap destring countyfips, gen(county_num)
+	cap destring zipcode, gen(zipcode_num)
+end
+
 
 main
