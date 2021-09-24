@@ -12,10 +12,10 @@ library(parallel)
 n_cores <- 10
 
 main <- function(paquetes, n_cores) {
-  datadir_lodes       <- "../../../drive/raw_data/lodes/od/JT00/2017"
+  datadir_lodes       <- "../../../drive/raw_data/lodes_2017/od/JT00/2017"
   datadir_xwalk       <- "../../geo_master/output"
   datadir_xwalk_lodes <- "../../../raw/crosswalk"
-  outdir              <- "../../../drive/base_large/lodes"
+  outdir              <- "../../../drive/base_large/lodes_od"
 
   # Prepare crosswalks 
   blc_tract_xwalk <- make_xwalk_raw_wac(datadir_xwalk_lodes)

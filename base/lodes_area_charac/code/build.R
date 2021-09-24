@@ -9,10 +9,10 @@ load_packages(c("stringr", "data.table", "bit64",
                 "purrr", "readxl", "parallel", "R.utils"))
 
 main <- function() {
-  datadir_lodes       <- '../../../drive/raw_data/lodes'
+  datadir_lodes       <- '../../../drive/raw_data/lodes_2017'
   datadir_xwalk_lodes <- '../../../raw/crosswalk'
   datadir_xwalk       <- '../../geo_master/output'
-  outdir              <- '../../../drive/base_large/lodes'
+  outdir              <- '../../../drive/base_large/lodes_rac_wac'
   log_file            <- '../output/data_file_manifest.log'
   
   xwalk <- make_xwalk_raw_wac(datadir_xwalk_lodes)
