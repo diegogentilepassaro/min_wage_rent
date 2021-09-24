@@ -11,11 +11,12 @@ program main
 	define_controls
 	local controls "`r(economic_controls)'"
 	di "`controls'"
+	
 	local cluster "statefips"
 	local absorb year_month#statefips_num
 	
 	** STATIC
-	use "`instub'/baseline_county_months.dta", clear
+	use "`instub'/balanced_county_months.dta", clear
 	xtset county_num year_month
 
 	estimate_dist_lag_model if !missing(D.ln_med_rent_var), depvar(exp_ln_mw) ///
@@ -47,7 +48,7 @@ program main
 	export delimited `outstub'/estimates_static.csv, replace
 	
 	** DYNAMIC
-	use "`instub'/baseline_county_months.dta", clear
+	use "`instub'/balanced_county_months.dta", clear
 	xtset county_num year_month
 
     estimate_dist_lag_model, depvar(ln_med_rent_var) ///

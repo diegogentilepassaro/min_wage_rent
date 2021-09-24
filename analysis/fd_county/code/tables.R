@@ -10,7 +10,7 @@ main <- function() {
   est_var <- est[est$var != "cumsum_from0", ]
   
   
-  txt <- c("<tab:static>")
+  txt <- c("<tab:static_county>")
   txt <- c(txt, 
            paste(est_var[est_var$model == "exp_mw_on_mw",]$b,
                  est_var[est_var$model == "static_statutory",]$b, 
@@ -44,12 +44,10 @@ main <- function() {
                  est_var[est_var$model == "static_experienced",]$N, 
                  est_var[est_var$model == "static_both",]$N[1], sep = "\t"))
   
-  fileConn <- file(file.path(outstub, "static.txt"))
+  fileConn <- file(file.path(outstub, "static_county.txt"))
   writeLines(txt, fileConn)
   close(fileConn)
 }
-
-
 
 
 main()
