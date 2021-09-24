@@ -3,24 +3,26 @@ clear all
 adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
+    local in_geo        "../../../base/geo_master/output"
     local in_base_large "../../../drive/base_large"
-    local instub_geo    "../../../base/geo_master/output"
+    local in_der_large  "../../../drive/derived_large"
     local outstub       "../../../drive/derived_large/county"
     local logfile       "../output/data_file_manifest.log"
 
     build_zillow_county_stats, instub(`in_base_large')
+    clean_county_shares, instub(`in_der_large')
 
     use countyfips statefips cbsa10 ///
-        using "`instub_geo'/zip_county_place_usps_all.dta", clear
+        using "`in_geo'/zip_county_place_usps_all.dta", clear
     duplicates drop
     isid countyfips
 
-    merge 1:1 countyfips using "../temp/zillow_counties_with_rents.dta", ///
+    merge 1:1 countyfips using "../temp/zillow_counties_with_rents.dta",            ///
         nogen assert(1 3)
     merge 1:1 countyfips using "`in_base_large'/demographics/county_demo_2010.dta", ///
         nogen keep(1 3)
-    merge 1:1 countyfips using "`in_base_large'/lodes/county_own_shares.dta", ///
-        nogen keep(1 3) /*making a note here that we drop two `_merge == 2` rogue counties*/
+    merge 1:1 countyfips using "../temp/county_shares.dta",                            ///
+        nogen keep(1 3)
 
     strcompress
 	rename countyfips county
@@ -39,5 +41,17 @@ program build_zillow_county_stats
 
     save "../temp/zillow_counties_with_rents.dta", replace
 end
+
+program clean_county_shares
+    syntax, instub(str)
+
+    import delimited "`instub'/shares/county_shares.csv", clear
+    tostring county, format(%05.0f) replace
+
+    rename county countyfips
+
+    save "../temp/county_shares.dta"
+end
+
 
 main
