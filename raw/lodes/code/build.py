@@ -16,6 +16,7 @@ from multiprocessing import Pool, freeze_support
 import re
 import logging
 
+
 def create_directories(types, path, years, work_segs, work_types):
     """
     Function:
@@ -90,6 +91,7 @@ def build_links(args):
 
     return all_links
 
+
 def download_file(args):
     # Modified from http://stackoverflow.com/questions/16694907/how-to-download-large-
     # file-in-python-with-requests-py
@@ -161,7 +163,9 @@ if __name__ == "__main__":
     ## Preliminaries
     LODES_PATH = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     ROOT_PATH  = os.path.dirname(os.path.dirname(LODES_PATH))
-    DATA_PATH  = os.path.join(ROOT_PATH, "drive\\raw_data\\lodes")
+
+    start_end_year = [2016, 2016]
+    DATA_PATH  = os.path.join(ROOT_PATH, "drive", "raw_data", "lodes_" + str(start_end_year[0]))
 
     logging.basicConfig(filename = os.path.join(LODES_PATH, 'build.log'), filemode = 'w', 
                         format = '%(asctime)s %(message)s', level = logging.INFO, datefmt = '%Y-%m-%d %H:%M:%S')
@@ -169,13 +173,11 @@ if __name__ == "__main__":
 
     empty_folder = len(os.listdir(DATA_PATH)) == 0
     if not empty_folder:
-        sys.exit("Error: Please clear the 'drive/raw_data/lodes/' folder before downloading the data.")
+        sys.exit("Error: Please clear the corresponding folder before downloading the data.")
 
     freeze_support() # Prevent Windows system to freeze when running multiprocessing
-    cores = 6        # Choose number of cores
+    cores = 8        # Choose number of cores
 
-    # start_end_year = [2002, 2017]
-    start_end_year = [2010, 2017]
     data_types = ["od","rac","wac"]                                   # LODES data categories 
     states = ["al", "ak", "az", "ar", "ca", "co", "ct", "de", "dc",   # States acronyms
               "fl", "ga", "hi", "id", "il", "in", "ia", "ks", "ky",
