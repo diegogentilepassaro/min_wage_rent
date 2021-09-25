@@ -167,7 +167,7 @@ if __name__ == "__main__":
     ROOT_PATH  = os.path.dirname(os.path.dirname(LODES_PATH))
     DATA_PATH  = os.path.join(ROOT_PATH, "drive", "raw_data", "lodes")
 
-    years = [2014, 2015] # Make sure folder `lodes` is in shape (drop folders named as desired years)
+    years = [2017, 2018] # Make sure folder `lodes` is in shape (drop folders named as desired years)
 
     logging.basicConfig(filename = os.path.join(LODES_PATH, 'build.log'), filemode = 'w', 
                         format = '%(asctime)s %(message)s', level = logging.INFO, datefmt = '%Y-%m-%d %H:%M:%S')
@@ -184,7 +184,7 @@ if __name__ == "__main__":
               "ok", "or", "pa", "ri", "sc", "sd", "tn", "tx", "ut",
               "vt", "va", "wa", "wv", "wi", "wy"]
 
-    work_segs = ["S000","SA01","SA02","SA03","SE01","SE02","SE03","SI01","SI02","SI03"]
+    work_segs  = ["S000","SA01","SA02","SA03","SE01","SE02","SE03","SI01","SI02","SI03"]
     work_types = ["JT00","JT01","JT02","JT03","JT04","JT05"]
 
     current_time = datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
@@ -193,14 +193,14 @@ if __name__ == "__main__":
     for year in range(years[0], years[1] + 1):
         try:
             create_directories(data_types, DATA_PATH, year, work_segs, work_types)
-            log_and_print("\nDirectories created.", logger)
+            log_and_print(f"\nDirectories created for {year}.", logger)
 
             process_files(data_types, states, year, logger, work_segs, work_types, 
                           os.path.join(DATA_PATH, str(year)), n_cores = cores, unzip = False)
-            log_and_print(f"\nDownloaded CSV files available in ROOT/drive/raw_data/lodes.", logger)
+            log_and_print(f"\nDownloaded CSV files available in ROOT/drive/raw_data/lodes/{year}.", logger)
 
         except Exception as e:
-            log_and_print("\nThere was an error. See details below:", logger)
+            log_and_print("\nThere was an error. See details below:\n", logger)
             logging.fatal(e, exc_info = True)  # log exception info at FATAL log level
             print(e)
 
