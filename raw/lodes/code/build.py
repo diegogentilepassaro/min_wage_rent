@@ -167,7 +167,8 @@ if __name__ == "__main__":
     ROOT_PATH  = os.path.dirname(os.path.dirname(LODES_PATH))
     DATA_PATH  = os.path.join(ROOT_PATH, "drive", "raw_data", "lodes")
 
-    years = [2013, 2013] # Make sure folder `lodes` is in shape (drop folders named as desired years)
+    years = [2018, 2018] # Start and end years
+    # Make sure folder `lodes` is in shape (drop folders named as desired years)
 
     logging.basicConfig(filename = os.path.join(LODES_PATH, 'build.log'), filemode = 'w', 
                         format = '%(asctime)s %(message)s', level = logging.INFO, datefmt = '%Y-%m-%d %H:%M:%S')
