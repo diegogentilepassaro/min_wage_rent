@@ -8,7 +8,6 @@ make_xwalk_raw_wac <- function(instub) {
                   new = c('blockfips', 'tract_fips'))
   
   target_xwalk <- c('blockfips', 'tract_fips', 'st')
-  
   xwalk <- xwalk[, ..target_xwalk]
   
   return(xwalk)
