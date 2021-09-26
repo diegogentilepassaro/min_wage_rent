@@ -8,7 +8,10 @@ Data is available for most states for the years 2002–2017.
 
 SOURCE
 ========================================================
-Data downloaded by Santiago hermo on October 2th 2020 from https://lehd.ces.census.gov/data/
+Data downloaded by Santiago Hermo on October 2th 2020 from https://lehd.ces.census.gov/data/
+
+Data was redownloaded by Santiago Hermo on September 25th 2021 for 2009--2018. For details, see
+https://github.com/diegogentilepassaro/min_wage_rent/issues/130#issuecomment-926978399
 
 
 DESCRIPTION
