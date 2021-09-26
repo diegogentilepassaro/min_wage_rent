@@ -1,18 +1,19 @@
 remove(list = ls())
+
+library(data.table)
+library(stringr)
+library(bit64)
+
 source("../../../lib/R/load_packages.R")
 source("../../../lib/R/save_data.R")
-
 source("make_xwalk.R")
 
-options(scipen=999)
-load_packages(c("stringr", "data.table", "bit64", 
-                "purrr", "readxl", "parallel", "R.utils"))
 
 main <- function() {
   in_lodes       <- '../../../drive/raw_data/lodes_2017'
   in_xwalk_lodes <- '../../../raw/crosswalk/lodes'
   in_xwalk       <- '../../geo_master/output'
-  outdir         <- '../../../drive/base_large/lodes_rac_wac'
+  outdir         <- '../../../drive/base_large/lodes_area_charac'
   log_file       <- '../output/data_file_manifest.log'
   
   xwalk <- make_xwalk_raw_wac(in_xwalk_lodes)
@@ -27,28 +28,39 @@ main <- function() {
   # Segment (seg)       : Market segment: Can be total (S000), by age, by income, by industry
   #                        We use total jobs
   
-  # Zipcode as workplace: all workers
-  lodes_wac <- format_lodes(pov         = 'wac',
-                            year        = '2017',
-                            instub      = in_lodes,
-                            xw          = xwalk,
-                            xw_tractzip = tract_zip_xwalk)
+  dt.all <- data.table()
   
-  # Zipcode as residence: all workers
-  lodes_rac <- format_lodes(pov         = 'rac',
-                            year        = '2017',
-                            instub      = in_lodes, 
-                            xw          = xwalk, 
-                            xw_tractzip = tract_zip_xwalk)
+  for (yy in 2009:2018) {
+    # Zipcode as workplace: all workers
+    lodes_wac <- format_lodes(pov         = 'wac',
+                              year        = '2017',
+                              instub      = in_lodes,
+                              xw          = xwalk,
+                              xw_tractzip = tract_zip_xwalk)
+    
+    # Zipcode as residence: all workers
+    lodes_rac <- format_lodes(pov         = 'rac',
+                              year        = '2017',
+                              instub      = in_lodes, 
+                              xw          = xwalk, 
+                              xw_tractzip = tract_zip_xwalk)
+    
+    dt <- rbindlist(list(lodes_wac, lodes_rac))
+    dt[, year := yy]
+    
+    dt.all <- rbindlist(list(dt.all, dt))
+  }
   
-  df_lodes <- merge(lodes_wac, lodes_rac, 
-                    all = T, by = c('zipcode'))
-  
-  df_lodes <- make_final_vars(df_lodes)
-  
-  save_data(lodes_final, key = c('zipcode'),
-            filename = file.path(outdir, 'zip_lodes.dta'),
+  save_data(dt.all, key = c('zipcode', 'year', 'jobs_by'),
+            filename = file.path(outdir, 'jobs.csv'),
             logfile = log_file)
+  
+  setnames(dt.all, old = names(dt.all),
+                   new = gsub("outofstate", "ost", names(dt.all)))
+  
+  save_data(dt.all, key = c('zipcode', 'year', 'jobs_by'),
+            filename = file.path(outdir, 'jobs.dta'),
+            nolog = TRUE)
 }
 
 format_lodes <- function(pov, year, instub, xw, xw_tractzip,
@@ -91,6 +103,9 @@ format_lodes <- function(pov, year, instub, xw, xw_tractzip,
   
   if      (pov == 'rac') dtzip[, jobs_by := "residence"]
   else if (pov == 'wac') dtzip[, jobs_by := "workplace"]
+  
+  dtzip <- dtzip[!is.na(st)]                       # Drop some unintentionally duplicated zip codes
+  dtzip <- dtzip[!(zipcode == "75501" & st == 5)]  # For some reason this Texas zipcode also appears in Arkansas
   
   return(dtzip)
 }

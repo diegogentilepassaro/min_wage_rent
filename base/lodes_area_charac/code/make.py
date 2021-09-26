@@ -19,7 +19,7 @@ from gslab_make.dir_mod import *
 set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
-clear_dirs('../../../drive/base_large/lodes/')
+clear_dirs('../../../drive/base_large/lodes_area_charac/')
 delete_files('../output/*')
 
 
@@ -33,9 +33,7 @@ if "StataSE" in envir_vars:
 
 start_make_logging()
 
-run_rbatch(program = 'make_odmatrix.R')
-run_rbatch(program = 'make_odmatrix_county.R')
-run_rbatch(program = 'make_lodes.R')
+run_rbatch(program = 'build.R')
 
 end_make_logging()
 
