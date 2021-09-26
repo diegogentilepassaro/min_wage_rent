@@ -167,7 +167,7 @@ if __name__ == "__main__":
     ROOT_PATH  = os.path.dirname(os.path.dirname(LODES_PATH))
     DATA_PATH  = os.path.join(ROOT_PATH, "drive", "raw_data", "lodes")
 
-    years = [2010, 2010] # Start and end years
+    years = [2009, 2009] # Start and end years
     # Make sure folder `lodes` is in shape (drop folders named as desired years)
 
     logging.basicConfig(filename = os.path.join(LODES_PATH, 'build.log'), filemode = 'w', 
@@ -185,8 +185,8 @@ if __name__ == "__main__":
               "ok", "or", "pa", "ri", "sc", "sd", "tn", "tx", "ut",
               "vt", "va", "wa", "wv", "wi", "wy"]
 
-    work_segs  = ["S000","SA01","SA02","SA03","SE01","SE02","SE03","SI01","SI02","SI03"]
-    work_types = ["JT00","JT01","JT02","JT03","JT04","JT05"]
+    work_segs  = ["S000"] #,"SA01","SA02","SA03","SE01","SE02","SE03","SI01","SI02","SI03"]
+    work_types = ["JT00"] #,"JT01","JT02","JT03","JT04","JT05"]
 
     current_time = datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
     log_and_print(f"Start downloading process. Time is {current_time}", logger)
