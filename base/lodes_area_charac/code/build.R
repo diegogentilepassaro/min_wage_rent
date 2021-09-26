@@ -10,7 +10,7 @@ source("make_xwalk.R")
 
 
 main <- function() {
-  in_lodes       <- '../../../drive/raw_data/lodes_2017'
+  in_lodes       <- '../../../drive/raw_data/lodes'
   in_xwalk_lodes <- '../../../raw/crosswalk/lodes'
   in_xwalk       <- '../../geo_master/output'
   outdir         <- '../../../drive/base_large/lodes_area_charac'
@@ -33,14 +33,14 @@ main <- function() {
   for (yy in 2009:2018) {
     # Zipcode as workplace: all workers
     lodes_wac <- format_lodes(pov         = 'wac',
-                              year        = '2017',
+                              year        = yy,
                               instub      = in_lodes,
                               xw          = xwalk,
                               xw_tractzip = tract_zip_xwalk)
     
     # Zipcode as residence: all workers
     lodes_rac <- format_lodes(pov         = 'rac',
-                              year        = '2017',
+                              year        = yy,
                               instub      = in_lodes, 
                               xw          = xwalk, 
                               xw_tractzip = tract_zip_xwalk)
@@ -80,7 +80,7 @@ format_lodes <- function(pov, year, instub, xw, xw_tractzip,
                     'jobs_sch_underHS',    'jobs_sch_HS_noColl',  'jobs_sch_someColl',  'jobs_sch_College',
                     'jobs_naics_manuf',    'jobs_naics_retail',   'jobs_naics_finance', 'jobs_naics_accomm_food')
   
-  files <- list.files(file.path(instub, pov, seg, type, year),
+  files <- list.files(file.path(instub, year, pov, seg, type),
                       full.names = T, pattern = "*.gz")
   files <- files[!grepl("pr", files)]          # Ignore Puerto Rico
   

@@ -12,53 +12,52 @@ library(parallel)
 n_cores <- 10
 
 main <- function(paquetes, n_cores) {
-  datadir_lodes       <- "../../../drive/raw_data/lodes_2017/od/JT00/2017"
-  datadir_xwalk       <- "../../geo_master/output"
-  datadir_xwalk_lodes <- "../../../raw/crosswalk"
-  outdir              <- "../../../drive/base_large/lodes_od"
+  in_lodes       <- "../../../drive/raw_data/lodes/"
+  in_xwalk       <- "../../geo_master/output"
+  in_xwalk_lodes <- "../../../raw/crosswalk"
+  outdir         <- "../../../drive/base_large/lodes_od"
 
   # Prepare crosswalks 
-  blc_tract_xwalk <- make_xwalk_raw_wac(datadir_xwalk_lodes)
-  tract_zip_xwalk <- make_xwalk_tractzip(datadir_xwalk)
+  blc_tract_xwalk <- make_xwalk_raw_wac(in_xwalk_lodes)
+  tract_zip_xwalk <- make_xwalk_tractzip(in_xwalk)
 
-  # Prepare states od matrices
-  files <- list.files(datadir_lodes, 
-                      full.names = T, pattern = "*.gz")
-
-  files <- files[!grepl("pr", files)]          # Ignore Puerto Rico
+  for (yy in 2009:2018) {
+    # Prepare states od matrices
+    files <- list.files(in_lodes, 
+                        full.names = T, pattern = "*.gz")
   
-  files_main <- files[grepl("_main_", files)]
-  files_aux  <- files[grepl("_aux_", files)]
+    files <- files[!grepl("pr", files)]          # Ignore Puerto Rico
+    
+    files_main <- files[grepl("_main_", files)]
+    files_aux  <- files[grepl("_aux_", files)]
+    
+    state_list <- c(tolower(state.abb), "dc")
+    
+    aux_all <- rbindlist(lapply(files_aux, fread))
+    aux_all[, h_statefips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0), 1, 2))]
+    
+    # Parallel set-up
+    cl <- makeCluster(n_cores, type = "PSOCK")   # Create cluster. Use type = "FORK" in Mac
+    
+    clusterExport(cl, "paquetes")                                         # Load "paquetes" object in nodes
+    clusterEvalQ(cl, lapply(paquetes, require, character.only = TRUE))    # Load packages in nodes
+    clusterExport(cl, "make_odmatrix_state", env = .GlobalEnv)            # Load global environment objects in nodes
+    clusterExport(cl, c("in_lodes", "aux_all", "tract_zip_xwalk"), 
+                      env = environment())                                # Load local environment objects in nodes
   
-  state_list <- c(tolower(state.abb), "dc")
-  
-  aux_all <- rbindlist(lapply(files_aux, fread))
-  aux_all[, h_statefips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0), 1, 2))]
-  
-  # Parallel set-up
-  cl <- makeCluster(n_cores, type = "PSOCK")   # Create cluster. Use type = "FORK" in Mac
-  
-  clusterExport(cl, "paquetes")                                         # Load "paquetes" object in nodes
-  clusterEvalQ(cl, lapply(paquetes, require, character.only = TRUE))    # Load packages in nodes
-  clusterExport(cl, "make_odmatrix_state", env = .GlobalEnv)            # Load global environment objects in nodes
-  clusterExport(cl, c("datadir_lodes", "aux_all", "tract_zip_xwalk"), 
-                    env = environment())                                # Load local environment objects in nodes
-
-  odzip_list <- parLapply(cl, state_list, function(y) {
-    make_odmatrix_state(stabb = y, datadir = datadir_lodes,
-                        aux = aux_all, xwalk = tract_zip_xwalk)
-  })
-  stopCluster(cl)
-  
-  # Save OD matrices  
-  for (state in odzip_list) {
-    save_data(state$dt, key = c("h_zipcode", "w_zipcode"),
-              filename = file.path(outdir, paste0("odzip_", state$fips, ".csv")),
-              logfile  = "../output/odmatrix_data_manifest.log")
+    odzip_list <- parLapply(cl, state_list, function(y) {
+      make_odmatrix_state(stabb = y, datadir = in_lodes,
+                          aux = aux_all, xwalk = tract_zip_xwalk)
+    })
+    stopCluster(cl)
+    
+    # Save OD matrices  
+    for (state in odzip_list) {
+      save_data(state$dt, key = c("h_zipcode", "w_zipcode"),
+                filename = file.path(outdir, paste0("odzip_", state$fips, ".csv")),
+                logfile  = "../output/odmatrix_data_manifest.log")
+    }
   }
-  
-  list_of_file_names <- list.files(outdir, pattern = "odzip_*", full.names = T)
-  odzip_list <- lapply(list_of_file_names, fread)
 }
 
 
