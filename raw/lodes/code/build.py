@@ -81,6 +81,8 @@ def build_links(args):
                     
                     url = f"{url_base}/{st}/od/{st}_od_aux_{typ}_{year}.csv.gz"
                     all_links.append(url)
+                    url = f"{url_base}/{st}/od/{st}_od_main_{typ}_{year}.csv.gz"
+                    all_links.append(url)
             else:
                 for seg in work_segs:
                     for typ in work_types:
@@ -165,9 +167,9 @@ if __name__ == "__main__":
     ## Preliminaries
     LODES_PATH = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     ROOT_PATH  = os.path.dirname(os.path.dirname(LODES_PATH))
-    DATA_PATH  = os.path.join(ROOT_PATH, "drive", "raw_data", "lodes")
+    DATA_PATH  = os.path.join(ROOT_PATH, "drive", "raw_data", "lodes_")
 
-    years = [2009, 2009] # Start and end years
+    years = [2009, 2018] # Start and end years
     # Make sure folder `lodes` is in shape (drop folders named as desired years)
 
     logging.basicConfig(filename = os.path.join(LODES_PATH, 'build.log'), filemode = 'w', 
@@ -177,7 +179,7 @@ if __name__ == "__main__":
     freeze_support() # Prevent Windows system to freeze when running multiprocessing
     cores = 8        # Choose number of cores
 
-    data_types = ["od","rac","wac"]                                   # LODES data categories 
+    data_types = ["od"] #,"rac","wac"]                                   # LODES data categories 
     states = ["al", "ak", "az", "ar", "ca", "co", "ct", "de", "dc",   # States acronyms
               "fl", "ga", "hi", "id", "il", "in", "ia", "ks", "ky",
               "la", "me", "md", "ma", "mi", "mn", "ms", "mo", "mt",
