@@ -33,9 +33,8 @@ if "StataSE" in envir_vars:
 
 start_make_logging()
 
-run_rbatch(program = 'make_odmatrix.R')
-run_rbatch(program = 'make_odmatrix_county.R')
-run_rbatch(program = 'make_lodes.R')
+run_rbatch(program = 'build_zipcode.R')
+run_rbatch(program = 'build_county.R')
 
 end_make_logging()
 
