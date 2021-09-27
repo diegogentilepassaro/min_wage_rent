@@ -19,7 +19,6 @@ from gslab_make.dir_mod import *
 set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
-clear_dirs('../../../drive/base_large/lodes/')
 delete_files('../output/*')
 
 

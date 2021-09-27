@@ -11,7 +11,7 @@ make_xwalk_od <- function(instub) {
   xwalk <- xwalk[, c('blockfips', 'tract_fips', 'st')]
   
   tract_zip_xwalk <- fread(file.path(instub, "tract_zip_master.csv"), 
-                           colClasses = "numeric"))
+                           colClasses = "numeric")
   
   return(list(xwalk, tract_zip_xwalk))
 }

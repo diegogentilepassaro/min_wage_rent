@@ -1,10 +1,10 @@
 
- make.py started: 2021-07-10 14:26:06 C:\Users\shermo\Documents\GitHub\min_wage_rent\base\lodes\code 
+ make.py started: 2021-09-27 07:46:10 C:\Users\shermo\Documents\GitHub\min_wage_rent\base\lodes_od\code 
 
 
 
 
-Execute:  R CMD BATCH --no-save "./make_odmatrix.R" make_odmatrix.Rout
+Execute:  R CMD BATCH --no-save "./build_zipcode.R" build_zipcode.Rout
 
 R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
 Copyright (C) 2020 The R Foundation for Statistical Computing
@@ -25,38 +25,12 @@ Type 'demo()' for some demos, 'help()' for on-line help, or
 Type 'q()' to quit R.
 
 > remove(list = ls())
-> options(scipen=999)
 > 
-> source("../../../lib/R/load_packages.R")
-> source("../../../lib/R/save_data.R")
-
-Please cite as: 
-
- Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
- R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
-
-
-Attaching package: 'dplyr'
-
-The following objects are masked from 'package:stats':
-
-    filter, lag
-
-The following objects are masked from 'package:base':
-
-    intersect, setdiff, setequal, union
-
-
-Attaching package: 'data.table'
-
-The following objects are masked from 'package:dplyr':
-
-    between, first, last
-
-> source("make_xwalk.R")
-> 
-> paquetes <- c("stringr", "data.table", "bit64", "purrr", "parallel")
-> load_packages(paquetes)
+> paquetes <- c("stringr", "data.table", "bit64", "parallel")
+> lapply(paquetes, require, character.only = TRUE)
+Loading required package: stringr
+Loading required package: data.table
+Loading required package: bit64
 Loading required package: bit
 
 Attaching package: 'bit'
@@ -93,225 +67,686 @@ The following objects are masked from 'package:base':
 
     %in%, :, is.double, match, order, rank
 
+Loading required package: parallel
+[[1]]
+[1] TRUE
 
-Attaching package: 'purrr'
+[[2]]
+[1] TRUE
 
-The following object is masked from 'package:data.table':
+[[3]]
+[1] TRUE
 
-    transpose
+[[4]]
+[1] TRUE
 
+Warning message:
+package 'data.table' was built under R version 4.0.5 
+> 
+> source("../../../lib/R/save_data.R")
+
+Please cite as: 
+
+ Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+ R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
+
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:data.table':
+
+    between, first, last
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+Warning message:
+package 'dplyr' was built under R version 4.0.5 
+> source("make_xwalk.R")
+> options(scipen = 999)
+> 
 > 
 > library(parallel)
 > n_cores <- 10
 > 
+> # Note: See README in source/raw/lodes for a few missing state-years
+> 
 > main <- function(paquetes, n_cores) {
-+   datadir_lodes       <- "../../../drive/raw_data/lodes/od/JT00/2017"
-+   datadir_xwalk       <- "../../geo_master/output"
-+   datadir_xwalk_lodes <- "../../../raw/crosswalk"
-+   outdir              <- "../../../drive/base_large/lodes"
++   in_lodes       <- "../../../drive/raw_data/lodes"
++   in_xwalk       <- "../../geo_master/output"
++   in_xwalk_lodes <- "../../../raw/crosswalk/lodes"
++   outstub         <- "../../../drive/base_large/lodes_od"
 + 
 +   # Prepare crosswalks 
-+   blc_tract_xwalk <- make_xwalk_raw_wac(datadir_xwalk_lodes)
-+   tract_zip_xwalk <- make_xwalk_tractzip(datadir_xwalk)
-+ 
-+   # Prepare states od matrices
-+   files <- list.files(datadir_lodes, 
-+                       full.names = T, pattern = "*.gz")
-+ 
-+   files <- files[!grepl("pr", files)]          # Ignore Puerto Rico
++   blc_tract_xwalk <- make_xwalk_raw_wac(in_xwalk_lodes)
++   tract_zip_xwalk <- fread(file.path(in_xwalk, "tract_zip_master.csv"), 
++                            colClasses = c("numeric", "character", "numeric"))
 +   
-+   files_main <- files[grepl("_main_", files)]
-+   files_aux  <- files[grepl("_aux_", files)]
++   for (yy in 2009:2018) {
++     # Prepare states od matrices
++     files <- list.files(file.path(in_lodes, yy, "od", "JT00"),
++                         full.names = T, pattern = "*.gz")
++     files <- files[!grepl("pr", files)]          # Ignore Puerto Rico
++     
++     files_main <- files[grepl("_main_", files)]
++     files_aux  <- files[grepl("_aux_", files)]
++     
++     dt_aux <- rbindlist(lapply(files_aux, fread))
++     dt_aux[, h_statefips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0), 1, 2))]
++     dt_aux[, createdate := NULL]
++     
++     # Parallel set-up
++     cl <- makeCluster(n_cores, type = "PSOCK")   # Create cluster. Use type = "FORK" in Mac
++     
++     clusterExport(cl, "paquetes")                                         # Load "paquetes" object in nodes
++     clusterEvalQ(cl, lapply(paquetes, require, character.only = TRUE))    # Load packages in nodes
++     clusterExport(cl, "make_odmatrix_state", env = .GlobalEnv)            # Load global environment objects in nodes
++     clusterExport(cl, c("in_lodes", "dt_aux", "tract_zip_xwalk"), 
++                       env = environment())                                # Load local environment objects in nodes
 +   
-+   state_list <- c(tolower(state.abb), "dc")
-+   
-+   aux_all <- rbindlist(lapply(files_aux, fread))
-+   aux_all[, h_statefips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0), 1, 2))]
-+   
-+   # Parallel set-up
-+   cl <- makeCluster(n_cores, type = "PSOCK")   # Create cluster. Use type = "FORK" in Mac
-+   
-+   clusterExport(cl, "paquetes")                                         # Load "paquetes" object in nodes
-+   clusterEvalQ(cl, lapply(paquetes, require, character.only = TRUE))    # Load packages in nodes
-+   clusterExport(cl, "make_odmatrix_state", env = .GlobalEnv)            # Load global environment objects in nodes
-+   clusterExport(cl, c("datadir_lodes", "aux_all", "tract_zip_xwalk"), 
-+                     env = environment())                                # Load local environment objects in nodes
-+ 
-+   odzip_list <- parLapply(cl, state_list, function(y) {
-+     make_odmatrix_state(stabb = y, datadir = datadir_lodes,
-+                         aux = aux_all, xwalk = tract_zip_xwalk)
-+   })
-+   stopCluster(cl)
-+   
-+   # Save OD matrices  
-+   for (state in odzip_list) {
-+     save_data(state$dt, key = c("h_zipcode", "w_zipcode"),
-+               filename = file.path(outdir, paste0("odzip_", state$fips, ".csv")),
-+               logfile  = "../output/odmatrix_data_manifest.log")
++     odzip_list <- parLapply(cl, files_main, function(ff) {
++       make_odmatrix_state(file_ = ff, year = yy,
++                           aux = dt_aux, xwalk = tract_zip_xwalk)
++     })
++     stopCluster(cl)
++     
++     # Save OD matrices
++     for (state in odzip_list) {
++       save_data(state$dt, key = c("r_zipcode", "w_zipcode"),
++                 filename = file.path(outstub, yy, paste0("odzip_", state$fips, ".csv")),
++                 logfile  = "../output/odmatrix_data_manifest.log")
++     }
 +   }
-+   
-+   list_of_file_names <- list.files(outdir, pattern = "odzip_*", full.names = T)
-+   odzip_list <- lapply(list_of_file_names, fread)
-+   
-+   # Compute share that work in same zipcode
-+   odzip_list <- lapply(odzip_list, function(dt.st) {
-+     dt.st[, c("residents_tot", "residents_young", "resident_lowinc") := 
-+           list(sum(totjob),    sum(job_young),    sum(job_lowinc)),
-+           by = "h_zipcode"]
-+ 
-+     dt.st <- dt.st[h_zipcode == w_zipcode]
-+     setnames(dt.st, old = "h_zipcode", new = "zipcode")
-+     dt.st[, w_zipcode := NULL]
-+ 
-+     dt.st[, share_tot    := totjob/residents_tot]
-+     dt.st[, share_young  := job_young/residents_young]
-+     dt.st[, share_lowinc := job_lowinc/resident_lowinc]
-+ 
-+     return(dt.st)
-+   })
-+ 
-+   dt.shares <- rbindlist(odzip_list)
-+   dt.shares[, zipcode := str_pad(zipcode, 5, pad = 0)]
-+   save_data(dt.shares, key = c("zipcode"), 
-+             filename = file.path(outdir, "zipcode_own_shares.csv"), 
-+             logfile  = "../output/shares_data_manifest.log")
-+             
-+   save_data(dt.shares, key = c("zipcode"), 
-+             filename = file.path(outdir, "zipcode_own_shares.dta"), 
-+             logfile  = "../output/shares_data_manifest.log")
 + }
 > 
 > 
-> make_odmatrix_state <- function(stabb, datadir, aux, xwalk, dest_threshold = 1) {
+> make_odmatrix_state <- function(file_, year, aux, xwalk) {
 +   
-+   this_state <- fread(file.path(datadir, paste0(stabb, "_od_main_JT00_2017.csv.gz")))
-+   this_fips  <- as.numeric(substr(str_pad(this_state$h_geocode[1], 15, pad = 0),1 , 2))
-+   this_aux   <- aux[h_statefips==this_fips,][, h_statefips := NULL]
-+ 
-+   this_state <- rbindlist(list(this_state, this_aux))
++   target_vars <- c("S000", 
++                    "SA01", "SA02", "SA03", 
++                    "SE01", "SE02", "SE03", 
++                    "SI01", "SI02", "SI03")
++   new_names   <- c("jobs_tot",
++                    "jobs_age_under29",     "jobs_age_30to54",        "jobs_age_above55",
++                    "jobs_earn_under1250",  "jobs_earn_1250_3333",    "jobs_earn_above3333",
++                    "jobs_goods_producing", "jobs_trade_transp_util", "jobs_other_service_industry")
 +   
-+   this_state <- this_state[, c("w_geocode", "h_geocode", "S000", "SA01", "SE01")]
-+   setnames(this_state, old = c("S000",   "SA01",      "SE01"), 
-+                        new = c("totjob", "job_young", "job_lowinc"))
++   dt_main <- fread(file_, select = c("w_geocode", "h_geocode", target_vars))
++   
++   # Add auxiliary to main
++   st_fips  <- as.numeric(substr(str_pad(dt_main$h_geocode[1], 15, pad = 0), 1, 2))
++   dt_main <- rbindlist(list(dt_main, 
++                             aux[h_statefips == st_fips][, h_statefips := NULL]))
++   
++   setnames(dt_main, old = target_vars, new = new_names)
 +   
 +   # Collapse at tract level
-+   this_state[, w_tractfips := as.numeric(substr(str_pad(w_geocode, 15, pad = 0), 1, 11))]
-+   this_state <- this_state[, lapply(.SD, sum, na.rm = T),
-+                            .SDcols = c("totjob", "job_young", "job_lowinc"), 
-+                            by = c("h_geocode", "w_tractfips")]
-+   this_state[, h_tractfips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0), 1, 11))]
-+   this_state <- this_state[, lapply(.SD, sum, na.rm = T),
-+                            .SDcols = c("totjob", "job_young", "job_lowinc"),
-+                            by = c("h_tractfips", "w_tractfips")]
++   dt_main[, w_tractfips := as.numeric(substr(str_pad(w_geocode, 15, pad = 0), 1, 11))]
++   dt_main <- dt_main[, lapply(.SD, sum, na.rm = T),
++                      .SDcols = new_names, 
++                      by = c("h_geocode", "w_tractfips")]
 +   
-+   # Define function to crosswalk destination tract to zipcode for each origin tract separately
-+   tract_to_zip_work <- function(data, xwlk = xwalk) {
++   dt_main[, h_tractfips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0), 1, 11))]
++   dt_main <- dt_main[, lapply(.SD, sum, na.rm = T),
++                       .SDcols = new_names,
++                       by = c("h_tractfips", "w_tractfips")]
++   
++   # Crosswalk destination tract to zipcode for each origin tract separately
++   tract_to_zip_work <- function(dt, xwlk = xwalk, vars = new_names) {
 + 
-+     data <- data[xwlk, on = c("w_tractfips" = "tract_fips"), nomatch = 0]
-+     data <- data[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w = res_ratio), 
-+                           .SDcols = c("totjob", "job_young", "job_lowinc"), 
-+                           by = c("h_tractfips", "zipcode")]
++     dt <- dt[xwlk, on = c("w_tractfips" = "tract_fips"), nomatch = 0]
++     dt <- dt[, lapply(.SD, 
++              function(x, w) sum(x*w, na.rm = T), w = res_ratio), 
++              .SDcols = vars, 
++              by = c("h_tractfips", "zipcode")]
 +     
-+     setnames(data, old = "zipcode", new = "w_zipcode")
-+     return(data)
++     setnames(dt, old = "zipcode", new = "w_zipcode")
++     return(dt)
 +   }
 + 
-+   # Define function to crosswalk origin tract to zipcode for each destination zipcode separately
-+   tract_to_zip_home <- function(data, xwlk = xwalk) {
++   # Crosswalk origin tract to zipcode for each destination zipcode separately
++   tract_to_zip_home <- function(dt, xwlk = xwalk, vars = new_names) {
 + 
-+     data <- data[xwlk, on = c("h_tractfips" = "tract_fips"), nomatch = 0]
-+     data <- data[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w = res_ratio),
-+                           .SDcols = c("totjob", "job_young", "job_lowinc"), 
-+                           by = c("w_zipcode", "zipcode")]
++     dt <- dt[xwlk, on = c("h_tractfips" = "tract_fips"), nomatch = 0]
++     dt <- dt[, lapply(.SD, 
++                       function(x, w) sum(x*w, na.rm = T), w = res_ratio),
++                       .SDcols = vars, 
++                       by = c("w_zipcode", "zipcode")]
 +     
-+     setnames(data, old = "zipcode", new = "h_zipcode")
-+     return(data)
++     setnames(dt, old = "zipcode", new = "r_zipcode")
++     
++     return(dt)
 +   }
 +   
-+   this_state_zip <- split(this_state, by = "h_tractfips")
-+   this_state_zip <- rbindlist(lapply(this_state_zip, tract_to_zip_work))
-+   this_state_zip <- split(this_state_zip, by = "w_zipcode")
-+   this_state_zip <- rbindlist(lapply(this_state_zip, tract_to_zip_home))
++   dt_zip <- split(dt_main, by = "h_tractfips")
++   dt_zip <- rbindlist(lapply(dt_zip, tract_to_zip_work))
++   dt_zip <- split(dt_zip, by = "w_zipcode")
++   dt_zip <- rbindlist(lapply(dt_zip, tract_to_zip_home))
 +   
-+   # Keep destination zipcodes that make up to `dest_threshold` percent of total workforce
-+   this_state_zip <- this_state_zip[order(h_zipcode, -totjob)]
-+ 
-+   this_state_zip[, h_totjob     := sum(totjob, na.rm = T), by = "h_zipcode"]
-+   this_state_zip[, totjob_cum   := cumsum(totjob), by = "h_zipcode"] 
-+   this_state_zip[, totjob_cumsh := totjob_cum / h_totjob]
-+ 
-+   this_state_zip <- this_state_zip[totjob_cumsh <= dest_threshold, ]
-+   this_state_zip[, c("h_totjob", "totjob_cum", "totjob_cumsh") := NULL]
-+   this_state_zip[, h_zipcode := str_pad(h_zipcode, 5, pad = 0)]
-+   this_state_zip[, w_zipcode := str_pad(w_zipcode, 5, pad = 0)]
-+   
-+   return(list("dt"   = this_state_zip,
-+               "fips" = str_pad(this_fips, 2, pad = 0)))
++   return(list("dt"   = dt_zip,
++               "fips" = str_pad(st_fips, 2, pad = 0)))
 + }
 > 
 > # Execute
 > main(paquetes, n_cores) 
-[1] "File '../../../drive/base_large/lodes/odzip_01.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_02.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_04.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_05.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_06.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_08.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_09.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_10.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_12.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_13.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_15.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_16.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_17.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_18.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_19.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_20.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_21.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_22.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_23.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_24.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_25.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_26.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_27.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_28.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_29.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_30.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_31.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_32.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_33.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_34.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_35.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_36.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_37.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_38.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_39.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_40.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_41.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_42.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_44.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_45.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_46.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_47.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_48.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_49.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_50.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_51.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_53.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_54.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_55.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_56.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odzip_11.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/zipcode_own_shares.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/zipcode_own_shares.dta' saved successfully."
-[1] "Log file generated successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_02.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_01.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_05.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_04.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_06.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_08.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_09.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_10.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_12.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_13.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_15.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_19.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_16.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_17.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_18.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_20.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_21.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_22.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_24.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_23.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_26.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_27.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_29.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_28.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_30.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_37.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_38.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_31.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_33.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_34.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_35.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_32.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_36.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_39.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_40.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_41.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_42.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_44.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_45.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_46.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_47.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_48.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_49.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_51.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_50.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_53.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_55.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_54.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odzip_56.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_02.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_01.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_05.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_04.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_06.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_08.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_09.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_11.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_10.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_12.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_13.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_15.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_19.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_16.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_17.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_18.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_20.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_21.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_22.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_24.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_23.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_26.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_27.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_29.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_28.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_30.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_37.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_38.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_31.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_33.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_34.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_35.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_32.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_36.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_39.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_40.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_41.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_42.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_44.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_45.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_46.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_47.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_48.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_49.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_51.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_50.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_53.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_55.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_54.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odzip_56.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_02.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_01.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_05.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_04.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_06.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_08.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_09.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_11.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_10.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_12.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_13.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_15.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_19.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_16.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_17.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_18.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_20.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_21.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_22.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_25.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_24.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_23.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_26.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_27.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_29.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_28.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_30.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_37.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_38.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_31.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_33.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_34.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_35.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_32.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_36.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_39.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_40.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_41.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_42.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_44.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_45.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_46.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_47.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_48.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_49.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_51.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_50.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_53.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_55.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_54.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odzip_56.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_02.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_01.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_05.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_04.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_06.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_08.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_09.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_11.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_10.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_12.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_13.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_15.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_19.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_16.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_17.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_18.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_20.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_21.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_22.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_25.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_24.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_23.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_26.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_27.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_29.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_28.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_30.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_37.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_38.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_31.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_33.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_34.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_35.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_32.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_36.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_39.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_40.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_41.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_42.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_44.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_45.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_46.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_47.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_48.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_49.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_51.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_50.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_53.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_55.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_54.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odzip_56.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_02.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_01.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_05.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_04.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_06.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_08.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_09.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_11.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_10.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_12.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_13.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_15.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_19.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_16.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_17.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_18.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_20.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_21.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_22.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_25.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_24.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_23.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_26.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_27.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_29.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_28.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_30.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_37.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_38.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_31.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_33.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_34.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_35.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_32.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_36.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_39.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_40.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_41.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_42.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_44.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_45.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_46.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_47.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_48.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_49.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_51.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_50.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_53.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_55.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_54.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odzip_56.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_02.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_01.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_05.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_04.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_06.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_08.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_09.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_11.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_10.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_12.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_13.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_15.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_19.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_16.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_17.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_18.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_20.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_21.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_22.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_25.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_24.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_23.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_26.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_27.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_29.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_28.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_30.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_37.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_38.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_31.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_33.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_34.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_35.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_32.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_36.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_39.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_40.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_41.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_42.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_44.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_45.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_46.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_47.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_48.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_49.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_51.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_50.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_53.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_55.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_54.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odzip_56.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_02.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_01.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_05.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_04.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_06.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_08.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_09.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_11.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_10.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_12.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_13.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_15.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_19.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_16.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_17.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_18.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_20.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_21.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_22.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_25.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_24.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_23.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_26.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_27.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_29.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_28.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_30.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_37.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_38.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_31.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_33.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_34.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_35.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_32.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_36.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_39.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_40.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_41.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_42.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_44.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_45.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_46.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_47.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_48.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_49.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_51.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_50.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_53.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_55.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_54.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odzip_56.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_02.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_01.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_05.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_04.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_06.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_08.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_09.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_11.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_10.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_12.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_13.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_15.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_19.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_16.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_17.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_18.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_20.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_21.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_22.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_25.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_24.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_23.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_26.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_27.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_29.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_28.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_30.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_37.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_38.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_31.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_33.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_34.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_35.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_32.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_36.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_39.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_40.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_41.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_42.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_44.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_45.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_46.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_47.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_48.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_49.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_51.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_50.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_53.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_55.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_54.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odzip_56.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_01.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_05.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_04.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_06.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_08.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_09.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_11.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_10.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_12.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_13.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_15.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_19.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_16.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_17.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_18.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_20.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_21.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_22.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_25.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_24.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_23.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_26.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_27.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_29.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_28.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_30.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_37.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_38.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_31.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_33.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_34.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_35.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_32.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_36.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_39.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_40.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_41.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_42.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_44.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_45.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_46.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_47.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_48.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_49.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_51.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_50.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_53.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_55.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_54.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odzip_56.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_01.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_05.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_04.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_06.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_08.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_09.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_11.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_10.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_12.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_13.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_15.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_19.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_16.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_17.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_18.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_20.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_21.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_22.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_25.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_24.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_23.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_26.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_27.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_29.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_28.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_30.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_37.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_38.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_31.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_33.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_34.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_35.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_32.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_36.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_39.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_40.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_41.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_42.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_44.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_45.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_46.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_47.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_48.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_49.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_51.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_50.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_53.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_55.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_54.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odzip_56.csv' saved successfully."
+There were 50 or more warnings (use warnings() to see the first 50)
 > 
 > proc.time()
-   user  system elapsed 
- 528.67   58.17 2296.70 
+    user   system  elapsed 
+ 8377.79  1323.56 27669.42 
 
 
-Execute:  R CMD BATCH --no-save "./make_odmatrix_county.R" make_odmatrix_county.Rout
+Execute:  R CMD BATCH --no-save "./build_county.R" build_county.Rout
 
 R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
 Copyright (C) 2020 The R Foundation for Statistical Computing
@@ -334,36 +769,11 @@ Type 'q()' to quit R.
 > remove(list = ls())
 > options(scipen=999)
 > 
-> source("../../../lib/R/load_packages.R")
-> source("../../../lib/R/save_data.R")
-
-Please cite as: 
-
- Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
- R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
-
-
-Attaching package: 'dplyr'
-
-The following objects are masked from 'package:stats':
-
-    filter, lag
-
-The following objects are masked from 'package:base':
-
-    intersect, setdiff, setequal, union
-
-
-Attaching package: 'data.table'
-
-The following objects are masked from 'package:dplyr':
-
-    between, first, last
-
-> source("make_xwalk.R")
-> 
-> paquetes <- c("stringr", "data.table", "bit64", "purrr", "parallel")
-> load_packages(paquetes)
+> paquetes <- c("stringr", "data.table", "bit64", "parallel")
+> lapply(paquetes, require, character.only = TRUE)
+Loading required package: stringr
+Loading required package: data.table
+Loading required package: bit64
 Loading required package: bit
 
 Attaching package: 'bit'
@@ -400,523 +810,639 @@ The following objects are masked from 'package:base':
 
     %in%, :, is.double, match, order, rank
 
+Loading required package: parallel
+[[1]]
+[1] TRUE
 
-Attaching package: 'purrr'
+[[2]]
+[1] TRUE
 
-The following object is masked from 'package:data.table':
+[[3]]
+[1] TRUE
 
-    transpose
+[[4]]
+[1] TRUE
 
+Warning message:
+package 'data.table' was built under R version 4.0.5 
+> 
+> source("../../../lib/R/save_data.R")
+
+Please cite as: 
+
+ Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+ R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
+
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:data.table':
+
+    between, first, last
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+Warning message:
+package 'dplyr' was built under R version 4.0.5 
+> source("make_xwalk.R")
 > 
 > library(parallel)
 > n_cores <- 10
 > 
 > main <- function(paquetes, n_cores) {
-+   datadir_lodes       <- "../../../drive/raw_data/lodes/od/JT00/2017"
-+   datadir_xwalk_lodes <- "../../../raw/crosswalk"
-+   outdir              <- "../../../drive/base_large/lodes"
++   instub  <- "../../../drive/raw_data/lodes"
++   outstub <- "../../../drive/base_large/lodes_od"
 +   
-+   # Prepare crosswalks 
-+   blc_cty_xwalk <- make_xwalk_raw_wac_county(datadir_xwalk_lodes)
-+   
-+   # Prepare states od matrices
-+   files <- list.files(datadir_lodes, 
-+                       full.names = T, pattern = "*.gz")
-+   
-+   files <- files[!grepl("pr", files)]          # Ignore Puerto Rico
-+   
-+   files_main <- files[grepl("_main_", files)]
-+   files_aux  <- files[grepl("_aux_", files)]
-+   
-+   state_list <- c(tolower(state.abb), "dc")
-+   
-+   aux_all <- rbindlist(lapply(files_aux, fread))
-+   aux_all[, h_statefips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0), 1, 2))]
-+   
-+   # Parallel set-up
-+   cl <- makeCluster(n_cores, type = "PSOCK")   # Create cluster. Use type = "FORK" in Mac
-+   
-+   clusterExport(cl, "paquetes")                                         # Load "paquetes" object in nodes
-+   clusterEvalQ(cl, lapply(paquetes, require, character.only = TRUE))    # Load packages in nodes
-+   clusterExport(cl, "make_odmatrix_state", env = .GlobalEnv)            # Load global environment objects in nodes
-+   clusterExport(cl, c("datadir_lodes", "aux_all"), 
-+                 env = environment())                                # Load local environment objects in nodes
-+   
-+   odcounty_list <- parLapply(cl, state_list, function(y) {
-+     make_odmatrix_state(stabb = y, datadir = datadir_lodes,
-+                         aux = aux_all)
-+   })
-+   stopCluster(cl)
-+   
-+   # Save OD matrices  
-+   for (state in odcounty_list) {
-+     save_data(state$dt, key = c("h_countyfips", "w_countyfips"),
-+               filename = file.path(outdir, paste0("odcounty_", state$fips, ".csv")),
-+               logfile  = "../output/odmatrix_data_manifest.log")
++   for (yy in 2009:2018) {
++     # Prepare states od matrices
++     files <- list.files(file.path(instub, yy, "od", "JT00"),
++                         full.names = T, pattern = "*.gz")
++     files <- files[!grepl("pr", files)]          # Ignore Puerto Rico
++     
++     files_main <- files[grepl("_main_", files)]
++     files_aux  <- files[grepl("_aux_", files)]
++     
++     state_list <- c(tolower(state.abb), "dc")
++     
++     dt_aux <- rbindlist(lapply(files_aux, fread))
++     dt_aux[, h_statefips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0), 1, 2))]
++     dt_aux[, createdate := NULL]
++     
++     # Parallel set-up
++     cl <- makeCluster(n_cores, type = "PSOCK")   # Create cluster. Use type = "FORK" in Mac
++     
++     clusterExport(cl, "paquetes")                                         # Load "paquetes" object in nodes
++     clusterEvalQ(cl, lapply(paquetes, require, character.only = TRUE))    # Load packages in nodes
++     clusterExport(cl, "make_odmatrix_state", env = .GlobalEnv)            # Load global environment objects in nodes
++     clusterExport(cl, c("instub", "dt_aux"), 
++                   env = environment())                                # Load local environment objects in nodes
++     
++     odcounty_list <- parLapply(cl, files_main, function(ff) {
++       make_odmatrix_state(file_ = ff, aux = dt_aux)
++     })
++     stopCluster(cl)
++     
++     # Save OD matrices  
++     for (state in odcounty_list) {
++       save_data(state$dt, key = c("h_countyfips", "w_countyfips"),
++                 filename = file.path(outstub, yy, paste0("odcounty_", state$fips, ".csv")),
++                 logfile  = "../output/odmatrix_data_manifest.log")
++     }
 +   }
-+ 
-+   list_of_file_names <- list.files(outdir, pattern = "odcounty_*", full.names = T)
-+   odcounty_list <- lapply(list_of_file_names, fread)
-+   
-+   # Compute share that work in same zipcode
-+   odcounty_list <- lapply(odcounty_list, function(dt.st) {
-+     dt.st[, c("residents_tot", "residents_young", "resident_lowinc") := 
-+             list(sum(totjob),    sum(job_young),    sum(job_lowinc)),
-+           by = "h_countyfips"]
-+     
-+     dt.st <- dt.st[h_countyfips == w_countyfips]
-+     setnames(dt.st, old = "h_countyfips", new = "countyfips")
-+     dt.st[, w_countyfips := NULL]
-+     
-+     dt.st[, share_tot    := totjob/residents_tot]
-+     dt.st[, share_young  := job_young/residents_young]
-+     dt.st[, share_lowinc := job_lowinc/resident_lowinc]
-+     
-+     return(dt.st)
-+   })
-+   
-+   dt.shares <- rbindlist(odcounty_list)
-+   dt.shares[, countyfips := str_pad(countyfips, 5, pad = 0)]
-+   save_data(dt.shares, key = c("countyfips"), 
-+             filename = file.path(outdir, "county_own_shares.csv"), 
-+             logfile  = "../output/shares_data_manifest.log")
-+   
-+   save_data(dt.shares, key = c("countyfips"), 
-+             filename = file.path(outdir, "county_own_shares.dta"), 
-+             logfile  = "../output/shares_data_manifest.log")
 + }
 > 
 > 
-> make_odmatrix_state <- function(stabb, datadir, aux, xwalk, dest_threshold = 1) {
+> make_odmatrix_state <- function(file_, aux, xwalk) {
 +   
-+   this_state <- fread(file.path(datadir, paste0(stabb, "_od_main_JT00_2017.csv.gz")))
-+   this_fips  <- as.numeric(substr(str_pad(this_state$h_geocode[1], 15, pad = 0),1 , 2))
-+   this_aux   <- aux[h_statefips==this_fips,][, h_statefips := NULL]
++   target_vars <- c("S000", 
++                    "SA01", "SA02", "SA03", 
++                    "SE01", "SE02", "SE03", 
++                    "SI01", "SI02", "SI03")
++   new_names   <- c("jobs_tot",
++                    "jobs_age_under29",     "jobs_age_30to54",        "jobs_age_above55",
++                    "jobs_earn_under1250",  "jobs_earn_1250_3333",    "jobs_earn_above3333",
++                    "jobs_goods_producing", "jobs_trade_transp_util", "jobs_other_service_industry")
 +   
-+   this_state <- rbindlist(list(this_state, this_aux))
++   dt_main <- fread(file_, select = c("w_geocode", "h_geocode", target_vars))
 +   
-+   this_state <- this_state[, c("w_geocode", "h_geocode", "S000", "SA01", "SE01")]
-+   setnames(this_state, old = c("S000",   "SA01",      "SE01"), 
-+                        new = c("totjob", "job_young", "job_lowinc"))
++   st_fips  <- as.numeric(substr(str_pad(dt_main$h_geocode[1], 15, pad = 0), 1, 2))
++   
++   dt_main <- rbindlist(list(dt_main, 
++                             aux[h_statefips == st_fips][, h_statefips := NULL]))
++   
++   setnames(dt_main, old = target_vars, new = new_names)
 +   
 +   # Collapse at tract level
-+   this_state[, w_countyfips := as.numeric(substr(str_pad(w_geocode, 15, pad = 0), 1, 5))]
-+   this_state <- this_state[, lapply(.SD, sum, na.rm = T),
-+                            .SDcols = c("totjob", "job_young", "job_lowinc"), 
++   dt_main[, w_countyfips := as.numeric(substr(str_pad(w_geocode, 15, pad = 0), 1, 5))]
++   dt_main <- dt_main[, lapply(.SD, sum, na.rm = T),
++                            .SDcols = new_names, 
 +                            by = c("h_geocode", "w_countyfips")]
 + 
-+   this_state[, h_countyfips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0), 1, 5))]
-+   this_state <- this_state[, lapply(.SD, sum, na.rm = T),
-+                            .SDcols = c("totjob", "job_young", "job_lowinc"),
++   dt_main[, h_countyfips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0), 1, 5))]
++   dt_main <- dt_main[, lapply(.SD, sum, na.rm = T),
++                            .SDcols = new_names,
 +                            by = c("h_countyfips", "w_countyfips")]
 +   
-+   # Keep destination zipcodes that make up to `dest_threshold` percent of total workforce
-+   this_state <- this_state[order(h_countyfips, -totjob)]
-+   
-+   this_state[, h_totjob     := sum(totjob, na.rm = T), by = "h_countyfips"]
-+   this_state[, totjob_cum   := cumsum(totjob), by = "h_countyfips"] 
-+   this_state[, totjob_cumsh := totjob_cum / h_totjob]
-+   
-+   this_state <- this_state[totjob_cumsh <= dest_threshold, ]
-+   this_state[, c("h_totjob", "totjob_cum", "totjob_cumsh") := NULL] 
-+   this_state[, h_countyfips := str_pad(h_countyfips, 5, pad = 0)]
-+   this_state[, w_countyfips := str_pad(w_countyfips, 5, pad = 0)]
-+   
-+   return(list("dt"   = this_state,
-+               "fips" = str_pad(this_fips, 2, pad = 0)))
++   return(list("dt"   = dt_main,
++               "fips" = str_pad(st_fips, 2, pad = 0)))
 + }
 > 
 > # Execute
 > main(paquetes, n_cores) 
-[1] "File '../../../drive/base_large/lodes/odcounty_01.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_02.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_04.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_05.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_06.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_08.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_09.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_10.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_12.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_13.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_15.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_16.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_17.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_18.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_19.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_20.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_21.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_22.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_23.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_24.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_25.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_26.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_27.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_28.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_29.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_30.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_31.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_32.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_33.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_34.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_35.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_36.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_37.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_38.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_39.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_40.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_41.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_42.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_44.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_45.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_46.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_47.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_48.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_49.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_50.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_51.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_53.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_54.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_55.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_56.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/odcounty_11.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/county_own_shares.csv' saved successfully."
-[1] "File '../../../drive/base_large/lodes/county_own_shares.dta' saved successfully."
-[1] "Log file generated successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_02.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_01.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_05.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_04.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_06.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_08.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_09.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_10.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_12.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_13.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_15.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_19.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_16.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_17.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_18.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_20.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_21.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_22.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_24.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_23.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_26.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_27.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_29.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_28.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_30.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_37.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_38.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_31.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_33.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_34.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_35.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_32.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_36.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_39.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_40.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_41.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_42.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_44.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_45.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_46.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_47.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_48.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_49.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_51.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_50.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_53.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_55.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_54.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2009/odcounty_56.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_02.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_01.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_05.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_04.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_06.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_08.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_09.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_11.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_10.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_12.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_13.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_15.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_19.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_16.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_17.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_18.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_20.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_21.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_22.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_24.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_23.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_26.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_27.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_29.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_28.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_30.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_37.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_38.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_31.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_33.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_34.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_35.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_32.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_36.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_39.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_40.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_41.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_42.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_44.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_45.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_46.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_47.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_48.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_49.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_51.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_50.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_53.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_55.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_54.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2010/odcounty_56.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_02.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_01.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_05.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_04.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_06.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_08.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_09.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_11.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_10.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_12.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_13.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_15.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_19.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_16.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_17.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_18.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_20.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_21.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_22.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_25.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_24.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_23.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_26.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_27.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_29.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_28.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_30.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_37.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_38.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_31.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_33.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_34.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_35.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_32.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_36.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_39.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_40.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_41.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_42.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_44.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_45.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_46.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_47.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_48.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_49.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_51.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_50.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_53.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_55.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_54.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2011/odcounty_56.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_02.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_01.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_05.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_04.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_06.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_08.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_09.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_11.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_10.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_12.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_13.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_15.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_19.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_16.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_17.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_18.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_20.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_21.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_22.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_25.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_24.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_23.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_26.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_27.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_29.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_28.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_30.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_37.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_38.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_31.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_33.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_34.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_35.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_32.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_36.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_39.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_40.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_41.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_42.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_44.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_45.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_46.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_47.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_48.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_49.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_51.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_50.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_53.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_55.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_54.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2012/odcounty_56.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_02.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_01.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_05.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_04.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_06.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_08.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_09.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_11.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_10.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_12.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_13.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_15.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_19.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_16.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_17.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_18.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_20.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_21.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_22.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_25.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_24.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_23.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_26.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_27.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_29.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_28.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_30.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_37.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_38.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_31.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_33.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_34.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_35.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_32.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_36.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_39.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_40.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_41.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_42.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_44.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_45.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_46.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_47.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_48.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_49.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_51.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_50.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_53.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_55.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_54.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2013/odcounty_56.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_02.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_01.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_05.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_04.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_06.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_08.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_09.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_11.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_10.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_12.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_13.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_15.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_19.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_16.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_17.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_18.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_20.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_21.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_22.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_25.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_24.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_23.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_26.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_27.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_29.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_28.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_30.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_37.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_38.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_31.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_33.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_34.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_35.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_32.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_36.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_39.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_40.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_41.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_42.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_44.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_45.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_46.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_47.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_48.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_49.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_51.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_50.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_53.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_55.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_54.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2014/odcounty_56.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_02.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_01.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_05.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_04.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_06.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_08.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_09.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_11.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_10.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_12.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_13.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_15.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_19.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_16.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_17.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_18.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_20.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_21.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_22.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_25.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_24.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_23.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_26.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_27.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_29.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_28.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_30.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_37.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_38.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_31.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_33.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_34.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_35.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_32.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_36.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_39.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_40.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_41.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_42.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_44.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_45.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_46.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_47.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_48.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_49.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_51.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_50.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_53.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_55.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_54.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2015/odcounty_56.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_02.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_01.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_05.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_04.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_06.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_08.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_09.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_11.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_10.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_12.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_13.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_15.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_19.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_16.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_17.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_18.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_20.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_21.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_22.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_25.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_24.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_23.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_26.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_27.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_29.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_28.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_30.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_37.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_38.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_31.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_33.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_34.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_35.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_32.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_36.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_39.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_40.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_41.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_42.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_44.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_45.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_46.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_47.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_48.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_49.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_51.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_50.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_53.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_55.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_54.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2016/odcounty_56.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_01.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_05.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_04.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_06.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_08.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_09.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_11.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_10.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_12.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_13.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_15.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_19.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_16.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_17.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_18.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_20.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_21.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_22.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_25.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_24.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_23.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_26.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_27.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_29.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_28.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_30.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_37.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_38.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_31.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_33.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_34.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_35.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_32.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_36.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_39.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_40.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_41.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_42.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_44.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_45.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_46.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_47.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_48.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_49.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_51.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_50.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_53.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_55.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_54.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2017/odcounty_56.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_01.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_05.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_04.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_06.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_08.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_09.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_11.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_10.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_12.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_13.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_15.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_19.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_16.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_17.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_18.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_20.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_21.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_22.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_25.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_24.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_23.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_26.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_27.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_29.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_28.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_30.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_37.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_38.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_31.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_33.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_34.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_35.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_32.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_36.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_39.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_40.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_41.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_42.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_44.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_45.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_46.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_47.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_48.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_49.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_51.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_50.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_53.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_55.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_54.csv' saved successfully."
+[1] "File '../../../drive/base_large/lodes_od/2018/odcounty_56.csv' saved successfully."
 > 
 > proc.time()
    user  system elapsed 
- 145.64   46.71  314.28 
+ 426.04  210.92 1757.28 
 
-
-Execute:  R CMD BATCH --no-save "./make_lodes.R" make_lodes.Rout
-
-R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
-Copyright (C) 2020 The R Foundation for Statistical Computing
-Platform: x86_64-w64-mingw32/x64 (64-bit)
-
-R is free software and comes with ABSOLUTELY NO WARRANTY.
-You are welcome to redistribute it under certain conditions.
-Type 'license()' or 'licence()' for distribution details.
-
-  Natural language support but running in an English locale
-
-R is a collaborative project with many contributors.
-Type 'contributors()' for more information and
-'citation()' on how to cite R or R packages in publications.
-
-Type 'demo()' for some demos, 'help()' for on-line help, or
-'help.start()' for an HTML browser interface to help.
-Type 'q()' to quit R.
-
-> remove(list = ls())
-> source("../../../lib/R/load_packages.R")
-> source("../../../lib/R/save_data.R")
-
-Please cite as: 
-
- Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
- R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
-
-
-Attaching package: 'dplyr'
-
-The following objects are masked from 'package:stats':
-
-    filter, lag
-
-The following objects are masked from 'package:base':
-
-    intersect, setdiff, setequal, union
-
-
-Attaching package: 'data.table'
-
-The following objects are masked from 'package:dplyr':
-
-    between, first, last
-
-> 
-> source("make_xwalk.R")
-> 
-> options(scipen=999)
-> load_packages(c("stringr", "data.table", "bit64", 
-+                 "purrr", "readxl", "parallel", "R.utils"))
-Loading required package: bit
-
-Attaching package: 'bit'
-
-The following object is masked from 'package:data.table':
-
-    setattr
-
-The following object is masked from 'package:base':
-
-    xor
-
-Attaching package bit64
-package:bit64 (c) 2011-2017 Jens Oehlschlaegel
-creators: integer64 runif64 seq :
-coercion: as.integer64 as.vector as.logical as.integer as.double as.character as.bitstring
-logical operator: ! & | xor != == < <= >= >
-arithmetic operator: + - * / %/% %% ^
-math: sign abs sqrt log log2 log10
-math: floor ceiling trunc round
-querying: is.integer64 is.vector [is.atomic} [length] format print str
-values: is.na is.nan is.finite is.infinite
-aggregation: any all min max range sum prod
-cumulation: diff cummin cummax cumsum cumprod
-access: length<- [ [<- [[ [[<-
-combine: c rep cbind rbind as.data.frame
-WARNING don't use as subscripts
-WARNING semantics differ from integer
-for more help type ?bit64
-
-Attaching package: 'bit64'
-
-The following objects are masked from 'package:base':
-
-    %in%, :, is.double, match, order, rank
-
-
-Attaching package: 'purrr'
-
-The following object is masked from 'package:data.table':
-
-    transpose
-
-Loading required package: R.oo
-Loading required package: R.methodsS3
-R.methodsS3 v1.8.1 (2020-08-26 16:20:06 UTC) successfully loaded. See ?R.methodsS3 for help.
-R.oo v1.24.0 (2020-08-26 16:11:58 UTC) successfully loaded. See ?R.oo for help.
-
-Attaching package: 'R.oo'
-
-The following object is masked from 'package:R.methodsS3':
-
-    throw
-
-The following object is masked from 'package:bit':
-
-    clone
-
-The following objects are masked from 'package:methods':
-
-    getClasses, getMethods
-
-The following objects are masked from 'package:base':
-
-    attach, detach, load, save
-
-R.utils v2.10.1 (2020-08-26 22:50:31 UTC) successfully loaded. See ?R.utils for help.
-
-Attaching package: 'R.utils'
-
-The following object is masked from 'package:utils':
-
-    timestamp
-
-The following objects are masked from 'package:base':
-
-    cat, commandArgs, getOption, inherits, isOpen, nullfile, parse,
-    warnings
-
-> 
-> main <- function() {
-+   datadir_lodes       <- '../../../drive/raw_data/lodes'
-+   datadir_xwalk_lodes <- '../../../raw/crosswalk'
-+   datadir_xwalk       <- '../../geo_master/output'
-+   outdir              <- '../../../drive/base_large/lodes'
-+   log_file            <- '../output/data_file_manifest.log'
-+   
-+   xwalk <- make_xwalk_raw_wac(datadir_xwalk_lodes)
-+   
-+   tract_zip_xwalk <- fread(file.path(datadir_xwalk, "tract_zip_master.csv"), 
-+                            colClasses = c('numeric', 'numeric', 'numeric'))
-+   
-+   #Datasets:
-+   # Point of View (pov) : statistics for either residents ('rac') or workers ('wac') in given geographies
-+   # Segment (seg)       : job earnings
-+   # Type (type)         : all jobs
-+   
-+   # Zipcode as workplace: all workers
-+   lodes_wac_all_all <- format_lodes(pov = 'wac', 
-+                                     seg = 'S000', 
-+                                     type = 'JT00', 
-+                                     vintage = '2017', 
-+                                     instub = datadir_lodes, 
-+                                     xw = xwalk, 
-+                                     xw_tractzip = tract_zip_xwalk)
-+   
-+   # Zipcode as residence: all workers
-+   lodes_rac_all_all <- format_lodes(pov = 'rac', 
-+                                     seg = 'S000', 
-+                                     type = 'JT00', 
-+                                     vintage = '2017', 
-+                                     instub = datadir_lodes, 
-+                                     xw = xwalk, 
-+                                     xw_tractzip = tract_zip_xwalk)
-+   
-+   # Zipcode as workplace: low income workers
-+   lodes_wac_el_all <- format_lodes(pov = 'wac', 
-+                                    seg = 'SE01', 
-+                                    type = 'JT00', 
-+                                    vintage = '2017', 
-+                                    instub = datadir_lodes, 
-+                                    xw = xwalk, 
-+                                    xw_tractzip = tract_zip_xwalk)
-+   
-+   # Zipcode as residence: low income workers
-+   lodes_rac_el_all <- format_lodes(pov = 'rac', 
-+                                    seg = 'SE01', 
-+                                    type = 'JT00', 
-+                                    vintage = '2017', 
-+                                    instub = datadir_lodes, 
-+                                    xw = xwalk, 
-+                                    xw_tractzip = tract_zip_xwalk)
-+   
-+   
-+   lodes_list <- list(lodes_wac_all_all, lodes_rac_all_all, lodes_wac_el_all, lodes_rac_el_all)
-+   
-+   lodes_final <- Reduce(function(x,y) merge(x,y, all = T, by = c('zipcode')), lodes_list)
-+   
-+   lodes_final <- make_final_vars(lodes_final)
-+   
-+   lodes_final[, zipcode := str_pad(zipcode, 5, pad = 0)]
-+   save_data(lodes_final, key = c('zipcode'),
-+             filename = file.path(outdir, 'zip_lodes.dta'),
-+             logfile = log_file)
-+ }
-> 
-> format_lodes <- function(pov, seg, type, vintage, instub, xw, xw_tractzip) {
-+   
-+   files <- list.files(file.path(instub, pov, seg, type, vintage),
-+                       full.names = T, pattern = "*.gz")
-+   files <- files[!grepl("pr", files)]          # Ignore Puerto Rico
-+   
-+   df <- rbindlist(lapply(files, fread))
-+   
-+   target_vars <- c('C000', 'CA01', 'CE01', 'CR02', 'CD01', 'CD02')
-+   target_names <- c('tot', 'njob_29young', 'njob_lowinc', 'njob_black', 'njob_nohs', 'njob_hs')
-+   final_names <- c('blockfips', target_names)
-+ 
-+   if (pov == 'rac') {
-+     setnames(df, old = c('h_geocode', target_vars), 
-+                  new = final_names)
-+   } else if (pov == 'wac') {
-+     setnames(df, old = c('w_geocode', target_vars),
-+                  new = final_names)
-+   }
-+   df <- df[, ..final_names]
-+   
-+   df[, 'njob_lowedu' := njob_nohs + njob_hs][, c('njob_nohs', 'njob_hs'):= NULL]
-+   target_names <- c(target_names[1:(length(target_names)-2)], 'njob_lowedu')
-+   
-+   dftract <- xw[df, on = 'blockfips'][, 'blockfips':= NULL]  
-+   dftract <- dftract[, lapply(.SD, sum, na.rm = T),
-+                     by = c('tract_fips', 'st')]
-+   
-+   dfzip <- dftract[xw_tractzip, on = 'tract_fips']
-+   
-+   dfzip <- dfzip[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w = res_ratio), 
-+                   by = c('zipcode', 'st'), .SDcols = target_names]
-+   
-+   pr <- set_prefix(p = pov, s = seg, t = type)
-+   setnames(dfzip, old = target_names, new = paste(pr, target_names, sep = '_'))
-+   
-+   dfzip <- make_shares(data = dfzip, 
-+                        vnames = paste(pr, target_names, sep = '_'))
-+   
-+   sortvar <- names(dfzip)[grepl("tot$", names(dfzip))]
-+   setorderv(dfzip, c('zipcode',sortvar))
-+   dfzip <-  dfzip[dfzip[, .I[.N], zipcode]$V1]
-+   
-+   if ((pov!='rac') | (pov=='rac' & (seg!='S000' | type!='JT00'))) {
-+     dfzip[, st := NULL]
-+   }
-+   
-+   return(dfzip)
-+ }
-> 
-> make_shares <- function(data, vnames, state.share = TRUE) {
-+   
-+   denom <- vnames[grepl("tot$", vnames)]
-+   vnames <- vnames[!grepl("tot$", vnames)]
-+   
-+   zsh_names <- paste0(vnames, '_zsh')
-+   
-+   data[, (zsh_names) := lapply(.SD, function(x) x / data[[denom]]), 
-+       .SDcols = vnames]
-+   
-+   if (state.share == TRUE) {
-+     data[, st_tot := lapply(.SD, function(x) sum(x, na.rm = T)),
-+          by = 'st', .SDcols = denom]
-+     ssh_names <- paste0(vnames, '_ssh')
-+     data[, (ssh_names) := lapply(.SD, function(x) x / st_tot), 
-+          .SDcols = vnames]
-+     data[, st_tot := NULL]
-+   }
-+   
-+   return(data)
-+ }
-> 
-> set_prefix <- function(p, s, t) {
-+   if (p=='rac') prefix <- 'h' else if (p=='wac') prefix <- 'w'
-+   
-+   if (s=='S000')      {prefix <- paste0(prefix, 'al')} # all jobs
-+   else if (s=="SE01") {prefix <- paste0(prefix, 'el')} # earnings lo w
-+   else if (s=='SE02') {prefix <- paste0(prefix, 'em')} # earnings med
-+   else if (s=='SE03') {prefix <- paste0(prefix, 'eh')} # earnings high
-+   else if (s=='SA01') {prefix <- paste0(prefix, 'ay')} # age young
-+   else if (s=='SA02') {prefix <- paste0(prefix, 'am')} # age med
-+   else if (s=='SA03') {prefix <- paste0(prefix, 'ao')} # age old
-+   else if (s=='SI01') {prefix <- paste0(prefix, 'ip')} # industry product, goods
-+   else if (s=='SI02') {prefix <- paste0(prefix, 'it')} # industry trade, transports
-+   else if (s=='SI03') {prefix <- paste0(prefix, 'io')} # industry other
-+   
-+   if (t=='JT00')      {prefix <- paste0(prefix, 'all')}   # all jobs
-+   else if (t=='JT01') {prefix <- paste0(prefix, 'main')}  # main job s
-+   else if (t=='JT02') {prefix <- paste0(prefix, 'priv')}  # all private jobs
-+   else if (t=='JT03') {prefix <- paste0(prefix, 'mpriv')} # main private jobs
-+   else if (t=='JT04') {prefix <- paste0(prefix, 'fed')}   # federal job
-+   else if (t=='JT05') {prefix <- paste0(prefix, 'mfed')}  # main federal job  
-+   
-+   return(prefix) 
-+ }
-> 
-> make_final_vars <- function(data) {
-+   data[, walall_29y_lowinc_zsh := welall_njob_29young / walall_tot]
-+   data[, halall_29y_lowinc_zsh := helall_njob_29young / halall_tot]
-+   
-+   data[, c('w_sttot', 'h_sttot') := lapply(.SD, function(x) sum(x, na.rm = T)), 
-+        by = 'st', .SDcols = c('welall_njob_29young', 'helall_njob_29young')]
-+ 
-+   data[, walall_29y_lowinc_ssh := lapply(.SD, function(x) x / w_sttot), 
-+         .SDcols = c('welall_njob_29young')]
-+   data[, halall_29y_lowinc_ssh := lapply(.SD, function(x) x / h_sttot), 
-+         .SDcols = c('helall_njob_29young')]
-+   
-+   data[, c('w_sttot', 'h_sttot') := NULL]
-+   
-+   vars <- c('walall_njob_29young_zsh',  'walall_njob_29young_ssh', 
-+             'halall_njob_29young_zsh',  'halall_njob_29young_ssh', 
-+             'walall_njob_lowinc_zsh',   'walall_njob_lowinc_ssh', 
-+             'halall_njob_lowinc_zsh',   'halall_njob_lowinc_ssh',
-+             'walall_29y_lowinc_zsh',    'walall_29y_lowinc_ssh', 
-+             'halall_29y_lowinc_zsh',    'halall_29y_lowinc_ssh')
-+   
-+   vars <- c('zipcode', vars)
-+   
-+   return(data[, ..vars])
-+ }
-> 
-> 
-> # Execute
-> main()
-[1] "File '../../../drive/base_large/lodes/zip_lodes.dta' saved successfully."
-[1] "Log file generated successfully."
-> 
-> proc.time()
-   user  system elapsed 
- 164.70   60.10  366.85 
-
- make.py ended: 2021-07-10 15:15:46
+ make.py ended: 2021-09-27 16:07:20
