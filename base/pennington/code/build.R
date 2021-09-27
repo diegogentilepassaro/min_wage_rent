@@ -1,14 +1,14 @@
 remove(list = ls())
 source("../../../lib/R/save_data.R")
 library(stargazer)
-library(data.table)
-library(tidyverse)
+library(dplyr)
+library(stringr)
 
 main <- function() {
-  outdir <- "../output/"
+  outdir <- "../../../drive/base_large/pennington/"
   log_file <- "../output/data_file_manifest.log"
   
-  data <- fread("../temp/clean_2000_2018/clean_2000_2018.csv") %>%
+  data <- data.table::fread("../temp/clean_2000_2018/clean_2000_2018.csv") %>%
     mutate(month = as.numeric(substr(date,5,6)))
   
   data_with_sqft <- data %>%

@@ -3,9 +3,10 @@ clear all
 adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
-	local in_base          "../../../base/pennington/output"
+	local in_base          "../../../drive/base_large/pennington"
 	local in_geo           "../../../base/geo_master/output"
 	local in_derived_large "../../../drive/derived_large"
+	local outstub         "../../../drive/derived_large/pennington"
 	local logfile          "../output/data_file_manifest.log"
 
 	make_california_geos, instub(`in_geo')
@@ -25,7 +26,7 @@ program main
 	merge m:1 zipcode year month using "`in_derived_large'/min_wage/zipcode_experienced_mw.dta", ///
 		nogen keep(1 3) keepusing(exp*)
 	
-	save_data "../output/clean_pennington_with_zipcode.dta", ///
+	save_data "`outstub'/clean_pennington_with_zipcode.dta", ///
 		key(post_id) log(`logfile') replace
 end
 
@@ -56,6 +57,7 @@ program make_penningtion_geos
 	syntax, instub(str)
 
 	import delimited "`instub'/clean_pennington_bay_area.csv", clear
+	save "../temp/clean_pennington_bay_area.dta", replace
 	
 	keep nhood city
 	duplicates drop nhood city, force
@@ -67,7 +69,6 @@ program make_penningtion_geos
 		gen(score) idmaster(pennington_geo_id) idusing(post_id)
 	assert score == 1
 	drop score _merge U*
-	
 	save "../temp/clean_pennington_bay_area.dta", replace
 end
 
