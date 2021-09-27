@@ -28,8 +28,14 @@ DESCRIPTION
 
 ROOT/drive/raw_data/LODES/*	Downloaded files
 
-IMPORTANT NOTE: The states of Alaska (AK) and South Dakota (SD) do not have files for 2017. We manually downloaded the 2016 
-files and changed the name appropriately.
+
+COMMENTS
+========================================================
+
+In OD matrices, we have that:
+- Alaska (AK) is missing for 2017 and 2018
+- DC (District of Columbia) is missing for LODES 2009
+- MA (Massachusetts) is missing for LODES 2009 and 2010
 
 
 
