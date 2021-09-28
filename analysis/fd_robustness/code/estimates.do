@@ -82,6 +82,10 @@ program main
 		else {
 			local stat "exp_"
 		}
+		estimate_dist_lag_model, depvar(ln_med_rent_var) ///
+			    dyn_var("`treat'ln_mw") w(6) stat_var("`stat'ln_mw") ///
+				controls(" ") absorb(year_month) cluster(`cluster') ///
+				model_name("`treat'ln_mw_dynamic") outfolder("../temp")
 
 		local ctrls_list ""
 		local ctrls_name ""
@@ -98,8 +102,8 @@ program main
 	} 
 		
 	clear		
-	foreach ff in exp_ln_mw_dynamic_emp exp_ln_mw_dynamic_emp_avgwage exp_ln_mw_dynamic_emp_avgwage_estcount ///
-				  ln_mw_dynamic_emp ln_mw_dynamic_emp_avgwage ln_mw_dynamic_emp_avgwage_estcount {
+	foreach ff in exp_ln_mw_dynamic exp_ln_mw_dynamic_emp exp_ln_mw_dynamic_emp_avgwage exp_ln_mw_dynamic_emp_avgwage_estcount ///
+				  ln_mw_dynamic ln_mw_dynamic_emp ln_mw_dynamic_emp_avgwage ln_mw_dynamic_emp_avgwage_estcount {
 		append using ../temp/estimates_`ff'.dta
 	}
 	save             `outstub'/estimates_dynamic.dta, replace
