@@ -93,7 +93,7 @@ manual_corrections <- function(dt) {
 }
 
 load_mw <- function(instub) {
-   
+
    # State MW
    state_mw <- fread(file.path(instub, "state_monthly.csv"))
    
@@ -165,20 +165,20 @@ assemble_statutory_mw <- function(dt, dt.mw) {
 
 collapse_datatable <- function(dt, key_vars = c("zipcode", "year", "month")) {
    
-   # Don't use zip_max_houses var here, to be robust to collapsing at county level
-   setorder(dt, zipcode, -houses_zcta_place_county)
-   dt.max <- dt[, first(.SD), by = key_vars]
-
-   dt.wmean <- dt[, .(actual_mw_max                  = max(actual_mw),
-                      actual_mw_ignore_local_max     = max(actual_mw_ignore_local),
-                      actual_mw_wg_mean              = weighted.mean(actual_mw, houses_zcta_place_county),
-                      actual_mw_ignore_local_wg_mean = weighted.mean(actual_mw_ignore_local, houses_zcta_place_county)),
-                  by = key_vars]
-   
-   dt <- dt.wmean[dt.max, on = key_vars]
+   dt <- dt[, .(actual_mw                   = max(actual_mw),
+                actual_mw_ignore_local      = max(actual_mw_ignore_local),
+                actual_mw_mean              = mean(actual_mw),
+                actual_mw_ignore_local_mean = mean(actual_mw_ignore_local),
+                binding_mw                  = first(binding_mw),
+                binding_mw_ignore_local     = first(binding_mw_ignore_local),
+                local_mw                    = max(local_mw),
+                state_mw                    = max(state_mw),
+                fed_mw                      = max(fed_mw)),
+            by = key_vars]
    
    mw_vars <- names(dt)[grepl("mw", names(dt)) & !grepl("abovestate", names(dt))]
-   vars_to_keep <- c(key_vars, "year_month", mw_vars)
+   vars_to_keep <- c(key_vars, mw_vars)
+   
    dt <- dt[, ..vars_to_keep]
    
    return(dt)
