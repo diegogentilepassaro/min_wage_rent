@@ -45,7 +45,7 @@ main <- function(paquetes, n_cores) {
     
     # Save OD matrices  
     for (state in odcounty_list) {
-      save_data(state$dt, key = c("h_countyfips", "w_countyfips"),
+      save_data(state$dt, key = c("r_countyfips", "w_countyfips"),
                 filename = file.path(outstub, yy, paste0("odcounty_", state$fips, ".csv")),
                 logfile  = "../output/odmatrix_data_manifest.log")
     }
@@ -79,10 +79,10 @@ make_odmatrix_state <- function(file_, aux, xwalk) {
                            .SDcols = new_names, 
                            by = c("h_geocode", "w_countyfips")]
 
-  dt_main[, h_countyfips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0), 1, 5))]
+  dt_main[, r_countyfips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0), 1, 5))]
   dt_main <- dt_main[, lapply(.SD, sum, na.rm = T),
                            .SDcols = new_names,
-                           by = c("h_countyfips", "w_countyfips")]
+                           by = c("r_countyfips", "w_countyfips")]
   
   return(list("dt"   = dt_main,
               "fips" = str_pad(st_fips, 2, pad = 0)))
