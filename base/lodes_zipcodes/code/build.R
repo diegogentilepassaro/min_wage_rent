@@ -13,7 +13,7 @@ main <- function() {
   in_lodes       <- '../../../drive/raw_data/lodes'
   in_xwalk_lodes <- '../../../raw/crosswalk/lodes'
   in_xwalk       <- '../../geo_master/output'
-  outdir         <- '../../../drive/base_large/lodes_area_charac'
+  outdir         <- '../../../drive/base_large/lodes_zipcodes'
   log_file       <- '../output/data_file_manifest.log'
   
   xwalk <- make_xwalk_raw_wac(in_xwalk_lodes)
