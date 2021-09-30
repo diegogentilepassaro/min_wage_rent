@@ -49,9 +49,13 @@ end
 program merge_exp_mw
     syntax, instub(str)
 
-    merge 1:1 zipcode year month using "`instub'/zipcode_experienced_mw.dta", ///
+    merge 1:1 zipcode year month using "`instub'/zipcode_experienced_mw_2010.dta", ///
         nogen keep(1 3) keepusing(exp*)
-
+    merge 1:1 zipcode year month using "`instub'/zipcode_experienced_mw_2014.dta", ///
+        nogen keep(1 3) keepusing(exp*)
+    merge 1:1 zipcode year month using "`instub'/zipcode_experienced_mw_2018.dta", ///
+        nogen keep(1 3) keepusing(exp*)
+		
     qui sum medrentpricepsqft_SFCC if !missing(medrentpricepsqft_SFCC)
     local observations_with_rents = r(N)
 

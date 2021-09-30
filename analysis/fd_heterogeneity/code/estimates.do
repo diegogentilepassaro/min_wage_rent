@@ -5,16 +5,17 @@ adopath + ../../../lib/stata/min_wage/ado
 set maxvar 32000 
 
 program main
-	local instub "../../../drive/derived_large/estimation_samples"
+	local in_baseline "../../../drive/derived_large/estimation_samples"
+	local in_zip_year "../../../drive/derived_large/zipcode_year"
+
 	local outstub "../output"
 	
 	define_controls
 	local controls "`r(economic_controls)'"
 	local cluster "statefips"
 	
-	
 	** STATIC
-	load_data, instub(`instub')
+	load_data, in_baseline(`in_baseline') in_zip_year(`in_zip_year')
 	
 	reghdfe D.ln_med_rent_var d_ln_mw d_ln_mw_int d_exp_ln_mw d_exp_ln_mw_int, nocons absorb(year_month) cluster(statefips)
 
@@ -24,10 +25,12 @@ end
 
 
 program load_data
-    syntax, instub(str)
+    syntax, in_baseline(str) in_zip_year(str)
 
-	use "`instub'/baseline_zipcode_months.dta", clear
-
+	use "`in_baseline'/baseline_zipcode_months.dta", clear
+	merge m:1 zipcode year using "`in_zip_year'/zipcode_year.dta", ///
+	    nogen keep(3)
+	
 	bys statefips: egen share_resid_state_med = median(share_residents_lowinc)
 	bys statefips: egen share_work_state_med  = median(share_workers_lowinc)
 	
