@@ -81,7 +81,7 @@ program gen_vars
 
 	gen ln_med_rent_var = log(`rent_var')
 	gen ln_mw           = log(actual_mw)
-	rename exp_ln_mw_tot exp_ln_mw
+	rename exp_ln_mw_tot* exp_ln_mw*
 	
 	foreach ctrl_type in emp estcount avgwwage {
 		gen ln_`ctrl_type'_bizserv = log(`ctrl_type'_bizserv)
@@ -133,12 +133,6 @@ program create_balanced_panel
 end
 
 program drop_vars
-
-	drop exp_mw_young exp_mw_lowinc exp_mw_young_wg_mean ///
-		exp_mw_lowinc_wg_mean exp_ln_mw_young_wg_mean ///
-		exp_ln_mw_lowinc_wg_mean exp_mw_young_max ///
-		exp_mw_lowinc_max exp_ln_mw_young_max exp_ln_mw_lowinc_max
-
 	foreach var in medlistingprice_SFCC medlistingprice_low_tier ///
 		medlistingprice_top_tier medpctpricereduction_SFCC ///
 		medrentprice_1BR medrentprice_2BR medrentprice_3BR ///
