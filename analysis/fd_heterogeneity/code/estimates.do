@@ -15,37 +15,43 @@ program main
 	local cluster "statefips"
 	
 	** STATIC
-	load_data, in_baseline(`in_baseline') in_zip_year(`in_zip_year')
-	
-	reghdfe D.ln_med_rent_var d_ln_mw d_ln_mw_int d_exp_ln_mw d_exp_ln_mw_int, nocons absorb(year_month) cluster(statefips)
+	load_and_clean, in_baseline(`in_baseline') ///
+	    in_zip_year(`in_zip_year')
 
-	
-	
+	xtset zipcode_num year_month
+	eststo clear
+	foreach var in under29 under1250 underHS {
+	eststo: reghdfe D.ln_med_rent_var d_ln_mw d_ln_mw_int_wrkpl_`var' ///
+	    d_exp_ln_mw_17 d_exp_ln_mw_17_int_res_`var', nocons ///
+		absorb(year_month) cluster(statefips)	
+	}
+    esttab *, se r2
 end
 
 
-program load_data
+program load_and_clean
     syntax, in_baseline(str) in_zip_year(str)
 
 	use "`in_baseline'/baseline_zipcode_months.dta", clear
 	merge m:1 zipcode year using "`in_zip_year'/zipcode_year.dta", ///
-	    nogen keep(3)
-	
-	bys statefips: egen share_resid_state_med = median(share_residents_lowinc)
-	bys statefips: egen share_work_state_med  = median(share_workers_lowinc)
-	
-	gen share_resid_above_med_st = (share_residents_lowinc > share_resid_state_med)
-	gen share_work_above_med_st  = (share_workers_lowinc   > share_work_state_med)
-
-	drop share_resid_state_med share_work_state_med
+	    nogen keep(3) keepusing (res_* wrkpl_*)
 	
 	xtset zipcode_num year_month
 	
-	gen d_ln_mw     = D.ln_mw
-	gen d_exp_ln_mw = D.exp_ln_mw
+	gen d_ln_mw        = D.ln_mw
+	gen d_exp_ln_mw_17 = D.exp_ln_mw_17
 	
-	gen d_ln_mw_int     = d_ln_mw*share_work_above_med_st
-	gen d_exp_ln_mw_int = d_exp_ln_mw*share_resid_above_med_st
+	foreach var in under29 under1250 underHS {
+	    bys statefips: egen sh_res_`var'_med  = median(res_`var')
+	    bys statefips: egen sh_wrkpl_`var'_med = median(wrkpl_`var')	
+	    
+		gen sh_res_`var'_above_med_st    = (res_`var' > sh_res_`var'_med)
+	    gen sh_wrkpl_`var'_above_med_st  = (wrkpl_`var'   > sh_wrkpl_`var'_med)
+	    drop *_med
+		
+	    gen d_ln_mw_int_wrkpl_`var'      = d_ln_mw*sh_wrkpl_`var'_above_med_st
+	    gen d_exp_ln_mw_17_int_res_`var' = d_ln_mw*sh_res_`var'_above_med_st
+	}
 end
 
 
