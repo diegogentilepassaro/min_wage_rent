@@ -10,7 +10,6 @@ program main
     local logfile       "../output/data_file_manifest.log"
 
     build_zillow_zipcode_stats, instub(`in_base_large')
-    clean_zipcode_shares, instub(`in_der_large')
 
     use "`in_geo'/zip_county_place_usps_master.dta", clear
 
@@ -18,13 +17,11 @@ program main
         nogen assert(1 3)
     merge 1:1 zipcode using "`in_base_large'/demographics/zip_demo_2010.dta", ///
         nogen keep(1 3)
-    merge 1:1 zipcode using "../temp/zipcode_shares.dta",                     ///
-        nogen keep(1 3)
 
     strcompress
     save_data "`outstub'/zipcode_cross.dta",                                  ///
         key(zipcode) log(`logfile') replace
-	export delimited "`outstub'/zipcode_cross.csv", replace
+    export delimited "`outstub'/zipcode_cross.csv", replace
 end
 
 program build_zillow_zipcode_stats
@@ -37,15 +34,6 @@ program build_zillow_zipcode_stats
     tostring zipcode, format(%05.0f) replace
 
     save "../temp/zillow_zipcodes_with_rents.dta", replace
-end
-
-program clean_zipcode_shares
-    syntax, instub(str)
-
-    import delimited "`instub'/shares/zipcode_shares.csv", clear
-    tostring zipcode, format(%05.0f) replace
-
-    save "../temp/zipcode_shares.dta"
 end
 
 

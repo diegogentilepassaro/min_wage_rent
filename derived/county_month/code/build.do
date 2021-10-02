@@ -70,4 +70,5 @@ program make_date_variables
     drop day date
 end
 
+
 main
