@@ -5,52 +5,44 @@ adopath + ../../../lib/stata/min_wage/ado
 set maxvar 32000 
 
 program main
-	local in_baseline "../../../drive/derived_large/estimation_samples"
-	local in_zip_year "../../../drive/derived_large/zipcode_year"
-
+	local instub  "../../../drive/derived_large/estimation_samples"
 	local outstub "../output"
 	
 	define_controls
-	local controls "`r(economic_controls)'"
-	local cluster "statefips"
+	local controls     "`r(economic_controls)'"
+	local cluster_vars "statefips"
 	
 	** STATIC
-	load_and_clean, in_baseline(`in_baseline') ///
-	    in_zip_year(`in_zip_year')
+	load_and_clean, instub(`instub')
 
 	xtset zipcode_num year_month
 	eststo clear
-	foreach var in under29 under1250 underHS {
-	eststo: reghdfe D.ln_med_rent_var d_ln_mw d_ln_mw_int_wrkpl_`var' ///
-	    d_exp_ln_mw_17 d_exp_ln_mw_17_int_res_`var', nocons ///
-		absorb(year_month) cluster(statefips)	
+	foreach var in under29 30to54 under1250 above3333 underHS College {
+	eststo: reghdfe D.ln_med_rent_var D.ln_mw D.ln_mw_times_wrks_`var' ///
+	     D.exp_ln_mw_17 D.exp_ln_mw_times_res_`var', nocons ///
+		absorb(year_month) cluster(`cluster_vars')	
 	}
     esttab *, se r2
 end
 
 
 program load_and_clean
-    syntax, in_baseline(str) in_zip_year(str)
+    syntax, instub(str)
 
-	use "`in_baseline'/baseline_zipcode_months.dta", clear
-	merge m:1 zipcode year using "`in_zip_year'/zipcode_year.dta", ///
-	    nogen keep(3) keepusing (res_* wrkpl_*)
+	use "`instub'/baseline_zipcode_months.dta", clear
 	
 	xtset zipcode_num year_month
-	
-	gen d_ln_mw        = D.ln_mw
-	gen d_exp_ln_mw_17 = D.exp_ln_mw_17
-	
-	foreach var in under29 under1250 underHS {
-	    bys statefips: egen sh_res_`var'_med  = median(res_`var')
-	    bys statefips: egen sh_wrkpl_`var'_med = median(wrkpl_`var')	
+		
+	foreach var in under29 30to54 under1250 above3333 underHS College {
+	    bys statefips: egen sh_res_`var'_med = median(sh_residents_`var'_2014)
+	    bys statefips: egen sh_ws_`var'_med  = median(sh_workers_`var'_2014)	
 	    
-		gen sh_res_`var'_above_med_st    = (res_`var' > sh_res_`var'_med)
-	    gen sh_wrkpl_`var'_above_med_st  = (wrkpl_`var'   > sh_wrkpl_`var'_med)
+		gen above_med_st_res_`var'  = (sh_residents_`var'_2014 > sh_res_`var'_med)
+	    gen above_med_st_wrks_`var' = (sh_workers_`var'_2014   > sh_ws_`var'_med)
 	    drop *_med
 		
-	    gen d_ln_mw_int_wrkpl_`var'      = d_ln_mw*sh_wrkpl_`var'_above_med_st
-	    gen d_exp_ln_mw_17_int_res_`var' = d_ln_mw*sh_res_`var'_above_med_st
+	    gen ln_mw_times_wrks_`var'    = ln_mw*above_med_st_wrks_`var'
+	    gen exp_ln_mw_times_res_`var' = exp_ln_mw_17*above_med_st_res_`var'
 	}
 end
 
