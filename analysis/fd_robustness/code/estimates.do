@@ -59,10 +59,23 @@ program main
 		controls(`controls') absorb(year_month) cluster(`cluster') ///
 		model_name(static_stat_unbal_wgt) outfolder("../temp")
 
-		local outstub "../output"
+	use "`instub'/balanced_zipcode_months.dta", clear
+	xtset zipcode_num year_month	
+
+
+	estimate_dist_lag_model, depvar(ln_med_rent_var) ///
+		dyn_var(exp_ln_mw) w(0) stat_var(ln_mw) test_equality ///
+		controls(`controls') absorb(year_month) cluster(`cluster') ///
+		model_name(static_stat_fullbal) outfolder("../temp")
+	
+	estimate_dist_lag_model, depvar(ln_med_rent_var) ///
+		dyn_var(exp_ln_mw) w(0) stat_var(ln_mw) test_equality wgt(wgt_cbsa100) ///
+		controls(`controls') absorb(year_month) cluster(`cluster') ///
+		model_name(static_stat_fullbal_wgt) outfolder("../temp")
+		
 	use ../temp/estimates_static_stat.dta, clear
 	foreach ff in static_stat_nocontrol static_stat_AB static_stat_AB_nocontrol static_stat_wgt ///
-				  static_stat_unbal static_stat_unbal_wgt {
+				  static_stat_unbal static_stat_unbal_wgt static_stat_fullbal static_stat_fullbal_wgt {
 		append using ../temp/estimates_`ff'.dta
 	}
 	save             `outstub'/estimates_static.dta, replace

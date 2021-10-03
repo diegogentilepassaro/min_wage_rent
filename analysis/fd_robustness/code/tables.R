@@ -38,11 +38,12 @@ main <- function() {
   est_stats <- est_stats[-1,]
   
   
-  txt_static_sample <- c("<tab:static>")
+  txt_static_sample <- c("<tab:static_sample>")
   txt_static_sample <- c(txt_static_sample, 
                          make_coefs_cols(est_coefs, 
                                          models = c('static_stat', 'static_stat_unbal', 
-                                                    'static_stat_wgt', 'static_stat_unbal_wgt'), 
+                                                    'static_stat_wgt', 'static_stat_unbal_wgt', 
+                                                    'static_stat_fullbal', 'static_stat_fullbal_wgt'), 
                                          rows = c('ln_mw', 'exp_ln_mw', 'cumsum_from0')
                                          )
                          )
@@ -51,7 +52,9 @@ main <- function() {
            paste(est_stats$static_stat, 
                  est_stats$static_stat_unbal, 
                  est_stats$static_stat_wgt, 
-                 est_stats$static_stat_unbal_wgt, sep = "\t"))
+                 est_stats$static_stat_unbal_wgt, 
+                 est_stats$static_stat_fullbal, 
+                 est_stats$static_stat_fullbal_wgt, sep = "\t"))
   
   
   
@@ -59,7 +62,7 @@ main <- function() {
   writeLines(txt_static_sample, fileConn)
   close(fileConn)
   
-  txt_static_ab <- c("<tab:static>")
+  txt_static_ab <- c("<tab:static_ab>")
   txt_static_ab <- c(txt_static_ab,make_coefs_cols(est_coefs, 
                                                    models=c('static_stat_nocontrol', 
                                                             'static_stat', 
