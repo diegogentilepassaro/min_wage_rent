@@ -1,5 +1,5 @@
 
- make.py started: 2021-09-30 14:49:54 C:\Users\diegog\Desktop\Diego\min_wage_rent\derived\zipcode_year\code 
+ make.py started: 2021-10-02 17:58:01 C:\Users\shermo\Documents\GitHub\min_wage_rent\derived\zipcode_year\code 
 
 
 
@@ -54,81 +54,180 @@ Notes:
 
 . 
 . program main
-  1.     local in_derived_large "../../../drive/derived_large"
-  2.     local in_base_large    "../../../drive/base_large"
-  3.     local outstub          "../../../drive/derived_large/zipcode_year"
-  4.     local logfile          "../output/data_file_manifest.log"
+  1.     local in_der_large  "../../../drive/derived_large"
+  2.     local in_base_large "../../../drive/base_large"
+  3.     local outstub       "../../../drive/derived_large/zipcode_year"
+  4.     local logfile       "../output/data_file_manifest.log"
   5. 
-.         define_controls
-  6.         local controls "`r(economic_controls)'"
-  7.     clean_irs_data, instub(`in_derived_large') controls(`controls')
-  8.         
-.         get_lodes_shares, instub(`in_base_large')
-  9.         
-.         use "../temp/workplace_shares.dta" , clear
- 10.         merge 1:1 zipcode year using "../temp/residence_shares.dta", nogen
- 11.     merge 1:1 zipcode year using "../temp/irs_data.dta", nogen
- 12. 
+.     define_controls
+  6.     local controls "`r(economic_controls)'"
+  7. 
+.     use zipcode statefips countyfips cbsa10 year month zcta ln_mw actual_mw /
+> //
+>         exp_ln_mw* ln_med_rent_var acs_pop `controls' using  ///
+>         "`in_der_large'/estimation_samples/all_zipcode_months.dta", clear
+  8. 
+.     collapse_to_year
+  9. 
+.     merge_irs_data, instub(`in_base_large') controls(`controls')
+ 10.     
+.     merge_lodes_shares, instub(`in_base_large')
+ 11.     
+.     use "../temp/workplace_shares.dta" , clear
+ 12.     merge 1:1 zipcode year using "../temp/residence_shares.dta", nogen
+ 13.     merge 1:1 zipcode year using "../temp/irs_data.dta", nogen
+ 14. 
 .     save_data "`outstub'/zipcode_year.dta", key(zipcode year) ///
->             log(`logfile') replace
- 13. end
+>         log(`logfile') replace
+ 15. end
 
 . 
-. program clean_irs_data
+. program collapse_to_year
+  1. 
+.     describe exp*, varlist
+  2.     local vars = r(varlist)
+  3.     local vars = "ln_mw `vars'"
+  4. 
+.     foreach var of local vars {
+  5.         bys zipcode year: egen `var'_avg = mean(`var')
+  6.     }
+  7. 
+.     bysort zipcode year: keep if _n == 1
+  8.     drop month
+  9. end
+
+. 
+. program merge_irs_data
   1.     syntax, instub(str) controls(str)
-  2.         
-.         use zipcode statefips countyfips cbsa10 year month zcta ln_mw actual_
-> mw ///
->             exp_ln_mw ln_med_rent_var acs_pop `controls' using  ///
->                 "`instub'/estimation_samples/all_zipcode_months.dta", clear
-  3.         bysort zipcode year: keep if _n == 1
-  4.         drop month
-  5.     merge 1:1 zipcode statefips year ///
->             using  "../../../base/irs_soi/output/irs_zip.dta", nogen keep(1 3
-> )
-  6.         
-.         gen ln_agi_per_cap            = log(agi_per_cap)
-  7.         gen ln_wage_per_cap           = log(wage_per_cap)
-  8.         gen ln_wage_per_wage_hhld     = log(wage_per_wage_hhld)
-  9.         gen ln_bussines_rev_per_owner = log(bussines_rev_per_owner)
- 10.         
-.         save "../temp/irs_data.dta", replace
- 11. end
+  2.     
+.     merge 1:1 zipcode statefips year ///
+>         using  "`instub'/irs_soi/irs_zip.dta", nogen keep(1 3)
+  3.     
+.     gen ln_agi_per_cap            = log(agi_per_cap)
+  4.     gen ln_wage_per_cap           = log(wage_per_cap)
+  5.     gen ln_wage_per_wage_hhld     = log(wage_per_wage_hhld)
+  6.     gen ln_bussines_rev_per_owner = log(bussines_rev_per_owner)
+  7.     
+.     save "../temp/irs_data.dta", replace
+  8. end
 
 . 
-. program get_lodes_shares
+. program merge_lodes_shares
   1.     syntax, instub(str)
   2. 
 .     use "`instub'/lodes_zipcodes/jobs.dta", clear
-  3.         preserve
-  4.             keep if jobs_by == "residence"
-  5.                 
-.                 keep zipcode year share_age_* share_earn_* share_naics_* shar
-> e_sch_*
-  6.             rename share_age_* res_*
-  7.             rename share_earn_* res_*
-  8.             rename share_naics_* res_*
-  9.             rename share_sch_* res_*
- 10.                 
-.             save "../temp/residence_shares.dta", replace
- 11.         restore
- 12.         
-.         preserve
- 13.             keep if jobs_by == "workplace"
- 14.                 
-.                 keep zipcode year share_age_* share_earn_* share_naics_* shar
-> e_sch_*
- 15.             rename share_age_* wrkpl_*
- 16.             rename share_earn_* wrkpl_*
- 17.             rename share_naics_* wrkpl_*
- 18.             rename share_sch_* wrkpl_*
- 19.                 
-.             save "../temp/workplace_shares.dta", replace
- 20.         restore
+  3.     preserve
+  4.         keep if jobs_by == "residence"
+  5.         
+.         keep zipcode year share_age_* share_earn_* share_naics_* share_sch_*
+  6.         rename share_age_* sh_residents_*
+  7.         rename share_earn_* sh_residents_*
+  8.         rename share_naics_* sh_residents_*
+  9.         rename share_sch_* sh_residents_*
+ 10.         
+.         save "../temp/residence_shares.dta", replace
+ 11.     restore
+ 12.     
+.     preserve
+ 13.         keep if jobs_by == "workplace"
+ 14.         
+.         keep zipcode year share_age_* share_earn_* share_naics_* share_sch_*
+ 15.         rename share_age_* sh_workers_*
+ 16.         rename share_earn_* sh_workers_*
+ 17.         rename share_naics_* sh_workers_*
+ 18.         rename share_sch_* sh_workers_*
+ 19.         
+.         save "../temp/workplace_shares.dta", replace
+ 20.     restore
  21. end
 
 . 
+. 
 . main
+
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+exp_ln_mw_10    double  %10.0g                
+exp_ln_mw_~9_10 double  %10.0g                
+exp_ln_mw_~4_10 double  %10.0g                
+exp_ln_mw_~5_10 double  %10.0g                
+exp_ln_mw_~0_10 double  %10.0g                
+exp_ln~_3333_10 double  %10.0g                
+exp_ln~e3333_10 double  %10.0g                
+exp_ln_mw_go~10 double  %10.0g                
+exp_ln_mw_tr~10 double  %10.0g                
+exp_ln_mw_ot~10 double  %10.0g                
+exp_ln_mw_14    double  %10.0g                
+exp_ln_mw_~9_14 double  %10.0g                
+exp_ln_mw_~4_14 double  %10.0g                
+exp_ln_mw_~5_14 double  %10.0g                
+exp_ln_mw_~0_14 double  %10.0g                
+exp_ln~_3333_14 double  %10.0g                
+exp_ln~e3333_14 double  %10.0g                
+exp_ln_mw_go~14 double  %10.0g                
+exp_ln_mw_tr~14 double  %10.0g                
+exp_ln_mw_ot~14 double  %10.0g                
+exp_ln_mw_17    double  %10.0g                
+exp_ln_mw_~9_17 double  %10.0g                
+exp_ln_mw_~4_17 double  %10.0g                
+exp_ln_mw_~5_17 double  %10.0g                
+exp_ln_mw_~0_17 double  %10.0g                
+exp_ln~_3333_17 double  %10.0g                
+exp_ln~e3333_17 double  %10.0g                
+exp_ln_mw_go~17 double  %10.0g                
+exp_ln_mw_tr~17 double  %10.0g                
+exp_ln_mw_ot~17 double  %10.0g                
+exp_ln_mw_18    double  %10.0g                
+exp_ln_mw_~9_18 double  %10.0g                
+exp_ln_mw_~4_18 double  %10.0g                
+exp_ln_mw_~5_18 double  %10.0g                
+exp_ln_mw_~0_18 double  %10.0g                
+exp_ln~_3333_18 double  %10.0g                
+exp_ln~e3333_18 double  %10.0g                
+exp_ln_mw_go~18 double  %10.0g                
+exp_ln_mw_tr~18 double  %10.0g                
+exp_ln_mw_ot~18 double  %10.0g                
+(206628 missing values generated)
+(206628 missing values generated)
+(206628 missing values generated)
+(206628 missing values generated)
+(206628 missing values generated)
+(206628 missing values generated)
+(206628 missing values generated)
+(206628 missing values generated)
+(206628 missing values generated)
+(206628 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
+(205908 missing values generated)
 (4,453,680 observations deleted)
 
     Result                           # of obs.
@@ -176,67 +275,163 @@ file ../temp/workplace_shares.dta saved
 File: ../../../drive/derived_large/zipcode_year/zipcode_year.dta
 Key: zipcode year
 ===============================================================================
-  447216:74(49398):2212191099:1968583645
+  447216:154(105070):15135939:3698006895
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
      zipcode |          0
         year |    447,216    2014.016     3.15055       2009       2019
-wrkpl_und~29 |    344,917    .2206504    .0523743          0          1
-wrkpl_30to54 |    344,917    .5422413    .0467914          0          1
-wrkpl_abo~55 |    344,917    .2371082    .0490956          0          1
+sh_worker~29 |    344,917    .2206504    .0523743          0          1
+sh_worker~54 |    344,917    .5422413    .0467914          0          1
+sh_worker~55 |    344,917    .2371082    .0490956          0          1
 -------------+---------------------------------------------------------
-wrkpl_u~1250 |    344,917    .2808454    .0874182          0          1
-wrkpl_1~3333 |    344,917    .3795673      .08205          0          1
-wrkpl_a~3333 |    344,917    .3395873    .1264011          0          1
-wrkpl_unde~S |    344,917    .0971594    .0385835          0   .5307692
-wrkpl_HS_n~l |    344,917    .2474644    .0529582          0          1
+sh_work~1250 |    344,917    .2808454    .0874182          0          1
+sh_wor~_3333 |    344,917    .3795673      .08205          0          1
+sh_wor~e3333 |    344,917    .3395873    .1264011          0          1
+sh_workers~S |    344,917    .0971594    .0385835          0   .5307692
+sh_wor~oColl |    344,917    .2474644    .0529582          0          1
 -------------+---------------------------------------------------------
-wrkpl_some~l |    344,917    .2515892    .0301841          0          1
-wrkpl_Coll~e |    344,917    .1831365     .059672          0          1
- wrkpl_manuf |    344,917    .1070548     .131987          0          1
-wrkpl_retail |    344,917     .111139    .0788891          0          1
-wrkpl_fina~e |    344,917    .0283058    .0392195          0          1
+sh_wor~eColl |    344,917    .2515892    .0301841          0          1
+sh_worker~ge |    344,917    .1831365     .059672          0          1
+sh_workers~f |    344,917    .1070548     .131987          0          1
+sh_worker~il |    344,917     .111139    .0788891          0          1
+sh_worker~ce |    344,917    .0283058    .0392195          0          1
 -------------+---------------------------------------------------------
-wrkpl_acco~d |    344,917    .0847469    .0800489          0          1
- res_under29 |    344,624    .2252939    .0365974          0        .75
-  res_30to54 |    344,624    .5443693    .0378129          0          1
- res_above55 |    344,624    .2303368    .0448296          0   .6666667
-res_und~1250 |    344,624     .260322    .0484557          0          1
+sh_workers~d |    344,917    .0847469    .0800489          0          1
+sh_reside~29 |    344,624    .2252939    .0365974          0        .75
+sh_reside~54 |    344,624    .5443693    .0378129          0          1
+sh_reside~55 |    344,624    .2303368    .0448296          0   .6666667
+sh_resi~1250 |    344,624     .260322    .0484557          0          1
 -------------+---------------------------------------------------------
-res_125~3333 |    344,624    .3691655    .0743584          0          1
-res_abo~3333 |    344,624    .3705125     .107387          0   .8846357
- res_underHS |    344,624    .0889716    .0341339          0   .4779973
-res_HS_noC~l |    344,624    .2325713    .0434347          0         .6
-res_someColl |    344,624    .2534716    .0242805          0          1
+sh_res~_3333 |    344,624    .3691655    .0743584          0          1
+sh_res~e3333 |    344,624    .3705125     .107387          0   .8846357
+sh_residen~S |    344,624    .0889716    .0341339          0   .4779973
+sh_res~oColl |    344,624    .2325713    .0434347          0         .6
+sh_res~eColl |    344,624    .2534716    .0242805          0          1
 -------------+---------------------------------------------------------
- res_College |    344,624    .1996916    .0617274          0         .6
-   res_manuf |    344,624    .1056402    .0633836          0   .5715689
-  res_retail |    344,624    .1168999    .0218667          0       .375
- res_finance |    344,624    .0365465    .0187062          0   .3274606
-res_accomm~d |    344,624    .0868732    .0333893          0   .6644487
+sh_reside~ge |    344,624    .1996916    .0617274          0         .6
+sh_residen~f |    344,624    .1056402    .0633836          0   .5715689
+sh_reside~il |    344,624    .1168999    .0218667          0       .375
+sh_reside~ce |    344,624    .0365465    .0187062          0   .3274606
+sh_residen~d |    344,624    .0868732    .0333893          0   .6644487
 -------------+---------------------------------------------------------
   countyfips |          0
       cbsa10 |          0
         zcta |          0
    statefips |          0
-   actual_mw |    404,880    7.911584    1.097897       7.25      16.09
+   actual_mw |    404,880    7.913765    1.102171       7.25      16.09
 -------------+---------------------------------------------------------
-   exp_ln_mw |    346,030    2.060865    .1187238   1.981001   2.695033
+exp_ln_mw_10 |    387,661    1.836279    .6471781          0   2.694068
+exp_ln_~9_10 |    387,661    1.836394    .6471569          0   2.689846
+exp_ln_~4_10 |    387,661    1.836187    .6471889          0   2.695014
+exp_ln_~5_10 |    387,661     1.83638    .6472753          0   2.714165
+exp_ln_~0_10 |    387,661    1.836707    .6472335          0    2.70649
+-------------+---------------------------------------------------------
+exp~_3333_10 |    387,661     1.83625    .6470843          0   2.702121
+exp~e3333_10 |    387,661     1.83593    .6472077          0   2.688334
+exp_ln~od_10 |    387,661    1.836679    .6471625          0   2.677355
+exp_ln_~l_10 |    387,661    1.835231    .6467485          0   2.686347
+exp_ln~nd_10 |    387,661    1.836356    .6473687          0   2.699857
+-------------+---------------------------------------------------------
+exp_ln_mw_14 |    387,721    1.836646    .6474384          0   2.689939
+exp_ln_~9_14 |    387,721    1.836716    .6472983          0   2.697295
+exp_ln_~4_14 |    387,721    1.836605    .6474734          0   2.690224
+exp_ln_~5_14 |    387,721    1.836633     .647486          0   2.704167
+exp_ln_~0_14 |    387,721    1.836926    .6474409          0   2.696525
+-------------+---------------------------------------------------------
+exp~_3333_14 |    387,721    1.836604     .647326          0   2.697299
+exp~e3333_14 |    387,721    1.836446    .6474993          0    2.69204
+exp_ln~od_14 |    387,721    1.837014    .6472008          0   2.677991
+exp_ln_~l_14 |    387,721    1.835696    .6468858          0    2.71933
+exp_ln~nd_14 |    387,721    1.836766    .6476563          0   2.696364
+-------------+---------------------------------------------------------
+exp_ln_mw_17 |    387,721    1.836817    .6474915          0   2.699076
+exp_ln_~9_17 |    387,721    1.836802    .6473345          0   2.708475
+exp_ln_~4_17 |    387,721    1.836807    .6475445          0   2.699908
+exp_ln_~5_17 |    387,721    1.836837    .6475234          0   2.707247
+exp_ln_~0_17 |    387,721    1.836919    .6473762          0   2.705405
+-------------+---------------------------------------------------------
+exp~_3333_17 |    387,721    1.836764    .6473577          0   2.694528
+exp~e3333_17 |    387,721    1.836744    .6476145          0   2.704592
+exp_ln~od_17 |    387,721    1.837439    .6473708          0   2.669594
+exp_ln_~l_17 |    387,721    1.836132    .6470711          0   2.738017
+exp_ln~nd_17 |    387,721    1.836826    .6476468          0   2.701758
+-------------+---------------------------------------------------------
+exp_ln_mw_18 |    387,721    1.836873    .6475095          0    2.70274
+exp_ln_~9_18 |    387,721    1.836781    .6473193          0   2.714377
+exp_ln_~4_18 |    387,721    1.836889    .6475767          0   2.701498
+exp_ln_~5_18 |    387,721    1.836885    .6475333          0   2.707201
+exp_ln_~0_18 |    387,721      1.8369      .64736          0   2.706712
+-------------+---------------------------------------------------------
+exp~_3333_18 |    387,721    1.836803    .6473629          0   2.703874
+exp~e3333_18 |    387,721    1.836867    .6476539          0   2.708197
+exp_ln~od_18 |    387,721    1.837393    .6473308          0   2.671368
+exp_ln_~l_18 |    387,721    1.836174    .6471167          0      2.743
+exp_ln~nd_18 |    387,721    1.836908    .6476681          0   2.698552
+-------------+---------------------------------------------------------
      acs_pop |    387,561    8108.076    13091.88          0   117602.2
 ln_med_ren~r |     15,263    .1098755    .4689393  -2.137656   3.075775
-       ln_mw |    404,880    2.060164     .122867   1.981001   2.778198
-ln_emp_biz~v |    396,618    8.087138    2.545404   .6931472   13.34476
+       ln_mw |    404,880     2.06039     .123213   1.981001   2.778198
+ln_emp_biz~v |    396,618    8.087153    2.545402   .6931472   13.34476
+ ln_emp_info |    367,767    6.438861     2.29554          0   12.30969
 -------------+---------------------------------------------------------
- ln_emp_info |    367,775     6.43873    2.295629          0   12.30969
-  ln_emp_fin |    397,600    7.445727    2.249355   1.098612   12.85575
-ln_estcoun~v |    404,559    5.916558    2.195243          0   10.90575
-ln_estcoun~o |    401,130    3.659253    1.955471          0   9.445492
-ln_estcoun~n |    404,569    5.475535    1.996077          0   10.29272
+  ln_emp_fin |    397,588    7.445909    2.249233   1.098612   12.85575
+ln_estcoun~v |    404,563    5.916537    2.195272          0   10.90575
+ln_estcoun~o |    401,125    3.659271     1.95551          0   9.445492
+ln_estcoun~n |    404,569    5.475573    1.996056          0   10.29272
+ln_avgwwag~v |    396,618    6.781684    .4205722   4.867535   10.20196
 -------------+---------------------------------------------------------
-ln_avgwwag~v |    396,618    6.781681    .4205874   4.867535   10.20196
-ln_avgwwag~o |    367,775    6.903264     .481072   4.634729    9.33662
-ln_avgwwag~n |    397,600     6.96031    .4592628   5.099866   9.163982
+ln_avgwwag~o |    367,767    6.903281    .4810584   4.634729    9.33662
+ln_avgwwag~n |    397,588    6.960339    .4592611   5.099866   9.163982
+   ln_mw_avg |    404,880    2.062516    .1256801   1.981001   2.778198
+exp~w_10_avg |    387,661    1.838236    .6482317          0   2.700484
+exp~9_10_avg |    387,661     1.83833    .6481924          0   2.700562
+-------------+---------------------------------------------------------
+exp~4_10_avg |    387,661    1.838148    .6482463          0    2.69884
+exp~5_10_avg |    387,661    1.838352    .6483391          0   2.714236
+exp~0_10_avg |    387,661     1.83863    .6482671          0   2.709322
+exp_ln_mw_.. |    387,661    1.838174    .6481165          0   2.702179
+exp_ln_mw_.. |    387,661    1.837933    .6482889          0   2.700144
+-------------+---------------------------------------------------------
+ex~od_10_avg |    387,661    1.838542    .6481475          0   2.680032
+exp~l_10_avg |    387,661    1.837175    .6477904          0   2.698626
+ex~nd_10_avg |    387,661    1.838336    .6484381          0   2.705238
+exp~w_14_avg |    387,721    1.838601    .6484864          0   2.690032
+exp~9_14_avg |    387,721     1.83864     .648325          0   2.697341
+-------------+---------------------------------------------------------
+exp~4_14_avg |    387,721    1.838566    .6485261          0   2.690296
+exp~5_14_avg |    387,721    1.838601    .6485422          0   2.704307
+exp~0_14_avg |    387,721    1.838856    .6484751          0   2.696525
+exp_ln_mw_.. |    387,721    1.838522    .6483505          0    2.69739
+exp_ln_mw_.. |    387,721    1.838437    .6485689          0   2.692072
+-------------+---------------------------------------------------------
+ex~od_14_avg |    387,721    1.838856    .6481667          0   2.680497
+exp~l_14_avg |    387,721    1.837627    .6479156          0   2.719366
+ex~nd_14_avg |    387,721    1.838752    .6487256          0   2.696728
+exp~w_17_avg |    387,721    1.838771    .6485382          0   2.699161
+exp~9_17_avg |    387,721    1.838728    .6483614          0   2.708547
+-------------+---------------------------------------------------------
+exp~4_17_avg |    387,721    1.838768    .6485964          0    2.70001
+exp~5_17_avg |    387,721    1.838801    .6485761          0   2.707343
+exp~0_17_avg |    387,721    1.838838    .6484025          0   2.705464
+exp_ln_mw_.. |    387,721    1.838683    .6483796          0   2.694752
+exp_ln_mw_.. |    387,721    1.838736    .6486846          0   2.704646
+-------------+---------------------------------------------------------
+ex~od_17_avg |    387,721    1.839286     .648337          0   2.675391
+exp~l_17_avg |    387,721    1.838069    .6481054          0   2.738061
+ex~nd_17_avg |    387,721    1.838809    .6487126          0   2.701807
+exp~w_18_avg |    387,721    1.838827    .6485564          0   2.702842
+exp~9_18_avg |    387,721    1.838703    .6483445          0   2.714457
+-------------+---------------------------------------------------------
+exp~4_18_avg |    387,721    1.838851    .6486296          0   2.701545
+exp~5_18_avg |    387,721     1.83885    .6485857          0   2.707378
+exp~0_18_avg |    387,721     1.83882    .6483867          0   2.706869
+exp_ln_mw_.. |    387,721    1.838721    .6483848          0    2.70393
+exp_ln_mw_.. |    387,721    1.838858    .6487228          0   2.708255
+-------------+---------------------------------------------------------
+ex~od_18_avg |    387,721    1.839234    .6482934          0   2.676962
+exp~l_18_avg |    387,721    1.838116    .6481555          0   2.743018
+ex~nd_18_avg |    387,721    1.838891    .6487339          0   2.698646
 num_hhlds_~s |    245,268    5083.394    6756.117    65.0005      54510
      pop_irs |    245,268    9973.123    13388.05         50     135791
 -------------+---------------------------------------------------------
@@ -277,4 +472,4 @@ file ../../../drive/derived_large/zipcode_year/zipcode_year.dta saved
 . 
 end of do-file
 
- make.py ended: 2021-09-30 14:51:09
+ make.py ended: 2021-10-02 18:00:17

@@ -82,7 +82,7 @@ program merge_exp_mw
     qui sum medrentpricepsqft_SFCC if !missing(medrentpricepsqft_SFCC)
     local observations_with_rents = r(N)
 
-    foreach year in 10 14 17 18{
+    foreach year in 10 14 17 18 {
         sum exp_ln_mw_tot_`year' if !missing(medrentpricepsqft_SFCC)
         assert r(N) == `observations_with_rents'
     }
