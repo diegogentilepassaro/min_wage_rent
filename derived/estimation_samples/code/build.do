@@ -3,9 +3,9 @@ clear all
 adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
-    local in_derived_large "../../../drive/derived_large"
-    local outstub          "../../../drive/derived_large/estimation_samples"
-    local logfile          "../output/data_file_manifest.log"
+    local in_der_large "../../../drive/derived_large"
+    local outstub      "../../../drive/derived_large/estimation_samples"
+    local logfile      "../output/data_file_manifest.log"
     
     local rent_var          "medrentpricepsqft_SFCC"
     local start_year_month  "2010m1"
@@ -15,7 +15,7 @@ program main
     local targets           ".347 .124 62774 .386"
 
     foreach geo in zipcode county {
-        create_baseline_panel, instub(`in_derived_large') geo(`geo') ///
+        create_baseline_panel, instub(`in_der_large') geo(`geo') ///
             rent_var(`rent_var') target_year_month(`target_year_month') ///
             start_year_month(`start_year_month') end_year_month(`end_year_month')
 		
@@ -27,7 +27,7 @@ program main
             replace log(`logfile')
         export delimited "`outstub'/baseline_`geo'_months.csv", replace
         
-        create_full_panel, instub(`in_derived_large') geo(`geo') ///
+        create_full_panel, instub(`in_der_large') geo(`geo') ///
             start_year_month(`start_year_month') end_year_month(`end_year_month')
 		
         gen_vars, rent_var(`rent_var')
@@ -38,7 +38,7 @@ program main
             replace log(`logfile')
         export delimited "`outstub'/all_`geo'_months.csv", replace
         
-        create_balanced_panel, instub(`in_derived_large') geo(`geo') ///
+        create_balanced_panel, instub(`in_der_large') geo(`geo') ///
             target_year_month(`target_year_month')
         add_weights, geo(`geo') target_vars(`target_vars') ///
             targets(`targets') target_year_month(`target_year_month')
