@@ -21,6 +21,8 @@ program main
     merge 1:1 countyfips using "`in_base_large'/demographics/county_demo_2010.dta", ///
         nogen keep(1 3)
 
+    merge_od_shares, instub(`in_der_large')
+
     strcompress
     rename countyfips county
     save_data "`outstub'/county_cross.dta", replace ///
@@ -37,6 +39,29 @@ program build_zillow_county_stats
     tostring countyfips, format(%05.0f) replace
 
     save "../temp/zillow_counties_with_rents.dta", replace
+end
+
+program merge_od_shares
+    syntax, instub(str)
+
+    foreach yy in 2014 2017 {
+        preserve
+            clear
+            import delimited "`instub'/shares/county_shares.csv", stringcols(1)
+
+            keep if year == `yy'
+
+            keep county share_*
+            rename county               countyfips
+            rename share_workers_*      sh_workers_od_*_`yy'
+            rename share_residents_*    sh_residents_od_*_`yy'
+            rename share_work_samegeo_* sh_work_samegeo_od_*_`yy'
+
+            save "../temp/od_shares_`yy'.dta"
+        restore
+    }
+    merge 1:1 countyfips using "../temp/od_shares_2014.dta", nogen keep(1 3)
+    merge 1:1 countyfips using "../temp/od_shares_2017.dta", nogen keep(1 3)
 end
 
 
