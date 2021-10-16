@@ -4,28 +4,26 @@ adopath + ../../../lib/stata/gslab_misc/ado
 adopath + ../../../lib/stata/mental_coupons/ado
 
 program main
-    local in_derived_large "../../../drive/derived_large"
-    local in_geo           "../../../base/geo_master/output"
-    local in_base_large    "../../../drive/base_large"
-    local in_qcew          "../../../base/qcew/output"
-    local outstub          "../../../drive/derived_large/zipcode_month"
-    local logfile          "../output/data_file_manifest.log"
+    local in_der_large  "../../../drive/derived_large"
+    local in_geo        "../../../base/geo_master/output"
+    local in_base_large "../../../drive/base_large"
+    local in_qcew       "../../../base/qcew/output"
+    local outstub       "../../../drive/derived_large/zipcode_month"
+    local logfile       "../output/data_file_manifest.log"
 
-    use zipcode place_code countyfips cbsa10 zcta statefips rural                 ///
+    use zipcode place_code countyfips cbsa10 zcta statefips rural             ///
         using "`in_geo'/zip_county_place_usps_master.dta", clear
 
-    merge 1:m zipcode using "`in_derived_large'/min_wage/zip_statutory_mw.dta",   ///
+    merge 1:m zipcode using "`in_der_large'/min_wage/zip_statutory_mw.dta",   ///
        nogen assert(3) keepusing(year month actual* binding*)
     
     merge_zillow, instub("`in_base_large'/zillow")
     
-    merge_exp_mw, instub("`in_derived_large'/min_wage")
-
-    merge_acs_pop, instub("`in_base_large'/demographics")
+    merge_exp_mw, instub("`in_der_large'/min_wage")
     
     make_date_variables
 
-    merge m:1 statefips countyfips year month                                     ///
+    merge m:1 statefips countyfips year month                                ///
         using "`in_qcew'/ind_emp_wage_countymonth.dta", nogen keep(1 3)
     drop qmon end_month
 
@@ -86,19 +84,6 @@ program merge_exp_mw
         sum exp_ln_mw_tot_`year' if !missing(medrentpricepsqft_SFCC)
         assert r(N) == `observations_with_rents'
     }
-end
-
-program merge_acs_pop
-    syntax, instub(str)
-
-    merge m:1 zipcode year using "`instub'/acs_population_zipyear.dta", ///
-        nogen keep(1 3)
-
-    qui sum medrentpricepsqft_SFCC if !missing(medrentpricepsqft_SFCC)
-    local observations_with_rents = r(N)
-
-    qui sum acs_pop if !missing(medrentpricepsqft_SFCC)
-    assert r(N) == `observations_with_rents'
 end
 
 program make_date_variables

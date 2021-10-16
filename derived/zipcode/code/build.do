@@ -19,6 +19,8 @@ program main
         nogen keep(1 3)
 
     merge_lodes_shares, instub(`in_base_large')
+    merge_lodes_shares, instub(`in_base_large') yy(2017)
+    merge_od_shares,    instub(`in_der_large')
 
     strcompress
     save_data "`outstub'/zipcode_cross.dta",                                  ///
@@ -67,6 +69,28 @@ program merge_lodes_shares
 
     merge 1:1 zipcode using "../temp/residents_shares.dta", nogen
     merge 1:1 zipcode using "../temp/workers_shares.dta", nogen
+end
+
+program merge_od_shares
+    syntax, instub(str)
+
+    foreach yy in 2014 2017 {
+        preserve
+            clear
+            import delimited "`instub'/shares/zipcode_shares.csv", stringcols(1)
+
+            keep if year == `yy'
+
+            keep zipcode share_*
+            rename share_workers_*      sh_workers_od_*_`yy'
+            rename share_residents_*    sh_residents_od_*_`yy'
+            rename share_work_samegeo_* sh_work_samegeo_od_*_`yy'
+
+            save "../temp/od_shares_`yy'.dta"
+        restore
+    }
+    merge 1:1 zipcode using "../temp/od_shares_2014.dta", nogen
+    merge 1:1 zipcode using "../temp/od_shares_2017.dta", nogen
 end
 
 
