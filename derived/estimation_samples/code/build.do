@@ -15,21 +15,10 @@ program main
     local targets           ".347 .124 62774 .386"
 
     foreach geo in zipcode county {
-        create_baseline_panel, instub(`in_der_large') geo(`geo') ///
-            rent_var(`rent_var') target_year_month(`target_year_month') ///
-            start_year_month(`start_year_month') end_year_month(`end_year_month')
-		
-        gen_vars, rent_var(`rent_var')
-        add_weights, geo(`geo') target_vars(`target_vars') ///
-            targets(`targets') target_year_month(`target_year_month')
-            
-        save_data "`outstub'/baseline_`geo'_months.dta", key(`geo' year_month) ///
-            replace log(`logfile')
-        export delimited "`outstub'/baseline_`geo'_months.csv", replace
-        
+
         create_full_panel, instub(`in_der_large') geo(`geo') ///
             start_year_month(`start_year_month') end_year_month(`end_year_month')
-		
+
         gen_vars, rent_var(`rent_var')
         add_weights, geo(`geo') target_vars(`target_vars') ///
             targets(`targets') target_year_month(`target_year_month')
@@ -37,7 +26,21 @@ program main
         save_data "`outstub'/all_`geo'_months.dta", key(`geo' year_month) ///
             replace log(`logfile')
         export delimited "`outstub'/all_`geo'_months.csv", replace
-        
+
+
+        create_baseline_panel, instub(`in_der_large') geo(`geo') ///
+            rent_var(`rent_var') target_year_month(`target_year_month') ///
+            start_year_month(`start_year_month') end_year_month(`end_year_month')
+
+        gen_vars, rent_var(`rent_var')
+        add_weights, geo(`geo') target_vars(`target_vars') ///
+            targets(`targets') target_year_month(`target_year_month')
+            
+        save_data "`outstub'/baseline_`geo'_months.dta", key(`geo' year_month) ///
+            replace log(`logfile')
+        export delimited "`outstub'/baseline_`geo'_months.csv", replace
+                
+
         create_balanced_panel, instub(`in_der_large') geo(`geo') ///
             target_year_month(`target_year_month')
         add_weights, geo(`geo') target_vars(`target_vars') ///
@@ -81,8 +84,8 @@ end
 program gen_vars
     syntax, rent_var(str)
 
-    gen ln_med_rent_var = log(`rent_var')
-    gen ln_mw           = log(actual_mw)
+    gen ln_rents = log(`rent_var')
+    gen ln_mw    = log(actual_mw)
     rename exp_ln_mw_tot* exp_ln_mw*
     
     foreach ctrl_type in emp estcount avgwwage {
@@ -135,7 +138,7 @@ program create_balanced_panel
 end
 
 program drop_vars
-    foreach var in medlistingprice_SFCC medlistingprice_low_tier ///
+    foreach var in medlistingprice_low_tier ///
         medlistingprice_top_tier medpctpricereduction_SFCC ///
         medrentprice_1BR medrentprice_2BR medrentprice_3BR ///
         medrentprice_4BR medrentprice_5BR medrentprice_SFCC ///
