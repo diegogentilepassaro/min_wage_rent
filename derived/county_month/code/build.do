@@ -18,17 +18,16 @@ program main
     merge 1:m countyfips using "`in_derived_large'/min_wage/county_statutory_mw.dta", ///
        nogen assert(3) keepusing(year month actual_mw* binding_mw*)
     
-    merge_exp_mw, instub("`in_derived_large'/min_wage")
-    
-    merge_zillow, instub("`in_base_large'/zillow")
+    merge_exp_mw, instub(`in_derived_large') yy("10")
+    merge_exp_mw, instub(`in_derived_large') yy("14")
+    merge_exp_mw, instub(`in_derived_large') yy("17")
+    merge_exp_mw, instub(`in_derived_large') yy("18")
+    merge_zillow, instub(`in_base_large')
 
     /* Should we build ACS population by county-year? Probably we should! */
 
     make_date_variables
-
-    merge m:1 statefips countyfips month year ///
-        using "`in_qcew'/ind_emp_wage_countymonth.dta", ///
-        nogen keep(3) assert(1 2 3)
+    merge_qcew, instub(`in_qcew')
 
     strcompress
     rename countyfips county
@@ -37,18 +36,25 @@ program main
 end
 
 program merge_exp_mw
-    syntax, instub(str)
+    syntax, instub(str) yy(str)
 
-    merge 1:1 countyfips year month ///
-        using "`instub'/countyfips_experienced_mw.dta", ///
+    preserve
+        use "`instub'/min_wage/countyfips_experienced_mw_20`yy'.dta", clear
+
+        drop *mean
+        rename exp_ln_* exp_ln_*_`yy'
+
+        tempfile exp_mw
+        save    `exp_mw'
+    restore
+    merge 1:1 countyfips year month using `exp_mw', ///
         assert(1 2 3) keep(1 3) nogen keepusing(exp*)
 end
-
 
 program merge_zillow
     syntax, instub(str)
     
-    merge 1:1 countyfips year month using "`instub'/zillow_county_clean.dta"
+    merge 1:1 countyfips year month using "`instub'/zillow/zillow_county_clean.dta"
     
     qui sum medrentpricepsqft_SFCC if _merge == 2 & inrange(year, 2010, 2019)    
     assert r(N) == 0
@@ -69,5 +75,14 @@ program make_date_variables
 
     drop day date
 end
+
+program merge_qcew
+    syntax, instub(str)
+    
+    merge m:1 statefips countyfips year month           ///
+        using "`instub'/ind_emp_wage_countymonth.dta", ///
+        nogen keep(3)
+end
+
 
 main

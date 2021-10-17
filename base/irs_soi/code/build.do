@@ -3,7 +3,9 @@ clear all
 adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
-    local instub "../temp"
+    local instub  "../temp"
+    local outstub "../../../drive/base_large/irs_soi"
+    local logfile "../output/data_file_manifest.log"
 
     foreach y in "09" "10" "11" "12" "13" "14" "15" "16" "17" "18" {
         read_excel_files, instub(`instub') yr(`y')
@@ -12,7 +14,7 @@ program main
     foreach y in "09" "10" "11" "12" "13" "14" "15" "16" "17" "18" {
     	append using "../temp/irs_zip_`y'.dta"
     }
-    	
+    
     drop if num_hhlds_irs == 0.0001
     drop if num_hhlds_irs == 0
     collapse (sum) num_hhlds_irs pop_irs num_dep adj_gross_inc      ///
@@ -22,7 +24,7 @@ program main
     
     create_variables
 
-    save_data "../output/irs_zip.dta", key(zipcode statefips year) replace
+    save_data "`outstub'/irs_zip.dta", key(zipcode statefips year) log(`logfile') replace
 end
 
 program read_excel_files

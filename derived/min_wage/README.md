@@ -4,5 +4,5 @@
 Output from:
 
 - `./base/min_wage`
-- `./base/lodes`
+- `./base/lodes_od`
 - `./base/geo_master`
