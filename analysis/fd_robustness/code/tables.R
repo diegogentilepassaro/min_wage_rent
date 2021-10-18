@@ -5,196 +5,106 @@ main <- function() {
   instub  <- "../output/"
   outstub <- "../output/"
   
-  est <- read.csv(file.path(instub, "estimates_static.csv"))
+  est <- fread(file.path(instub, "estimates_static.csv"))
+
 
   txt_static_sample <- c("<tab:static_sample>")
-  txt_static_sample <- c(txt_static_sample, 
-                         paste(est[est$model == "static_baseline"& est$var == "ln_mw",]$b,
-                               est[est$model == "static_baseline_unbal"& est$var == "ln_mw",]$b,
-                               est[est$model == "static_baseline_wgt"& est$var == "ln_mw",]$b,
-                               est[est$model == "static_baseline_unbal_wgt"& est$var == "ln_mw",]$b,
-                               est[est$model == "static_baseline_fullbal"& est$var == "ln_mw",]$b,
-                               est[est$model == "static_baseline_fullbal_wgt"& est$var == "ln_mw",]$b,
-                               sep = "\t"))
-  txt_static_sample <- c(txt_static_sample, 
-                         paste(est[est$model == "static_baseline"& est$var == "ln_mw",]$se,
-                               est[est$model == "static_baseline_unbal"& est$var == "ln_mw",]$se,
-                               est[est$model == "static_baseline_wgt"& est$var == "ln_mw",]$se,
-                               est[est$model == "static_baseline_unbal_wgt"& est$var == "ln_mw",]$se,
-                               est[est$model == "static_baseline_fullbal"& est$var == "ln_mw",]$se,
-                               est[est$model == "static_baseline_fullbal_wgt"& est$var == "ln_mw",]$se,
-                               sep = "\t"))
-  txt_static_sample <- c(txt_static_sample, 
-                         paste(est[est$model == "static_baseline"& est$var == "exp_ln_mw_17",]$b,
-                               est[est$model == "static_baseline_unbal"& est$var == "exp_ln_mw_17",]$b,
-                               est[est$model == "static_baseline_wgt"& est$var == "exp_ln_mw_17",]$b,
-                               est[est$model == "static_baseline_unbal_wgt"& est$var == "exp_ln_mw_17",]$b,
-                               est[est$model == "static_baseline_fullbal"& est$var == "exp_ln_mw_17",]$b,
-                               est[est$model == "static_baseline_fullbal_wgt"& est$var == "exp_ln_mw_17",]$b,
-                               sep = "\t"))
-  txt_static_sample <- c(txt_static_sample, 
-                         paste(est[est$model == "static_baseline"& est$var == "exp_ln_mw_17",]$se,
-                               est[est$model == "static_baseline_unbal"& est$var == "exp_ln_mw_17",]$se,
-                               est[est$model == "static_baseline_wgt"& est$var == "exp_ln_mw_17",]$se,
-                               est[est$model == "static_baseline_unbal_wgt"& est$var == "exp_ln_mw_17",]$se,
-                               est[est$model == "static_baseline_fullbal"& est$var == "exp_ln_mw_17",]$se,
-                               est[est$model == "static_baseline_fullbal_wgt"& est$var == "exp_ln_mw_17",]$se,
-                               sep = "\t"))  
-  txt_static_sample <- c(txt_static_sample, 
-                         paste(est[est$model == "static_baseline"& est$var == "cumsum_from0",]$b,
-                               est[est$model == "static_baseline_unbal"& est$var == "cumsum_from0",]$b,
-                               est[est$model == "static_baseline_wgt"& est$var == "cumsum_from0",]$b,
-                               est[est$model == "static_baseline_unbal_wgt"& est$var == "cumsum_from0",]$b,
-                               est[est$model == "static_baseline_fullbal"& est$var == "cumsum_from0",]$b,
-                               est[est$model == "static_baseline_fullbal_wgt"& est$var == "cumsum_from0",]$b,
-                               sep = "\t"))
-  txt_static_sample <- c(txt_static_sample, 
-                         paste(est[est$model == "static_baseline"& est$var == "cumsum_from0",]$se,
-                               est[est$model == "static_baseline_unbal"& est$var == "cumsum_from0",]$se,
-                               est[est$model == "static_baseline_wgt"& est$var == "cumsum_from0",]$se,
-                               est[est$model == "static_baseline_unbal_wgt"& est$var == "cumsum_from0",]$se,
-                               est[est$model == "static_baseline_fullbal"& est$var == "cumsum_from0",]$se,
-                               est[est$model == "static_baseline_fullbal_wgt"& est$var == "cumsum_from0",]$se,
-                               sep = "\t"))   
-  txt_static_sample <- c(txt_static_sample, 
-                         paste(est[est$model == "static_baseline"& est$var == "cumsum_from0",]$p_equality,
-                               est[est$model == "static_baseline_unbal"& est$var == "cumsum_from0",]$p_equality,
-                               est[est$model == "static_baseline_wgt"& est$var == "cumsum_from0",]$p_equality,
-                               est[est$model == "static_baseline_unbal_wgt"& est$var == "cumsum_from0",]$p_equality,
-                               est[est$model == "static_baseline_fullbal"& est$var == "cumsum_from0",]$p_equality,
-                               est[est$model == "static_baseline_fullbal_wgt"& est$var == "cumsum_from0",]$p_equality,
-                               sep = "\t"))
-  txt_static_sample <- c(txt_static_sample, 
-                         paste(est[est$model == "static_baseline"& est$var == "cumsum_from0",]$r2,
-                               est[est$model == "static_baseline_unbal"& est$var == "cumsum_from0",]$r2,
-                               est[est$model == "static_baseline_wgt"& est$var == "cumsum_from0",]$r2,
-                               est[est$model == "static_baseline_unbal_wgt"& est$var == "cumsum_from0",]$r2,
-                               est[est$model == "static_baseline_fullbal"& est$var == "cumsum_from0",]$r2,
-                               est[est$model == "static_baseline_fullbal_wgt"& est$var == "cumsum_from0",]$r2,
-                               sep = "\t")) 
-  txt_static_sample <- c(txt_static_sample, 
-                         paste(est[est$model == "static_baseline"& est$var == "cumsum_from0",]$N,
-                               est[est$model == "static_baseline_unbal"& est$var == "cumsum_from0",]$N,
-                               est[est$model == "static_baseline_wgt"& est$var == "cumsum_from0",]$N,
-                               est[est$model == "static_baseline_unbal_wgt"& est$var == "cumsum_from0",]$N,
-                               est[est$model == "static_baseline_fullbal"& est$var == "cumsum_from0",]$N,
-                               est[est$model == "static_baseline_fullbal_wgt"& est$var == "cumsum_from0",]$N,
-                               sep = "\t"))   
+  for (xvar in c("ln_mw", "exp_ln_mw_17", "cumsum_from0")) {
+    txt_static_sample <- c(txt_static_sample, 
+                            paste(est[model == "static_baseline"             & var == xvar,]$b,
+                                  est[model == "static_baseline_unbal"       & var == xvar,]$b,
+                                  est[model == "static_baseline_wgt"         & var == xvar,]$b,
+                                  est[model == "static_baseline_unbal_wgt"   & var == xvar,]$b,
+                                  est[model == "static_baseline_fullbal"     & var == xvar,]$b,
+                                  est[model == "static_baseline_fullbal_wgt" & var == xvar,]$b,
+                                  sep = "\t"))
+    txt_static_sample <- c(txt_static_sample, 
+                            paste(est[model == "static_baseline"             & var == xvar,]$se,
+                                  est[model == "static_baseline_unbal"       & var == xvar,]$se,
+                                  est[model == "static_baseline_wgt"         & var == xvar,]$se,
+                                  est[model == "static_baseline_unbal_wgt"   & var == xvar,]$se,
+                                  est[model == "static_baseline_fullbal"     & var == xvar,]$se,
+                                  est[model == "static_baseline_fullbal_wgt" & var == xvar,]$se,
+                                  sep = "\t"))
+  }
+
+  for (stat in c("p_equality", "r2", "N")) {
+    txt_static_sample <- c(txt_static_sample, 
+                            paste(est[model == "static_baseline"             & var == "cumsum_from0",][[stat]],
+                                  est[model == "static_baseline_unbal"       & var == "cumsum_from0",][[stat]],
+                                  est[model == "static_baseline_wgt"         & var == "cumsum_from0",][[stat]],
+                                  est[model == "static_baseline_unbal_wgt"   & var == "cumsum_from0",][[stat]],
+                                  est[model == "static_baseline_fullbal"     & var == "cumsum_from0",][[stat]],
+                                  est[model == "static_baseline_fullbal_wgt" & var == "cumsum_from0",][[stat]],
+                                  sep = "\t"))
+  }
+
   fileConn <- file(file.path(outstub, "static_sample.txt"))
   writeLines(txt_static_sample, fileConn)
   close(fileConn)
   
+
   txt_static_ab <- c("<tab:static_ab>")
-  txt_static_ab <- c(txt_static_ab, 
-                     paste(est[est$model == "static_baseline"& est$var == "ln_mw",]$b,
-                           est[est$model == "static_baseline_AB"& est$var == "ln_mw",]$b,
-                           sep = "\t"))
-  txt_static_ab <- c(txt_static_ab, 
-                     paste(est[est$model == "static_baseline"& est$var == "ln_mw",]$se,
-                           est[est$model == "static_baseline_AB"& est$var == "ln_mw",]$se,
-                           sep = "\t"))
-  txt_static_ab <- c(txt_static_ab, 
-                     paste(est[est$model == "static_baseline"& est$var == "exp_ln_mw_17",]$b,
-                           est[est$model == "static_baseline_AB"& est$var == "exp_ln_mw_17",]$b,
-                           sep = "\t"))
-  txt_static_ab <- c(txt_static_ab, 
-                     paste(est[est$model == "static_baseline"& est$var == "exp_ln_mw_17",]$se,
-                           est[est$model == "static_baseline_AB"& est$var == "exp_ln_mw_17",]$se,
-                           sep = "\t"))
-  txt_static_ab <- c(txt_static_ab, 
-                     paste("",
-                           est[est$model == "static_baseline_AB"& est$var == "L_ln_rents",]$b,
-                           sep = "\t"))
-  txt_static_ab <- c(txt_static_ab, 
-                     paste("",
-                           est[est$model == "static_baseline_AB"& est$var == "L_ln_rents",]$se,
-                           sep = "\t"))
-  txt_static_ab <- c(txt_static_ab, 
-                     paste(est[est$model == "static_baseline"& est$var == "exp_ln_mw_17",]$p_equality,
-                           est[est$model == "static_baseline_AB"& est$var == "exp_ln_mw_17",]$p_equality,
-                           sep = "\t"))
-  txt_static_ab <- c(txt_static_ab, 
-                     paste(est[est$model == "static_baseline"& est$var == "exp_ln_mw_17",]$r2,
-                           est[est$model == "static_baseline_AB"& est$var == "exp_ln_mw_17",]$r2,
-                           sep = "\t"))
-  txt_static_ab <- c(txt_static_ab, 
-                     paste(est[est$model == "static_baseline"& est$var == "exp_ln_mw_17",]$N,
-                           est[est$model == "static_baseline_AB"& est$var == "exp_ln_mw_17",]$N,
-                           sep = "\t"))
+  for (xvar in c("ln_mw", "exp_ln_mw_17")) {
+    txt_static_ab <- c(txt_static_ab, 
+                      paste(est[model == "static_baseline"    & var == xvar,]$b,
+                            est[model == "static_baseline_AB" & var == xvar,]$b,
+                            sep = "\t"))
+    txt_static_ab <- c(txt_static_ab, 
+                      paste(est[model == "static_baseline"    & var == xvar,]$se,
+                            est[model == "static_baseline_AB" & var == xvar,]$se,
+                            sep = "\t"))
+  }
+
+  txt_static_ab <- c(txt_static_ab,
+                  paste(est[model == "static_baseline_AB" & var == "L_ln_rents",]$b,
+                        sep = "\t"))
+  txt_static_ab <- c(txt_static_ab,
+                  paste(est[model == "static_baseline_AB" & var == "L_ln_rents",]$se,
+                        sep = "\t"))
+  
+  for (stat in c("p_equality", "r2", "N")) {
+    txt_static_ab <- c(txt_static_ab, 
+                        paste(est[model == "static_baseline"    & var == "exp_ln_mw_17",][[stat]],
+                              est[model == "static_baseline_AB" & var == "exp_ln_mw_17",][[stat]],
+                              sep = "\t"))
+  }
+
   fileConn <- file(file.path(outstub, "static_ab.txt"))
   writeLines(txt_static_ab, fileConn)
   close(fileConn) 
-  
+
+
   txt_static_robust <- c("<tab:static_robust>")
-  txt_static_robust <- c(txt_static_robust, 
-                         paste(est[est$model == "static_baseline"& est$var == "ln_mw",]$b,
-                               est[est$model == "static_baseline_nocontrols"& est$var == "ln_mw",]$b,
-                               est[est$model == "static_baseline_zip_spec_trend"& est$var == "ln_mw",]$b,
-                               est[est$model == "static_baseline_state_county_timefe"& est$var == "ln_mw",]$b,
-                               est[est$model == "static_baseline_state_cbsa_timefe"& est$var == "ln_mw",]$b,
-                         sep = "\t"))
-  txt_static_robust <- c(txt_static_robust, 
-                         paste(est[est$model == "static_baseline"& est$var == "ln_mw",]$se,
-                               est[est$model == "static_baseline_nocontrols"& est$var == "ln_mw",]$se,
-                               est[est$model == "static_baseline_zip_spec_trend"& est$var == "ln_mw",]$se,
-                               est[est$model == "static_baseline_state_county_timefe"& est$var == "ln_mw",]$se,
-                               est[est$model == "static_baseline_state_cbsa_timefe"& est$var == "ln_mw",]$se,
-                               sep = "\t"))
-  txt_static_robust <- c(txt_static_robust, 
-                         paste(est[est$model == "static_baseline"& est$var == "exp_ln_mw_17",]$b,
-                               est[est$model == "static_baseline_nocontrols"& est$var == "exp_ln_mw_17",]$b,
-                               est[est$model == "static_baseline_zip_spec_trend"& est$var == "exp_ln_mw_17",]$b,
-                               est[est$model == "static_baseline_state_county_timefe"& est$var == "exp_ln_mw_17",]$b,
-                               est[est$model == "static_baseline_state_cbsa_timefe"& est$var == "exp_ln_mw_17",]$b,
-                               sep = "\t"))
-  txt_static_robust <- c(txt_static_robust, 
-                         paste(est[est$model == "static_baseline"& est$var == "exp_ln_mw_17",]$se,
-                               est[est$model == "static_baseline_nocontrols"& est$var == "exp_ln_mw_17",]$se,
-                               est[est$model == "static_baseline_zip_spec_trend"& est$var == "exp_ln_mw_17",]$se,
-                               est[est$model == "static_baseline_state_county_timefe"& est$var == "exp_ln_mw_17",]$se,
-                               est[est$model == "static_baseline_state_cbsa_timefe"& est$var == "exp_ln_mw_17",]$se,
-                               sep = "\t"))
-  txt_static_robust <- c(txt_static_robust, 
-                         paste(est[est$model == "static_baseline"& est$var == "cumsum_from0",]$b,
-                               est[est$model == "static_baseline_nocontrols"& est$var == "cumsum_from0",]$b,
-                               est[est$model == "static_baseline_zip_spec_trend"& est$var == "cumsum_from0",]$b,
-                               est[est$model == "static_baseline_state_county_timefe"& est$var == "cumsum_from0",]$b,
-                               est[est$model == "static_baseline_state_cbsa_timefe"& est$var == "cumsum_from0",]$b,
-                               sep = "\t"))
-  txt_static_robust <- c(txt_static_robust, 
-                         paste(est[est$model == "static_baseline"& est$var == "cumsum_from0",]$se,
-                               est[est$model == "static_baseline_nocontrols"& est$var == "cumsum_from0",]$se,
-                               est[est$model == "static_baseline_zip_spec_trend"& est$var == "cumsum_from0",]$se,
-                               est[est$model == "static_baseline_state_county_timefe"& est$var == "cumsum_from0",]$se,
-                               est[est$model == "static_baseline_state_cbsa_timefe"& est$var == "cumsum_from0",]$se,
-                               sep = "\t"))
-  txt_static_robust <- c(txt_static_robust, 
-                         paste(est[est$model == "static_baseline"& est$var == "exp_ln_mw_17",]$p_equality,
-                               est[est$model == "static_baseline_nocontrols"& est$var == "exp_ln_mw_17",]$p_equality,
-                               est[est$model == "static_baseline_zip_spec_trend"& est$var == "exp_ln_mw_17",]$p_equality,
-                               est[est$model == "static_baseline_state_county_timefe"& est$var == "exp_ln_mw_17",]$p_equality,
-                               est[est$model == "static_baseline_state_cbsa_timefe"& est$var == "exp_ln_mw_17",]$p_equality,
-                               sep = "\t"))
-  txt_static_robust <- c(txt_static_robust, 
-                         paste(est[est$model == "static_baseline"& est$var == "exp_ln_mw_17",]$r2,
-                               est[est$model == "static_baseline_nocontrols"& est$var == "exp_ln_mw_17",]$r2,
-                               est[est$model == "static_baseline_zip_spec_trend"& est$var == "exp_ln_mw_17",]$r2,
-                               est[est$model == "static_baseline_state_county_timefe"& est$var == "exp_ln_mw_17",]$r2,
-                               est[est$model == "static_baseline_state_cbsa_timefe"& est$var == "exp_ln_mw_17",]$r2,
-                               sep = "\t"))  
-  txt_static_robust <- c(txt_static_robust, 
-                         paste(est[est$model == "static_baseline"& est$var == "exp_ln_mw_17",]$N,
-                               est[est$model == "static_baseline_nocontrols"& est$var == "exp_ln_mw_17",]$N,
-                               est[est$model == "static_baseline_zip_spec_trend"& est$var == "exp_ln_mw_17",]$N,
-                               est[est$model == "static_baseline_state_county_timefe"& est$var == "exp_ln_mw_17",]$N,
-                               est[est$model == "static_baseline_state_cbsa_timefe"& est$var == "exp_ln_mw_17",]$N,
-                               sep = "\t"))  
+  for (xvar in c("ln_mw", "exp_ln_mw_17", "cumsum_from0")) {
+    txt_static_robust <- c(txt_static_robust,
+                           paste(est[model == "static_baseline"                     & var == xvar,]$b,
+                                 est[model == "static_baseline_nocontrols"          & var == xvar,]$b,
+                                 est[model == "static_baseline_zip_spec_trend"      & var == xvar,]$b,
+                                 est[model == "static_baseline_state_county_timefe" & var == xvar,]$b,
+                                 est[model == "static_baseline_state_cbsa_timefe"   & var == xvar,]$b,
+                                 sep = "\t"))
+    txt_static_robust <- c(txt_static_robust,
+                           paste(est[model == "static_baseline"                     & var == xvar,]$se,
+                                 est[model == "static_baseline_nocontrols"          & var == xvar,]$se,
+                                 est[model == "static_baseline_zip_spec_trend"      & var == xvar,]$se,
+                                 est[model == "static_baseline_state_county_timefe" & var == xvar,]$se,
+                                 est[model == "static_baseline_state_cbsa_timefe"   & var == xvar,]$se,
+                                 sep = "\t"))
+  }
+  for (stat in c("p_equality", "r2", "N")) {
+    txt_static_robust <- c(txt_static_robust, 
+                          paste(est[model == "static_baseline"                     & var == "exp_ln_mw_17",][[stat]],
+                                est[model == "static_baseline_nocontrols"          & var == "exp_ln_mw_17",][[stat]],
+                                est[model == "static_baseline_zip_spec_trend"      & var == "exp_ln_mw_17",][[stat]],
+                                est[model == "static_baseline_state_county_timefe" & var == "exp_ln_mw_17",][[stat]],
+                                est[model == "static_baseline_state_cbsa_timefe"   & var == "exp_ln_mw_17",][[stat]],
+                                sep = "\t"))
+  }
   fileConn <- file(file.path(outstub, "static_robust.txt"))
   writeLines(txt_static_robust, fileConn)
   close(fileConn)
 }
-
-
 
 
 main()
