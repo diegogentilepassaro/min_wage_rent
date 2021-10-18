@@ -1,7 +1,8 @@
 remove(list = ls())
 source("../../../lib/R/save_data.R")
 
-library(data.table)
+library(readr)
+library(readxl)
 
 main <- function() {
   instub_base_l <- "../../../drive/base_large/demographics"
@@ -12,7 +13,7 @@ main <- function() {
   
   rent_vars <- paste0("medrentpricepsqft", c("_2br", "_mfr5plus", "_sfcc"))
   
-  df_zipdemo <- fread(file.path(instub_base_l, "zip_demo_2010.csv"))
+  df_zipdemo <- read_csv(file.path(instub_base_l, "zip_demo_2010.csv"))
     
   df_cbsa    <- load_top_CBSA(df_zipdemo, instub_cbsa, instub_xwalk)
   
