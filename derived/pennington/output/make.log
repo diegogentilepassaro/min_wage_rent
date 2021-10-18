@@ -1,0 +1,304 @@
+
+ make.py started: 2021-09-27 11:06:13 C:\Users\diegog\Desktop\Diego\min_wage_rent\derived\pennington\code 
+
+
+
+
+Execute:  StataMP-64 /e do "./build.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./build.do 
+
+. set more off
+
+. clear all
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. 
+. program main
+  1.         local in_base          "../../../drive/base_large/pennington"
+  2.         local in_geo           "../../../base/geo_master/output"
+  3.         local in_derived_large "../../../drive/derived_large"
+  4.         local outstub         "../../../drive/derived_large/pennington"
+  5.         local logfile          "../output/data_file_manifest.log"
+  6. 
+.         make_california_geos, instub(`in_geo')
+  7.         save "../temp/geo_master_ca.dta", replace
+  8.         
+.         make_penningtion_geos, instub(`in_base')
+  9.         save "../temp/clean_pennington_bay_area.dta", replace
+ 10.         
+.         gen_matched_geos
+ 11. 
+.         merge m:m pennington_geo_id using "../temp/clean_pennington_bay_area.
+> dta", ///
+>                 nogen keep(3)
+ 12.         duplicates drop post_id, force
+ 13.         
+.         merge m:1 zipcode year month using "`in_derived_large'/min_wage/zip_s
+> tatutory_mw.dta", ///
+>                 keep(1 3) keepusing(actual* binding*) nogen
+ 14.         merge m:1 zipcode year month using "`in_derived_large'/min_wage/zi
+> pcode_experienced_mw.dta", ///
+>                 nogen keep(1 3) keepusing(exp*)
+ 15.         
+.         save_data "`outstub'/clean_pennington_with_zipcode.dta", ///
+>                 key(post_id) log(`logfile') replace
+ 16. end
+
+. 
+. program make_california_geos
+  1.         syntax, instub(str)
+  2.         
+.         use "`instub'/zip_county_place_usps_master.dta", clear
+  3. 
+.         keep if state_abb == "CA"
+  4. 
+.         replace place_name = subinstr(place_name, ", CA", "", .)
+  5.         replace place_name = subinstr(place_name, " city", "", .)
+  6.         replace place_name = subinstr(place_name, " City", "", .)
+  7.         replace place_name = subinstr(place_name, "CDP", "", .)
+  8.         
+.         replace place_name = lower(place_name)
+  9.         replace place_name = place_name + " city" ///
+>                 if inlist(place_name, "daly", "foster", "redwood", "suisun", 
+> "union")
+ 10.         replace place_name = strltrim(place_name)
+ 11.         
+.         replace county_name = subinstr(county_name, " CA", "", .)
+ 12.         replace county_name = lower(county_name)
+ 13.         
+.         drop if cbsa10 == "31100"
+ 14. end
+
+. 
+. program make_penningtion_geos
+  1.         syntax, instub(str)
+  2. 
+.         import delimited "`instub'/clean_pennington_bay_area.csv", clear
+  3.         save "../temp/clean_pennington_bay_area.dta", replace
+  4.         
+.         keep nhood city
+  5.         duplicates drop nhood city, force
+  6.         gen pennington_geo_id = _n
+  7.         save "../temp/pennington_geos.dta", replace
+  8. 
+.         * Test reclink
+.         reclink nhood city using "../temp/clean_pennington_bay_area.dta", ///
+>                 gen(score) idmaster(pennington_geo_id) idusing(post_id)
+  9.         assert score == 1
+ 10.         drop score _merge U*
+ 11.         save "../temp/clean_pennington_bay_area.dta", replace
+ 12. end
+
+. 
+. program gen_matched_geos
+  1.         syntax, [thresh(real 0.9)]
+  2. 
+.         use "../temp/pennington_geos.dta", clear
+  3.         reclink nhood using "../temp/geo_master_ca.dta", ///
+>                 gen(score) idmaster(pennington_geo_id) idusing(zipcode) ///
+>                 uvar(place_name)
+  4.         keep if _merge == 3
+  5.         drop _merge
+  6.                 
+.         keep if score >= `thresh' & nhood != "fairfax"   // fairfax is matche
+> d to fairfield
+  7. end
+
+. 
+. 
+. main
+(37,927 observations deleted)
+(2,075 real changes made)
+(1,448 real changes made)
+(40 real changes made)
+(598 real changes made)
+(2,075 real changes made)
+(9 real changes made)
+(486 real changes made)
+(2,561 real changes made)
+(2,561 real changes made)
+(636 observations deleted)
+(note: file ../temp/geo_master_ca.dta not found)
+file ../temp/geo_master_ca.dta saved
+(11 vars, 64,679 obs)
+(note: file ../temp/clean_pennington_bay_area.dta not found)
+file ../temp/clean_pennington_bay_area.dta saved
+
+Duplicates in terms of nhood city
+
+(64,521 observations deleted)
+(note: file ../temp/pennington_geos.dta not found)
+file ../temp/pennington_geos.dta saved
+
+158 perfect matches found
+
+
+Added: post_id= identifier from ../temp/clean_pennington_bay_area.dta   score =
+>  matching score
+Observations:  Master N = 158    ../temp/clean_pennington_bay_area.dta N= 64679
+>  
+  Unique Master Cases: matched = 158 (exact = 158), unmatched = 0
+file ../temp/clean_pennington_bay_area.dta saved
+file ../temp/clean_pennington_bay_area.dta saved
+
+47 perfect matches found
+
+
+Added: zipcode= identifier from ../temp/geo_master_ca.dta   score = matching sc
+> ore
+Observations:  Master N = 158    ../temp/geo_master_ca.dta N= 1925 
+  Unique Master Cases: matched = 119 (exact = 47), unmatched = 39
+(39 observations deleted)
+(62 observations deleted)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            35,580  
+    -----------------------------------------
+
+Duplicates in terms of post_id
+
+(7 observations deleted)
+(note: variable year was int, now double to accommodate using data's values)
+(note: variable month was byte, now double to accommodate using data's
+       values)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                           901
+        from master                       901  
+        from using                          0  
+
+    matched                            34,672  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                         2,258
+        from master                     2,258  
+        from using                          0  
+
+    matched                            33,315  
+    -----------------------------------------
+(data now sorted by post_id)
+  variable pennington_geo_id was float now int
+  variable year was double now int
+  variable month was double now byte
+  variable binding_mw was double now byte
+  variable binding_mw_ignore_local was double now byte
+  variable nhood was str38 now str21
+  variable place_name was str61 now str17
+  variable county_name was str34 now str13
+  variable cbsa10_name was str75 now str64
+  (4,339,906 bytes saved)
+===============================================================================
+File: ../../../drive/derived_large/pennington/clean_pennington_with_zipcode.dta
+Key: post_id
+===============================================================================
+  35573:51(51662):2350003844:690885426
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     post_id |     35,573    34273.25    19037.19          1      64679
+       nhood |          0
+        city |          0
+pennington~d |     35,573    99.87266    42.32362          1        158
+       score |     35,573    .9908486    .0247762   .9051037          1
+-------------+---------------------------------------------------------
+     zipcode |          0
+  place_code |          0
+  countyfips |          0
+      cbsa10 |          0
+        zcta |          0
+-------------+---------------------------------------------------------
+  place_name |          0
+ county_name |          0
+ cbsa10_name |          0
+   state_abb |          0
+   statefips |          0
+-------------+---------------------------------------------------------
+houses_zct~y |     35,573    11190.41    6596.276          1      37182
+       rural |     35,573           0           0          0          0
+        year |     35,573    2013.457    2.366943       2001       2018
+       month |     35,573    5.953223    3.896604          1         12
+      county |          0
+-------------+---------------------------------------------------------
+       price |     35,573    2523.132    1471.906        220      30000
+        beds |     34,818    2.040209    1.080202          0          8
+       baths |      7,792    1.755133     .719861          1        6.5
+        sqft |     35,573     1164.82    896.5241         80      57067
+ room_in_apt |     35,573    .0009839    .0313521          0          1
+-------------+---------------------------------------------------------
+actual~w_max |     34,672    8.931502    1.172366          8         15
+actual~l_max |     34,672    8.785663    .9058121          8         11
+ac~w_wg_mean |     34,672    8.918937    1.144903          8         15
+ac~l_wg_mean |     34,672    8.785663    .9058121          8         11
+   actual_mw |     34,672     8.91823     1.14439          8         15
+-------------+---------------------------------------------------------
+  binding_mw |     34,672    2.175704    .5661669          2          4
+actual_mw_~l |     34,672    8.785663    .9058121          8         11
+binding_mw~l |     34,672           2           0          2          2
+  exp_mw_tot |     33,315    9.183804     1.10757   7.995315   13.85894
+exp_mw_young |     33,315    9.157665    1.085071   7.988997   13.83334
+-------------+---------------------------------------------------------
+exp_mw_low~c |     33,315    9.100396     1.07432   7.985128   13.87923
+exp_ln_mw_~t |     33,315    2.207395    .1152777   2.078702   2.620716
+exp_ln_mw_~g |     33,315    2.204791    .1132864   2.077749   2.618926
+exp_ln_mw_~c |     33,315    2.199009    .1128879   2.077488   2.621919
+exp_mw_tot~n |     33,315    9.183804     1.10757   7.995315   13.85894
+-------------+---------------------------------------------------------
+exp_mw_you~n |     33,315    9.157665    1.085071   7.988997   13.83334
+exp_mw_low~n |     33,315    9.100396     1.07432   7.985128   13.87923
+exp_ln_mw_.. |     33,315    2.207395    .1152777   2.078702   2.620716
+exp_ln_mw_.. |     33,315    2.204791    .1132864   2.077749   2.618926
+exp_ln_mw_.. |     33,315    2.199009    .1128879   2.077488   2.621919
+-------------+---------------------------------------------------------
+exp_mw_tot~x |     33,315    9.214975    1.129916   7.995315   13.91827
+exp_mw_you~x |     33,315    9.191362    1.106367   7.988997   13.91297
+exp_mw_low~x |     33,315    9.129432    1.092391   7.985128    13.9132
+exp_ln~t_max |     33,315    2.210248    .1170657   2.078702   2.625402
+exp_ln~g_max |     33,315    2.207877    .1149719   2.077749   2.625251
+-------------+---------------------------------------------------------
+exp_ln~c_max |     33,315    2.201684    .1143048   2.077488   2.624482
+
+
+
+
+file ../../../drive/derived_large/pennington/clean_pennington_with_zipcode.dta 
+> saved
+
+. 
+end of do-file
+
+ make.py ended: 2021-09-27 11:06:24

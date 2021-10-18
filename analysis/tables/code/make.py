@@ -29,15 +29,19 @@ if envir_vars is None:
 start_make_logging()
 
 fd_baseline_dir = "../../fd_baseline/output"
+fd_county_dir   = "../../fd_county/output"
 
 tablefill(input    = fd_baseline_dir + '/static.txt', 
           template = '../input/static.tex', 
           output   = '../output/static.tex')
 
-
 tablefill(input    = fd_baseline_dir + '/static.txt', 
           template = '../input/static_slides.tex', 
           output   = '../output/static_slides.tex')
+
+tablefill(input    = fd_county_dir + '/static_county.txt', 
+          template = '../input/static_county.tex', 
+          output   = '../output/static_county.tex')
 
 end_make_logging()
 
