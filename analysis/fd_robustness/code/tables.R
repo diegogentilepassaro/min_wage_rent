@@ -1,7 +1,6 @@
 remove(list = ls())
 library(data.table)
 
-
 make_coefs_cols <- function(estlist, models, rows) {
   estlist<- estlist[model %in% models]
   
@@ -28,7 +27,6 @@ main <- function() {
   est_coefs <- est[c('model', 'var', 'at', 'b', 'se')]
   est_coefs <- melt(setDT(est_coefs), id.vars = c('model', 'var', 'at'), 
                                       measure.vars = c('b', 'se'))
-  
 
   est_stats <- setDT(est[c('model', 'p_equality', 'r2', 'N')])[
                , .SD[c(.N)], by=model]
@@ -37,24 +35,23 @@ main <- function() {
   colnames(est_stats) <- unlist(est_stats[1,])
   est_stats <- est_stats[-1,]
   
-  
   txt_static_sample <- c("<tab:static_sample>")
   txt_static_sample <- c(txt_static_sample, 
                          make_coefs_cols(est_coefs, 
-                                         models = c('static_stat', 'static_stat_unbal', 
-                                                    'static_stat_wgt', 'static_stat_unbal_wgt', 
-                                                    'static_stat_fullbal', 'static_stat_fullbal_wgt'), 
+                                         models = c('static_baseline', 'static_baseline_unbal', 
+                                                    'static_baseline_wgt', 'static_baseline_unbal_wgt', 
+                                                    'static_baseline_fullbal', 'static_baseline_fullbal_wgt'), 
                                          rows = c('ln_mw', 'exp_ln_mw', 'cumsum_from0')
                                          )
                          )
   
   txt_static_sample <- c(txt_static_sample, 
-           paste(est_stats$static_stat, 
-                 est_stats$static_stat_unbal, 
-                 est_stats$static_stat_wgt, 
-                 est_stats$static_stat_unbal_wgt, 
-                 est_stats$static_stat_fullbal, 
-                 est_stats$static_stat_fullbal_wgt, sep = "\t"))
+           paste(est_stats$static_baseline, 
+                 est_stats$static_baseline_unbal, 
+                 est_stats$static_baseline_wgt, 
+                 est_stats$static_baseline_unbal_wgt, 
+                 est_stats$static_baseline_fullbal, 
+                 est_stats$static_baseline_fullbal_wgt, sep = "\t"))
   
   
   
@@ -64,28 +61,45 @@ main <- function() {
   
   txt_static_ab <- c("<tab:static_ab>")
   txt_static_ab <- c(txt_static_ab,make_coefs_cols(est_coefs, 
-                                                   models=c('static_stat_nocontrol', 
-                                                            'static_stat', 
-                                                            'static_stat_AB_nocontrol', 
-                                                            'static_stat_AB'), 
+                                                   models=c('static_baseline', 
+                                                            'static_baseline_AB'), 
                                                    rows=c('ln_mw', 'exp_ln_mw', 
                                                           'L_ln_med_rent_var', 'cumsum_from0')
                                                    )
                      )
   
   txt_static_ab <- c(txt_static_ab, 
-                         paste(est_stats$static_stat_nocontrol, 
-                               est_stats$static_stat, 
-                               est_stats$static_stat_AB_nocontrol, 
-                               est_stats$static_stat_AB, sep = "\t"))
-  
+                         paste(est_stats$static_baseline, 
+                               est_stats$static_baseline_AB, sep = "\t"))
   
   
   fileConn <- file(file.path(outstub, "static_ab.txt"))
   writeLines(txt_static_ab, fileConn)
   close(fileConn) 
   
+  txt_static_robust <- c("<tab:static_robust>")
+  txt_static_robust <- c(txt_static_robust,make_coefs_cols(est_coefs, 
+                                                   models=c('static_baseline', 
+                                                            'static_baseline_nocontrols',
+                                                            'static_baseline_zip_spec_trend',
+                                                            'static_baseline_state_county_timefe',
+                                                            'static_baseline_state_cbsa_timefe'), 
+                                                   rows=c('ln_mw', 'exp_ln_mw', 
+                                                          'L_ln_med_rent_var', 'cumsum_from0')
+  )
+  )
   
+  txt_static_robust <- c(txt_static_robust, 
+                     paste(est_stats$static_baseline, 
+                           est_stats$static_baseline_nocontrols, 
+                           est_stats$static_baseline_zip_spec_trend, 
+                           est_stats$static_baseline_state_county_timefe, 
+                           est_stats$static_baseline_state_cbsa_timefe, sep = "\t"))
+  
+  
+  fileConn <- file(file.path(outstub, "static_robust.txt"))
+  writeLines(txt_static_robust, fileConn)
+  close(fileConn)
 }
 
 
