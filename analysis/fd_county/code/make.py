@@ -35,8 +35,6 @@ run_stata(program = 'estimates.do', executable = stata)
 run_rbatch(program = 'tables.R')
 run_stata(program = 'figures.do', executable = stata)
 
-
-
 end_make_logging()
 
 shutil.rmtree('gslab_make')

@@ -8,7 +8,13 @@ Data is available for most states for the years 2002–2017.
 
 SOURCE
 ========================================================
-Data downloaded by Santiago hermo on October 2th 2020 from https://lehd.ces.census.gov/data/
+Data downloaded by Santiago Hermo on October 2th 2020 from https://lehd.ces.census.gov/data/
+
+
+Data was redownloaded by Santiago Hermo on September 25th 2021 for 2009--2018. For OD matrices,
+we only downloaded files for total jobs (JT00).
+
+See https://github.com/diegogentilepassaro/min_wage_rent/issues/130
 
 
 DESCRIPTION
@@ -22,8 +28,14 @@ DESCRIPTION
 
 ROOT/drive/raw_data/LODES/*	Downloaded files
 
-IMPORTANT NOTE: The states of Alaska (AK) and South Dakota (SD) do not have files for 2017. We manually downloaded the 2016 
-files and changed the name appropriately.
+
+COMMENTS
+========================================================
+
+In OD matrices, we have that:
+- Alaska (AK) is missing for 2017 and 2018
+- DC (District of Columbia) is missing for LODES 2009
+- MA (Massachusetts) is missing for LODES 2009 and 2010
 
 
 
