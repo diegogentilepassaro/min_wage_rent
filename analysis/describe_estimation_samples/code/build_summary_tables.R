@@ -1,12 +1,10 @@
 remove(list = ls())
-source("../../../lib/R/load_packages.R")
 source("../../../lib/R/save_data.R")
 
-load_packages(c('readr', 'readxl', 'haven', 'dplyr', 'stringr', 'stargazer'))
-
+library(data.table)
 
 main <- function() {
-  instub_base_l <- "../../../drive/base_large/output"
+  instub_base_l <- "../../../drive/base_large/demographics"
   instub_derv_l <- "../../../drive/derived_large/output"
   instub_cbsa   <- "../../../drive/raw_data/census/cbsa/nhgis0049_csv"
   instub_xwalk  <- "../../../raw/crosswalk"
@@ -14,7 +12,7 @@ main <- function() {
   
   rent_vars <- paste0("medrentpricepsqft", c("_2br", "_mfr5plus", "_sfcc"))
   
-  df_zipdemo <- read_csv(file.path(instub_base_l, "zip_demo.csv"))
+  df_zipdemo <- fread(file.path(instub_base_l, "zip_demo_2010.csv"))
     
   df_cbsa    <- load_top_CBSA(df_zipdemo, instub_cbsa, instub_xwalk)
   
