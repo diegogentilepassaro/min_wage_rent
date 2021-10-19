@@ -19,23 +19,22 @@ from gslab_make.dir_mod import *
 set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
-clear_dirs('../../../drive/base_large/lodes/')
 delete_files('../output/*')
-
 
 envir_vars = os.getenv('PATH')
 if envir_vars is None:
     envir_vars = os.getenv('Path')
 
-stata = "StataMP-64"
 if "StataSE" in envir_vars:
-    stata = "StataSE-64"
+    stata = "stataSE"
+elif "StataMP-64" in envir_vars:
+    stata = "StataMP-64"
+elif "Stata15" in envir_vars:
+    stata = "StataMP-64"
 
 start_make_logging()
 
-run_rbatch(program = 'make_odmatrix.R')
-run_rbatch(program = 'make_odmatrix_county.R')
-run_rbatch(program = 'make_lodes.R')
+run_rbatch(program = 'build.R')
 
 end_make_logging()
 
