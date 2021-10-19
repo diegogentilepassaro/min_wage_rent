@@ -19,7 +19,7 @@ program main
     use "`instub'/baseline_county_months.dta", clear
     xtset county_num year_month
 
-    estimate_dist_lag_model if !missing(D.ln_rents), depvar(exp_ln_mw_17) ///
+    estimate_dist_lag_model if !missing(D.ln_rents), depvar(exp_ln_mw_14) ///
         dyn_var(ln_mw) w(0) stat_var(ln_mw) ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
         model_name(exp_mw_on_mw) outfolder("../temp")
@@ -30,12 +30,12 @@ program main
         model_name(static_statutory) outfolder("../temp")
 
     estimate_dist_lag_model, depvar(ln_rents) ///
-        dyn_var(exp_ln_mw_17) w(0) stat_var(exp_ln_mw_17) ///
+        dyn_var(exp_ln_mw_14) w(0) stat_var(exp_ln_mw_14) ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
         model_name(static_experienced) outfolder("../temp")
 
     estimate_dist_lag_model, depvar(ln_rents) ///
-        dyn_var(exp_ln_mw_17) w(0) stat_var(ln_mw) ///
+        dyn_var(exp_ln_mw_14) w(0) stat_var(ln_mw) ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
         model_name(static_both) test_equality outfolder("../temp")
     
@@ -52,27 +52,27 @@ program main
     xtset county_num year_month
 
     estimate_dist_lag_model, depvar(ln_rents) ///
-        dyn_var(exp_ln_mw_17) w(4) stat_var(ln_mw) ///
+        dyn_var(exp_ln_mw_14) w(4) stat_var(ln_mw) ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(baseline_exp_ln_mw_17_dynamic) outfolder("../temp")
+        model_name(baseline_exp_ln_mw_14_dynamic) outfolder("../temp")
         
     estimate_dist_lag_model, depvar(ln_rents) ///
-        dyn_var(ln_mw) w(4) stat_var(exp_ln_mw_17) ///
+        dyn_var(ln_mw) w(4) stat_var(exp_ln_mw_14) ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
         model_name(both_ln_mw_dynamic) outfolder("../temp")
         
     estimate_dist_lag_model, depvar(ln_rents) ///
-        dyn_var(exp_ln_mw_17) w(4) stat_var(exp_ln_mw_17) ///
+        dyn_var(exp_ln_mw_14) w(4) stat_var(exp_ln_mw_14) ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(exp_ln_mw_17_only_dynamic) outfolder("../temp")
+        model_name(exp_ln_mw_14_only_dynamic) outfolder("../temp")
         
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(ln_mw) w(4) stat_var(ln_mw) ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
         model_name(ln_mw_only_dynamic) outfolder("../temp")
         
-    use ../temp/estimates_baseline_exp_ln_mw_17_dynamic.dta, clear
-    foreach ff in both_ln_mw_dynamic exp_ln_mw_17_only_dynamic ln_mw_only_dynamic {
+    use ../temp/estimates_baseline_exp_ln_mw_14_dynamic.dta, clear
+    foreach ff in both_ln_mw_dynamic exp_ln_mw_14_only_dynamic ln_mw_only_dynamic {
         append using ../temp/estimates_`ff'.dta
     }
     save             `outstub'/estimates_dynamic.dta, replace
