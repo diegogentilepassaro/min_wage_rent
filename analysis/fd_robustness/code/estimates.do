@@ -12,7 +12,7 @@ program main
     local controls "`r(economic_controls)'"    
     local cluster  "statefips"
     
-    ** STATIC
+    
     use "`instub'/baseline_zipcode_months.dta", clear
     xtset zipcode_num year_month
 
@@ -53,7 +53,7 @@ program main
         cluster(`cluster') ///
         model_name(static_baseline_state_cbsa_timefe) outfolder("../temp")
         
-        
+    
     use "`instub'/all_zipcode_months.dta", clear
     xtset zipcode_num year_month
 
@@ -67,7 +67,7 @@ program main
         controls(`controls') absorb(year_month) cluster(`cluster') ///
         model_name(static_baseline_unbal_wgt) outfolder("../temp")
 
-        
+    
     use "`instub'/balanced_zipcode_months.dta", clear
     xtset zipcode_num year_month    
     
@@ -83,16 +83,17 @@ program main
         
 
     use "../temp/estimates_static_baseline.dta", clear
-    foreach ff in static_baseline_nocontrols static_baseline_AB ///
-        static_baseline_wgt static_baseline_zip_spec_trend ///
-        static_baseline_state_county_timefe static_baseline_state_cbsa_timefe ///
-        static_baseline_unbal static_baseline_unbal_wgt ///
-        static_baseline_fullbal static_baseline_fullbal_wgt {
+    foreach ff in static_baseline_nocontrols          static_baseline_AB                 ///
+                  static_baseline_wgt                 static_baseline_zip_spec_trend     ///
+                  static_baseline_state_county_timefe static_baseline_state_cbsa_timefe  ///
+                  static_baseline_unbal               static_baseline_unbal_wgt          ///
+                  static_baseline_fullbal             static_baseline_fullbal_wgt {
         
         append using ../temp/estimates_`ff'.dta
     }
     save             `outstub'/estimates_static.dta, replace
     export delimited `outstub'/estimates_static.csv, replace
 end
+
 
 main
