@@ -13,7 +13,8 @@ program main
     di "`controls'"
     
     local cluster "statefips"
-    local absorb year_month#statefips_num
+    local absorb "year_month"
+    local w = 6
     
     ** STATIC
     use "`instub'/baseline_county_months.dta", clear
@@ -52,22 +53,22 @@ program main
     xtset county_num year_month
 
     estimate_dist_lag_model, depvar(ln_rents) ///
-        dyn_var(exp_ln_mw_14) w(4) stat_var(ln_mw) ///
+        dyn_var(exp_ln_mw_14) w(`w') stat_var(ln_mw) ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
         model_name(baseline_exp_ln_mw_14_dynamic) outfolder("../temp")
         
     estimate_dist_lag_model, depvar(ln_rents) ///
-        dyn_var(ln_mw) w(4) stat_var(exp_ln_mw_14) ///
+        dyn_var(ln_mw) w(`w') stat_var(exp_ln_mw_14) ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
         model_name(both_ln_mw_dynamic) outfolder("../temp")
         
     estimate_dist_lag_model, depvar(ln_rents) ///
-        dyn_var(exp_ln_mw_14) w(4) stat_var(exp_ln_mw_14) ///
+        dyn_var(exp_ln_mw_14) w(`w') stat_var(exp_ln_mw_14) ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
         model_name(exp_ln_mw_14_only_dynamic) outfolder("../temp")
         
     estimate_dist_lag_model, depvar(ln_rents) ///
-        dyn_var(ln_mw) w(4) stat_var(ln_mw) ///
+        dyn_var(ln_mw) w(`w') stat_var(ln_mw) ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
         model_name(ln_mw_only_dynamic) outfolder("../temp")
         

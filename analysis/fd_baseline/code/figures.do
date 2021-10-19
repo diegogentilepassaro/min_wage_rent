@@ -11,30 +11,32 @@ program main
     make_bounds
     
     local exp_ln_mw_var "exp_ln_mw_17"
+    sum at
+    local w = r(max)
     
     plot_dynamics, model(ln_mw_only_dynamic) var(ln_mw) ///
-        legend_var(Coefficents of ln MW) ///
+        legend_var(Residence MW) ///
         color(maroon) symbol(square) ///
         name(fd_ln_mw_only_dynamic)
         
     plot_dynamics, model(`exp_ln_mw_var'_only_dynamic) var(`exp_ln_mw_var') ///
-        legend_var(Coefficents of experienced ln MW) ///
+        legend_var(Workplace MW) ///
         color(navy) symbol(circle) ///
         name(fd_`exp_ln_mw_var'_only_dynamic)
     
     offset_x_axis
 
     plot_dynamics_both, model(baseline_`exp_ln_mw_var'_dynamic) dyn_var(`exp_ln_mw_var') ///
-        legend_dyn_var(Coefficents of experienced ln MW) ///
+        legend_dyn_var(Workplace MW) ///
         color_dyn_var(navy) symbol_dyn_var(cirlce) ///
-        stat_var(ln_mw) legend_stat_var(Coefficent of ln MW) ///
+        stat_var(ln_mw) legend_stat_var(Residence MW) ///
         color_stat_var(maroon) symbol_stat_var(square) ///
         name(fd_baseline_`exp_ln_mw_var'_dynamic)
         
     plot_dynamics_both, model(both_ln_mw_dynamic) dyn_var(ln_mw) ///
-        legend_dyn_var(Coefficents of ln MW) ///
+        legend_dyn_var(Residence MW) ///
         color_dyn_var(maroon) symbol_dyn_var(square) ///
-        stat_var(`exp_ln_mw_var') legend_stat_var(Coefficent of experienced ln MW) ///
+        stat_var(`exp_ln_mw_var') legend_stat_var(Workplace MW) ///
         color_stat_var(navy) symbol_stat_var(circle) ///
         name(fd_both_ln_mw_dynamic)
 end
@@ -102,8 +104,8 @@ program plot_dynamics_both
             yline(0, lcol(black))                                               ///
             xlabel(-6(1)6, labsize(small)) xtitle("")                           ///
             ylabel(-0.06(0.02).16, grid labsize(small)) ytitle("Coefficient")   ///
-            legend(order(1 `"`legend_dyn_var'"' 3 `"`legend_stat_var'"'         ///
-                5 "Cumulative sum"))                                            ///
+            legend(order(1 `"`legend_dyn_var'"' 5 `"`legend_stat_var'"'         ///
+                7 "Cumulative sum"))                                            ///
             graphregion(color(white)) bgcolor(white)
         
         graph export "../output/`name'.png", replace
