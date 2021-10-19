@@ -32,23 +32,23 @@ fd_baseline_dir = "../../fd_baseline/output"
 fd_robust_dir   = "../../fd_robustness/output"
 fd_county_dir   = "../../fd_county/output"
 
-tablefill(input    = fd_baseline_dir + '/static.txt', 
+tablefill(input    = os.path.join(fd_baseline_dir, 'static.txt'), 
           template = '../input/static.tex', 
           output   = '../output/static.tex')
 
-tablefill(input    = fd_robust_dir + '/static_sample.txt', 
+tablefill(input    = os.path.join(fd_robust_dir, 'static_sample.txt'),
           template = '../input/static_sample.tex', 
           output   = '../output/static_sample.tex')
 
-tablefill(input    = fd_robust_dir + '/static_ab.txt', 
+tablefill(input    = os.path.join(fd_robust_dir, 'static_ab.txt'),
           template = '../input/static_ab.tex', 
           output   = '../output/static_ab.tex')
 
-tablefill(input    = fd_robust_dir + '/static_robust.txt', 
+tablefill(input    = os.path.join(fd_robust_dir, 'static_robust.txt'),
           template = '../input/static_robust.tex', 
           output   = '../output/static_robust.tex')
 
-tablefill(input    = fd_county_dir + '/static_county.txt', 
+tablefill(input    = os.path.join(fd_county_dir, 'static_county.txt'),
           template = '../input/static_county.tex', 
           output   = '../output/static_county.tex')
 
