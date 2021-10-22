@@ -47,42 +47,32 @@ end
 program merge_exp_mw
     syntax, instub(str)
 
-    merge 1:1 zipcode year month using "`instub'/zipcode_experienced_mw_2010.dta", ///
-        nogen keep(1 3) keepusing(exp*)
-    describe exp*, varlist
-    local vars = r(varlist)
-    foreach var of local vars {
-        rename `var' `var'_10
+    foreach year in 10 14 17 18 {
+        merge 1:1 zipcode year month using "`instub'/zipcode_experienced_mw_20`year'.dta", ///
+            nogen keep(1 3) keepusing(exp*)
+        if `year' == 10 {
+            describe exp*, varlist
+            local vars = r(varlist)
+        }
+        foreach var of local vars {
+            rename `var' `var'_`year'
+        }
+        drop *mean_`year'
     }
-    drop *mean_10
-    
-    merge 1:1 zipcode year month using "`instub'/zipcode_experienced_mw_2014.dta", ///
-        nogen keep(1 3) keepusing(exp*)
-    foreach var of local vars {
-        rename `var' `var'_14
-    }
-    drop *mean_14
-    
-    merge 1:1 zipcode year month using "`instub'/zipcode_experienced_mw_2017.dta", ///
-        nogen keep(1 3) keepusing(exp*)
-    foreach var of local vars {
-        rename `var' `var'_17
-    }
-    drop *mean_17
-    
-    merge 1:1 zipcode year month using "`instub'/zipcode_experienced_mw_2018.dta", ///
-        nogen keep(1 3) keepusing(exp*)
-    foreach var of local vars {
-        rename `var' `var'_18
-    }
-    drop *mean_18
-    
+
     qui sum medrentpricepsqft_SFCC if !missing(medrentpricepsqft_SFCC)
     local observations_with_rents = r(N)
 
     foreach year in 10 14 17 18 {
         sum exp_ln_mw_tot_`year' if !missing(medrentpricepsqft_SFCC)
         assert r(N) == `observations_with_rents'
+    }
+    
+    foreach year in 11 12 13 15 16 {
+        merge 1:1 zipcode year month using "`instub'/zipcode_experienced_mw_20`year'.dta", ///
+            nogen keep(1 3) keepusing(exp_ln_mw_tot)
+        
+        rename exp_ln_mw_tot exp_ln_mw_tot_`year'
     }
 end
 
