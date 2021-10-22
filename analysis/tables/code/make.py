@@ -31,6 +31,7 @@ start_make_logging()
 fd_baseline_dir = "../../fd_baseline/output"
 fd_robust_dir   = "../../fd_robustness/output"
 fd_county_dir   = "../../fd_county/output"
+fd_wages_dir    = "../../twfe_wages/output"
 
 tablefill(input    = os.path.join(fd_baseline_dir, 'static.txt'), 
           template = '../input/static.tex', 
@@ -51,6 +52,14 @@ tablefill(input    = os.path.join(fd_robust_dir, 'static_robust.txt'),
 tablefill(input    = os.path.join(fd_county_dir, 'static_county.txt'),
           template = '../input/static_county.tex', 
           output   = '../output/static_county.tex')
+
+tablefill(input    = fd_wages_dir + '/static_wages.txt', 
+          template = '../input/static_wages.tex', 
+          output   = '../output/static_wages.tex')
+
+tablefill(input    = fd_wages_dir + '/static_wages_robustness.txt', 
+          template = '../input/static_wages_robustness.tex', 
+          output   = '../output/static_wages_robustness.tex')
 
 end_make_logging()
 
