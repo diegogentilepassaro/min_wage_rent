@@ -12,7 +12,6 @@ program main
 
     add_baseline_zipcodes, instub(`instub')
 	
-	
     define_controls
     local controls "`r(economic_controls)'"
     local cluster "statefips"
@@ -31,7 +30,7 @@ program main
 
     estimate_twfe_model, ///
         yvar(ln_wagebill) xvars(exp_ln_mw_tot_17_avg) controls(`controls')     ///
-        absorb(zipcode year#statefips_num) cluster(`cluster') model_name(state_time)
+        absorb(zipcode year#county_num) cluster(`cluster') model_name(county_time)
     
     estimate_twfe_model if baseline_sample, ///
         yvar(ln_wagebill) xvars(exp_ln_mw_tot_17_avg) controls(`controls')     ///
@@ -54,7 +53,7 @@ program main
         absorb(zipcode year#cbsa10_num) cluster(`cluster') model_name(dividends)
 
     use `outstub'/estimates_naive.dta, clear
-    foreach ff in ctrls cbsa_time state_time cbsa_time_baseline ///
+    foreach ff in ctrls cbsa_time county_time cbsa_time_baseline ///
                   exp_mw_10 exp_mw_18 exp_mw_varying dividends {
         append using `outstub'/estimates_`ff'.dta
     }

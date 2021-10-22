@@ -10,7 +10,7 @@ main <- function() {
   
   tab_models <- list(
     list("static_wages", 
-         c("naive", "ctrls", "cbsa_time", "state_time", "cbsa_time_baseline")),
+         c("naive", "ctrls", "cbsa_time", "county_time", "cbsa_time_baseline")),
     list("static_wages_robustness", 
          c("exp_mw_10", "exp_mw_18", "exp_mw_varying", "dividends"))
   )

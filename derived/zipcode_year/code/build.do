@@ -143,6 +143,7 @@ program clean_qcew
     }
 
     collapse (mean) ln_*, by(countyfips year)
+	rename ln_* ln_*_avg
 
     save "../temp/qcew_data.dta"
 end
