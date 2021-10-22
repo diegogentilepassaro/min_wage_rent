@@ -19,7 +19,7 @@ program main
     drop if num_hhlds_irs == 0
     collapse (sum) num_hhlds_irs pop_irs num_dep adj_gross_inc      ///
         num_wage_hhlds_irs total_wage num_ret_int total_int           ///
-        num_ret_div total_div num_bus_hhlds_irs tot_bus num_farm_hhlds_irs, ///
+        num_ret_div total_div num_bus_hhlds_irs total_bizinc num_farm_hhlds_irs, ///
       by(zipcode statefips year)
     
     create_variables
@@ -39,8 +39,8 @@ program read_excel_files
     rename (n1      n2        numdep  a00100        n00200       a00200) ///
            (num_hhlds_irs pop_irs num_dep adj_gross_inc num_wage_hhlds_irs total_wage)
 
-    rename (n00300      a00300    n00600      a00600    n00900      a00900  schf) ///
-           (num_ret_int total_int num_ret_div total_div num_bus_hhlds_irs tot_bus num_farm_hhlds_irs)
+    rename (n00300      a00300    n00600      a00600    n00900            a00900       schf) ///
+           (num_ret_int total_int num_ret_div total_div num_bus_hhlds_irs total_bizinc num_farm_hhlds_irs)
 
     gen year = int(`yr') + 2000
 
@@ -57,7 +57,7 @@ program create_variables
     gen wage_per_hhld      = total_wage/num_hhlds_irs
     gen wage_per_cap       = total_wage/pop_irs
 
-    gen bussines_rev_per_owner = tot_bus/num_bus_hhlds_irs
+    gen bussines_rev_per_owner = total_bizinc/num_bus_hhlds_irs
 
     gen share_wage_hhlds      = num_wage_hhlds_irs/num_hhlds_irs
     gen share_bussiness_hhlds = num_bus_hhlds_irs/num_hhlds_irs
