@@ -1,52 +1,40 @@
 remove(list = ls())
-
+library(data.table)
 
 main <- function() {
   
   instub  <- "../output/"
   outstub <- "../output/"
   
-  est <- read.csv(file.path(instub, "estimates_static.csv"))
-  est_var <- est[est$var != "cumsum_from0", ]
+  est <- fread(file.path(instub, "estimates_all.csv"))
   
+  tab_models <- list(
+    list("static_wages", 
+         c("naive", "ctrls", "cbsa_time", "state_time", "cbsa_time_baseline")),
+    list("static_wages_robustness", 
+         c("exp_mw_10", "exp_mw_18", "exp_mw_varying", "state_time", "dividends"))
+  )
   
-  txt <- c("<tab:static>")
-  txt <- c(txt, 
-           paste(est_var[est_var$model == "exp_mw_on_mw",]$b,
-                 est_var[est_var$model == "static_statutory",]$b, 
-                 est_var[est_var$model == "static_both" & est_var$var == "ln_mw",]$b, sep = "\t"))
-  
-  txt <- c(txt, 
-           paste(est_var[est_var$model == "exp_mw_on_mw",]$se,
-                 est_var[est_var$model == "static_statutory",]$se, 
-                 est_var[est_var$model == "static_both" & est_var$var == "ln_mw",]$se, sep = "\t"))
-  
-  txt <- c(txt, 
-           paste(est_var[est_var$model == "static_experienced",]$b, 
-                 est_var[est_var$model == "static_both" & est_var$var == "exp_ln_mw",]$b, sep = "\t"))
-  txt <- c(txt, 
-           paste(est_var[est_var$model == "static_experienced",]$se, 
-                 est_var[est_var$model == "static_both" & est_var$var == "exp_ln_mw",]$se, sep = "\t"))
-  
-  txt <- c(txt, paste0(est[est$model == "static_both" & est$var == "cumsum_from0",]$b))
-  txt <- c(txt, paste0(est[est$model == "static_both" & est$var == "cumsum_from0",]$se))
-  txt <- c(txt, paste0(est[est$model == "static_both" & est$var == "cumsum_from0",]$p_equality))
-  
-  txt <- c(txt, 
-           paste(est_var[est_var$model == "exp_mw_on_mw",]$r2,
-                 est_var[est_var$model == "static_statutory",]$r2, 
-                 est_var[est_var$model == "static_experienced",]$r2, 
-                 est_var[est_var$model == "static_both",]$r2[1], sep = "\t"))
-  
-  txt <- c(txt, 
-           paste(est_var[est_var$model == "exp_mw_on_mw",]$N,
-                 est_var[est_var$model == "static_statutory",]$N, 
-                 est_var[est_var$model == "static_experienced",]$N, 
-                 est_var[est_var$model == "static_both",]$N[1], sep = "\t"))
-  
-  fileConn <- file(file.path(outstub, "static.txt"))
-  writeLines(txt, fileConn)
-  close(fileConn)
+  for (model in tab_models) {
+    txt <- c(sprintf("<tab:%s>", model[[1]]))
+    
+    for (stat in c("b", "se", "r2_within", "N")) {
+      for (mm in model[[2]]) {
+        
+        if (mm == model[[2]][1]) {
+          row <- est[model == mm][[stat]]
+        } else {
+          row <- paste(row, est[model == mm][[stat]], sep = "\t")
+        }
+      }
+      
+      txt <- c(txt, row)
+    }
+    
+    fileConn <- file(file.path(outstub, sprintf("%s.txt", model[[1]])))
+    writeLines(txt, fileConn)
+    close(fileConn)
+  }
 }
 
 
