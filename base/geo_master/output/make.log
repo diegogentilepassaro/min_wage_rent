@@ -1,5 +1,5 @@
 
- make.py started: 2021-10-02 20:24:13 C:\Users\shermo\Documents\GitHub\min_wage_rent\base\geo_master\code 
+ make.py started: 2021-10-23 08:38:48 C:\Users\diegog\Desktop\Diego\min_wage_rent\base\geo_master\code 
 
 
 
@@ -45,64 +45,80 @@ Notes:
 . 
 . program main
   1.     local xwalk_dir  "../../../raw/crosswalk"
-  2.     local zillow_dir "../../../drive/base_large/zillow"
-  3.     local output     "../output"
-  4.     
-.     build_geomaster_large, instub(`xwalk_dir') outstub(`output')
-  5.     build_geomaster_small, instub(`xwalk_dir') outstub(`output')
-  6. end
+  2.     local shape_dir  "../../../drive/raw_data/shapefiles/USPS_zipcodes"
+  3.     local zillow_dir "../../../drive/base_large/zillow"
+  4.     local output     "../output"
+  5.     
+.     build_geomaster_large, instub(`xwalk_dir') in_shape(`shape_dir') outstub(
+> `output')
+  6.     build_geomaster_small, instub(`xwalk_dir') outstub(`output')
+  7. end
 
 . 
 . program build_geomaster_large
-  1.     syntax, instub(str) outstub(str)
-  2. 
+  1.     syntax, instub(str) in_shape(str) outstub(str)
+  2.         
+.         import dbase "`in_shape'/USPS_zipcodes_July2020.dbf", clear
+  3.     rename (ZIP_CODE PO_NAME STATE POPULATION SQMI) ///
+>             (zipcode zipcode_name statefips pop2020_esri area_sqmi)
+  4.         keep zipcode zipcode_name statefips pop2020_esri area_sqmi
+  5.         save_data "../temp/usps_shape.dta", key(zipcode) replace log(none)
+  6. 
 .     import excel "`instub'/zip_to_zcta_2019.xlsx", ///
 >         sheet("ZiptoZCTA_crosswalk") firstrow allstring clear
-  3.     rename (ZIP_CODE ZCTA PO_NAME) (zipcode zcta zipcode_name)
-  4.     drop if zipcode == "96898" & zcta == "No ZCTA"
-  5.     keep zipcode zcta zipcode_name
-  6.     save_data "../temp/usps_master.dta", key(zipcode) replace log(none)
-  7.     
-.     clear
-  8.     import delimited "`instub'/geocorr2018.csv", ///
->         varnames(1) stringcols(1 2 3 4 5)
-  9. 
+  7.     rename (ZIP_CODE ZCTA PO_NAME STATE ZIP_TYPE) ///
+>             (zipcode zcta zipcode_name statefips zipcode_type)
+  8.     drop if zipcode == "96898"
+  9.     save_data "../temp/usps_master.dta", key(zipcode) replace log(none)
+ 10.     
+.         use "../temp/usps_shape.dta", clear
+ 11.         merge 1:1 zipcode using "../temp/usps_master.dta"
+ 12.     drop if _merge == 1 /* these are overwhelmingly national parks, reserv
+> ations, and forests */
+ 13.         drop _merge
+ 14.         save_data "../temp/usps_master.dta", replace key(zipcode) log(none
+> )
+ 15.         
+.     import delimited "`instub'/geocorr2018.csv", ///
+>         varnames(1) stringcols(1 2 3 4 5) clear
+ 16. 
 .     drop metdiv10 mdivname10 afact
- 10.     rename (zcta5      county       placefp     state)                  //
+ 17.     rename (zcta5      county       placefp     state)                  //
 > /
 >            (zcta       countyfips   place_code  statefips)
- 11.     rename (zipname    cntyname     placenm     cbsaname10   stab)      //
+ 18.     rename (zipname    cntyname     placenm     cbsaname10   stab)      //
 > /
 >            (zcta_name  county_name  place_name  cbsa10_name  state_abb)
- 12.     rename hus10 houses_zcta_place_county
- 13. 
+ 19.     rename hus10 houses_zcta_place_county
+ 20. 
 .     gen rural = place_code == "99999"
- 14. 
+ 21. 
 .     merge m:m zcta using "../temp/usps_master.dta", nogen keep(3)
- 15. 
+ 22. 
 .     * Make sure zipcode-county-place combinations are unique
 .     isid zipcode place_code countyfips
- 16. 
+ 23. 
 .     local keep_vars ///
 >         zipcode     place_code   countyfips   cbsa10     zcta       ///
 >         place_name  county_name  cbsa10_name  state_abb  statefips  ///
->         houses_zcta_place_county rural
- 17. 
+>         houses_zcta_place_county rural  pop2020_esri area_sqmi ///
+>                 zipcode_type
+ 24. 
 .     keep  `keep_vars'
- 18.     order `keep_vars'
- 19.             
+ 25.     order `keep_vars'
+ 26.             
 .         save_data "`outstub'/zip_county_place_usps_all.dta", ///
 >         key(zipcode countyfips place_code) replace
- 20.     export delimited "`outstub'/zip_county_place_usps_all.csv", replace
- 21.         
+ 27.     export delimited "`outstub'/zip_county_place_usps_all.csv", replace
+ 28.         
 .     gen   neg_houses = -houses_zcta_place_county
- 22.     bys   zipcode (neg_houses): keep if _n == 1
- 23.     drop  neg_houses            
- 24.         
+ 29.     bys   zipcode (neg_houses): keep if _n == 1
+ 30.     drop  neg_houses
+ 31.         
 .     save_data "`outstub'/zip_county_place_usps_master.dta", ///
 >         key(zipcode) replace
- 25.     export delimited "`outstub'/zip_county_place_usps_master.csv", replace
- 26. end
+ 32.     export delimited "`outstub'/zip_county_place_usps_master.csv", replace
+ 33. end
 
 . 
 . program build_geomaster_small
@@ -113,7 +129,8 @@ Notes:
   3. 
 .     drop BUS_RATIO OTH_RATIO TOT_RATIO    
   4. 
-.     rename (TRACT ZIP RES_RATIO) (tract_fips zipcode res_ratio)
+.     rename (TRACT ZIP RES_RATIO) ///
+>             (tract_fips zipcode res_ratio)
   5. 
 .     save_data "`outstub'/tract_zip_master.dta", ///
 >         key(tract_fips zipcode) replace
@@ -124,25 +141,88 @@ Notes:
 . 
 . *EXECUTE
 . main 
-(1 observation deleted)
+(9 vars, 31,985 obs)
+(data now sorted by zipcode)
+  (0 bytes saved)
+===============================================================================
+File: ../temp/usps_shape.dta
+Key: zipcode
+===============================================================================
+  31985:5(101363):1953189040:4217948824
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+zipcode_name |          0
+   statefips |          0
+pop2020_esri |     31,985    10428.53    15079.92          0     133324
+   area_sqmi |     31,985    112.7203    765.6261          0   95698.64
+
+
+
+
+(note: file ../temp/usps_shape.dta not found)
+file ../temp/usps_shape.dta saved
+(2 observations deleted)
 (data now sorted by zipcode)
   (0 bytes saved)
 ===============================================================================
 File: ../temp/usps_master.dta
 Key: zipcode
 ===============================================================================
-  41106:3(76453):4239886574:3006094094
+  41105:6(78441):1694368594:1870132572
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
      zipcode |          0
 zipcode_name |          0
+   statefips |          0
+zipcode_type |          0
         zcta |          0
+-------------+---------------------------------------------------------
+zip_join_t~e |          0
 
 
 
 
 (note: file ../temp/usps_master.dta not found)
+file ../temp/usps_master.dta saved
+(note: variable zipcode_name was str29, now str57 to accommodate using data's
+       values)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                         9,364
+        from master                       122  (_merge==1)
+        from using                      9,242  (_merge==2)
+
+    matched                            31,863  (_merge==3)
+    -----------------------------------------
+(122 observations deleted)
+(data now sorted by zipcode)
+  variable zipcode_name was str57 now str27
+  (1,233,150 bytes saved)
+===============================================================================
+File: ../temp/usps_master.dta
+Key: zipcode
+===============================================================================
+  41105:8(68588):2565474193:539298895
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+zipcode_name |          0
+   statefips |          0
+pop2020_esri |     31,863    10464.51    15092.12          0     133324
+   area_sqmi |     31,863    104.7759    375.5133          0   20301.08
+-------------+---------------------------------------------------------
+zipcode_type |          0
+        zcta |          0
+zip_join_t~e |          0
+
+
+
+
 file ../temp/usps_master.dta saved
 (14 vars, 84,977 obs)
 (note: variable zcta was str5, now str7 to accommodate using data's values)
@@ -150,17 +230,17 @@ file ../temp/usps_master.dta saved
     Result                           # of obs.
     -----------------------------------------
     not matched                             0
-    matched                            87,799  
+    matched                            87,798  
     -----------------------------------------
 (data now sorted by zipcode countyfips place_code)
   variable rural was float now byte
   variable zcta was str7 now str5
-  (438,995 bytes saved)
+  (438,990 bytes saved)
 ===============================================================================
 File: ../output/zip_county_place_usps_all.dta
 Key: zipcode countyfips place_code
 ===============================================================================
-  87799:12(15803):1520888658:143548167
+  87798:15(83113):3843516283:3370392734
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -176,8 +256,11 @@ Key: zipcode countyfips place_code
    state_abb |          0
    statefips |          0
 -------------+---------------------------------------------------------
-houses_zct~y |     87,799    1796.605    3756.885          1      47617
-       rural |     87,799     .443513    .4968018          0          1
+houses_zct~y |     87,798    1796.624    3756.902          1      47617
+       rural |     87,798    .4435067    .4968011          0          1
+pop2020_esri |     75,516    11255.48    15039.15          0     133324
+   area_sqmi |     75,516    125.4539    441.6239          0   20301.08
+zipcode_type |          0
 
 
 
@@ -190,12 +273,12 @@ file ../output/zip_county_place_usps_all.csv saved
 (data already sorted by zipcode)
   variable rural was float now byte
   variable zcta was str7 now str5
-  (202,440 bytes saved)
+  (202,435 bytes saved)
 ===============================================================================
 File: ../output/zip_county_place_usps_master.dta
 Key: zipcode
 ===============================================================================
-  40488:12(81338):2396928722:1567900855
+  40487:15(83113):2885782233:2869261476
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -211,8 +294,11 @@ Key: zipcode
    state_abb |          0
    statefips |          0
 -------------+---------------------------------------------------------
-houses_zct~y |     40,488    3314.308      5032.1          1      47617
-       rural |     40,488     .444675    .4969359          0          1
+houses_zct~y |     40,487    3314.387    5032.137          1      47617
+       rural |     40,487      .44476    .4969453          0          1
+pop2020_esri |     31,580    10554.76    15128.94          0     133324
+   area_sqmi |     31,580    105.4329    376.7991          0   20301.08
+zipcode_type |          0
 
 
 
@@ -262,4 +348,4 @@ Key: tract_fips zipcode
 . 
 end of do-file
 
- make.py ended: 2021-10-02 20:24:50
+ make.py ended: 2021-10-23 08:39:42
