@@ -1,10 +1,10 @@
 
- make.py started: 2021-10-23 08:25:26 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\zipcode_sqft_measure\code 
+ make.py started: 2021-10-24 13:46:23 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\zipcode_sqft_measure\code 
 
 
 
 
-Execute:  StataMP-64 /e do "./build.do"
+Execute:  StataMP-64 /e do "./build_sqft.do"
 
   ___  ____  ____  ____  ____ (R)
  /__    /   ____/   /   ____/
@@ -27,7 +27,7 @@ Notes:
       3.  More than 2 billion observations are allowed; see help obs_advice.
       4.  Maximum number of variables is set to 5000; see help set_maxvar.
 
-. do ./build.do 
+. do ./build_sqft.do 
 
 . clear all
 
@@ -92,9 +92,9 @@ Notes:
 
 . 
 . main
-(4,372,704 observations deleted)
-(30,663 missing values generated)
-(37,389 missing values generated)
+(4,413,083 observations deleted)
+(30,662 missing values generated)
+(37,388 missing values generated)
 (note: file ../output/sqft_rents_vs_listings.png not found)
 (file ../output/sqft_rents_vs_listings.png written in PNG format)
 (bin=39, start=192.76872, width=156.8251)
@@ -109,7 +109,7 @@ Notes:
 File: ../output/housing_sqft_per_zipcode.dta
 Key: zipcode
 ===============================================================================
-  40488:3(73258):1937007222:2748334303
+  40487:3(73258):2471923641:3244967932
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -126,4 +126,315 @@ file ../output/housing_sqft_per_zipcode.dta saved
 . 
 end of do-file
 
- make.py ended: 2021-10-23 08:25:34
+
+Execute:  StataMP-64 /e do "./predict_sqft.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./predict_sqft.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. adopath + ../../../lib/stata/min_wage/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+  [8]              "../../../lib/stata/min_wage/ado"
+
+. set maxvar 32000
+
+
+. 
+. program main
+  1.         local instub "../../../base/geo_master/output"
+  2. 
+.         use "`instub'/zip_county_place_usps_master.dta", clear
+  3.         drop place_name county_name cbsa10_name state_abb 
+  4.         merge 1:1 zipcode using "../output/housing_sqft_per_zipcode.dta", 
+> ///
+>             nogen assert(3)
+  5.                 
+.         local covariates "area_sqmi pop2020_esri houses_zcta_place_county"
+  6.         local absorb "place_code countyfips cbsa10 statefips zipcode_type"
+  7.         
+.         reghdfe sqft_from_rents `covariates', absorb(`absorb')
+  8.         predict p_sqft_from_rents, xb
+  9.         
+.         reghdfe sqft_from_listings `covariates', absorb(`absorb')
+ 10.         predict p_sqft_from_listings, xb
+ 11.         
+.         keep zipcode zcta sqft_from_rents sqft_from_listings ///
+>             p_sqft_from_rents p_sqft_from_listings
+ 12.         save_data "../output/sqft_data_with_predictions.dta", ///
+>             key(zipcode) replace
+ 13.         export delimited "../output/sqft_data_with_predictions.csv", repla
+> ce
+ 14. end
+
+. 
+. main
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            40,487  
+    -----------------------------------------
+(dropped 1029 singleton observations)
+(MWFE estimator converged in 50 iterations)
+
+HDFE Linear regression                            Number of obs   =      2,070
+Absorbing 5 HDFE groups                           F(   3,   1549) =      14.88
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.6488
+                                                  Adj R-squared   =     0.5308
+                                                  Within R-sq.    =     0.0280
+                                                  Root MSE        =   239.5701
+
+------------------------------------------------------------------------------
+sqft_from~ts |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+   area_sqmi |   .5423903   .1339825     4.05   0.000     .2795841    .8051966
+pop2020_esri |    .002151   .0005425     3.96   0.000     .0010868    .0032151
+houses_zct~y |  -.0065206   .0014205    -4.59   0.000     -.009307   -.0037343
+       _cons |   1384.373   16.98629    81.50   0.000     1351.055    1417.692
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   place_code |       315           0         315     |
+   countyfips |       255          52         203     |
+       cbsa10 |       152         152           0    ?|
+    statefips |        44          44           0    ?|
+ zipcode_type |         1           1           0    ?|
+------------------------------------------------------+
+? = number of redundant parameters may be higher
+(8,907 missing values generated)
+(dropped 3743 singleton observations)
+(MWFE estimator converged in 41 iterations)
+
+HDFE Linear regression                            Number of obs   =      6,079
+Absorbing 5 HDFE groups                           F(   3,   4556) =      39.11
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.5360
+                                                  Adj R-squared   =     0.3809
+                                                  Within R-sq.    =     0.0251
+                                                  Root MSE        =   388.2437
+
+------------------------------------------------------------------------------
+sqft_from~gs |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+   area_sqmi |    .170599   .0707158     2.41   0.016     .0319617    .3092362
+pop2020_esri |  -.0025463   .0005372    -4.74   0.000    -.0035995   -.0014931
+houses_zct~y |  -.0065262   .0015912    -4.10   0.000    -.0096457   -.0034068
+       _cons |   1912.602   13.03926   146.68   0.000     1887.039    1938.165
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------+
+  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------+---------------------------------------|
+   place_code |       767           0         767     |
+   countyfips |       797          45         752     |
+       cbsa10 |       416         416           0    ?|
+    statefips |        51          51           0    ?|
+ zipcode_type |         2           1           1    ?|
+------------------------------------------------------+
+? = number of redundant parameters may be higher
+(8,907 missing values generated)
+(data already sorted by zipcode)
+  (0 bytes saved)
+===============================================================================
+File: ../output/sqft_data_with_predictions.dta
+Key: zipcode
+===============================================================================
+  40487:6(109392):3786259050:2696600968
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+        zcta |          0
+sqft_from~gs |      9,825    1790.649     481.809   192.7687   6308.948
+sqft_from~ts |      3,099    1439.971    429.7467   209.5036   12119.38
+p_sqft_fr~ts |     31,580    1445.271     205.596   1142.325   12394.61
+-------------+---------------------------------------------------------
+p_sqft_fr~gs |     31,580    1884.705    94.28255   1356.194    5354.84
+
+
+
+
+(note: file ../output/sqft_data_with_predictions.dta not found)
+file ../output/sqft_data_with_predictions.dta saved
+(note: file ../output/sqft_data_with_predictions.csv not found)
+file ../output/sqft_data_with_predictions.csv saved
+
+. 
+end of do-file
+
+
+Execute:  R CMD BATCH --no-save "./maps.R" maps.Rout
+
+R version 4.1.1 (2021-08-10) -- "Kick Things"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list = ls())
+> 
+> library(sf)
+Linking to GEOS 3.9.1, GDAL 3.2.1, PROJ 7.2.1
+> library(dplyr)
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+> library(spData)
+To access larger datasets in this package, install the spDataLarge
+package with: `install.packages('spDataLarge',
+repos='https://nowosad.github.io/drat/', type='source')`
+> library(tmap)
+> library(tmaptools)
+> library(leaflet)
+> library(ggplot2)
+> library(data.table)
+
+Attaching package: 'data.table'
+
+The following objects are masked from 'package:dplyr':
+
+    between, first, last
+
+> 
+> main <- function(){
++   in_map  <- "../../../drive/raw_data/shapefiles/USPS_zipcodes"
++   in_acs  <- "../../../base/acs_rental_occupation/output"
++ 
++   USPS_zipcodes <- read_sf(dsn = in_map, 
++                            layer = "USPS_zipcodes_July2020") %>%
++     select(ZIP_CODE, STATE) %>%
++     rename(zipcode = ZIP_CODE, state_abb = STATE) %>%
++     filter(state_abb != "AK" & state_abb != "HI" & state_abb != "VI" & state_abb != "MP"
++            & state_abb != "PR" & state_abb != "GU" & state_abb != "AS")
++   USPS_zipcodes <- USPS_zipcodes[st_is_valid(USPS_zipcodes),]
++   
++   sqft_dt <- fread("../output/sqft_data_with_predictions.csv",
++                      colClasses = c(zipcode = "character", zcta = "character"))
++   
++   acs_rental_occup_dt <- fread(file.path(in_acs, "acs_rental_occupation.csv"),
++                                colClasses = c(zcta = "character"))
++   
++   dt <- left_join(USPS_zipcodes, sqft_dt, by = "zipcode")
++   dt <- left_join(dt, acs_rental_occup_dt, by = "zcta")
++   dt <- dt %>%
++     mutate(total_rented_space = p_sqft_from_rents*renter_occupied)
++ 
++   build_map(dt, "sqft_from_rents", "sqft of median rental post", 
++             "sqft_from_rents")
++   build_map(dt, "p_sqft_from_rents", "Predicted sqft of median rental post", 
++             "p_sqft_from_rents") 
++   build_map(dt, "total_rented_space", "Total rented space", 
++             "tot_rented_space") 
++ }
+> 
+> build_map <- function(data, var, var_legend, map_name,
++                       .dpi = 300){
++   map <- tm_shape(data) + 
++     tm_fill(col = var,
++             title = var_legend,
++             style = "cont",
++             palette = c("#A6E1F4", "#077187"),
++             textNA = "NA") +
++     tm_borders(col = "white", lwd = .01, alpha = 0.7) +
++     tm_layout(legend.position = c("left", "bottom"))
++   
++   tmap_save(map, 
++             paste0("../output/", map_name, ".png"),
++             dpi = .dpi)
++   tmap_save(map, 
++             paste0("../output/", map_name, ".eps"))
++ }
+> 
+> main()
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\zipcode_sqft_measure\output\sqft_from_rents.png
+Resolution: 2862.597 by 1540.559 pixels
+Size: 9.541991 by 5.135196 inches (300 dpi)
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\zipcode_sqft_measure\output\sqft_from_rents.eps
+Size: 9.541991 by 5.135196 inches
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\zipcode_sqft_measure\output\p_sqft_from_rents.png
+Resolution: 2862.597 by 1540.559 pixels
+Size: 9.541991 by 5.135196 inches (300 dpi)
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\zipcode_sqft_measure\output\p_sqft_from_rents.eps
+Size: 9.541991 by 5.135196 inches
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\zipcode_sqft_measure\output\tot_rented_space.png
+Resolution: 2862.597 by 1540.559 pixels
+Size: 9.541991 by 5.135196 inches (300 dpi)
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\zipcode_sqft_measure\output\tot_rented_space.eps
+Size: 9.541991 by 5.135196 inches
+Warning messages:
+1: In grid.Call.graphics(C_path, x$x, x$y, index, switch(x$rule, winding = 1L,  :
+  semi-transparency is not supported on this device: reported only once per page
+2: In grid.Call.graphics(C_path, x$x, x$y, index, switch(x$rule, winding = 1L,  :
+  semi-transparency is not supported on this device: reported only once per page
+3: In grid.Call.graphics(C_path, x$x, x$y, index, switch(x$rule, winding = 1L,  :
+  semi-transparency is not supported on this device: reported only once per page
+> 
+> proc.time()
+   user  system elapsed 
+5221.67 4020.53 9267.26 
+
+ make.py ended: 2021-10-24 16:21:31
