@@ -17,6 +17,7 @@ program main
 	use zipcode statefips year total_wage adj_gross_inc num_hhlds_irs using ///
 	    "`in_irs'/irs_zip.dta", clear
 	keep if year == 2018
+	drop year
 	drop if (zipcode == "00000" | zipcode == "99999")
     save "../temp/irs.dta", replace
 
@@ -43,14 +44,10 @@ program main
 	    covariates(`covariates') fes(`fes')
 	get_poisson_preds, depvar(total_wage) ///
 	    covariates(`covariates') fes(`fes')
-	
-	keep zipcode zcta sqft_from_rents sqft_from_listings ///
-		imp_sqft_from_rents imp_sqft_from_listings ///
-		rent_psqft imp_rent_psqft ///
-		total_wage imp_total_wage rural zipcode_type
-	save_data "../output/sqft_data_with_predictions.dta", ///
+
+	save_data "../output/predictions.dta", ///
 	    key(zipcode) replace
-	export delimited "../output/sqft_data_with_predictions.csv", replace
+	export delimited "../output/predictions.csv", replace
 end
 
 program get_poisson_preds
