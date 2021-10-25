@@ -1,5 +1,5 @@
 
- make.py started: 2021-10-24 13:46:23 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\zipcode_sqft_measure\code 
+ make.py started: 2021-10-25 07:33:33 C:\Users\diegog\Desktop\Diego\min_wage_rent\derived\zipcode_sqft_measure\code 
 
 
 
@@ -193,17 +193,24 @@ Notes:
   7.         
 .         reghdfe sqft_from_rents `covariates', absorb(`absorb')
   8.         predict p_sqft_from_rents, xb
-  9.         
-.         reghdfe sqft_from_listings `covariates', absorb(`absorb')
- 10.         predict p_sqft_from_listings, xb
+  9.         gen imp_sqft_from_rents = sqft_from_rents
+ 10.         replace imp_sqft_from_rents = p_sqft_from_rents if missing(imp_sqf
+> t_from_rents)
  11.         
+.         reghdfe sqft_from_listings `covariates', absorb(`absorb')
+ 12.         predict p_sqft_from_listings, xb
+ 13.         gen imp_sqft_from_listings = sqft_from_rents
+ 14.         replace imp_sqft_from_listings = p_sqft_from_listings if missing(i
+> mp_sqft_from_listings)
+ 15.         
 .         keep zipcode zcta sqft_from_rents sqft_from_listings ///
->             p_sqft_from_rents p_sqft_from_listings
- 12.         save_data "../output/sqft_data_with_predictions.dta", ///
+>             p_sqft_from_rents p_sqft_from_listings ///
+>                 imp_sqft_from_rents imp_sqft_from_listings
+ 16.         save_data "../output/sqft_data_with_predictions.dta", ///
 >             key(zipcode) replace
- 13.         export delimited "../output/sqft_data_with_predictions.csv", repla
+ 17.         export delimited "../output/sqft_data_with_predictions.csv", repla
 > ce
- 14. end
+ 18. end
 
 . 
 . main
@@ -245,6 +252,8 @@ Absorbed degrees of freedom:
 ------------------------------------------------------+
 ? = number of redundant parameters may be higher
 (8,907 missing values generated)
+(37,388 missing values generated)
+(28,481 real changes made)
 (dropped 3743 singleton observations)
 (MWFE estimator converged in 41 iterations)
 
@@ -277,13 +286,15 @@ Absorbed degrees of freedom:
 ------------------------------------------------------+
 ? = number of redundant parameters may be higher
 (8,907 missing values generated)
+(37,388 missing values generated)
+(28,481 real changes made)
 (data already sorted by zipcode)
   (0 bytes saved)
 ===============================================================================
 File: ../output/sqft_data_with_predictions.dta
 Key: zipcode
 ===============================================================================
-  40487:6(109392):3786259050:2696600968
+  40487:8(53311):3933973841:2752986687
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -293,7 +304,9 @@ sqft_from~gs |      9,825    1790.649     481.809   192.7687   6308.948
 sqft_from~ts |      3,099    1439.971    429.7467   209.5036   12119.38
 p_sqft_fr~ts |     31,580    1445.271     205.596   1142.325   12394.61
 -------------+---------------------------------------------------------
+imp_sqft_~ts |     31,580    1447.251    244.5116   209.5036   12394.61
 p_sqft_fr~gs |     31,580    1884.705    94.28255   1356.194    5354.84
+imp_sqft_~gs |     31,580     1853.92    207.9396   209.5036   12119.38
 
 
 
@@ -306,135 +319,4 @@ file ../output/sqft_data_with_predictions.csv saved
 . 
 end of do-file
 
-
-Execute:  R CMD BATCH --no-save "./maps.R" maps.Rout
-
-R version 4.1.1 (2021-08-10) -- "Kick Things"
-Copyright (C) 2021 The R Foundation for Statistical Computing
-Platform: x86_64-w64-mingw32/x64 (64-bit)
-
-R is free software and comes with ABSOLUTELY NO WARRANTY.
-You are welcome to redistribute it under certain conditions.
-Type 'license()' or 'licence()' for distribution details.
-
-  Natural language support but running in an English locale
-
-R is a collaborative project with many contributors.
-Type 'contributors()' for more information and
-'citation()' on how to cite R or R packages in publications.
-
-Type 'demo()' for some demos, 'help()' for on-line help, or
-'help.start()' for an HTML browser interface to help.
-Type 'q()' to quit R.
-
-> remove(list = ls())
-> 
-> library(sf)
-Linking to GEOS 3.9.1, GDAL 3.2.1, PROJ 7.2.1
-> library(dplyr)
-
-Attaching package: 'dplyr'
-
-The following objects are masked from 'package:stats':
-
-    filter, lag
-
-The following objects are masked from 'package:base':
-
-    intersect, setdiff, setequal, union
-
-> library(spData)
-To access larger datasets in this package, install the spDataLarge
-package with: `install.packages('spDataLarge',
-repos='https://nowosad.github.io/drat/', type='source')`
-> library(tmap)
-> library(tmaptools)
-> library(leaflet)
-> library(ggplot2)
-> library(data.table)
-
-Attaching package: 'data.table'
-
-The following objects are masked from 'package:dplyr':
-
-    between, first, last
-
-> 
-> main <- function(){
-+   in_map  <- "../../../drive/raw_data/shapefiles/USPS_zipcodes"
-+   in_acs  <- "../../../base/acs_rental_occupation/output"
-+ 
-+   USPS_zipcodes <- read_sf(dsn = in_map, 
-+                            layer = "USPS_zipcodes_July2020") %>%
-+     select(ZIP_CODE, STATE) %>%
-+     rename(zipcode = ZIP_CODE, state_abb = STATE) %>%
-+     filter(state_abb != "AK" & state_abb != "HI" & state_abb != "VI" & state_abb != "MP"
-+            & state_abb != "PR" & state_abb != "GU" & state_abb != "AS")
-+   USPS_zipcodes <- USPS_zipcodes[st_is_valid(USPS_zipcodes),]
-+   
-+   sqft_dt <- fread("../output/sqft_data_with_predictions.csv",
-+                      colClasses = c(zipcode = "character", zcta = "character"))
-+   
-+   acs_rental_occup_dt <- fread(file.path(in_acs, "acs_rental_occupation.csv"),
-+                                colClasses = c(zcta = "character"))
-+   
-+   dt <- left_join(USPS_zipcodes, sqft_dt, by = "zipcode")
-+   dt <- left_join(dt, acs_rental_occup_dt, by = "zcta")
-+   dt <- dt %>%
-+     mutate(total_rented_space = p_sqft_from_rents*renter_occupied)
-+ 
-+   build_map(dt, "sqft_from_rents", "sqft of median rental post", 
-+             "sqft_from_rents")
-+   build_map(dt, "p_sqft_from_rents", "Predicted sqft of median rental post", 
-+             "p_sqft_from_rents") 
-+   build_map(dt, "total_rented_space", "Total rented space", 
-+             "tot_rented_space") 
-+ }
-> 
-> build_map <- function(data, var, var_legend, map_name,
-+                       .dpi = 300){
-+   map <- tm_shape(data) + 
-+     tm_fill(col = var,
-+             title = var_legend,
-+             style = "cont",
-+             palette = c("#A6E1F4", "#077187"),
-+             textNA = "NA") +
-+     tm_borders(col = "white", lwd = .01, alpha = 0.7) +
-+     tm_layout(legend.position = c("left", "bottom"))
-+   
-+   tmap_save(map, 
-+             paste0("../output/", map_name, ".png"),
-+             dpi = .dpi)
-+   tmap_save(map, 
-+             paste0("../output/", map_name, ".eps"))
-+ }
-> 
-> main()
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\zipcode_sqft_measure\output\sqft_from_rents.png
-Resolution: 2862.597 by 1540.559 pixels
-Size: 9.541991 by 5.135196 inches (300 dpi)
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\zipcode_sqft_measure\output\sqft_from_rents.eps
-Size: 9.541991 by 5.135196 inches
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\zipcode_sqft_measure\output\p_sqft_from_rents.png
-Resolution: 2862.597 by 1540.559 pixels
-Size: 9.541991 by 5.135196 inches (300 dpi)
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\zipcode_sqft_measure\output\p_sqft_from_rents.eps
-Size: 9.541991 by 5.135196 inches
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\zipcode_sqft_measure\output\tot_rented_space.png
-Resolution: 2862.597 by 1540.559 pixels
-Size: 9.541991 by 5.135196 inches (300 dpi)
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\zipcode_sqft_measure\output\tot_rented_space.eps
-Size: 9.541991 by 5.135196 inches
-Warning messages:
-1: In grid.Call.graphics(C_path, x$x, x$y, index, switch(x$rule, winding = 1L,  :
-  semi-transparency is not supported on this device: reported only once per page
-2: In grid.Call.graphics(C_path, x$x, x$y, index, switch(x$rule, winding = 1L,  :
-  semi-transparency is not supported on this device: reported only once per page
-3: In grid.Call.graphics(C_path, x$x, x$y, index, switch(x$rule, winding = 1L,  :
-  semi-transparency is not supported on this device: reported only once per page
-> 
-> proc.time()
-   user  system elapsed 
-5221.67 4020.53 9267.26 
-
- make.py ended: 2021-10-24 16:21:31
+ make.py ended: 2021-10-25 07:34:07
