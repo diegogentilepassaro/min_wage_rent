@@ -196,9 +196,12 @@ compute_counterfactual <- function(dt) {
    dt[, fed_mw_cf_9usd  := 9]
    dt[, fed_mw_cf_15usd := 15]
 
-   dt[, actual_mw_cf_10pc  := pmax(actual_mw, fed_mw_cf_10pc)]
-   dt[, actual_mw_cf_9usd  := pmax(actual_mw, fed_mw_cf_9usd)]
-   dt[, actual_mw_cf_15usd := pmax(actual_mw, fed_mw_cf_15usd)]
+   dt[, actual_mw_cf_10pc  := fcase(year == 2019 & month == 12, actual_mw,
+                                    year == 2020 & month ==  1, pmax(actual_mw, fed_mw_cf_10pc))]
+   dt[, actual_mw_cf_9usd  := fcase(year == 2019 & month == 12, actual_mw,
+                                    year == 2020 & month ==  1, pmax(actual_mw, fed_mw_cf_9usd))]
+   dt[, actual_mw_cf_15usd := fcase(year == 2019 & month == 12, actual_mw,
+                                    year == 2020 & month ==  1, pmax(actual_mw, fed_mw_cf_15usd))]
 
    return(dt)
 }
