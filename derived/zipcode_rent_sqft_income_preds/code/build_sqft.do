@@ -30,7 +30,8 @@ program main
 	    graphregion(color(white)) bgcolor(white)
 	graph export "../output/histogram_sqft_rents.png", replace
 	
-	keep zipcode sqft_from_listings sqft_from_rents
+	keep zipcode sqft_from_listings sqft_from_rents medrentpricepsqft_SFCC
+	rename medrentpricepsqft_SFCC rent_psqft
 	
 	save_data "../output/housing_sqft_per_zipcode.dta", key(zipcode) replace
 end
