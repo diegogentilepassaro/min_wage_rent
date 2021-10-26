@@ -27,7 +27,12 @@ di 2
         
         local i = 1
         foreach var in `xvars' {
-            gen var = "`var'" if at == `i'
+		    if `i' == 1 {
+			    gen var = "`var'" if at == `i'
+			}
+			else{
+			    replace var = "`var'" if at == `i'
+			}
             local i = `i' + 1
         }
         keep if at <= `i' - 1 // Keep xvars only, drop controls

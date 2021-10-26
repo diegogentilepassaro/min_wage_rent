@@ -15,7 +15,7 @@ program main
     add_state_to_fedmw,    fips(`fips')  outstub(`temp')
     state_min_wage_change, instub(`raw') outstub(`temp') temp(`temp')
 
-    prepare_finaldata, begindate(01may1974) finaldate(31dec2019)           ///
+    prepare_finaldata, begindate(01may1974) finaldate(31Jan2020)           ///
                        outstub(`temp') temp(`temp')
 
     local mw_list "fed_mw mw"
@@ -87,7 +87,8 @@ program add_state_to_fedmw
 
     compress
 
-    save_data `outstub'/fedmw.dta, replace key(date statefips) log(none)
+    save_data `outstub'/fedmw.dta, ///
+	    replace key(date statefips) log(none)
 end
 
 program state_min_wage_change
@@ -148,17 +149,6 @@ program prepare_finaldata
     save_data `outstub'/data_state.dta, replace key(statefips date) log(none)
 end
 
-program export_state_daily
-    syntax, instub(str) outstub(str) target_mw(str)
-
-    use `instub'/data_state.dta, clear
-
-    keep statefips statename stateabb date `target_mw'
-
-    save_data `outstub'/state_daily.csv, key(statefips date) ///
-        outsheet replace
-end
-
 program export_state_monthly
     syntax, instub(str) outstub(str) target_mw(str)
 
@@ -213,6 +203,17 @@ program export_state_yearly
     label_mw_vars, time_level("Annual")
 
     save_data `outstub'/state_annual.csv, key(statefips year) ///
+        outsheet replace
+end
+
+program export_state_daily
+    syntax, instub(str) outstub(str) target_mw(str)
+
+    use `instub'/data_state.dta, clear
+
+    keep statefips statename stateabb date `target_mw'
+
+    save_data `outstub'/state_daily.csv, key(statefips date) ///
         outsheet replace
 end
 

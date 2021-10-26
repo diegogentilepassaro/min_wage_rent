@@ -14,7 +14,8 @@ main <- function(){
   
   df_all <- prepare_data(in_map, in_data)
   
-  events <- list(list("san_diego", 41740, 2018, 12, 2019, 6),
+  events <- list(list("chicago",   16980, 2019, 6, 2019, 12),
+                 list("san_diego", 41740, 2018, 12, 2019, 6),
                  list("seattle",   42660, 2018, 12, 2019, 6),
                  list("nyc",       35620, 2018, 12, 2019, 6),
                  list("kc",        28140, 2018, 12, 2019, 6),
@@ -51,7 +52,7 @@ prepare_data <- function(in_map, in_data) {
                                                    zcta ="character", place_name = "character", 
                                                    county_name = "character", cbsa10_name = "character",
                                                    state_abb = "character", statefips = "character")) %>%
-    select(zipcode, cbsa10, year, month, actual_mw, exp_ln_mw, medrentpricepsqft_SFCC) %>%
+    select(zipcode, cbsa10, year, month, actual_mw, exp_ln_mw_17, medrentpricepsqft_SFCC) %>%
     mutate(ln_actual_mw = log(actual_mw),
            ln_rent_var  = log(medrentpricepsqft_SFCC))
   
@@ -67,7 +68,7 @@ restrict_and_build_changes <- function(data, cbsa10_code, year_lb, month_lb,
     group_by(zipcode) %>%
     summarise(change_actual_mw    = last(actual_mw)   - first(actual_mw), 
               change_ln_actual_mw = last(ln_actual_mw) - first(ln_actual_mw),
-              change_exp_ln_mw    = last(exp_ln_mw)   - first(exp_ln_mw),
+              change_exp_ln_mw    = last(exp_ln_mw_17)   - first(exp_ln_mw_17),
               change_ln_rents     = last(ln_rent_var) - first(ln_rent_var)) %>%
     ungroup()
 }
