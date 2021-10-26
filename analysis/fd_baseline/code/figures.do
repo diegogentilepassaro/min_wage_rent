@@ -39,6 +39,13 @@ program main
         stat_var(`exp_ln_mw_var') legend_stat_var(Workplace MW) ///
         color_stat_var(navy) symbol_stat_var(circle) ///
         name(fd_both_ln_mw_dynamic)
+	
+    plot_dynamics_both, model(both_dynamic) dyn_var(ln_mw) ///
+        legend_dyn_var(Residence MW) ///
+        color_dyn_var(maroon) symbol_dyn_var(square) ///
+        stat_var(`exp_ln_mw_var') legend_stat_var(Workplace MW) ///
+        color_stat_var(navy) symbol_stat_var(circle) ///
+        name(fd_both_dynamic)
 end
 
 program make_bounds
@@ -59,16 +66,11 @@ program plot_dynamics
     preserve
         keep if model == "`model'"
         twoway (scatter b       at if var == "`var'", mcol(`color') msymbol(`symbol')) ///
-                (rcap b_lb b_ub at if var == "`var'", lcol(`color') lw(thin))          ///
-                (line b         at if var == "cumsum_from0", col(`color'))             ///
-                (line b_lb      at if var == "cumsum_from0",                           ///
-                    col(`color') lw(thin) lp(dash))                                    ///
-                (line b_ub      at if var == "cumsum_from0",                           ///
-                    col(`color') lw(thin) lp(dash)),                                   ///
+                (rcap b_lb b_ub at if var == "`var'", lcol(`color') lw(thin)),                                   ///
             yline(0, lcol(black))                                                      ///
             xlabel(-6(1)6, labsize(small)) xtitle("")                                  ///
             ylabel(-0.06(0.02).16, grid labsize(small)) ytitle("Coefficient")          ///
-            legend(order(1 `"`legend_var'"' 3 "Cumulative sum"))                       ///
+            legend(order(1 `"`legend_var'"'))                       ///
             graphregion(color(white)) bgcolor(white)
         
         graph export "../output/`name'.png", replace
@@ -95,17 +97,11 @@ program plot_dynamics_both
                 (scatter b      at_l if var == "`stat_var'",                    ///
                     mcol(`color_stat_var') msymbol(`symbol_stat_var'))          ///
                 (rcap b_lb b_ub at_l if var == "`stat_var'",                    ///
-                    col(`color_stat_var') lw(thin))                             ///
-                (line b at      if var == "cumsum_from0", col(`color_dyn_var')) ///
-                (line b_lb at   if var == "cumsum_from0",                       ///
-                    col(`color_dyn_var') lw(thin) lp(dash))                     ///
-                (line b_ub at   if var == "cumsum_from0",                       ///
-                    col(`color_dyn_var') lw(thin) lp(dash)),                    ///
+                    col(`color_stat_var') lw(thin)),                    ///
             yline(0, lcol(black))                                               ///
             xlabel(-6(1)6, labsize(small)) xtitle("")                           ///
             ylabel(-0.06(0.02).16, grid labsize(small)) ytitle("Coefficient")   ///
-            legend(order(1 `"`legend_dyn_var'"' 5 `"`legend_stat_var'"'         ///
-                7 "Cumulative sum"))                                            ///
+            legend(order(1 `"`legend_dyn_var'"' 5 `"`legend_stat_var'"' ))                                            ///
             graphregion(color(white)) bgcolor(white)
         
         graph export "../output/`name'.png", replace
