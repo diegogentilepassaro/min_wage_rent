@@ -14,8 +14,10 @@ program main
 	
 	use "`in_income'/estimates_all.dta", clear
 	keep if model == "cbsa_time_baseline"
-    sum b
-	local epsilon = r(mean)
+    sum b if var == "ln_mw_avg"
+	local epsilon_mw = r(mean)
+    sum b if var == "exp_ln_mw_tot_17_avg"
+	local epsilon_exp_mw = r(mean)
 	
 	use "`in_est'/estimates_static.dta", clear
 	keep if model == "static_both"
@@ -54,12 +56,17 @@ program main
 	keep if rural == 0
 	keep if zipcode_type == "Zip Code Area"
 	
-	gen d_rents = (exp(d_ln_rents)-1)*rent_psqft
-	gen total_rented_space = sqft_from_rents*renter_occupied
+	gen d_rents = (exp(d_ln_rents)-1)*p_rent_psqft
+	gen total_rented_space = p_sqft_from_rents*renter_occupied
 	gen d_rental_expenditure = total_rented_space*d_rents
 	
-    gen d_ln_wagebill = `epsilon'*d_exp_ln_mw_tot_18_cf
-	gen d_wagebill = (exp(d_ln_wagebill)-1)*total_wage
+	gen share_renter_hhlds = renter_occupied/total_households
+	
+    gen d_ln_wagebill = `epsilon_mw'*d_ln_mw_cf + `epsilon_exp_mw'*d_exp_ln_mw_tot_18_cf
+	gen d_wagebill = (exp(d_ln_wagebill)-1)*p_total_wage
+	
+	gen rho_per_capita = (d_rents*p_sqft_from_rents*share_renter_hhlds) ///
+	    /(d_wagebill/renter_occupied)
 	
 	gen rho = d_rental_expenditure/d_wagebill
 	gen rho_alt = d_ln_rents/d_ln_wagebill

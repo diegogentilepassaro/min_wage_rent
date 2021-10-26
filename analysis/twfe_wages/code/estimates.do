@@ -17,39 +17,39 @@ program main
     local cluster "statefips"
 
     estimate_twfe_model, ///
-        yvar(ln_wagebill) xvars(exp_ln_mw_tot_17_avg) controls(" ")            ///
+        yvar(ln_wagebill) xvars(ln_mw_avg exp_ln_mw_tot_17_avg) controls(" ")            ///
         absorb(zipcode year) cluster(`cluster') model_name(naive)
 
     estimate_twfe_model, ///
-        yvar(ln_wagebill) xvars(exp_ln_mw_tot_17_avg) controls(`controls')     ///
+        yvar(ln_wagebill) xvars(ln_mw_avg exp_ln_mw_tot_17_avg) controls(`controls')     ///
         absorb(zipcode year) cluster(`cluster') model_name(ctrls)
 
     estimate_twfe_model, ///
-        yvar(ln_wagebill) xvars(exp_ln_mw_tot_17_avg) controls(`controls')     ///
+        yvar(ln_wagebill) xvars(ln_mw_avg exp_ln_mw_tot_17_avg) controls(`controls')     ///
         absorb(zipcode year#cbsa10_num) cluster(`cluster') model_name(cbsa_time)
 
     estimate_twfe_model, ///
-        yvar(ln_wagebill) xvars(exp_ln_mw_tot_17_avg) controls(`controls')     ///
+        yvar(ln_wagebill) xvars(ln_mw_avg exp_ln_mw_tot_17_avg) controls(`controls')     ///
         absorb(zipcode year#county_num) cluster(`cluster') model_name(county_time)
     
     estimate_twfe_model if baseline_sample, ///
-        yvar(ln_wagebill) xvars(exp_ln_mw_tot_17_avg) controls(`controls')     ///
+        yvar(ln_wagebill) xvars(ln_mw_avg exp_ln_mw_tot_17_avg) controls(`controls')     ///
         absorb(zipcode year#cbsa10_num) cluster(`cluster') model_name(cbsa_time_baseline)
 
     estimate_twfe_model, ///
-        yvar(ln_wagebill) xvars(exp_ln_mw_tot_10_avg) controls(`controls')     ///
+        yvar(ln_wagebill) xvars(ln_mw_avg exp_ln_mw_tot_10_avg) controls(`controls')     ///
         absorb(zipcode year#cbsa10_num) cluster(`cluster') model_name(exp_mw_10)
     
     estimate_twfe_model, ///
-        yvar(ln_wagebill) xvars(exp_ln_mw_tot_18_avg) controls(`controls')     ///
+        yvar(ln_wagebill) xvars(ln_mw_avg exp_ln_mw_tot_18_avg) controls(`controls')     ///
         absorb(zipcode year#cbsa10_num) cluster(`cluster') model_name(exp_mw_18)
     
     estimate_twfe_model, ///
-        yvar(ln_wagebill) xvars(exp_ln_mw_tot_avg) controls(`controls')       ///
+        yvar(ln_wagebill) xvars(ln_mw_avg exp_ln_mw_tot_avg) controls(`controls')       ///
         absorb(zipcode year#cbsa10_num) cluster(`cluster') model_name(exp_mw_varying)
     
     estimate_twfe_model, ///
-        yvar(ln_dividends) xvars(exp_ln_mw_tot_17_avg) controls(`controls')    ///
+        yvar(ln_dividends) xvars(ln_mw_avg exp_ln_mw_tot_17_avg) controls(`controls')    ///
         absorb(zipcode year#cbsa10_num) cluster(`cluster') model_name(dividends)
 
     use `outstub'/estimates_naive.dta, clear

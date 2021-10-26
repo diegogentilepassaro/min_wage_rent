@@ -1,5 +1,5 @@
 
- make.py started: 2021-10-25 16:09:51 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\code 
+ make.py started: 2021-10-26 09:29:58 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\code 
 
 
 
@@ -68,74 +68,87 @@ Notes:
   7.         
 .         use "`in_income'/estimates_all.dta", clear
   8.         keep if model == "cbsa_time_baseline"
-  9.     sum b
- 10.         local epsilon = r(mean)
- 11.         
+  9.     sum b if var == "ln_mw_avg"
+ 10.         local epsilon_mw = r(mean)
+ 11.     sum b if var == "exp_ln_mw_tot_17_avg"
+ 12.         local epsilon_exp_mw = r(mean)
+ 13.         
 .         use "`in_est'/estimates_static.dta", clear
- 12.         keep if model == "static_both"
- 13.     sum b if var == "ln_mw"
- 14.         local gamma = r(mean)
- 15.     sum b if var == "exp_ln_mw_17"
- 16.         local beta = r(mean)
- 17.         
+ 14.         keep if model == "static_both"
+ 15.     sum b if var == "ln_mw"
+ 16.         local gamma = r(mean)
+ 17.     sum b if var == "exp_ln_mw_17"
+ 18.         local beta = r(mean)
+ 19.         
 .         use zipcode year month counterfactual exp_ln_mw_tot using ///
 >             "`in_cf_mw'/zipcode_experienced_mw_cfs.dta", clear
- 18.     keep if (year == 2020 & month == 1)
- 19.         rename exp_ln_mw_tot exp_ln_mw_tot_18_cf
- 20.         gen fed_mw_cf = 7.25*1.1 if counterfactual == "fed_10pc"
- 21.         replace fed_mw_cf = 15 if counterfactual == "fed_15usd"
- 22.         replace fed_mw_cf = 9 if counterfactual == "fed_9usd"
- 23.         save "../temp/counterfactual.dta", replace
- 24. 
+ 20.     keep if (year == 2020 & month == 1)
+ 21.         rename exp_ln_mw_tot exp_ln_mw_tot_18_cf
+ 22.         gen fed_mw_cf = 7.25*1.1 if counterfactual == "fed_10pc"
+ 23.         replace fed_mw_cf = 15 if counterfactual == "fed_15usd"
+ 24.         replace fed_mw_cf = 9 if counterfactual == "fed_9usd"
+ 25.         save "../temp/counterfactual.dta", replace
+ 26. 
 .         use zipcode zcta statefips state_abb year month ///
 >             actual_mw ln_mw exp_ln_mw_18 ///
 >             using "`in_sample'/all_zipcode_months.dta", clear
- 25.     keep if (year == 2019 & month == 12)
- 26.         save "../temp/factual.dta", replace
- 27.         
-.         use "../temp/counterfactual.dta", clear
- 28.         merge m:1 zipcode using "../temp/factual.dta", nogen keep(3)
+ 27.     keep if (year == 2019 & month == 12)
+ 28.         save "../temp/factual.dta", replace
  29.         
+.         use "../temp/counterfactual.dta", clear
+ 30.         merge m:1 zipcode using "../temp/factual.dta", nogen keep(3)
+ 31.         
 .         gen actual_mw_cf = actual_mw
- 30.         replace actual_mw_cf = fed_mw_cf if (fed_mw_cf >= actual_mw)
- 31.         gen ln_mw_cf = log(actual_mw_cf)
- 32.         gen d_ln_mw_cf = ln_mw_cf - ln_mw
- 33.         gen d_exp_ln_mw_tot_18_cf = exp_ln_mw_tot_18_cf - exp_ln_mw_18
- 34.         gen d_ln_rents = `gamma'*d_ln_mw_cf + `beta'*d_exp_ln_mw_tot_18_cf
- 35.         
+ 32.         replace actual_mw_cf = fed_mw_cf if (fed_mw_cf >= actual_mw)
+ 33.         gen ln_mw_cf = log(actual_mw_cf)
+ 34.         gen d_ln_mw_cf = ln_mw_cf - ln_mw
+ 35.         gen d_exp_ln_mw_tot_18_cf = exp_ln_mw_tot_18_cf - exp_ln_mw_18
+ 36.         gen d_ln_rents = `gamma'*d_ln_mw_cf + `beta'*d_exp_ln_mw_tot_18_cf
+ 37.         
 .         merge m:1 zipcode using "`in_preds'/predictions.dta", ///
 >             nogen keep(1 3)
- 36.         keep if rural == 0
- 37.         keep if zipcode_type == "Zip Code Area"
- 38.         
-.         gen d_rents = (exp(d_ln_rents)-1)*rent_psqft
- 39.         gen total_rented_space = sqft_from_rents*renter_occupied
- 40.         gen d_rental_expenditure = total_rented_space*d_rents
- 41.         
-.     gen d_ln_wagebill = `epsilon'*d_exp_ln_mw_tot_18_cf
- 42.         gen d_wagebill = (exp(d_ln_wagebill)-1)*total_wage
+ 38.         keep if rural == 0
+ 39.         keep if zipcode_type == "Zip Code Area"
+ 40.         
+.         gen d_rents = (exp(d_ln_rents)-1)*p_rent_psqft
+ 41.         gen total_rented_space = p_sqft_from_rents*renter_occupied
+ 42.         gen d_rental_expenditure = total_rented_space*d_rents
  43.         
+.         gen share_renter_hhlds = renter_occupied/total_households
+ 44.         
+.     gen d_ln_wagebill = `epsilon_mw'*d_ln_mw_cf + `epsilon_exp_mw'*d_exp_ln_m
+> w_tot_18_cf
+ 45.         gen d_wagebill = (exp(d_ln_wagebill)-1)*p_total_wage
+ 46.         
+.         gen rho_per_capita = (d_rents*p_sqft_from_rents*share_renter_hhlds) /
+> //
+>             /(d_wagebill/renter_occupied)
+ 47.         
 .         gen rho = d_rental_expenditure/d_wagebill
- 44.         gen rho_alt = d_ln_rents/d_ln_wagebill
- 45.         
-.         gen d_rents_imp = (exp(d_ln_rents)-1)*imp_rent_psqft
- 46.         gen total_rented_space_imp = imp_sqft_from_rents*renter_occupied
- 47.         gen d_rental_expenditure_imp = total_rented_space_imp*d_rents_imp
- 48.         
-.         gen d_wagebill_imp = (exp(d_ln_wagebill)-1)*imp_total_wage
+ 48.         gen rho_alt = d_ln_rents/d_ln_wagebill
  49.         
+.         gen d_rents_imp = (exp(d_ln_rents)-1)*imp_rent_psqft
+ 50.         gen total_rented_space_imp = imp_sqft_from_rents*renter_occupied
+ 51.         gen d_rental_expenditure_imp = total_rented_space_imp*d_rents_imp
+ 52.         
+.         gen d_wagebill_imp = (exp(d_ln_wagebill)-1)*imp_total_wage
+ 53.         
 .         gen rho_imp = d_rental_expenditure_imp/d_wagebill_imp
- 50. 
+ 54. 
 .         save_data "../output/cfs.dta", key(zipcode counterfactual) replace
- 51. end
+ 55. end
 
 . 
 . main
-(8 observations deleted)
+(16 observations deleted)
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
-           b |          1    .1766395           .   .1766395   .1766395
+           b |          1   -.0286795           .  -.0286795  -.0286795
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+           b |          1    .2214309           .   .2214309   .2214309
 (6 observations deleted)
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
@@ -174,18 +187,20 @@ file ../temp/factual.dta saved
     -----------------------------------------
 (52,722 observations deleted)
 (16,797 observations deleted)
-(38,472 missing values generated)
-(39,027 missing values generated)
-(39,027 missing values generated)
-(3 missing values generated)
-(4,365 missing values generated)
-(39,045 missing values generated)
-(1,580 missing values generated)
 (6 missing values generated)
 (3 missing values generated)
 (6 missing values generated)
+(240 missing values generated)
+(3 missing values generated)
 (6 missing values generated)
-(1,583 missing values generated)
+(1,300 missing values generated)
+(681 missing values generated)
+(678 missing values generated)
+(6 missing values generated)
+(3 missing values generated)
+(6 missing values generated)
+(6 missing values generated)
+(681 missing values generated)
 (data now sorted by zipcode counterfactual)
   variable year was double now int
   variable month was double now byte
@@ -195,7 +210,7 @@ file ../temp/factual.dta saved
 File: ../output/cfs.dta
 Key: zipcode counterfactual
 ===============================================================================
-  46797:59(50392):3517896886:210992187
+  46797:61(88655):3810868778:1175575402
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -229,9 +244,9 @@ pop2020_esri |     46,794    15516.51    17563.17          0     117035
    area_sqmi |     46,794    116.5989    493.8319          0   20301.08
 zipcode_type |          0
 -------------+---------------------------------------------------------
-  rent_psqft |      8,325    1.508656    1.142605   .1168927   16.67896
-sqft_from~gs |     20,625    1736.686    481.2607   192.7687   6308.948
-sqft_from~ts |      7,770    1416.339     444.004   209.5036   12119.38
+  rent_psqft |      8,289    1.380343     .845587   .1184334   9.864861
+sqft_from~gs |     20,625    1792.038    516.3073   141.4662   6686.155
+sqft_from~ts |      7,740     1418.57    347.3519   207.6019   4072.944
 num_hhlds_~s |     42,435    7673.318    8104.042        100      54190
 adj_gross_~c |     42,435    607894.4    877768.3       1761   1.42e+07
 -------------+---------------------------------------------------------
@@ -245,30 +260,33 @@ renter_occ~d |     46,797    2273.646    3211.946          0      33582
 num_county~s |     46,797    1268.442    821.0852          1       2790
   num_cbsa10 |     46,797    574.4082    293.2822          1        928
 num_zipcod~e |     46,797           2           0          2          2
-p_sqft_fr~ts |     46,794    1576.183    358.8087   152.1724   11245.49
+p_sqft_fr~ts |     46,794     1565.79    285.0793    151.375   6122.063
 -------------+---------------------------------------------------------
-imp_sqft_~ts |     46,794    1576.183    369.6889   152.1724   12119.38
-p_sqft_fr~gs |     46,794    1787.875    325.6994   195.7532   5357.109
-imp_sqft_~gs |     46,797    1787.803    401.3957   192.7687   6308.948
-p_rent_psqft |     46,794    1.175612    1.029423   .0061446    12.0248
-imp_rent_p~t |     46,794    1.175612     1.04035   .0061446   16.67896
+imp_sqft_~ts |     46,794     1565.79    298.6778    151.375   6122.063
+p_sqft_fr~gs |     46,794    1771.895    300.7898   164.7822   4873.336
+imp_sqft_~gs |     46,797    1771.814    396.9334   141.4662   6686.155
+p_rent_psqft |     46,794    1.133974    .8381991   .0092476   10.81053
+imp_rent_p~t |     46,794    1.133974     .846944   .0092476   10.81053
 -------------+---------------------------------------------------------
 p_total_wage |     46,794      381048    521760.9       2770   1.21e+07
 imp_total_~e |     46,794      381048    513122.2        985    6397154
-     d_rents |      8,325    .0081416    .0107516  -.0032778   .1781885
-total_rent~e |      7,770     7724784     4418339   22586.45   3.60e+07
-d_rental_e~e |      7,770    59915.45    88267.24  -40230.15   903416.1
+     d_rents |     46,791    .0067825    .0093106  -.0504753    .260969
+total_rent~e |     46,794     3177958     4068687          0   3.39e+07
+d_rental_e~e |     46,791    20848.67       49086  -306427.4     899854
 -------------+---------------------------------------------------------
-d_ln_wageb~l |     46,794    .0375868    .0443269          0   .1284255
-  d_wagebill |     42,432     13403.7    30016.81          0   550912.2
-         rho |      7,752    3.002271    2.476107  -1.175572   28.10924
-     rho_alt |     45,217    .2355764    .0678928  -.1243417   .3283558
- d_rents_imp |     46,791    .0069332    .0097357  -.0631915   .2534502
+share_rent~s |     46,557    .3270441    .1853301          0          1
+d_ln_wageb~l |     46,794    .0407577    .0484379  -.0208514   .1434539
+  d_wagebill |     46,791    13570.97    31097.42  -20526.13    1035919
+rho_per_ca~a |     45,497    .8867649    1.727014  -1.072321    67.8627
+         rho |     46,116     2.01269    3.155089   -1.52054   196.7396
 -------------+---------------------------------------------------------
-total_rent~p |     46,794     3156345     4041739          0   3.60e+07
-d_rental_e~p |     46,791    21676.17    52108.06    -318935   993759.3
-d_wagebill~p |     46,791    12427.37    28903.31          0   550912.2
-     rho_imp |     45,214    2.687121    3.185018  -1.175572   109.5693
+     rho_alt |     46,119    .2154446    .0976687  -.1748303   .8346781
+ d_rents_imp |     46,791    .0067805    .0093497  -.0504753    .260969
+total_rent~p |     46,794     3154281     4029966          0   3.44e+07
+d_rental_e~p |     46,791     20711.7    49050.87  -306427.4     899854
+d_wagebill~p |     46,791     13555.1    31595.01  -20526.13   603374.5
+-------------+---------------------------------------------------------
+     rho_imp |     46,116    2.331322    3.427422  -1.466772   196.7396
 
 
 
@@ -279,4 +297,4 @@ file ../output/cfs.dta saved
 . 
 end of do-file
 
- make.py ended: 2021-10-25 16:10:07
+ make.py ended: 2021-10-26 09:30:10
