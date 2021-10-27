@@ -26,12 +26,17 @@ main <- function(){
     function(event) {
       df <- restrict_and_build_changes(df_all, event[[2]],
                                        event[[3]], event[[4]], event[[5]], event[[6]]) 
+      max_break_mw    <- round(max(df$change_ln_actual_mw, na.rm = TRUE), digits = 2)
+      max_break_rents <- round(max(df$change_ln_rents, na.rm = TRUE), digits = 2)
       
       build_map(df, "change_ln_actual_mw", "Change in\nlog(MW)", 
+                c(0, max_break_mw/2, max_break_mw), 
                 paste0(event[[1]], "_", event[[3]], "-", event[[4]], "_actual_mw"))
-      build_map(df, "change_exp_ln_mw", "Change in\nexp. log(MW)", 
+      build_map(df, "change_exp_ln_mw", "Change in\nexp MW", 
+                c(0, max_break_mw/2, max_break_mw), 
                 paste0(event[[1]], event[[3]], "-", event[[4]], "_exp_mw"))
       build_map(df, "change_ln_rents", "Change in\nlog(rents)",
+                c(0, max_break_rents/2, max_break_rents),
                 paste0(event[[1]], event[[3]], "-", event[[4]], "_rents"))
     }
   ) -> l
@@ -73,14 +78,15 @@ restrict_and_build_changes <- function(data, cbsa10_code, year_lb, month_lb,
     ungroup()
 }
 
-build_map <- function(data, var, var_legend, map_name,
-                      .dpi = 250){
+build_map <- function(data, var, var_legend, break_values,
+                      map_name, .dpi = 250){
   
   map <- tm_shape(data) + 
     tm_fill(col = var,
             title = var_legend,
             style = "cont",
             palette = c("#A6E1F4", "#077187"),
+            breaks = break_values,
             textNA = "NA") +
     tm_borders(col = "white", lwd = .01, alpha = 0.7) +
     tm_layout(legend.position = c("left", "bottom"))
