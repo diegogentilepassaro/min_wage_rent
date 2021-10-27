@@ -38,7 +38,7 @@ program main
 		dyn_var(`exp_ln_mw_var') w(0) stat_var(ln_mw) ///
 		controls(`controls') absorb(`absorb') cluster(`cluster') ///
 		model_name(static_both) test_equality outfolder("../temp")
-	
+
 	use ../temp/estimates_exp_mw_on_mw.dta, clear
 	gen p_equality = .
 	foreach ff in static_statutory static_experienced static_both {
