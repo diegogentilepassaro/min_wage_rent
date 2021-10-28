@@ -28,9 +28,9 @@ program main
 	
     predict p_d_ln_rents if e(sample) == 1, xbd
 	
-	keep zipcode year_month ln_rents p_d_ln_rents residuals
-	save_data "../output/baseline_model_predictions.dta", ///
-	    key(zipcode year_month) replace
+	keep zipcode year month ln_rents p_d_ln_rents residuals
+	save_data "../output/fd_baseline_predictions.dta", ///
+	    key(zipcode year month) replace
 end
 
 main

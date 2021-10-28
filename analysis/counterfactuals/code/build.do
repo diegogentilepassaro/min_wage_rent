@@ -9,23 +9,17 @@ program main
 	local in_preds    "../../../derived/zipcode_rent_sqft_income_preds/output"
 	local in_irs      "../../../drive/base_large/irs_soi"
 	local in_cf_mw    "../../../drive/derived_large/min_wage"
-	local in_est      "../../fd_baseline/output"
-	local in_income   "../../twfe_wages/output"
+	local in_est      "../../fd_baseline_predictions/output"
+	local in_income   "../../twfe_wages_predictions/output"
 	
-	use "`in_income'/estimates_all.dta", clear
-	keep if model == "cbsa_time_baseline"
-    sum b if var == "ln_mw_avg"
-	local epsilon_mw = r(mean)
-    sum b if var == "exp_ln_mw_tot_17_avg"
-	local epsilon_exp_mw = r(mean)
+	use "`in_income'/twfe_wages_predictions.dta", clear
+	keep if (year == 2018)
+    save "../temp/income_pred.dta", replace
 	
-	use "`in_est'/estimates_static.dta", clear
-	keep if model == "static_both"
-    sum b if var == "ln_mw"
-	local gamma = r(mean)
-    sum b if var == "exp_ln_mw_17"
-	local beta = r(mean)
-	
+	use "`in_est'/fd_baseline_predictions.dta", clear
+	keep if (year == 2019 & month == 12)
+	save "../temp/rents_pred.dta", replace
+
 	use zipcode year month counterfactual exp_ln_mw_tot using ///
 	    "`in_cf_mw'/zipcode_experienced_mw_cfs.dta", clear
     keep if (year == 2020 & month == 1)
@@ -43,20 +37,29 @@ program main
 	
 	use "../temp/counterfactual.dta", clear
 	merge m:1 zipcode using "../temp/factual.dta", nogen keep(3)
-	
+	merge m:1 zipcode using "../temp/rents_pred.dta", nogen keep(1 3)
+	merge m:1 zipcode using "../temp/income_pred.dta", nogen keep(1 3)
+		
 	gen actual_mw_cf = actual_mw
 	replace actual_mw_cf = fed_mw_cf if (fed_mw_cf >= actual_mw)
 	gen ln_mw_cf = log(actual_mw_cf)
 	gen d_ln_mw_cf = ln_mw_cf - ln_mw
 	gen d_exp_ln_mw_tot_18_cf = exp_ln_mw_tot_18_cf - exp_ln_mw_18
-	gen d_ln_rents = `gamma'*d_ln_mw_cf + `beta'*d_exp_ln_mw_tot_18_cf
 	
 	merge m:1 zipcode using "`in_preds'/predictions.dta", ///
 	    nogen keep(1 3)
 	keep if rural == 0
 	keep if zipcode_type == "Zip Code Area"
 	
-	gen d_rents = (exp(d_ln_rents)-1)*p_rent_psqft
+	gen ln_rents_post = p_d_ln_rents + ln_rents
+	gen d_rents = exp(ln_rents_post) - exp(ln_rents)
+	
+	gen d_wagebill = `epsilon_mw'*d_ln_mw_cf + `epsilon_exp_mw'*d_exp_ln_mw_tot_18_cf
+
+	
+	
+	sabelooooooooo
+	
 	gen total_rented_space = p_sqft_from_rents*renter_occupied
 	gen d_rental_expenditure = total_rented_space*d_rents
 	
