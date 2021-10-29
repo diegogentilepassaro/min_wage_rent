@@ -104,7 +104,7 @@ program main
     
     local specifications "`specifications' fullbal fullbal_wgt"
 
-    use "../temp/estimates_baseline.dta", clear
+    clear
     foreach ff in `specifications' {        
         append using ../temp/estimates_`ff'.dta
     }
