@@ -9,7 +9,7 @@ main <- function() {
 
 
   txt_static_sample <- c("<tab:static_sample>")
-  for (xvar in c("ln_mw", "exp_ln_mw_17", "cumsum_from0")) {
+  for (xvar in c("ln_mw", "exp_ln_mw_17")) {
     txt_static_sample <- c(txt_static_sample, 
                             paste(est[model == "baseline"     & var == xvar,]$b,
                                   est[model == "baseline_wgt" & var == xvar,]$b,
@@ -76,7 +76,7 @@ main <- function() {
 
 
   txt_static_robust <- c("<tab:static_robust>")
-  for (xvar in c("ln_mw", "exp_ln_mw_17", "cumsum_from0")) {
+  for (xvar in c("ln_mw", "exp_ln_mw_17")) {
     txt_static_robust <- c(txt_static_robust,
                            paste(est[model == "baseline"        & var == xvar,]$b,
                                  est[model == "nocontrols"      & var == xvar,]$b,
