@@ -32,9 +32,11 @@ program main
 	    vce(cluster `cluster') nocons residuals(residuals)
 	keep if e(sample)
 	append using "../temp/counterfactual_fed_9usd.dta"
+	replace d_ln_mw = d_ln_mw_cf if (year == 2020 & month == 1)
+	replace d_exp_ln_mw_17 = d_exp_ln_mw_cf if (year == 2020 & month == 1)
     predict p_d_ln_rents if year == 2020, xb
 	
-	keep zipcode year month ln_rents p_d_ln_rents residuals __hdfe1__
+	keep zipcode year month d_ln_rents ln_rents p_d_ln_rents residuals __hdfe1__
 	save_data "../output/fd_baseline_predictions.dta", ///
 	    key(zipcode year month) replace
 end
@@ -42,8 +44,13 @@ end
 program process_counterfactual_data
     syntax, in_cf_mw(str) instub(str) controls(str)
 	
-	use zipcode year month counterfactual exp_ln_mw_tot using ///
-	    "`in_cf_mw'/zipcode_experienced_mw_cfs.dta", clear
+	/*use zipcode year month counterfactual exp_ln_mw_tot using ///
+	    "`in_cf_mw'/zipcode_experienced_mw_cfs.dta", clear*/
+		
+	use "zipcode_experienced_mw_cfs.dta", clear
+	
+	bysort zipcode counterfactual (year month): ///
+	gen d_exp_ln_mw_cf = exp_ln_mw_tot[_n] - exp_ln_mw_tot[_n - 1]
     keep if (year == 2020 & month == 1)
 	rename exp_ln_mw_tot exp_ln_mw_tot_18_cf
 	gen fed_mw_cf = 7.25*1.1 if counterfactual == "fed_10pc"
@@ -52,18 +59,17 @@ program process_counterfactual_data
 	save "../temp/counterfactual.dta", replace
 	
 	use "`instub'/baseline_zipcode_months.dta", clear
-    xtset zipcode_num `absorb'
 	keep if (year == 2019 & month == 12)
-	keep zipcode ln_mw exp_ln_mw_17 `controls'
+	keep zipcode actual_mw `controls'
 	expand 3
 	bysort zipcode: gen counterfactual = "fed_10pc" if _n == 1
 	bysort zipcode: replace counterfactual = "fed_15usd" if _n == 2
 	bysort zipcode: replace counterfactual = "fed_9usd" if _n == 3
 	merge 1:1 zipcode counterfactual using "../temp/counterfactual.dta", ///
 		nogen keep(3)
-	gen d_ln_mw = ln_mw - log(fed_mw_cf)
-	gen d_exp_ln_mw_17 = exp_ln_mw_tot_18_cf - exp_ln_mw_17
-	drop fed_mw_cf exp_ln_mw_tot_18_cf ln_mw exp_ln_mw_17
+	egen actual_mw_cf = rowmax(actual_mw fed_mw_cf)
+	gen d_ln_mw_cf = log(actual_mw_cf) - log(actual_mw)
+	drop fed_mw_cf actual_mw_cf exp_ln_mw_tot_18_cf
 	preserve
 	    keep if counterfactual == "fed_10pc"
 		drop counterfactual
