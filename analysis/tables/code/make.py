@@ -37,17 +37,29 @@ tablefill(input    = os.path.join(fd_baseline_dir, 'static.txt'),
           template = '../input/static.tex', 
           output   = '../output/static.tex')
 
+tablefill(input    = os.path.join(fd_baseline_dir, 'static.txt'), 
+          template = '../input/slides_static.tex', 
+          output   = '../output/slides_static.tex')
+
 tablefill(input    = os.path.join(fd_robust_dir, 'static_sample.txt'),
           template = '../input/static_sample.tex', 
           output   = '../output/static_sample.tex')
 
-tablefill(input    = os.path.join(fd_robust_dir, 'static_ab.txt'),
-          template = '../input/static_ab.tex', 
-          output   = '../output/static_ab.tex')
+tablefill(input    = os.path.join(fd_robust_dir, 'static_sample.txt'),
+          template = '../input/slides_static_sample.tex', 
+          output   = '../output/slides_static_sample.tex')
 
 tablefill(input    = os.path.join(fd_robust_dir, 'static_robust.txt'),
           template = '../input/static_robust.tex', 
           output   = '../output/static_robust.tex')
+
+tablefill(input    = os.path.join(fd_robust_dir, 'static_robust.txt'), 
+          template = '../input/slides_static_robust.tex', 
+          output   = '../output/slides_static_robust.tex')
+
+tablefill(input    = os.path.join(fd_robust_dir, 'static_ab.txt'),
+          template = '../input/static_ab.tex', 
+          output   = '../output/static_ab.tex')
 
 tablefill(input    = os.path.join(fd_county_dir, 'static_county.txt'),
           template = '../input/static_county.tex', 
