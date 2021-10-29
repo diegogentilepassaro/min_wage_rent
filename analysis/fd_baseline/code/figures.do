@@ -10,38 +10,41 @@ program main
     use "`instub'/estimates_dynamic.dta", replace
     make_bounds
     
+    local y_label       "-0.08(0.02).14"
     local exp_ln_mw_var "exp_ln_mw_17"
     sum at
     local w = r(max)
     
     plot_dynamics, model(ln_mw_only_dynamic) var(ln_mw) ///
-        legend_var(Residence MW) ///
+        legend_var(Residence MW) y_label(`y_label') ///
         color(maroon) symbol(square) ///
         name(fd_ln_mw_only_dynamic)
         
     plot_dynamics, model(`exp_ln_mw_var'_only_dynamic) var(`exp_ln_mw_var') ///
-        legend_var(Workplace MW) ///
+        legend_var(Workplace MW) y_label(`y_label') ///
         color(navy) symbol(circle) ///
         name(fd_`exp_ln_mw_var'_only_dynamic)
     
     offset_x_axis
 
     plot_dynamics_both, model(baseline_`exp_ln_mw_var'_dynamic) dyn_var(`exp_ln_mw_var') ///
-        legend_dyn_var(Workplace MW) ///
+        legend_dyn_var(Workplace MW) y_label(`y_label') ///
         color_dyn_var(navy) symbol_dyn_var(cirlce) ///
         stat_var(ln_mw) legend_stat_var(Residence MW) ///
         color_stat_var(maroon) symbol_stat_var(square) ///
         name(fd_baseline_`exp_ln_mw_var'_dynamic)
         
     plot_dynamics_both, model(both_ln_mw_dynamic) dyn_var(ln_mw) ///
-        legend_dyn_var(Residence MW) ///
+        legend_dyn_var(Residence MW) y_label(`y_label') ///
         color_dyn_var(maroon) symbol_dyn_var(square) ///
         stat_var(`exp_ln_mw_var') legend_stat_var(Workplace MW) ///
         color_stat_var(navy) symbol_stat_var(circle) ///
         name(fd_both_ln_mw_dynamic)
 	
+    offset_x_axis, k(0.3)
+
     plot_dynamics_both, model(both_dynamic) dyn_var(ln_mw) ///
-        legend_dyn_var(Residence MW) ///
+        legend_dyn_var(Residence MW) y_label(`y_label') ///
         color_dyn_var(maroon) symbol_dyn_var(square) ///
         stat_var(`exp_ln_mw_var') legend_stat_var(Workplace MW) ///
         color_stat_var(navy) symbol_stat_var(circle) ///
@@ -54,23 +57,25 @@ program make_bounds
 end
 
 program offset_x_axis
-    gen at_r = at + 0.15
-    gen at_l = at - 0.15
+    syntax, [k(real 0.15)]
+    cap drop at_r at_l
+    gen at_r = at + `k'
+    gen at_l = at - `k'
 end
 
 program plot_dynamics
-    syntax, model(str) var(str) ///
+    syntax, model(str) var(str) y_label(str) ///
         legend_var(str) color(str) symbol(str) ///
         name(str)
         
     preserve
         keep if model == "`model'"
         twoway (scatter b       at if var == "`var'", mcol(`color') msymbol(`symbol')) ///
-                (rcap b_lb b_ub at if var == "`var'", lcol(`color') lw(thin)),                                   ///
+                (rcap b_lb b_ub at if var == "`var'", lcol(`color') lw(thin)),         ///
             yline(0, lcol(black))                                                      ///
             xlabel(-6(1)6, labsize(small)) xtitle("")                                  ///
-            ylabel(-0.06(0.02).16, grid labsize(small)) ytitle("Coefficient")          ///
-            legend(order(1 `"`legend_var'"'))                       ///
+            ylabel(`y_label', grid labsize(small)) ytitle("Coefficient")               ///
+            legend(order(1 `"`legend_var'"'))                                          ///
             graphregion(color(white)) bgcolor(white)
         
         graph export "../output/`name'.png", replace
@@ -79,7 +84,7 @@ program plot_dynamics
 end
 
 program plot_dynamics_both
-    syntax, model(str) dyn_var(str) stat_var(str) ///
+    syntax, model(str) dyn_var(str) stat_var(str) y_label(str) ///
         legend_dyn_var(str) color_dyn_var(str) symbol_dyn_var(str) ///
         legend_stat_var(str) color_stat_var(str) symbol_stat_var(str) ///
         name(str)
@@ -97,11 +102,11 @@ program plot_dynamics_both
                 (scatter b      at_l if var == "`stat_var'",                    ///
                     mcol(`color_stat_var') msymbol(`symbol_stat_var'))          ///
                 (rcap b_lb b_ub at_l if var == "`stat_var'",                    ///
-                    col(`color_stat_var') lw(thin)),                    ///
+                    col(`color_stat_var') lw(thin)),                            ///
             yline(0, lcol(black))                                               ///
             xlabel(-6(1)6, labsize(small)) xtitle("")                           ///
-            ylabel(-0.06(0.02).16, grid labsize(small)) ytitle("Coefficient")   ///
-            legend(order(1 `"`legend_dyn_var'"' 5 `"`legend_stat_var'"' ))                                            ///
+            ylabel(`y_label', grid labsize(small)) ytitle("Coefficient")        ///
+            legend(order(1 `"`legend_dyn_var'"' 5 `"`legend_stat_var'"' ))      ///
             graphregion(color(white)) bgcolor(white)
         
         graph export "../output/`name'.png", replace
