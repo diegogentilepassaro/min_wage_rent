@@ -13,27 +13,20 @@ program main
 	local in_income   "../../twfe_wages_predictions/output"
 	
 	use "`in_income'/twfe_wages_predictions.dta", clear
-	keep if (year == 2018)
+	keep if (year == 2018 | year == 2020)
+	replace year = 2019 if year == 2018
+    replace ln_wagebill = p_ln_wagebill if year == 2020
+	gen d_ln_wagebill = ln_wagebill[_n] - ln_wagebill[_n - 1]
+	keep if year == 2020
+	keep zipcode d_ln_wagebill residuals
     save "../temp/income_pred.dta", replace
 	
 	use "`in_est'/fd_baseline_predictions.dta", clear
-	keep if (year == 2019 & month == 12)
+	keep if (year == 2019 & month == 12 | year == 2020 & month == 1)
+    replace ln_rents = ln_rents[_n -1] if year == 2020
+	keep if year == 2020
+	keep zipcode d_ln_wagebill residual
 	save "../temp/rents_pred.dta", replace
-
-	use zipcode year month counterfactual exp_ln_mw_tot using ///
-	    "`in_cf_mw'/zipcode_experienced_mw_cfs.dta", clear
-    keep if (year == 2020 & month == 1)
-	rename exp_ln_mw_tot exp_ln_mw_tot_18_cf
-	gen fed_mw_cf = 7.25*1.1 if counterfactual == "fed_10pc"
-	replace fed_mw_cf = 15 if counterfactual == "fed_15usd"
-	replace fed_mw_cf = 9 if counterfactual == "fed_9usd"
-	save "../temp/counterfactual.dta", replace
-
-	use zipcode zcta statefips state_abb year month ///
-	    actual_mw ln_mw exp_ln_mw_18 ///
-	    using "`in_sample'/all_zipcode_months.dta", clear
-    keep if (year == 2019 & month == 12)
-	save "../temp/factual.dta", replace
 	
 	use "../temp/counterfactual.dta", clear
 	merge m:1 zipcode using "../temp/factual.dta", nogen keep(3)

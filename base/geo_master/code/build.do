@@ -4,12 +4,14 @@ adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
     local xwalk_dir  "../../../raw/crosswalk"
-    local shape_dir  "../../../drive/raw_data/shapefiles/USPS_zipcodes"
     local zillow_dir "../../../drive/base_large/zillow"
+    local shape_dir  "../../../drive/raw_data/shapefiles/USPS_zipcodes"
     local output     "../output"
     
-    build_geomaster_large, instub(`xwalk_dir') in_shape(`shape_dir') outstub(`output')
-    build_geomaster_small, instub(`xwalk_dir') outstub(`output')
+    build_geomaster_large, instub(`xwalk_dir') ///
+	    in_shape(`shape_dir') outstub(`output')
+    build_geomaster_small, instub(`xwalk_dir') ///
+	    outstub(`output')
 end
 
 program build_geomaster_large
@@ -18,22 +20,16 @@ program build_geomaster_large
 	import dbase "`in_shape'/USPS_zipcodes_July2020.dbf", clear
     rename (ZIP_CODE PO_NAME STATE POPULATION SQMI) ///
 	    (zipcode zipcode_name statefips pop2020_esri area_sqmi)
-	keep zipcode zipcode_name statefips pop2020_esri area_sqmi
+	keep zipcode pop2020_esri area_sqmi
 	save_data "../temp/usps_shape.dta", key(zipcode) replace log(none)
 
     import excel "`instub'/zip_to_zcta_2019.xlsx", ///
         sheet("ZiptoZCTA_crosswalk") firstrow allstring clear
-    rename (ZIP_CODE ZCTA PO_NAME STATE ZIP_TYPE) ///
-	    (zipcode zcta zipcode_name statefips zipcode_type)
-    drop if zipcode == "96898"
+    rename (ZIP_CODE ZCTA PO_NAME) (zipcode zcta zipcode_name)
+    drop if zipcode == "96898" & zcta == "No ZCTA"
+    keep zipcode zcta zipcode_name
     save_data "../temp/usps_master.dta", key(zipcode) replace log(none)
     
-	use "../temp/usps_shape.dta", clear
-	merge 1:1 zipcode using "../temp/usps_master.dta"
-    drop if _merge == 1 /* these are overwhelmingly national parks, reservations, and forests */
-	drop _merge
-	save_data "../temp/usps_master.dta", replace key(zipcode) log(none)
-	
     import delimited "`instub'/geocorr2018.csv", ///
         varnames(1) stringcols(1 2 3 4 5) clear
 
@@ -54,19 +50,22 @@ program build_geomaster_large
     local keep_vars ///
     	zipcode     place_code   countyfips   cbsa10     zcta       ///
         place_name  county_name  cbsa10_name  state_abb  statefips  ///
-        houses_zcta_place_county rural  pop2020_esri area_sqmi ///
-		zipcode_type
+        houses_zcta_place_county rural
 
     keep  `keep_vars'
     order `keep_vars'
-	    
+	
+	merge m:1 zipcode using "../temp/usps_master.dta", nogen keep(1 3)
+	
+	replace place_code = "47766" if zipcode == "95035" /* Manual fix for Milpitas*/
+	
 	save_data "`outstub'/zip_county_place_usps_all.dta", ///
         key(zipcode countyfips place_code) replace
     export delimited "`outstub'/zip_county_place_usps_all.csv", replace
 	
     gen   neg_houses = -houses_zcta_place_county
     bys   zipcode (neg_houses): keep if _n == 1
-    drop  neg_houses
+    drop  neg_houses		
 	
     save_data "`outstub'/zip_county_place_usps_master.dta", ///
         key(zipcode) replace
@@ -81,14 +80,13 @@ program build_geomaster_small
 
     drop BUS_RATIO OTH_RATIO TOT_RATIO    
 
-    rename (TRACT ZIP RES_RATIO) ///
-	    (tract_fips zipcode res_ratio)
+    rename (TRACT ZIP RES_RATIO) (tract_fips zipcode res_ratio)
 
     save_data "`outstub'/tract_zip_master.dta", ///
         key(tract_fips zipcode) replace
     save_data "`outstub'/tract_zip_master.csv", outsheet ///
         key(tract_fips zipcode) replace 
-end 
+end
 
 *EXECUTE
 main 
