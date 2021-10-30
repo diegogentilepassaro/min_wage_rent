@@ -54,7 +54,9 @@ main <- function(){
 build_frame <- function(instub, start_date, end_date, freq = "month") {
    
    dt <- fread(file.path(instub, "zip_county_place_usps_all.csv"), 
-               colClasses = c(rep("character", 10), rep("numeric", 4), "character"))
+               colClasses = c("zipcode"    = "character", "place_code" = "character", 
+                              "countyfips" = "character", "statefips"  = "character", 
+                              "cbsa10"     = "character"))
    
    setnames(dt, old = c('state_abb', 'place_name', 'county_name'), 
                 new = c('stateabb',  'placename',  'county'))
