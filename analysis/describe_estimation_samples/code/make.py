@@ -34,7 +34,8 @@ elif "Stata15" in envir_vars:
 
 start_make_logging()
 
-run_stata(program = 'build.do', executable = stata)
+run_stata(program = 'zillow_entry.do', executable = stata)
+run_stata(program = 'plot_mw.do', executable = stata)
 
 end_make_logging()
 

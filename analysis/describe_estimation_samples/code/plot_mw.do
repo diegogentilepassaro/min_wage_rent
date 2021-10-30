@@ -5,23 +5,16 @@ adopath + ../../../lib/stata/min_wage/ado
 set maxvar 32000
 
 program main
-	local instub "../../../drive/derived_large/output"
+	local instub "../../../drive/derived_large/estimation_samples"
 	local outstub "../output"
 
-	load_data, instub(`instub')
-	plot_mw_dist, outstub(`outstub')
-end
-
-program load_data
-	syntax, instub(str)
-
-	local instub "../../../drive/derived_large/output"
-
-	use zipcode year_month actual_mw ///
-		using `instub'/unbal_rent_panel.dta, clear
-
-	bys zipcode (year_month): gen pct_ch_MW = 100*(actual_mw/L.actual_mw - 1)
+    use zipcode zipcode_num year_month actual_mw ///
+		using "`instub'/all_zipcode_months.dta", clear
+	xtset
+	gen pct_ch_MW = 100*(actual_mw/L.actual_mw - 1)
 	drop if missing(pct_ch_MW)
+	
+	plot_mw_dist, outstub(`outstub')
 end
 
 program plot_mw_dist

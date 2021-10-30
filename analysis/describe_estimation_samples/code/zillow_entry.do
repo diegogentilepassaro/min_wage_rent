@@ -23,7 +23,7 @@ program main
 		gen share_entrant = nbr_entrant/`total_geo'
 		gen cum_share_entrant = sum(share_entrant)
 	    
-		sum cum_share_entrant if min_year_month >= `=tm(`target_year_month')'
+		sum cum_share_entrant if min_year_month >= `=tm(`target_ym')'
 		local cum_share_at_target = r(min)
 		local cum_share_at_target : di %6.3f `cum_share_at_target'
 		
@@ -33,8 +33,8 @@ program main
 		
 		twoway (line nbr_entrant min_year_month, yaxis(1)) ///
 			(line cum_share_entrant min_year_month, yaxis(2)), ///
-			text(0.8 `=tm(`target_year_month')' "`cum_share_at_target'", yaxis(2)) ///
-			xline(`=tm(`target_year_month')') legend(row(2)) ///
+			text(0.8 `=tm(`target_ym')' "`cum_share_at_target'", yaxis(2)) ///
+			xline(`=tm(`target_ym')') legend(row(2)) ///
 			graphregion(color(white)) bgcolor(white)
 		graph export "../output/`geo'_entrants.png", replace
 	}
