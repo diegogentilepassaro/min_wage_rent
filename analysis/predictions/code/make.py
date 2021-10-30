@@ -25,13 +25,17 @@ envir_vars = os.getenv('PATH')
 if envir_vars is None:
     envir_vars = os.getenv('Path')
 
-stata = "StataMP-64"
 if "StataSE" in envir_vars:
-    stata = "StataSE-64"
+    stata = "stataSE"
+elif "StataMP-64" in envir_vars:
+    stata = "StataMP-64"
+elif "Stata15" in envir_vars:
+    stata = "StataMP-64"
 
 start_make_logging()
 
-run_stata(program = 'estimates.do', executable = stata)
+run_stata(program = 'predict.do', executable = stata)
+run_rbatch(program = 'maps.R')
 
 end_make_logging()
 
