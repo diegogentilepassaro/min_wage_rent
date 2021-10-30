@@ -15,7 +15,7 @@ program main
         using "`in_geo'/zip_county_place_usps_master.dta", clear
 
     merge 1:m zipcode using "`in_der_large'/min_wage/zip_statutory_mw.dta",   ///
-       nogen assert(3) keepusing(year month actual* binding*)
+       nogen assert(1 3) keepusing(year month actual* binding*)
     
     merge_zillow, instub("`in_base_large'/zillow")
     
@@ -26,6 +26,7 @@ program main
     merge m:1 statefips countyfips year month                                ///
         using "`in_qcew'/ind_emp_wage_countymonth.dta", nogen keep(1 3)
     drop qmon end_month
+	drop if (missing(zipcode) | missing(year_month))
 
     strcompress
     save_data "`outstub'/zipcode_month_panel.dta", replace ///
