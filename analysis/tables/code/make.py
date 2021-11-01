@@ -29,6 +29,7 @@ if envir_vars is None:
 start_make_logging()
 
 fd_baseline_dir = "../../fd_baseline/output"
+fd_cf_dir       = "../../counterfactuals/output"
 fd_robust_dir   = "../../fd_robustness/output"
 fd_county_dir   = "../../fd_county/output"
 fd_wages_dir    = "../../twfe_wages/output"
@@ -80,6 +81,14 @@ tablefill(input    = fd_wages_dir + '/static_wages.txt',
 tablefill(input    = fd_wages_dir + '/static_wages_robustness.txt', 
           template = '../input/static_wages_robustness.tex', 
           output   = '../output/static_wages_robustness.tex')
+
+tablefill(input    = fd_cf_dir + '/counterfactuals.txt', 
+          template = '../input/counterfactuals.tex', 
+          output   = '../output/counterfactuals.tex')
+
+tablefill(input    = fd_cf_dir + '/counterfactuals.txt', 
+          template = '../input/slides_counterfactuals.tex', 
+          output   = '../output/slides_counterfactuals.tex')
 
 end_make_logging()
 

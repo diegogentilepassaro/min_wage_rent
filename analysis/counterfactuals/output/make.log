@@ -1,5 +1,5 @@
 
- make.py started: 2021-11-01 11:25:13 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\code 
+ make.py started: 2021-11-01 13:12:58 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\code 
 
 
 
@@ -215,7 +215,7 @@ file ../temp/counterfactual_fed_15usd.dta saved
 file ../temp/counterfactual_fed_9usd.dta saved
 (27,800 observations deleted)
 (132,255 observations deleted)
-file C:\Users\shermo\AppData\Local\Temp\8\ST_4fc0_000003.tmp saved
+file C:\Users\shermo\AppData\Local\Temp\8\ST_ccc_000003.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -725,18 +725,39 @@ Notes:
 .                 unique zipcode if !missing(`var')
  19.                 local n_zip = r(unique)
  20.         
-.                 hist `var', percent bin(20) ///
+.                 hist `var', percent bin(20)                                  
+>          ///
 >                         xtitle("`x_lab'") ytitle("Percentage") note("ZIP code
 > s: `n_zip'") ///
->                         xlabel(, labsize(small)) ylabel(, labsize(small)) ///
 >                         graphregion(color(white)) bgcolor(white)
  21.                 
 .                 graph export "../output/`var'.png", replace
  22.                 graph export "../output/`var'.eps", replace
  23.         }
  24. 
-.     save "../output/data_counterfactuals.dta", replace
- 25. end
+.     save             "../output/data_counterfactuals.dta", replace
+ 25.     export delimited "../output/data_counterfactuals.csv", replace
+ 26. 
+.         collapse (mean) rho_lb rho rho_ub, by(diff_qts)
+ 27.         
+.     twoway (line     rho           diff_qts, lcol(navy))                     
+>  ///
+>            (scatter  rho           diff_qts, mcol(navy)),                    
+>  ///
+>         xtitle("Difference between change in wrk. and res. MW (deciles)")    
+>  ///
+>         ytitle("Mean share accruing to landlord on each dollar")             
+>  ///
+>         xlabel(1(1)10) ylabel(0.02(0.02)0.14)                                
+>  ///
+>         graphregion(color(white)) bgcolor(white) legend(off) 
+ 28.                 
+.          /*(rcap     rho_lb rho_ub diff_qts, col(navy))                      
+> /// */
+.                 
+.         graph export "../output/deciles_diff.png", replace
+ 29.         graph export "../output/deciles_diff.eps", replace
+ 30. end
 
 . 
 . 
@@ -761,27 +782,28 @@ Notes:
   1.     syntax, beta(str) gamma(str) epsilon(str) [alpha(real 0.35)]
   2.         
 .         * Predictions with parameters
+.         gen diff_mw    = d_exp_ln_mw_17 - d_ln_mw
+  3.         xtile diff_qts = diff_mw, nquantiles(10)
+  4. 
 .         egen max_d_ln_mw = max(d_ln_mw) if rural == 0
-  3.         gen fully_affected            = 1 if rural == 0 & d_ln_mw == max_d
-> _ln_mw
-  4.         gen no_direct_treatment       = 1 if rural == 0 & d_ln_mw == 0
-  5.         gen more_indirect_than_direct = 1 if rural == 0 & d_exp_ln_mw_17 >
->  d_ln_mw
-  6. 
+  5.         gen fully_affected            = rural == 0 & d_ln_mw == max_d_ln_m
+> w
+  6.         gen no_direct_treatment       = rural == 0 & d_ln_mw == 0
+  7. 
 .     gen change_ln_rents    = `beta'*d_exp_ln_mw_17 + `gamma'*d_ln_mw
-  7.     gen change_ln_wagebill = `epsilon'*d_exp_ln_mw_17
-  8. 
+  8.     gen change_ln_wagebill = `epsilon'*d_exp_ln_mw_17
+  9. 
 .         gen perc_incr_rent     = exp(change_ln_rents)    - 1
-  9.         gen perc_incr_wagebill = exp(change_ln_wagebill) - 1
- 10.         gen ratio_increases    = perc_incr_rent/perc_incr_wagebill
- 11. 
+ 10.         gen perc_incr_wagebill = exp(change_ln_wagebill) - 1
+ 11.         gen ratio_increases    = perc_incr_rent/perc_incr_wagebill
+ 12. 
 .     local alpha_lb = `alpha' - 0.1
- 12.     local alpha_ub = `alpha' + 0.1
- 13. 
+ 13.     local alpha_ub = `alpha' + 0.1
+ 14. 
 .     gen rho    = `alpha'*ratio_increases
- 14.         gen rho_lb = `alpha_lb'*ratio_increases
- 15.         gen rho_ub = `alpha_ub'*ratio_increases
- 16. end
+ 15.         gen rho_lb = `alpha_lb'*ratio_increases
+ 16.         gen rho_ub = `alpha_ub'*ratio_increases
+ 17. end
 
 . 
 . program get_xlabel, rclass
@@ -792,20 +814,20 @@ Notes:
   3.             return local x_lab "Change in log rents"
   4.         }
   5.         
-.         if "`var'"=="d_ln_mw"           return local x_lab "Change in residen
-> ce log MW"
-  6.         if "`var'"=="d_exp_ln_mw_17"    return local x_lab "Change in work
-> place log MW"
+.         if "`var'"=="d_ln_mw"            return local x_lab "Change in reside
+> nce log MW"
+  6.         if "`var'"=="d_exp_ln_mw_17"     return local x_lab "Change in wor
+> kplace log MW"
   7.         
-.         if "`var'"=="perc_incr_rent"      return local x_lab "Percent increas
-> e rents per sq. foot"
-  8.         if "`var'"=="perc_incr_wagebill"  return local x_lab "Percent incr
-> ease in wage bill"
+.         if "`var'"=="perc_incr_rent"     return local x_lab "Percent increase
+>  in rents per sq. foot"
+  8.         if "`var'"=="perc_incr_wagebill" return local x_lab "Percent incre
+> ase in wage bill"
   9. 
-.         if "`var'"=="ratio_increases"     return local x_lab "Ratio of percen
-> t increases"
- 10.         if "`var'"=="rho"                 return local x_lab "Share accrui
-> ng to landlord on each dollar"        
+.         if "`var'"=="ratio_increases"    return local x_lab "Ratio of percent
+>  increases"
+ 10.         if "`var'"=="rho"                return local x_lab "Share accruin
+> g to landlord on each dollar" 
  11. 
 . end
 
@@ -838,9 +860,6 @@ Notes:
     matched                            38,772  
     -----------------------------------------
 (17575 missing values generated)
-(30,020 missing values generated)
-(33,218 missing values generated)
-(28,866 missing values generated)
 (4,180 missing values generated)
 (4,180 missing values generated)
 (4,180 missing values generated)
@@ -889,8 +908,76 @@ Number of records is  34593
 (file ../output/rho.eps written in EPS format)
 (note: file ../output/data_counterfactuals.dta not found)
 file ../output/data_counterfactuals.dta saved
+(note: file ../output/data_counterfactuals.csv not found)
+file ../output/data_counterfactuals.csv saved
+(note: file ../output/deciles_diff.png not found)
+(file ../output/deciles_diff.png written in PNG format)
+(note: file ../output/deciles_diff.eps not found)
+(file ../output/deciles_diff.eps written in EPS format)
 
 . 
 end of do-file
 
- make.py ended: 2021-11-01 11:27:04
+
+Execute:  R CMD BATCH --no-save "./tables.R" tables.Rout
+
+R version 4.1.1 (2021-08-10) -- "Kick Things"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list = ls())
+> library(data.table)
+> 
+> main <- function() {
++   instub  <- "../output"
++   outstub <- "../output"
++   
++   dt <- fread(file.path(instub, "data_counterfactuals.csv"))
++   
++   alpha = 0.35
++   
++   txt <- c("<tab:counterfactuals>",
++            paste(alpha - 0.1, alpha + 0.1, sep = "\t"))
++   
++   for (sample in c("fully_affected", "no_direct_treatment")) {
++     
++     dt_sample <- dt[get(sample) == 1]
++     
++     txt <- c(txt, 
++              paste(dim(dt_sample)[1],
++                    mean(dt_sample[["d_ln_mw"]],         na.rm = T),
++                    mean(dt_sample[["d_exp_ln_mw_17"]],  na.rm = T),
++                    mean(dt_sample[["ratio_increases"]], na.rm = T),
++                    mean(dt_sample[["rho_lb"]],          na.rm = T),
++                    mean(dt_sample[["rho_ub"]],          na.rm = T),
++                    sep = "\t"))
++     
++   }
++   
++   fileConn <- file(file.path(outstub, "counterfactuals.txt"))
++   writeLines(txt, fileConn)
++   close(fileConn)
++ }
+> 
+> 
+> main()
+> 
+> proc.time()
+   user  system elapsed 
+   0.46    0.20    0.61 
+
+ make.py ended: 2021-11-01 13:15:03

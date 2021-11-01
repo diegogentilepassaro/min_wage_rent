@@ -34,16 +34,30 @@ program main
 		unique zipcode if !missing(`var')
 		local n_zip = r(unique)
 	
-		hist `var', percent bin(20) ///
+		hist `var', percent bin(20)                                           ///
 			xtitle("`x_lab'") ytitle("Percentage") note("ZIP codes: `n_zip'") ///
-			xlabel(, labsize(small)) ylabel(, labsize(small)) ///
 			graphregion(color(white)) bgcolor(white)
 		
 		graph export "../output/`var'.png", replace
 		graph export "../output/`var'.eps", replace
 	}
 
-    save "../output/data_counterfactuals.dta", replace
+    save             "../output/data_counterfactuals.dta", replace
+    export delimited "../output/data_counterfactuals.csv", replace
+
+	collapse (mean) rho_lb rho rho_ub, by(diff_qts)
+	
+    twoway (line     rho           diff_qts, lcol(navy))                      ///
+           (scatter  rho           diff_qts, mcol(navy)),                     ///
+        xtitle("Difference between change in wrk. and res. MW (deciles)")     ///
+        ytitle("Mean share accruing to landlord on each dollar")              ///
+        xlabel(1(1)10) ylabel(0.02(0.02)0.14)                                 ///
+        graphregion(color(white)) bgcolor(white) legend(off) 
+		
+         /*(rcap     rho_lb rho_ub diff_qts, col(navy))                      /// */
+		
+	graph export "../output/deciles_diff.png", replace
+	graph export "../output/deciles_diff.eps", replace
 end
 
 
@@ -67,10 +81,12 @@ program compute_vars
     syntax, beta(str) gamma(str) epsilon(str) [alpha(real 0.35)]
 	
 	* Predictions with parameters
+	gen diff_mw    = d_exp_ln_mw_17 - d_ln_mw
+	xtile diff_qts = diff_mw, nquantiles(10)
+
 	egen max_d_ln_mw = max(d_ln_mw) if rural == 0
-	gen fully_affected            = 1 if rural == 0 & d_ln_mw == max_d_ln_mw
-	gen no_direct_treatment       = 1 if rural == 0 & d_ln_mw == 0
-	gen more_indirect_than_direct = 1 if rural == 0 & d_exp_ln_mw_17 > d_ln_mw
+	gen fully_affected            = rural == 0 & d_ln_mw == max_d_ln_mw
+	gen no_direct_treatment       = rural == 0 & d_ln_mw == 0
 
     gen change_ln_rents    = `beta'*d_exp_ln_mw_17 + `gamma'*d_ln_mw
     gen change_ln_wagebill = `epsilon'*d_exp_ln_mw_17
@@ -95,14 +111,14 @@ program get_xlabel, rclass
 	    return local x_lab "Change in log rents"
 	}
 	
-	if "`var'"=="d_ln_mw"           return local x_lab "Change in residence log MW"
-	if "`var'"=="d_exp_ln_mw_17"    return local x_lab "Change in workplace log MW"
+	if "`var'"=="d_ln_mw"            return local x_lab "Change in residence log MW"
+	if "`var'"=="d_exp_ln_mw_17"     return local x_lab "Change in workplace log MW"
 	
-	if "`var'"=="perc_incr_rent"      return local x_lab "Percent increase rents per sq. foot"
-	if "`var'"=="perc_incr_wagebill"  return local x_lab "Percent increase in wage bill"
+	if "`var'"=="perc_incr_rent"     return local x_lab "Percent increase in rents per sq. foot"
+	if "`var'"=="perc_incr_wagebill" return local x_lab "Percent increase in wage bill"
 
-	if "`var'"=="ratio_increases"     return local x_lab "Ratio of percent increases"
-	if "`var'"=="rho"                 return local x_lab "Share accruing to landlord on each dollar"	
+	if "`var'"=="ratio_increases"    return local x_lab "Ratio of percent increases"
+	if "`var'"=="rho"                return local x_lab "Share accruing to landlord on each dollar"	
 
 end
 
