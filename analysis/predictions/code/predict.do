@@ -14,7 +14,6 @@ program main
     local absorb        "year_month"
     local exp_ln_mw_var "exp_ln_mw_17"
     
-    
     use zipcode zipcode_num statefips cbsa10 year_month year month ///
         ln_rents ln_mw `exp_ln_mw_var' `controls' ///
         using "`instub'/all_zipcode_months.dta", clear
@@ -25,28 +24,40 @@ program main
     gen d_ln_rents        = D.ln_rents
     gen d_ln_mw           = D.ln_mw
     gen d_`exp_ln_mw_var' = D.`exp_ln_mw_var'
-    
-    reghdfe d_`exp_ln_mw_var' d_ln_mw `controls' ///
-        if baseline_sample, absorb(`absorb', savefe) ///
-        vce(cluster `cluster') nocons residuals(resid_wkpl_on_res_MW)
-		
-    save             "`outstub'/residualswkpl_on_res_MW_.dta", replace
+    foreach var of local controls {
+	    gen d_`var' = `var'[_n] - `var'[_n-1]
+	}
+    reghdfe d_`exp_ln_mw_var' d_ln_mw ///
+	    d_ln_emp* d_ln_estcount* d_ln_avgwwage*, ///
+	    absorb(`absorb', savefe)  vce(cluster `cluster') ///
+		nocons residuals(resid_wkpl_on_res_MW)
+    save "`outstub'/residualswkpl_on_res_MW_.dta", replace
 	
-    reghdfe d_ln_rents d_ln_mw `controls' ///
+    reghdfe d_ln_rents d_ln_mw ///
+	    d_ln_emp* d_ln_estcount* d_ln_avgwwage* ///
         if baseline_sample, absorb(`absorb', savefe) ///
         vce(cluster `cluster') nocons residuals(resid_resMWonly)
-    
+    preserve 
+	    collapse __hdfe1__, by(year_month)
+		save "../temp/fes.dta", replace
+	restore
+	drop __hdfe1__
+	merge m:1 year_month using "../temp/fes.dta", nogen keep(1 3)
     predict hat_d_ln_rents_resMWonly   if year >= 2018, xb
-    predict hatfe_d_ln_rents_resMWonly if year >= 2018, xbd
+    gen hatfe_d_ln_rents_resMWonly = hat_d_ln_rents_resMWonly + __hdfe1__ if year >= 2018
     
-    reghdfe d_ln_rents d_`exp_ln_mw_var' d_ln_mw `controls' ///
+    reghdfe d_ln_rents d_`exp_ln_mw_var' d_ln_mw ///
+	    d_ln_emp* d_ln_estcount* d_ln_avgwwage* ///
         if baseline_sample, absorb(`absorb', savefe) ///
         vce(cluster `cluster') nocons residuals(resid_baseline)
-    
-    keep if year >= 2018
-
+     preserve 
+	    collapse __hdfe1__, by(year_month)
+		save "../temp/fes.dta", replace
+	restore
+	drop __hdfe1__
+	merge m:1 year_month using "../temp/fes.dta"
     predict hat_d_ln_rents_baseline,   xb
-    predict hatfe_d_ln_rents_baseline, xbd
+    gen hatfe_d_ln_rents_baseline = hat_d_ln_rents_baseline + __hdfe1__
 
     keep zipcode cbsa10 year month year_month d_* resid_* hat*
     
@@ -62,9 +73,7 @@ program add_baseline_zipcodes
         use `instub'/baseline_zipcode_months.dta, clear
 
         keep if !missing(ln_rents)
-
         bys  zipcode: keep if _n == 1
-        
         keep zipcode
         gen baseline_sample = 1
 
