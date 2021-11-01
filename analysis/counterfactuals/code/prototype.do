@@ -21,3 +21,5 @@ local ln_mw_on_ln_rents = -0.030246906
 gen perc_incr_rent = exp(`exp_ln_mw_on_ln_rents'*d_exp_ln_mw_17 + `ln_mw_on_ln_rents'*d_ln_mw)-1
 gen perc_incr_income = exp(`exp_ln_mw_on_ln_wagebill'*d_exp_ln_mw_17) - 1
 gen ratio = perc_incr_rent/perc_incr_income
+
+gen rho = ratio*0.3
