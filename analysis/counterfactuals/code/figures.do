@@ -83,14 +83,14 @@ program compute_vars
     syntax, beta(str) gamma(str) epsilon(str) [alpha(real 0.35)]
 
 	keep if rural == 0
-	
+
 	* Predictions with parameters
 	gen diff_mw    = d_exp_ln_mw_17 - d_ln_mw
 	xtile diff_qts = diff_mw, nquantiles(10)
 
 	egen max_d_ln_mw = max(d_ln_mw)
-	gen fully_affected            = d_ln_mw == max_d_ln_mw
 	gen no_direct_treatment       = d_ln_mw == 0
+	gen fully_affected            = !no_direct_treatment
 
     gen change_ln_rents    = `beta'*d_exp_ln_mw_17 + `gamma'*d_ln_mw
     gen change_ln_wagebill = `epsilon'*d_exp_ln_mw_17
