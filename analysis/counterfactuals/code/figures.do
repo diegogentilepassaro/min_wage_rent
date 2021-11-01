@@ -6,6 +6,7 @@ program main
 	local instub "../output"
 	
 	use `instub'/d_ln_rents_cf_predictions.dta, clear
+	merge 1:1 zipcode using  `instub'/ln_wagebill_cf_predictions.dta, nogen
 	
 	compute_vars
 	
@@ -38,7 +39,6 @@ program compute_vars
 	gen rents_pre  = exp(ln_rents_pre)
 	gen rents_post = exp(p_d_ln_rents + ln_rents_pre)
     gen d_rents    = rents_post - rents_pre
-
 end
 
 program get_xlabel, rclass
