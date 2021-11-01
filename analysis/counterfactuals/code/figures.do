@@ -3,34 +3,30 @@ set more off
 set maxvar 32000
 
 program main
-	local instub  "../output"
-	local insizes "../../../derived/zipcode_rent_sqft_income_preds/output"
-	local irs     "../../../drive/base_large/irs_soi"
-	local geo     "../../../base/geo_master/output"
+	local instub      "../output"
+	local insizes     "../../../derived/zipcode_rent_sqft_income_preds/output"
+    local in_baseline "../../fd_baseline/output"
+    local in_wages    "../../twfe_wages/output"
+	local geo         "../../../base/geo_master/output"
 
-	
-	use "`irs'/irs_zip.dta", clear
-	keep if year == 2018
-	keep zipcode num_wage_hhlds_irs
-	duplicates drop zipcode, force
-    save "../temp/n_wage_hhlds.dta", replace
+	load_parameters, in_baseline(`in_baseline') in_wages(`in_wages')
+    local beta    = r(beta)
+    local gamma   = r(gamma)
+    local epsilon = r(epsilon)
 	
 	use `instub'/d_ln_rents_cf_predictions.dta, clear
 	merge 1:1 zipcode using  `instub'/ln_wagebill_cf_predictions.dta, ///
 	    nogen keepusing(ln_wagebill_pre n_hhlds_pre)
 	merge 1:1 zipcode using "`insizes'/housing_sqft_per_zipcode.dta", ///
 	    nogen keep(1 3) keepusing(sqft_from_listings sqft_from_rents)
-	merge 1:1 zipcode using "../temp/n_wage_hhlds.dta", nogen keep(1 3)
 	merge 1:1 zipcode using "`geo'/zip_county_place_usps_master.dta", ///
 	   nogen keep(1 3) keepusing(rural)
-	compute_vars
 	
+	compute_vars, beta(`beta') gamma(`gamma') epsilon(`epsilon')
+
 	foreach var in d_ln_mw d_exp_ln_mw_17 ///
-	               d_ln_rents d_rents  ///
-				   d_ln_rents_zillow d_rents_zillow ///
-				   d_ln_wagebill d_wagebill d_wagebill_per_hhld ///
-				   d_wagebill_per_wage_hhld d_ln_wagebill_zillow d_wagebill_zillow ///
-				   d_wagebill_per_hhld_zillow d_wagebill_per_wage_hhld_zillow {
+	               perc_incr_rent perc_incr_wagebill ///
+				   ratio_increases rho {
 		
 		get_xlabel, var(`var')
 		local x_lab = r(x_lab)
@@ -46,30 +42,49 @@ program main
 		graph export "../output/`var'.png", replace
 		graph export "../output/`var'.eps", replace
 	}
+
+    save "../output/data_counterfactuals.dta", replace
+end
+
+
+program load_parameters, rclass
+	syntax, in_baseline(str) in_wages(str)
+
+	use `in_baseline'/estimates_static.dta, clear
+	keep if model == "static_both"
+
+	qui sum b if var == "ln_mw"
+	return local gamma = r(mean)
+	qui sum b if var == "exp_ln_mw_17"
+	return local beta = r(mean)
+
+	use `in_wages'/estimates_cbsa_time_baseline.dta, clear
+	qui sum b
+	return local epsilon = r(mean)
 end
 
 program compute_vars
-	local exp_ln_mw_on_ln_wagebill = 0.1588706
-	local exp_ln_mw_on_ln_rents = 0.064464323
-	local ln_mw_on_ln_rents = -0.030246906
+    syntax, beta(str) gamma(str) epsilon(str) [alpha(real 0.35)]
 	
-	gen d_ln_rents = `exp_ln_mw_on_ln_rents'*d_exp_ln_mw_17 + `ln_mw_on_ln_rents'*d_ln_mw
-	gen ln_rents_post = d_ln_rents + ln_rents_pre 
-    gen d_rents    = exp(ln_rents_post) - exp(ln_rents_pre)
-	
-	gen d_ln_rents_zillow = d_ln_rents if !missing(ln_rents_pre)
-    gen d_rents_zillow    = d_rents if !missing(ln_rents_pre)
+	* Predictions with parameters
+	egen max_d_ln_mw = max(d_ln_mw) if rural == 0
+	gen fully_affected            = 1 if rural == 0 & d_ln_mw == max_d_ln_mw
+	gen no_direct_treatment       = 1 if rural == 0 & d_ln_mw == 0
+	gen more_indirect_than_direct = 1 if rural == 0 & d_exp_ln_mw_17 > d_ln_mw
 
-	gen ln_wagebill_post = ln_wagebill_pre + `exp_ln_mw_on_ln_wagebill'*d_exp_ln_mw_17
-	gen d_ln_wagebill = ln_wagebill_post - ln_wagebill_pre
-	gen d_wagebill = exp(ln_wagebill_post) - exp(ln_wagebill_pre)
-	gen d_wagebill_per_hhld = d_wagebill/n_hhlds_pre
-	gen d_wagebill_per_wage_hhld = d_wagebill/num_wage_hhlds_irs
-	
-	gen d_ln_wagebill_zillow = d_ln_wagebill if !missing(ln_rents_pre)
-	gen d_wagebill_zillow = d_wagebill if !missing(ln_rents_pre)
-	gen d_wagebill_per_hhld_zillow = d_wagebill_per_hhld if !missing(ln_rents_pre)
-	gen d_wagebill_per_wage_hhld_zillow =d_wagebill_per_wage_hhld if !missing(ln_rents_pre)
+    gen change_ln_rents    = `beta'*d_exp_ln_mw_17 + `gamma'*d_ln_mw
+    gen change_ln_wagebill = `epsilon'*d_exp_ln_mw_17
+
+	gen perc_incr_rent     = exp(change_ln_rents)    - 1
+	gen perc_incr_wagebill = exp(change_ln_wagebill) - 1
+	gen ratio_increases    = perc_incr_rent/perc_incr_wagebill
+
+    local alpha_lb = `alpha' - 0.1
+    local alpha_ub = `alpha' + 0.1
+
+    gen rho    = `alpha'*ratio_increases
+	gen rho_lb = `alpha_lb'*ratio_increases
+	gen rho_ub = `alpha_ub'*ratio_increases
 end
 
 program get_xlabel, rclass
@@ -83,23 +98,12 @@ program get_xlabel, rclass
 	if "`var'"=="d_ln_mw"           return local x_lab "Change in residence log MW"
 	if "`var'"=="d_exp_ln_mw_17"    return local x_lab "Change in workplace log MW"
 	
-	if "`var'"=="d_ln_rents"           return local x_lab "Change in log rents per sq. foot"
-	if "`var'"=="d_ln_rents_zillow"    return local x_lab "Change in log rents per sq. foot"
+	if "`var'"=="perc_incr_rent"      return local x_lab "Percent increase rents per sq. foot"
+	if "`var'"=="perc_incr_wagebill"  return local x_lab "Percent increase in wage bill"
 
-	if "`var'"=="d_rents"              return local x_lab "Change in rents per sq. foot"
-	if "`var'"=="d_rents_zillow"       return local x_lab "Change in rents per sq. foot"
+	if "`var'"=="ratio_increases"     return local x_lab "Ratio of percent increases"
+	if "`var'"=="rho"                 return local x_lab "Share accruing to landlord on each dollar"	
 
-	if "`var'"=="d_ln_wagebill"        return local x_lab "Change in log wage bill"
-	if "`var'"=="d_ln_wagebill_zillow" return local x_lab "Change in log wage bill"
-
-	if "`var'"=="d_wagebill"          return local x_lab "Change in wage bill ($)"
-	if "`var'"=="d_wagebill_zillow"   return local x_lab "Change in wage bill ($)"
-
-	if "`var'"=="d_wagebill_per_hhld"         return local x_lab "Change in wage bill per household ($)"
-	if "`var'"=="d_wagebill_per_hhld_zillow"  return local x_lab "Change in wage bill per household ($)"	
-
-    if "`var'"=="d_wagebill_per_wage_hhld"    return local x_lab "Change in wage bill per household with wages ($)"
-	if "`var'"=="d_wagebill_per_wage_hhld_zillow"  return local x_lab "Change in wage bill per household with wages ($)"	
 end
 
 

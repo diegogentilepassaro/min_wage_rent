@@ -1,5 +1,5 @@
 
- make.py started: 2021-11-01 10:01:59 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\code 
+ make.py started: 2021-11-01 11:25:13 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\code 
 
 
 
@@ -215,7 +215,7 @@ file ../temp/counterfactual_fed_15usd.dta saved
 file ../temp/counterfactual_fed_9usd.dta saved
 (27,800 observations deleted)
 (132,255 observations deleted)
-file C:\Users\diegog\AppData\Local\Temp\3\ST_91bc_000003.tmp saved
+file C:\Users\shermo\AppData\Local\Temp\8\ST_4fc0_000003.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -690,18 +690,17 @@ Notes:
 
 . 
 . program main
-  1.         local instub  "../output"
-  2.         local insizes "../../../derived/zipcode_rent_sqft_income_preds/out
-> put"
-  3.         local irs     "../../../drive/base_large/irs_soi"
-  4.         local geo     "../../../base/geo_master/output"
-  5. 
-.         
-.         use "`irs'/irs_zip.dta", clear
-  6.         keep if year == 2018
-  7.         keep zipcode num_wage_hhlds_irs
-  8.         duplicates drop zipcode, force
-  9.     save "../temp/n_wage_hhlds.dta", replace
+  1.         local instub      "../output"
+  2.         local insizes     "../../../derived/zipcode_rent_sqft_income_preds
+> /output"
+  3.     local in_baseline "../../fd_baseline/output"
+  4.     local in_wages    "../../twfe_wages/output"
+  5.         local geo         "../../../base/geo_master/output"
+  6. 
+.         load_parameters, in_baseline(`in_baseline') in_wages(`in_wages')
+  7.     local beta    = r(beta)
+  8.     local gamma   = r(gamma)
+  9.     local epsilon = r(epsilon)
  10.         
 .         use `instub'/d_ln_rents_cf_predictions.dta, clear
  11.         merge 1:1 zipcode using  `instub'/ln_wagebill_cf_predictions.dta, 
@@ -710,68 +709,79 @@ Notes:
  12.         merge 1:1 zipcode using "`insizes'/housing_sqft_per_zipcode.dta", 
 > ///
 >             nogen keep(1 3) keepusing(sqft_from_listings sqft_from_rents)
- 13.         merge 1:1 zipcode using "../temp/n_wage_hhlds.dta", nogen keep(1 3
-> )
- 14.         merge 1:1 zipcode using "`geo'/zip_county_place_usps_master.dta", 
+ 13.         merge 1:1 zipcode using "`geo'/zip_county_place_usps_master.dta", 
 > ///
 >            nogen keep(1 3) keepusing(rural)
- 15.         compute_vars
- 16.         
+ 14.         
+.         compute_vars, beta(`beta') gamma(`gamma') epsilon(`epsilon')
+ 15. 
 .         foreach var in d_ln_mw d_exp_ln_mw_17 ///
->                        d_ln_rents d_rents  ///
->                                    d_ln_rents_zillow d_rents_zillow ///
->                                    d_ln_wagebill d_wagebill d_wagebill_per_hh
-> ld ///
->                                    d_wagebill_per_wage_hhld d_ln_wagebill_zil
-> low d_wagebill_zillow ///
->                                    d_wagebill_per_hhld_zillow d_wagebill_per_
-> wage_hhld_zillow {
- 17.                 
+>                        perc_incr_rent perc_incr_wagebill ///
+>                                    ratio_increases rho {
+ 16.                 
 .                 get_xlabel, var(`var')
- 18.                 local x_lab = r(x_lab)
- 19.                 
+ 17.                 local x_lab = r(x_lab)
+ 18.                 
 .                 unique zipcode if !missing(`var')
- 20.                 local n_zip = r(unique)
- 21.         
+ 19.                 local n_zip = r(unique)
+ 20.         
 .                 hist `var', percent bin(20) ///
 >                         xtitle("`x_lab'") ytitle("Percentage") note("ZIP code
 > s: `n_zip'") ///
 >                         xlabel(, labsize(small)) ylabel(, labsize(small)) ///
 >                         graphregion(color(white)) bgcolor(white)
- 22.                 
+ 21.                 
 .                 graph export "../output/`var'.png", replace
- 23.                 graph export "../output/`var'.eps", replace
- 24.         }
+ 22.                 graph export "../output/`var'.eps", replace
+ 23.         }
+ 24. 
+.     save "../output/data_counterfactuals.dta", replace
  25. end
 
 . 
+. 
+. program load_parameters, rclass
+  1.         syntax, in_baseline(str) in_wages(str)
+  2. 
+.         use `in_baseline'/estimates_static.dta, clear
+  3.         keep if model == "static_both"
+  4. 
+.         qui sum b if var == "ln_mw"
+  5.         return local gamma = r(mean)
+  6.         qui sum b if var == "exp_ln_mw_17"
+  7.         return local beta = r(mean)
+  8. 
+.         use `in_wages'/estimates_cbsa_time_baseline.dta, clear
+  9.         qui sum b
+ 10.         return local epsilon = r(mean)
+ 11. end
+
+. 
 . program compute_vars
-  1.         local exp_ln_mw_on_ln_wagebill = 0.1588706
-  2.         local exp_ln_mw_on_ln_rents = 0.064464323
-  3.         local ln_mw_on_ln_rents = -0.030246906
-  4.         
-.         gen d_ln_rents = `exp_ln_mw_on_ln_rents'*d_exp_ln_mw_17 + `ln_mw_on_l
-> n_rents'*d_ln_mw
-  5.         gen ln_rents_post = d_ln_rents + ln_rents_pre 
-  6.     gen d_rents    = exp(ln_rents_post) - exp(ln_rents_pre)
-  7.         
-.         gen d_ln_rents_zillow = d_ln_rents if !missing(ln_rents_pre)
-  8.     gen d_rents_zillow    = d_rents if !missing(ln_rents_pre)
-  9. 
-.         gen ln_wagebill_post = ln_wagebill_pre + `exp_ln_mw_on_ln_wagebill'*d
-> _exp_ln_mw_17
- 10.         gen d_ln_wagebill = ln_wagebill_post - ln_wagebill_pre
- 11.         gen d_wagebill = exp(ln_wagebill_post) - exp(ln_wagebill_pre)
- 12.         gen d_wagebill_per_hhld = d_wagebill/n_hhlds_pre
- 13.         gen d_wagebill_per_wage_hhld = d_wagebill/num_wage_hhlds_irs
- 14.         
-.         gen d_ln_wagebill_zillow = d_ln_wagebill if !missing(ln_rents_pre)
- 15.         gen d_wagebill_zillow = d_wagebill if !missing(ln_rents_pre)
- 16.         gen d_wagebill_per_hhld_zillow = d_wagebill_per_hhld if !missing(l
-> n_rents_pre)
- 17.         gen d_wagebill_per_wage_hhld_zillow =d_wagebill_per_wage_hhld if !
-> missing(ln_rents_pre)
- 18. end
+  1.     syntax, beta(str) gamma(str) epsilon(str) [alpha(real 0.35)]
+  2.         
+.         * Predictions with parameters
+.         egen max_d_ln_mw = max(d_ln_mw) if rural == 0
+  3.         gen fully_affected            = 1 if rural == 0 & d_ln_mw == max_d
+> _ln_mw
+  4.         gen no_direct_treatment       = 1 if rural == 0 & d_ln_mw == 0
+  5.         gen more_indirect_than_direct = 1 if rural == 0 & d_exp_ln_mw_17 >
+>  d_ln_mw
+  6. 
+.     gen change_ln_rents    = `beta'*d_exp_ln_mw_17 + `gamma'*d_ln_mw
+  7.     gen change_ln_wagebill = `epsilon'*d_exp_ln_mw_17
+  8. 
+.         gen perc_incr_rent     = exp(change_ln_rents)    - 1
+  9.         gen perc_incr_wagebill = exp(change_ln_wagebill) - 1
+ 10.         gen ratio_increases    = perc_incr_rent/perc_incr_wagebill
+ 11. 
+.     local alpha_lb = `alpha' - 0.1
+ 12.     local alpha_ub = `alpha' + 0.1
+ 13. 
+.     gen rho    = `alpha'*ratio_increases
+ 14.         gen rho_lb = `alpha_lb'*ratio_increases
+ 15.         gen rho_ub = `alpha_ub'*ratio_increases
+ 16. end
 
 . 
 . program get_xlabel, rclass
@@ -787,46 +797,22 @@ Notes:
   6.         if "`var'"=="d_exp_ln_mw_17"    return local x_lab "Change in work
 > place log MW"
   7.         
-.         if "`var'"=="d_ln_rents"           return local x_lab "Change in log 
-> rents per sq. foot"
-  8.         if "`var'"=="d_ln_rents_zillow"    return local x_lab "Change in l
-> og rents per sq. foot"
+.         if "`var'"=="perc_incr_rent"      return local x_lab "Percent increas
+> e rents per sq. foot"
+  8.         if "`var'"=="perc_incr_wagebill"  return local x_lab "Percent incr
+> ease in wage bill"
   9. 
-.         if "`var'"=="d_rents"              return local x_lab "Change in rent
-> s per sq. foot"
- 10.         if "`var'"=="d_rents_zillow"       return local x_lab "Change in r
-> ents per sq. foot"
+.         if "`var'"=="ratio_increases"     return local x_lab "Ratio of percen
+> t increases"
+ 10.         if "`var'"=="rho"                 return local x_lab "Share accrui
+> ng to landlord on each dollar"        
  11. 
-.         if "`var'"=="d_ln_wagebill"        return local x_lab "Change in log 
-> wage bill"
- 12.         if "`var'"=="d_ln_wagebill_zillow" return local x_lab "Change in l
-> og wage bill"
- 13. 
-.         if "`var'"=="d_wagebill"          return local x_lab "Change in wage 
-> bill ($)"
- 14.         if "`var'"=="d_wagebill_zillow"   return local x_lab "Change in wa
-> ge bill ($)"
- 15. 
-.         if "`var'"=="d_wagebill_per_hhld"         return local x_lab "Change 
-> in wage bill per household ($)"
- 16.         if "`var'"=="d_wagebill_per_hhld_zillow"  return local x_lab "Chan
-> ge in wage bill per household ($)"    
- 17. 
-.     if "`var'"=="d_wagebill_per_wage_hhld"    return local x_lab "Change in w
-> age bill per household with wages ($)"
- 18.         if "`var'"=="d_wagebill_per_wage_hhld_zillow"  return local x_lab 
-> "Change in wage bill per household with wages ($)"    
- 19. end
+. end
 
 . 
 . 
 . main
-(252,497 observations deleted)
-
-Duplicates in terms of zipcode
-
-(100 observations deleted)
-file ../temp/n_wage_hhlds.dta saved
+(6 observations deleted)
 
     Result                           # of obs.
     -----------------------------------------
@@ -845,31 +831,20 @@ file ../temp/n_wage_hhlds.dta saved
 
     Result                           # of obs.
     -----------------------------------------
-    not matched                        11,223
-        from master                    11,223  
+    not matched                             1
+        from master                         1  
         from using                          0  
 
-    matched                            27,550  
+    matched                            38,772  
     -----------------------------------------
-
-    Result                           # of obs.
-    -----------------------------------------
-    not matched                             0
-    matched                            38,773  
-    -----------------------------------------
-(35,457 missing values generated)
-(35,457 missing values generated)
-(35,457 missing values generated)
-(35,457 missing values generated)
-(11,223 missing values generated)
-(11,223 missing values generated)
-(11,223 missing values generated)
-(11,223 missing values generated)
-(11,223 missing values generated)
-(35,466 missing values generated)
-(35,466 missing values generated)
-(35,466 missing values generated)
-(35,466 missing values generated)
+(17575 missing values generated)
+(30,020 missing values generated)
+(33,218 missing values generated)
+(28,866 missing values generated)
+(4,180 missing values generated)
+(4,180 missing values generated)
+(4,180 missing values generated)
+(4,180 missing values generated)
 Number of unique values of zipcode is  38773
 Number of records is  38773
 (bin=20, start=-4.681e-08, width=.01081116)
@@ -886,90 +861,36 @@ Number of records is  38773
 (file ../output/d_exp_ln_mw_17.eps written in EPS format)
 Number of unique values of zipcode is  38773
 Number of records is  38773
-(bin=20, start=-.00654008, width=.0009845)
-(note: file ../output/d_ln_rents.png not found)
-(file ../output/d_ln_rents.png written in PNG format)
-(note: file ../output/d_ln_rents.eps not found)
-(file ../output/d_ln_rents.eps written in EPS format)
-Number of unique values of zipcode is  3316
-Number of records is  3316
-(bin=20, start=-.00178296, width=.00286338)
-(note: file ../output/d_rents.png not found)
-(file ../output/d_rents.png written in PNG format)
-(note: file ../output/d_rents.eps not found)
-(file ../output/d_rents.eps written in EPS format)
-Number of unique values of zipcode is  3316
-Number of records is  3316
-(bin=20, start=-.00230311, width=.00048298)
-(note: file ../output/d_ln_rents_zillow.png not found)
-(file ../output/d_ln_rents_zillow.png written in PNG format)
-(note: file ../output/d_ln_rents_zillow.eps not found)
-(file ../output/d_ln_rents_zillow.eps written in EPS format)
-Number of unique values of zipcode is  3316
-Number of records is  3316
-(bin=20, start=-.00178296, width=.00286338)
-(note: file ../output/d_rents_zillow.png not found)
-(file ../output/d_rents_zillow.png written in PNG format)
-(note: file ../output/d_rents_zillow.eps not found)
-(file ../output/d_rents_zillow.eps written in EPS format)
-Number of unique values of zipcode is  27550
-Number of records is  27550
-(bin=20, start=0, width=.00171757)
-(note: file ../output/d_ln_wagebill.png not found)
-(file ../output/d_ln_wagebill.png written in PNG format)
-(note: file ../output/d_ln_wagebill.eps not found)
-(file ../output/d_ln_wagebill.eps written in EPS format)
-Number of unique values of zipcode is  27550
-Number of records is  27550
-(bin=20, start=0, width=8783.5422)
-(note: file ../output/d_wagebill.png not found)
-(file ../output/d_wagebill.png written in PNG format)
-(note: file ../output/d_wagebill.eps not found)
-(file ../output/d_wagebill.eps written in EPS format)
-Number of unique values of zipcode is  27550
-Number of records is  27550
-(bin=20, start=0, width=.52254696)
-(note: file ../output/d_wagebill_per_hhld.png not found)
-(file ../output/d_wagebill_per_hhld.png written in PNG format)
-(note: file ../output/d_wagebill_per_hhld.eps not found)
-(file ../output/d_wagebill_per_hhld.eps written in EPS format)
-Number of unique values of zipcode is  27550
-Number of records is  27550
-(bin=20, start=0, width=.63452129)
-(note: file ../output/d_wagebill_per_wage_hhld.png not found)
-(file ../output/d_wagebill_per_wage_hhld.png written in PNG format)
-(note: file ../output/d_wagebill_per_wage_hhld.eps not found)
-(file ../output/d_wagebill_per_wage_hhld.eps written in EPS format)
-Number of unique values of zipcode is  3307
-Number of records is  3307
-(bin=20, start=.00003529, width=.00171061)
-(note: file ../output/d_ln_wagebill_zillow.png not found)
-(file ../output/d_ln_wagebill_zillow.png written in PNG format)
-(note: file ../output/d_ln_wagebill_zillow.eps not found)
-(file ../output/d_ln_wagebill_zillow.eps written in EPS format)
-Number of unique values of zipcode is  3307
-Number of records is  3307
-(bin=20, start=5.0737305, width=8783.2885)
-(note: file ../output/d_wagebill_zillow.png not found)
-(file ../output/d_wagebill_zillow.png written in PNG format)
-(note: file ../output/d_wagebill_zillow.eps not found)
-(file ../output/d_wagebill_zillow.eps written in EPS format)
-Number of unique values of zipcode is  3307
-Number of records is  3307
-(bin=20, start=.00158974, width=.39318431)
-(note: file ../output/d_wagebill_per_hhld_zillow.png not found)
-(file ../output/d_wagebill_per_hhld_zillow.png written in PNG format)
-(note: file ../output/d_wagebill_per_hhld_zillow.eps not found)
-(file ../output/d_wagebill_per_hhld_zillow.eps written in EPS format)
-Number of unique values of zipcode is  3307
-Number of records is  3307
-(bin=20, start=.00180822, width=.57352032)
-(note: file ../output/d_wagebill_per_wage_hhld_zillow.png not found)
-(file ../output/d_wagebill_per_wage_hhld_zillow.png written in PNG format)
-(note: file ../output/d_wagebill_per_wage_hhld_zillow.eps not found)
-(file ../output/d_wagebill_per_wage_hhld_zillow.eps written in EPS format)
+(bin=20, start=-.00651874, width=.00098777)
+(note: file ../output/perc_incr_rent.png not found)
+(file ../output/perc_incr_rent.png written in PNG format)
+(note: file ../output/perc_incr_rent.eps not found)
+(file ../output/perc_incr_rent.eps written in EPS format)
+Number of unique values of zipcode is  38773
+Number of records is  38773
+(bin=20, start=0, width=.00198759)
+(note: file ../output/perc_incr_wagebill.png not found)
+(file ../output/perc_incr_wagebill.png written in PNG format)
+(note: file ../output/perc_incr_wagebill.eps not found)
+(file ../output/perc_incr_wagebill.eps written in EPS format)
+Number of unique values of zipcode is  34593
+Number of records is  34593
+(bin=20, start=-.8883096, width=.06229448)
+(note: file ../output/ratio_increases.png not found)
+(file ../output/ratio_increases.png written in PNG format)
+(note: file ../output/ratio_increases.eps not found)
+(file ../output/ratio_increases.eps written in EPS format)
+Number of unique values of zipcode is  34593
+Number of records is  34593
+(bin=20, start=-.31090835, width=.02180307)
+(note: file ../output/rho.png not found)
+(file ../output/rho.png written in PNG format)
+(note: file ../output/rho.eps not found)
+(file ../output/rho.eps written in EPS format)
+(note: file ../output/data_counterfactuals.dta not found)
+file ../output/data_counterfactuals.dta saved
 
 . 
 end of do-file
 
- make.py ended: 2021-11-01 10:03:55
+ make.py ended: 2021-11-01 11:27:04
