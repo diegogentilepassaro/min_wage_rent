@@ -8,8 +8,9 @@ program main
     local in_baseline "../../fd_baseline/output"
     local in_wages    "../../twfe_wages/output"
 	local geo         "../../../base/geo_master/output"
+use "`geo'/zip_county_place_usps_master.dta", clear
 
-	load_parameters, in_baseline(`in_baseline') in_wages(`in_wages')
+    load_parameters, in_baseline(`in_baseline') in_wages(`in_wages')
     local beta    = r(beta)
     local gamma   = r(gamma)
     local epsilon = r(epsilon)
@@ -22,10 +23,15 @@ program main
 	merge 1:1 zipcode using "`insizes'/housing_sqft_per_zipcode.dta", ///
 	    nogen keep(1 3) keepusing(sqft_from_listings sqft_from_rents)
 	merge 1:1 zipcode using "`geo'/zip_county_place_usps_master.dta", ///
-	   nogen keep(1 3) keepusing(rural)
+	   nogen keep(1 3) keepusing(cbsa10 rural)
 	
 	compute_vars, beta(`beta') gamma(`gamma') epsilon(`epsilon')
-
+	preserve
+	    keep zipcode cbsa10 d_ln_mw d_exp_ln_mw_17 change_ln_rents
+        save_data "../output/predicted_changes_in_rents.dta", ///
+		    key(zipcode) replace log(none)
+		export delimited "../output/predicted_changes_in_rents.csv", replace
+	restore
 	foreach var in d_ln_mw d_exp_ln_mw_17 ///
 	               perc_incr_rent perc_incr_wagebill ///
 				   ratio_increases rho {
