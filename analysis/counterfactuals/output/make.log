@@ -1,5 +1,5 @@
 
- make.py started: 2021-11-01 08:30:25 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\code 
+ make.py started: 2021-11-01 10:01:59 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\code 
 
 
 
@@ -215,7 +215,7 @@ file ../temp/counterfactual_fed_15usd.dta saved
 file ../temp/counterfactual_fed_9usd.dta saved
 (27,800 observations deleted)
 (132,255 observations deleted)
-file C:\Users\diegog\AppData\Local\Temp\3\ST_660c_000003.tmp saved
+file C:\Users\diegog\AppData\Local\Temp\3\ST_91bc_000003.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -690,44 +690,59 @@ Notes:
 
 . 
 . program main
-  1.         local instub "../output"
+  1.         local instub  "../output"
   2.         local insizes "../../../derived/zipcode_rent_sqft_income_preds/out
 > put"
-  3.         
+  3.         local irs     "../../../drive/base_large/irs_soi"
+  4.         local geo     "../../../base/geo_master/output"
+  5. 
+.         
+.         use "`irs'/irs_zip.dta", clear
+  6.         keep if year == 2018
+  7.         keep zipcode num_wage_hhlds_irs
+  8.         duplicates drop zipcode, force
+  9.     save "../temp/n_wage_hhlds.dta", replace
+ 10.         
 .         use `instub'/d_ln_rents_cf_predictions.dta, clear
-  4.         merge 1:1 zipcode using  `instub'/ln_wagebill_cf_predictions.dta, 
+ 11.         merge 1:1 zipcode using  `instub'/ln_wagebill_cf_predictions.dta, 
 > ///
 >             nogen keepusing(ln_wagebill_pre n_hhlds_pre)
-  5.         merge 1:1 zipcode using "`insizes'/housing_sqft_per_zipcode.dta", 
+ 12.         merge 1:1 zipcode using "`insizes'/housing_sqft_per_zipcode.dta", 
 > ///
 >             nogen keep(1 3) keepusing(sqft_from_listings sqft_from_rents)
-  6.         
-.         compute_vars
-  7.         
+ 13.         merge 1:1 zipcode using "../temp/n_wage_hhlds.dta", nogen keep(1 3
+> )
+ 14.         merge 1:1 zipcode using "`geo'/zip_county_place_usps_master.dta", 
+> ///
+>            nogen keep(1 3) keepusing(rural)
+ 15.         compute_vars
+ 16.         
 .         foreach var in d_ln_mw d_exp_ln_mw_17 ///
 >                        d_ln_rents d_rents  ///
 >                                    d_ln_rents_zillow d_rents_zillow ///
 >                                    d_ln_wagebill d_wagebill d_wagebill_per_hh
 > ld ///
->                                    d_ln_wagebill_zillow d_wagebill_zillow d_w
-> agebill_per_hhld_zillow {
-  8.                 
+>                                    d_wagebill_per_wage_hhld d_ln_wagebill_zil
+> low d_wagebill_zillow ///
+>                                    d_wagebill_per_hhld_zillow d_wagebill_per_
+> wage_hhld_zillow {
+ 17.                 
 .                 get_xlabel, var(`var')
-  9.                 local x_lab = r(x_lab)
- 10.                 
+ 18.                 local x_lab = r(x_lab)
+ 19.                 
 .                 unique zipcode if !missing(`var')
- 11.                 local n_zip = r(unique)
- 12.         
-.                 hist `var', percent bin(15) ///
+ 20.                 local n_zip = r(unique)
+ 21.         
+.                 hist `var', percent bin(20) ///
 >                         xtitle("`x_lab'") ytitle("Percentage") note("ZIP code
 > s: `n_zip'") ///
 >                         xlabel(, labsize(small)) ylabel(, labsize(small)) ///
 >                         graphregion(color(white)) bgcolor(white)
- 13.                 
+ 22.                 
 .                 graph export "../output/`var'.png", replace
- 14.                 graph export "../output/`var'.eps", replace
- 15.         }
- 16. end
+ 23.                 graph export "../output/`var'.eps", replace
+ 24.         }
+ 25. end
 
 . 
 . program compute_vars
@@ -748,12 +763,15 @@ Notes:
  10.         gen d_ln_wagebill = ln_wagebill_post - ln_wagebill_pre
  11.         gen d_wagebill = exp(ln_wagebill_post) - exp(ln_wagebill_pre)
  12.         gen d_wagebill_per_hhld = d_wagebill/n_hhlds_pre
- 13.         
+ 13.         gen d_wagebill_per_wage_hhld = d_wagebill/num_wage_hhlds_irs
+ 14.         
 .         gen d_ln_wagebill_zillow = d_ln_wagebill if !missing(ln_rents_pre)
- 14.         gen d_wagebill_zillow = d_wagebill if !missing(ln_rents_pre)
- 15.         gen d_wagebill_per_hhld_zillow = d_wagebill_per_hhld if !missing(l
+ 15.         gen d_wagebill_zillow = d_wagebill if !missing(ln_rents_pre)
+ 16.         gen d_wagebill_per_hhld_zillow = d_wagebill_per_hhld if !missing(l
 > n_rents_pre)
- 16. end
+ 17.         gen d_wagebill_per_wage_hhld_zillow =d_wagebill_per_wage_hhld if !
+> missing(ln_rents_pre)
+ 18. end
 
 . 
 . program get_xlabel, rclass
@@ -789,15 +807,26 @@ Notes:
  14.         if "`var'"=="d_wagebill_zillow"   return local x_lab "Change in wa
 > ge bill ($)"
  15. 
-.         if "`var'"=="d_wagebill_per_hhld"        return local x_lab "Change i
-> n wage bill per household ($)"
- 16.         if "`var'"=="d_wagebill_per_hhld_zillow" return local x_lab "Chang
-> e in wage bill per household ($)"     
- 17. end
+.         if "`var'"=="d_wagebill_per_hhld"         return local x_lab "Change 
+> in wage bill per household ($)"
+ 16.         if "`var'"=="d_wagebill_per_hhld_zillow"  return local x_lab "Chan
+> ge in wage bill per household ($)"    
+ 17. 
+.     if "`var'"=="d_wagebill_per_wage_hhld"    return local x_lab "Change in w
+> age bill per household with wages ($)"
+ 18.         if "`var'"=="d_wagebill_per_wage_hhld_zillow"  return local x_lab 
+> "Change in wage bill per household with wages ($)"    
+ 19. end
 
 . 
 . 
 . main
+(252,497 observations deleted)
+
+Duplicates in terms of zipcode
+
+(100 observations deleted)
+file ../temp/n_wage_hhlds.dta saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -813,6 +842,21 @@ Notes:
 
     matched                            38,772  
     -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                        11,223
+        from master                    11,223  
+        from using                          0  
+
+    matched                            27,550  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            38,773  
+    -----------------------------------------
 (35,457 missing values generated)
 (35,457 missing values generated)
 (35,457 missing values generated)
@@ -821,95 +865,111 @@ Notes:
 (11,223 missing values generated)
 (11,223 missing values generated)
 (11,223 missing values generated)
+(11,223 missing values generated)
+(35,466 missing values generated)
 (35,466 missing values generated)
 (35,466 missing values generated)
 (35,466 missing values generated)
 Number of unique values of zipcode is  38773
 Number of records is  38773
-(bin=15, start=-4.681e-08, width=.01441488)
+(bin=20, start=-4.681e-08, width=.01081116)
 (note: file ../output/d_ln_mw.png not found)
 (file ../output/d_ln_mw.png written in PNG format)
 (note: file ../output/d_ln_mw.eps not found)
 (file ../output/d_ln_mw.eps written in EPS format)
 Number of unique values of zipcode is  38773
 Number of records is  38773
-(bin=15, start=0, width=.01441487)
+(bin=20, start=0, width=.01081116)
 (note: file ../output/d_exp_ln_mw_17.png not found)
 (file ../output/d_exp_ln_mw_17.png written in PNG format)
 (note: file ../output/d_exp_ln_mw_17.eps not found)
 (file ../output/d_exp_ln_mw_17.eps written in EPS format)
 Number of unique values of zipcode is  38773
 Number of records is  38773
-(bin=15, start=-.00654008, width=.00131267)
+(bin=20, start=-.00654008, width=.0009845)
 (note: file ../output/d_ln_rents.png not found)
 (file ../output/d_ln_rents.png written in PNG format)
 (note: file ../output/d_ln_rents.eps not found)
 (file ../output/d_ln_rents.eps written in EPS format)
 Number of unique values of zipcode is  3316
 Number of records is  3316
-(bin=15, start=-.00178296, width=.00381784)
+(bin=20, start=-.00178296, width=.00286338)
 (note: file ../output/d_rents.png not found)
 (file ../output/d_rents.png written in PNG format)
 (note: file ../output/d_rents.eps not found)
 (file ../output/d_rents.eps written in EPS format)
 Number of unique values of zipcode is  3316
 Number of records is  3316
-(bin=15, start=-.00230311, width=.00064398)
+(bin=20, start=-.00230311, width=.00048298)
 (note: file ../output/d_ln_rents_zillow.png not found)
 (file ../output/d_ln_rents_zillow.png written in PNG format)
 (note: file ../output/d_ln_rents_zillow.eps not found)
 (file ../output/d_ln_rents_zillow.eps written in EPS format)
 Number of unique values of zipcode is  3316
 Number of records is  3316
-(bin=15, start=-.00178296, width=.00381784)
+(bin=20, start=-.00178296, width=.00286338)
 (note: file ../output/d_rents_zillow.png not found)
 (file ../output/d_rents_zillow.png written in PNG format)
 (note: file ../output/d_rents_zillow.eps not found)
 (file ../output/d_rents_zillow.eps written in EPS format)
 Number of unique values of zipcode is  27550
 Number of records is  27550
-(bin=15, start=0, width=.00229009)
+(bin=20, start=0, width=.00171757)
 (note: file ../output/d_ln_wagebill.png not found)
 (file ../output/d_ln_wagebill.png written in PNG format)
 (note: file ../output/d_ln_wagebill.eps not found)
 (file ../output/d_ln_wagebill.eps written in EPS format)
 Number of unique values of zipcode is  27550
 Number of records is  27550
-(bin=15, start=0, width=11711.39)
+(bin=20, start=0, width=8783.5422)
 (note: file ../output/d_wagebill.png not found)
 (file ../output/d_wagebill.png written in PNG format)
 (note: file ../output/d_wagebill.eps not found)
 (file ../output/d_wagebill.eps written in EPS format)
 Number of unique values of zipcode is  27550
 Number of records is  27550
-(bin=15, start=0, width=.69672928)
+(bin=20, start=0, width=.52254696)
 (note: file ../output/d_wagebill_per_hhld.png not found)
 (file ../output/d_wagebill_per_hhld.png written in PNG format)
 (note: file ../output/d_wagebill_per_hhld.eps not found)
 (file ../output/d_wagebill_per_hhld.eps written in EPS format)
+Number of unique values of zipcode is  27550
+Number of records is  27550
+(bin=20, start=0, width=.63452129)
+(note: file ../output/d_wagebill_per_wage_hhld.png not found)
+(file ../output/d_wagebill_per_wage_hhld.png written in PNG format)
+(note: file ../output/d_wagebill_per_wage_hhld.eps not found)
+(file ../output/d_wagebill_per_wage_hhld.eps written in EPS format)
 Number of unique values of zipcode is  3307
 Number of records is  3307
-(bin=15, start=.00003529, width=.00228081)
+(bin=20, start=.00003529, width=.00171061)
 (note: file ../output/d_ln_wagebill_zillow.png not found)
 (file ../output/d_ln_wagebill_zillow.png written in PNG format)
 (note: file ../output/d_ln_wagebill_zillow.eps not found)
 (file ../output/d_ln_wagebill_zillow.eps written in EPS format)
 Number of unique values of zipcode is  3307
 Number of records is  3307
-(bin=15, start=5.0737305, width=11711.051)
+(bin=20, start=5.0737305, width=8783.2885)
 (note: file ../output/d_wagebill_zillow.png not found)
 (file ../output/d_wagebill_zillow.png written in PNG format)
 (note: file ../output/d_wagebill_zillow.eps not found)
 (file ../output/d_wagebill_zillow.eps written in EPS format)
 Number of unique values of zipcode is  3307
 Number of records is  3307
-(bin=15, start=.00158974, width=.52424574)
+(bin=20, start=.00158974, width=.39318431)
 (note: file ../output/d_wagebill_per_hhld_zillow.png not found)
 (file ../output/d_wagebill_per_hhld_zillow.png written in PNG format)
 (note: file ../output/d_wagebill_per_hhld_zillow.eps not found)
 (file ../output/d_wagebill_per_hhld_zillow.eps written in EPS format)
+Number of unique values of zipcode is  3307
+Number of records is  3307
+(bin=20, start=.00180822, width=.57352032)
+(note: file ../output/d_wagebill_per_wage_hhld_zillow.png not found)
+(file ../output/d_wagebill_per_wage_hhld_zillow.png written in PNG format)
+(note: file ../output/d_wagebill_per_wage_hhld_zillow.eps not found)
+(file ../output/d_wagebill_per_wage_hhld_zillow.eps written in EPS format)
 
 . 
 end of do-file
 
- make.py ended: 2021-11-01 08:32:51
+ make.py ended: 2021-11-01 10:03:55

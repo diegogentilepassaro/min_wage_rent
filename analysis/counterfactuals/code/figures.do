@@ -38,7 +38,7 @@ program main
 		unique zipcode if !missing(`var')
 		local n_zip = r(unique)
 	
-		hist `var', percent bin(15) ///
+		hist `var', percent bin(20) ///
 			xtitle("`x_lab'") ytitle("Percentage") note("ZIP codes: `n_zip'") ///
 			xlabel(, labsize(small)) ylabel(, labsize(small)) ///
 			graphregion(color(white)) bgcolor(white)
