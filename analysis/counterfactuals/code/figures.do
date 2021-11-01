@@ -13,6 +13,8 @@ program main
     local beta    = r(beta)
     local gamma   = r(gamma)
     local epsilon = r(epsilon)
+
+	di "Beta, Gamma, and Epsilon: `beta', `gamma', `epsilon'"
 	
 	use `instub'/d_ln_rents_cf_predictions.dta, clear
 	merge 1:1 zipcode using  `instub'/ln_wagebill_cf_predictions.dta, ///
