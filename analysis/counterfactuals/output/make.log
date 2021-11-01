@@ -1,10 +1,10 @@
 
- make.py started: 2021-10-26 09:29:58 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\code 
+ make.py started: 2021-11-01 06:22:58 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\code 
 
 
 
 
-Execute:  StataMP-64 /e do "./build.do"
+Execute:  StataMP-64 /e do "./predict_rents.do"
 
   ___  ____  ____  ____  ____ (R)
  /__    /   ____/   /   ____/
@@ -27,7 +27,7 @@ Notes:
       3.  More than 2 billion observations are allowed; see help obs_advice.
       4.  Maximum number of variables is set to 5000; see help set_maxvar.
 
-. do ./build.do 
+. do ./predict_rents.do 
 
 . clear all
 
@@ -52,249 +52,426 @@ Notes:
   [7]              "../../../lib/stata/gslab_misc/ado"
   [8]              "../../../lib/stata/min_wage/ado"
 
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.     local instub "../../../drive/derived_large/estimation_samples"
+  2.     local in_cf_mw    "../../../drive/derived_large/min_wage"
+  3.     
+.     define_controls
+  4.     local controls "`r(economic_controls)'"
+  5.     local cluster = "statefips"
+  6.     local absorb  = "year_month"
+  7.     
+.     process_counterfactual_data, in_cf_mw(`in_cf_mw') ///
+>         instub(`instub') controls(`controls')
+  8.     
+.     local exp_ln_mw_var "exp_ln_mw_17"
+  9.     
+.     use zipcode zipcode_num statefips year_month year month ///
+>         ln_rents ln_mw `exp_ln_mw_var' `controls' ///
+>         using "`instub'/all_zipcode_months.dta", clear
+ 10.     add_baseline_zipcodes, instub(`instub')
+ 11.     xtset zipcode_num `absorb'
+ 12.     
+.     foreach var of local controls {
+ 13.         bys zipcode_num (year_month): gen d_`var' = `var'[_n] - `var'[_n-1
+> ]
+ 14.     }
+ 15.     gen d_ln_rents = ln_rents[_n] - ln_rents[_n-1]
+ 16.     gen d_ln_mw = ln_mw[_n] - ln_mw[_n-1]
+ 17.     gen d_`exp_ln_mw_var' = `exp_ln_mw_var'[_n] - `exp_ln_mw_var'[_n-1]
+ 18.     
+.      reghdfe d_ln_rents d_`exp_ln_mw_var' d_ln_mw ///
+>         d_ln_emp* d_ln_estcount* d_ln_avgwwage* if baseline_sample == 1, ///
+>         absorb(`absorb', savefe) vce(cluster `cluster') ///
+>         nocons residuals(residuals)
+ 19.     append using "../temp/counterfactual_fed_9usd.dta"
+ 20.     
+.     replace d_ln_mw = d_ln_mw_cf if (year == 2020 & month == 1)
+ 21.     replace d_exp_ln_mw_17 = d_exp_ln_mw_cf if (year == 2020 & month == 1)
+ 22.     
+.     foreach var of local controls {
+ 23.         bysort zipcode (year_month): replace d_`var' = ///
+>             `var'[_n-1] if (year == 2020 & month == 1)
+ 24.     }
+ 25.     bysort zipcode (year month): gen ln_rents_pre = ///
+>             ln_rents[_n-1] if (year == 2020 & month == 1)
+ 26.     gen counterfactual = 0
+ 27.     replace counterfactual = 1 if (year == 2020 & month == 1) 
+ 28.     replace year_month = `=tm(2019m12)' if year_month == 2020
+ 29.     preserve 
+ 30.         collapse __hdfe1__, by(year_month)
+ 31.         save "../temp/fes.dta", replace
+ 32.     restore
+ 33.     drop __hdfe1__
+ 34.     merge m:1 year_month using "../temp/fes.dta"
+ 35.     predict p_d_ln_rents, xb
+ 36.     gen p_d_ln_rents_with_fe = p_d_ln_rents + __hdfe1__
+ 37.     
+.     keep if counterfactual == 1
+ 38.         
+.     keep zipcode year month d_ln_mw d_exp_ln_mw_17 ///
+>         ln_rents_pre p_d_ln_rents p_d_ln_rents_with_fe ///
+>         __hdfe1__
+ 39.     order zipcode year month d_ln_mw d_exp_ln_mw_17 ///
+>         ln_rents_pre p_d_ln_rents p_d_ln_rents_with_fe ///
+>         __hdfe1__
+ 40.     save_data "../output/d_ln_rents_cf_predictions.dta", ///
+>         key(zipcode year month) replace
+ 41. end
+
+. 
+. program process_counterfactual_data
+  1.     syntax, in_cf_mw(str) instub(str) controls(str)
+  2.     
+.     use zipcode year_month year month counterfactual exp_ln_mw_tot using ///
+>         "`in_cf_mw'/zipcode_experienced_mw_cfs.dta", clear
+  3.     
+.     bysort zipcode counterfactual (year month): ///
+>     gen d_exp_ln_mw_cf = exp_ln_mw_tot[_n] - exp_ln_mw_tot[_n - 1]
+  4.     keep if (year == 2020 & month == 1)
+  5.     rename exp_ln_mw_tot exp_ln_mw_tot_18_cf
+  6.     gen fed_mw_cf = 7.25*1.1 if counterfactual == "fed_10pc"
+  7.     replace fed_mw_cf = 15 if counterfactual == "fed_15usd"
+  8.     replace fed_mw_cf = 9 if counterfactual == "fed_9usd"
+  9.     save "../temp/counterfactual.dta", replace
+ 10.     
+.     use "`instub'/all_zipcode_months.dta", clear
+ 11.     keep if (year == 2019 & month == 12)
+ 12.     keep zipcode actual_mw
+ 13.     expand 3
+ 14.     bysort zipcode: gen counterfactual = "fed_10pc" if _n == 1
+ 15.     bysort zipcode: replace counterfactual = "fed_15usd" if _n == 2
+ 16.     bysort zipcode: replace counterfactual = "fed_9usd" if _n == 3
+ 17.     merge 1:1 zipcode counterfactual using "../temp/counterfactual.dta", /
+> //
+>         nogen keep(3)
+ 18.     egen actual_mw_cf = rowmax(actual_mw fed_mw_cf)
+ 19.     gen d_ln_mw_cf = log(actual_mw_cf) - log(actual_mw)
+ 20.     drop fed_mw_cf actual_mw_cf exp_ln_mw_tot_18_cf
+ 21.     preserve
+ 22.         keep if counterfactual == "fed_10pc"
+ 23.         drop counterfactual
+ 24.         save "../temp/counterfactual_fed_10pc.dta", replace
+ 25.     restore
+ 26.     preserve
+ 27.         keep if counterfactual == "fed_15usd"
+ 28.         drop counterfactual
+ 29.         save "../temp/counterfactual_fed_15usd.dta", replace
+ 30.     restore
+ 31.     preserve
+ 32.         keep if counterfactual == "fed_9usd"
+ 33.         drop counterfactual
+ 34.         save "../temp/counterfactual_fed_9usd.dta", replace
+ 35.     restore
+ 36. end
+
+. 
+. program add_baseline_zipcodes
+  1.     syntax, instub(str)
+  2. 
+.     preserve
+  3.         use `instub'/baseline_zipcode_months.dta, clear
+  4. 
+.         keep if !missing(ln_rents)
+  5.         bys  zipcode: keep if _n == 1
+  6.         keep zipcode
+  7.         gen baseline_sample = 1
+  8. 
+.         tempfile zipcode_years_baseline
+  9.         save    `zipcode_years_baseline'
+ 10.     restore
+ 11. 
+.     merge m:1 zipcode using `zipcode_years_baseline', keep(1 3) nogen
+ 12. 
+.     replace baseline_sample = 0 if baseline_sample != 1
+ 13. end
+
+. 
+. main
+(117,423 missing values generated)
+(117,423 observations deleted)
+(78,282 missing values generated)
+(39,141 real changes made)
+(39,141 real changes made)
+file ../temp/counterfactual.dta saved
+(4,818,072 observations deleted)
+(80,976 observations created)
+(80,976 missing values generated)
+(40,488 real changes made)
+(40,488 real changes made)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           116,319  
+    -----------------------------------------
+(77,546 observations deleted)
+file ../temp/counterfactual_fed_10pc.dta saved
+(77,546 observations deleted)
+file ../temp/counterfactual_fed_15usd.dta saved
+(77,546 observations deleted)
+file ../temp/counterfactual_fed_9usd.dta saved
+(27,800 observations deleted)
+(132,255 observations deleted)
+file C:\Users\shermo\AppData\Local\Temp\8\ST_5d90_000003.tmp saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                     4,697,160
+        from master                 4,697,160  
+        from using                          0  
+
+    matched                           161,400  
+    -----------------------------------------
+(4,697,160 real changes made)
+       panel variable:  zipcode_num (strongly balanced)
+        time variable:  year_month, 2010m1 to 2019m12
+                delta:  1 month
+(149,118 missing values generated)
+(510,117 missing values generated)
+(135,290 missing values generated)
+(44,158 missing values generated)
+(85,792 missing values generated)
+(44,333 missing values generated)
+(149,117 missing values generated)
+(510,117 missing values generated)
+(135,290 missing values generated)
+(4,663,898 missing values generated)
+(1 missing value generated)
+(207,039 missing values generated)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    131,196
+Absorbing 1 HDFE group                            F(  11,     40) =       3.93
+Statistics robust to heteroskedasticity           Prob > F        =     0.0007
+                                                  R-squared       =     0.0209
+                                                  Adj R-squared   =     0.0200
+                                                  Within R-sq.    =     0.0002
+Number of clusters (statefips) =         41       Root MSE        =     0.0291
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+  d_ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+d_exp_ln_~17 |   .0644643   .0274084     2.35   0.024     .0090699    .1198587
+     d_ln_mw |  -.0302469    .016871    -1.79   0.081    -.0643444    .0038506
+d_ln_emp_b~v |   .0087952    .004849     1.81   0.077     -.001005    .0185954
+d_ln_emp_i~o |   .0002307    .004047     0.06   0.955    -.0079486      .00841
+d_ln_emp_fin |   .0120884   .0052626     2.30   0.027     .0014523    .0227246
+d_ln_estco~v |   .0029403   .0151576     0.19   0.847    -.0276943    .0335748
+d_ln_estco~o |   .0009828   .0053907     0.18   0.856    -.0099122    .0118778
+d_ln_estco~n |   .0053767   .0072215     0.74   0.461    -.0092185    .0199719
+d_ln_avgww~v |   .0025832   .0030516     0.85   0.402    -.0035844    .0087508
+d_ln_avgww~o |   -.000017   .0014803    -0.01   0.991    -.0030088    .0029749
+d_ln_avgww~n |    -.00175    .001174    -1.49   0.144    -.0041228    .0006228
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       118           0         118     |
+-----------------------------------------------------+
+(note: variable year was int, now double to accommodate using data's values)
+(note: variable month was byte, now double to accommodate using data's
+       values)
+(note: variable year_month was int, now double to accommodate using data's
+       values)
+(38,773 real changes made)
+(38,773 real changes made)
+(37921 real changes made)
+(34479 real changes made)
+(37936 real changes made)
+(38755 real changes made)
+(38376 real changes made)
+(38720 real changes made)
+(37921 real changes made)
+(34479 real changes made)
+(37936 real changes made)
+(4,894,017 missing values generated)
+(38,773 real changes made)
+(38,773 real changes made)
+file ../temp/fes.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                         4,897,333  (_merge==3)
+    -----------------------------------------
+(717,195 missing values generated)
+(752,610 missing values generated)
+(4,858,560 observations deleted)
+(data now sorted by zipcode year month)
+  variable year was double now int
+  variable month was double now byte
+  (504,049 bytes saved)
+===============================================================================
+File: ../output/d_ln_rents_cf_predictions.dta
+Key: zipcode year month
+===============================================================================
+  38773:9(40006):3867394126:87309964
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+        year |     38,773        2020           0       2020       2020
+       month |     38,773           1           0          1          1
+     d_ln_mw |     38,773    .1081097    .1006085  -4.68e-08   .2162231
+d_exp_ln_~17 |     38,773    .0956233    .0952016          0   .2162231
+-------------+---------------------------------------------------------
+ln_rents_pre |      3,316     .240916    .4561595  -2.087003   2.741863
+p_d_ln_rents |     34,395    .2304221    .0645272   .0768057    .373399
+p_d_ln_ren~e |     34,395     .231693    .0645272   .0780766   .3746698
+   __hdfe1__ |     38,773    .0012709           0   .0012709   .0012709
+
+
+
+
+(note: file ../output/d_ln_rents_cf_predictions.dta not found)
+file ../output/d_ln_rents_cf_predictions.dta saved
+
+. 
+end of do-file
+
+
+Execute:  StataMP-64 /e do "./figures.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./figures.do 
+
+. clear all
+
+. set more off
+
 . set maxvar 32000
 
 
 . 
 . program main
-  1.         local in_sample   "../../../drive/derived_large/estimation_samples
-> "
-  2.         local in_preds    "../../../derived/zipcode_rent_sqft_income_preds
-> /output"
-  3.         local in_irs      "../../../drive/base_large/irs_soi"
-  4.         local in_cf_mw    "../../../drive/derived_large/min_wage"
-  5.         local in_est      "../../fd_baseline/output"
-  6.         local in_income   "../../twfe_wages/output"
-  7.         
-.         use "`in_income'/estimates_all.dta", clear
-  8.         keep if model == "cbsa_time_baseline"
-  9.     sum b if var == "ln_mw_avg"
- 10.         local epsilon_mw = r(mean)
- 11.     sum b if var == "exp_ln_mw_tot_17_avg"
- 12.         local epsilon_exp_mw = r(mean)
- 13.         
-.         use "`in_est'/estimates_static.dta", clear
- 14.         keep if model == "static_both"
- 15.     sum b if var == "ln_mw"
- 16.         local gamma = r(mean)
- 17.     sum b if var == "exp_ln_mw_17"
- 18.         local beta = r(mean)
- 19.         
-.         use zipcode year month counterfactual exp_ln_mw_tot using ///
->             "`in_cf_mw'/zipcode_experienced_mw_cfs.dta", clear
- 20.     keep if (year == 2020 & month == 1)
- 21.         rename exp_ln_mw_tot exp_ln_mw_tot_18_cf
- 22.         gen fed_mw_cf = 7.25*1.1 if counterfactual == "fed_10pc"
- 23.         replace fed_mw_cf = 15 if counterfactual == "fed_15usd"
- 24.         replace fed_mw_cf = 9 if counterfactual == "fed_9usd"
- 25.         save "../temp/counterfactual.dta", replace
- 26. 
-.         use zipcode zcta statefips state_abb year month ///
->             actual_mw ln_mw exp_ln_mw_18 ///
->             using "`in_sample'/all_zipcode_months.dta", clear
- 27.     keep if (year == 2019 & month == 12)
- 28.         save "../temp/factual.dta", replace
- 29.         
-.         use "../temp/counterfactual.dta", clear
- 30.         merge m:1 zipcode using "../temp/factual.dta", nogen keep(3)
- 31.         
-.         gen actual_mw_cf = actual_mw
- 32.         replace actual_mw_cf = fed_mw_cf if (fed_mw_cf >= actual_mw)
- 33.         gen ln_mw_cf = log(actual_mw_cf)
- 34.         gen d_ln_mw_cf = ln_mw_cf - ln_mw
- 35.         gen d_exp_ln_mw_tot_18_cf = exp_ln_mw_tot_18_cf - exp_ln_mw_18
- 36.         gen d_ln_rents = `gamma'*d_ln_mw_cf + `beta'*d_exp_ln_mw_tot_18_cf
- 37.         
-.         merge m:1 zipcode using "`in_preds'/predictions.dta", ///
->             nogen keep(1 3)
- 38.         keep if rural == 0
- 39.         keep if zipcode_type == "Zip Code Area"
- 40.         
-.         gen d_rents = (exp(d_ln_rents)-1)*p_rent_psqft
- 41.         gen total_rented_space = p_sqft_from_rents*renter_occupied
- 42.         gen d_rental_expenditure = total_rented_space*d_rents
- 43.         
-.         gen share_renter_hhlds = renter_occupied/total_households
- 44.         
-.     gen d_ln_wagebill = `epsilon_mw'*d_ln_mw_cf + `epsilon_exp_mw'*d_exp_ln_m
-> w_tot_18_cf
- 45.         gen d_wagebill = (exp(d_ln_wagebill)-1)*p_total_wage
- 46.         
-.         gen rho_per_capita = (d_rents*p_sqft_from_rents*share_renter_hhlds) /
-> //
->             /(d_wagebill/renter_occupied)
- 47.         
-.         gen rho = d_rental_expenditure/d_wagebill
- 48.         gen rho_alt = d_ln_rents/d_ln_wagebill
- 49.         
-.         gen d_rents_imp = (exp(d_ln_rents)-1)*imp_rent_psqft
- 50.         gen total_rented_space_imp = imp_sqft_from_rents*renter_occupied
- 51.         gen d_rental_expenditure_imp = total_rented_space_imp*d_rents_imp
- 52.         
-.         gen d_wagebill_imp = (exp(d_ln_wagebill)-1)*imp_total_wage
- 53.         
-.         gen rho_imp = d_rental_expenditure_imp/d_wagebill_imp
- 54. 
-.         save_data "../output/cfs.dta", key(zipcode counterfactual) replace
- 55. end
+  1.         local instub "../output"
+  2.         
+.         use `instub'/d_ln_rents_cf_predictions.dta, clear
+  3.         
+.         compute_vars
+  4.         
+.         foreach var in d_ln_mw d_exp_ln_mw_17 ///
+>                        p_d_ln_rents p_d_ln_rents_with_fe {
+  5.                 
+.                 get_xlabel, var(`var')
+  6.                 local x_lab = r(x_lab)
+  7.                 
+.                 unique zipcode if !missing(`var')
+  8.                 local n_zip = r(unique)
+  9.         
+.                 hist `var', percent bin(15) ///
+>                         xtitle("`x_lab'") ytitle("Percentage") note("ZIP code
+> s: `n_zip'") ///
+>                         xlabel(, labsize(small)) ylabel(, labsize(small)) ///
+>                         graphregion(color(white)) bgcolor(white)
+ 10.                 
+.                 graph export "../output/`var'.png", replace
+ 11.                 graph export "../output/`var'.eps", replace
+ 12.         }
+ 13. 
+. end
 
 . 
+. program compute_vars
+  1. 
+.         gen p_d_ln_rents_zillow         = p_d_ln_rents         if !missing(ln
+> _rents_pre)
+  2.         gen p_d_ln_rents_with_fe_zillow = p_d_ln_rents_with_fe if !missing
+> (ln_rents_pre)
+  3.         
+.         gen rents_pre  = exp(ln_rents_pre)
+  4.         gen rents_post = exp(p_d_ln_rents + ln_rents_pre)
+  5.     gen d_rents    = rents_post - rents_pre
+  6. 
+. end
+
+. 
+. program get_xlabel, rclass
+  1.     syntax, var(str)
+  2.         
+.         if inlist("`var'", "p_d_ln_rents", "p_d_ln_rents_with_fe", ///
+>                   "p_d_ln_rents_zillow", "p_d_ln_rents_with_fe_zillow") {
+  3.             return local x_lab "Change in log rents"
+  4.         }
+  5.         
+.         if "`var'"=="d_rents"             return local x_lab "Change in rents
+>  per sq. foot"
+  6.         if "`var'"=="d_ln_wagebill"       return local x_lab "Change in lo
+> g wage bill"
+  7.         if "`var'"=="d_wagebill"          return local x_lab "Change in wa
+> ge bill ($)"
+  8.         if "`var'"=="d_wagebill_per_hhld" return local x_lab "Change in wa
+> ge bill per household ($)"
+  9.         
+. end
+
+. 
+. 
 . main
-(16 observations deleted)
-
-    Variable |        Obs        Mean    Std. Dev.       Min        Max
--------------+---------------------------------------------------------
-           b |          1   -.0286795           .  -.0286795  -.0286795
-
-    Variable |        Obs        Mean    Std. Dev.       Min        Max
--------------+---------------------------------------------------------
-           b |          1    .2214309           .   .2214309   .2214309
-(6 observations deleted)
-
-    Variable |        Obs        Mean    Std. Dev.       Min        Max
--------------+---------------------------------------------------------
-           b |          1   -.0239382           .  -.0239382  -.0239382
-
-    Variable |        Obs        Mean    Std. Dev.       Min        Max
--------------+---------------------------------------------------------
-           b |          1    .0580006           .   .0580006   .0580006
-(117,423 observations deleted)
-(78,282 missing values generated)
-(39,141 real changes made)
-(39,141 real changes made)
-(note: file ../temp/counterfactual.dta not found)
-file ../temp/counterfactual.dta saved
-(4,817,953 observations deleted)
-(note: file ../temp/factual.dta not found)
-file ../temp/factual.dta saved
-
-    Result                           # of obs.
-    -----------------------------------------
-    not matched                             0
-    matched                           116,316  
-    -----------------------------------------
-(80,271 real changes made)
-(3 missing values generated)
-(3 missing values generated)
-
-    Result                           # of obs.
-    -----------------------------------------
-    not matched                        52,722
-        from master                    52,722  
-        from using                          0  
-
-    matched                            63,594  
-    -----------------------------------------
-(52,722 observations deleted)
-(16,797 observations deleted)
-(6 missing values generated)
-(3 missing values generated)
-(6 missing values generated)
-(240 missing values generated)
-(3 missing values generated)
-(6 missing values generated)
-(1,300 missing values generated)
-(681 missing values generated)
-(678 missing values generated)
-(6 missing values generated)
-(3 missing values generated)
-(6 missing values generated)
-(6 missing values generated)
-(681 missing values generated)
-(data now sorted by zipcode counterfactual)
-  variable year was double now int
-  variable month was double now byte
-  variable zipcode_type was str36 now str13
-  (1,684,692 bytes saved)
-===============================================================================
-File: ../output/cfs.dta
-Key: zipcode counterfactual
-===============================================================================
-  46797:61(88655):3810868778:1175575402
-
-    Variable |        Obs        Mean    Std. Dev.       Min        Max
--------------+---------------------------------------------------------
-     zipcode |          0
-counterfac~l |          0
-        year |     46,797        2020           0       2020       2020
-       month |     46,797           1           0          1          1
-exp_ln_mw_~f |     46,797    2.323188    .4954416          0   2.756195
--------------+---------------------------------------------------------
-   fed_mw_cf |     46,797    10.65833    3.098442      7.975         15
-        zcta |          0
-   statefips |          0
-   actual_mw |     46,797     9.08162    2.081692       7.25       16.3
-exp_ln_mw_18 |     46,794    2.110399    .4410028          0   2.699295
--------------+---------------------------------------------------------
-   state_abb |          0
-       ln_mw |     46,797    2.182438    .2132422   1.981001   2.791165
-actual_mw_cf |     46,797    11.42795    2.881062      7.975       16.3
-    ln_mw_cf |     46,797    2.404214    .2522525   2.076312   2.791165
-  d_ln_mw_cf |     46,797    .2217759    .2568247          0   .7270488
--------------+---------------------------------------------------------
-d_exp_ln_m~f |     46,794    .2127884    .2509458          0   .7270488
-  d_ln_rents |     46,794    .0070331     .008699  -.0174042   .0291848
-  place_code |          0
-  countyfips |          0
-      cbsa10 |          0
--------------+---------------------------------------------------------
-houses_zct~y |     46,797    4452.302    5666.329          1      47617
-       rural |     46,797           0           0          0          0
-pop2020_esri |     46,794    15516.51    17563.17          0     117035
-   area_sqmi |     46,794    116.5989    493.8319          0   20301.08
-zipcode_type |          0
--------------+---------------------------------------------------------
-  rent_psqft |      8,289    1.380343     .845587   .1184334   9.864861
-sqft_from~gs |     20,625    1792.038    516.3073   141.4662   6686.155
-sqft_from~ts |      7,740     1418.57    347.3519   207.6019   4072.944
-num_hhlds_~s |     42,435    7673.318    8104.042        100      54190
-adj_gross_~c |     42,435    607894.4    877768.3       1761   1.42e+07
--------------+---------------------------------------------------------
-  total_wage |     42,435    406327.2    530010.2        985    6397154
-total_hous~s |     46,797    5733.665    6249.839          0      41355
-owner_occu~d |     46,797    3460.019    3734.684          0      28752
-renter_occ~d |     46,797    2273.646    3211.946          0      33582
-       black |     46,797    2096.199    5094.374          0      86706
--------------+---------------------------------------------------------
-    hispanic |     46,797    3212.864    7585.296          0     101183
-num_county~s |     46,797    1268.442    821.0852          1       2790
-  num_cbsa10 |     46,797    574.4082    293.2822          1        928
-num_zipcod~e |     46,797           2           0          2          2
-p_sqft_fr~ts |     46,794     1565.79    285.0793    151.375   6122.063
--------------+---------------------------------------------------------
-imp_sqft_~ts |     46,794     1565.79    298.6778    151.375   6122.063
-p_sqft_fr~gs |     46,794    1771.895    300.7898   164.7822   4873.336
-imp_sqft_~gs |     46,797    1771.814    396.9334   141.4662   6686.155
-p_rent_psqft |     46,794    1.133974    .8381991   .0092476   10.81053
-imp_rent_p~t |     46,794    1.133974     .846944   .0092476   10.81053
--------------+---------------------------------------------------------
-p_total_wage |     46,794      381048    521760.9       2770   1.21e+07
-imp_total_~e |     46,794      381048    513122.2        985    6397154
-     d_rents |     46,791    .0067825    .0093106  -.0504753    .260969
-total_rent~e |     46,794     3177958     4068687          0   3.39e+07
-d_rental_e~e |     46,791    20848.67       49086  -306427.4     899854
--------------+---------------------------------------------------------
-share_rent~s |     46,557    .3270441    .1853301          0          1
-d_ln_wageb~l |     46,794    .0407577    .0484379  -.0208514   .1434539
-  d_wagebill |     46,791    13570.97    31097.42  -20526.13    1035919
-rho_per_ca~a |     45,497    .8867649    1.727014  -1.072321    67.8627
-         rho |     46,116     2.01269    3.155089   -1.52054   196.7396
--------------+---------------------------------------------------------
-     rho_alt |     46,119    .2154446    .0976687  -.1748303   .8346781
- d_rents_imp |     46,791    .0067805    .0093497  -.0504753    .260969
-total_rent~p |     46,794     3154281     4029966          0   3.44e+07
-d_rental_e~p |     46,791     20711.7    49050.87  -306427.4     899854
-d_wagebill~p |     46,791     13555.1    31595.01  -20526.13   603374.5
--------------+---------------------------------------------------------
-     rho_imp |     46,116    2.331322    3.427422  -1.466772   196.7396
-
-
-
-
-(note: file ../output/cfs.dta not found)
-file ../output/cfs.dta saved
+(35,506 missing values generated)
+(35,506 missing values generated)
+(35,457 missing values generated)
+(35,506 missing values generated)
+(35,506 missing values generated)
+Number of unique values of zipcode is  38773
+Number of records is  38773
+(bin=15, start=-4.681e-08, width=.01441488)
+(note: file ../output/d_ln_mw.png not found)
+(file ../output/d_ln_mw.png written in PNG format)
+(note: file ../output/d_ln_mw.eps not found)
+(file ../output/d_ln_mw.eps written in EPS format)
+Number of unique values of zipcode is  38773
+Number of records is  38773
+(bin=15, start=0, width=.01441487)
+(note: file ../output/d_exp_ln_mw_17.png not found)
+(file ../output/d_exp_ln_mw_17.png written in PNG format)
+(note: file ../output/d_exp_ln_mw_17.eps not found)
+(file ../output/d_exp_ln_mw_17.eps written in EPS format)
+Number of unique values of zipcode is  34395
+Number of records is  34395
+(bin=15, start=.07680573, width=.01977288)
+(note: file ../output/p_d_ln_rents.png not found)
+(file ../output/p_d_ln_rents.png written in PNG format)
+(note: file ../output/p_d_ln_rents.eps not found)
+(file ../output/p_d_ln_rents.eps written in EPS format)
+Number of unique values of zipcode is  34395
+Number of records is  34395
+(bin=15, start=.07807659, width=.01977288)
+(note: file ../output/p_d_ln_rents_with_fe.png not found)
+(file ../output/p_d_ln_rents_with_fe.png written in PNG format)
+(note: file ../output/p_d_ln_rents_with_fe.eps not found)
+(file ../output/p_d_ln_rents_with_fe.eps written in EPS format)
 
 . 
 end of do-file
 
- make.py ended: 2021-10-26 09:30:10
+ make.py ended: 2021-11-01 06:24:52
