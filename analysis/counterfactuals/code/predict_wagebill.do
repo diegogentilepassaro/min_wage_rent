@@ -12,7 +12,7 @@ program main
 	define_controls
 	local controls "`r(economic_controls)'"
 	local cluster = "statefips"
-	local absorb  = "zipcode_num year#cbsa10_num"
+	local absorb  = "zipcode_num year"
 	
     process_counterfactual_data, in_cf_mw(`in_cf_mw') ///
 	    instub(`in_baseline') controls(`controls')
@@ -22,7 +22,7 @@ program main
 	reghdfe ln_wagebill exp_ln_mw_tot_18_avg, ///
         absorb(`absorb', savefe) vce(cluster `cluster') ///
 		nocons residuals(residuals)
-	append using "../temp/counterfactual_fed_9usd.dta"
+    append using "../temp/counterfactual_fed_9usd.dta"
 	gen counterfactual = 0
 	replace counterfactual = 1 if year == 2020 
 	replace exp_ln_mw_tot_18_avg = exp_ln_mw_tot_18_avg_cf if year == 2020
@@ -32,16 +32,18 @@ program main
 		save "../temp/zip_fes.dta", replace
 	restore
 	preserve 
-	    collapse __hdfe2__, by(year cbsa10)
+	    collapse __hdfe2__, by(year)
 		save "../temp/time_fes.dta", replace
 	restore
 	drop __hdfe1__ __hdfe2__
 	merge m:1 zipcode using "../temp/zip_fes.dta", nogen keep(1 3)
-	merge m:1 year cbsa10 using "../temp/time_fes.dta", nogen keep(1 3)
+	merge m:1 year using "../temp/time_fes.dta", nogen keep(1 3)
     predict p_ln_wagebill, xb
     gen p_ln_wagebill_with_fe = p_ln_wagebill + __hdfe1__ + __hdfe2__
 	
 	keep if year == 2018 | year == 2020
+	bysort zipcode (counterfactual): gen d_exp_ln_mw_tot_18_avg = ///
+	    exp_ln_mw_tot_18_avg[_n] - exp_ln_mw_tot_18_avg[_n - 1]
 	bysort zipcode (year): carryforward ln_wagebill, replace
 	gen n_hhlds = exp(ln_n_hhdls)
 	bysort zipcode (year): carryforward n_hhlds, replace
@@ -49,9 +51,9 @@ program main
 	rename (ln_wagebill n_hhlds) (ln_wagebill_pre n_hhlds_pre)
 	
 	keep zipcode year ln_wagebill ln_wagebill_pre n_hhlds_pre ///
-	    p_ln_wagebill p_ln_wagebill_with_fe __hdfe1__ __hdfe2__
+	    p_ln_wagebill p_ln_wagebill_with_fe
 	order zipcode year ln_wagebill ln_wagebill_pre n_hhlds_pre ///
-	    p_ln_wagebill p_ln_wagebill_with_fe __hdfe1__ __hdfe2__
+	    p_ln_wagebill p_ln_wagebill_with_fe
 	save_data "../output/ln_wagebill_cf_predictions.dta", ///
 	    key(zipcode year) replace
 end
@@ -72,7 +74,7 @@ program process_counterfactual_data
 
 	use "`instub'/all_zipcode_months.dta", clear
 	keep if (year == 2019 & month == 12)
-	keep zipcode cbsa10 actual_mw
+	keep zipcode actual_mw
 	expand 3
 	bysort zipcode: gen counterfactual = "fed_10pc" if _n == 1
 	bysort zipcode: replace counterfactual = "fed_15usd" if _n == 2

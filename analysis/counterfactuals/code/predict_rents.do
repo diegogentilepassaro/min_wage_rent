@@ -61,11 +61,9 @@ program main
     keep if counterfactual == 1
         
     keep zipcode year month d_ln_mw d_exp_ln_mw_17 ///
-        ln_rents_pre p_d_ln_rents p_d_ln_rents_with_fe ///
-        __hdfe1__
-    order zipcode year month d_ln_mw d_exp_ln_mw_17 ///
-        ln_rents_pre p_d_ln_rents p_d_ln_rents_with_fe ///
-        __hdfe1__
+        ln_rents_pre p_d_ln_rents p_d_ln_rents_with_fe
+	order zipcode year month d_ln_mw d_exp_ln_mw_17 ///
+        ln_rents_pre p_d_ln_rents p_d_ln_rents_with_fe
     save_data "../output/d_ln_rents_cf_predictions.dta", ///
         key(zipcode year month) replace
 end

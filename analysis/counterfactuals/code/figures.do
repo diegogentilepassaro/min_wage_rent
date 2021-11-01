@@ -6,13 +6,16 @@ program main
 	local instub "../output"
 	
 	use `instub'/d_ln_rents_cf_predictions.dta, clear
-	merge 1:1 zipcode using  `instub'/ln_wagebill_cf_predictions.dta, nogen
+	merge 1:1 zipcode using  `instub'/ln_wagebill_cf_predictions.dta, ///
+	    nogen keepusing(ln_wagebill_pre n_hhlds_pre)
 	
 	compute_vars
 	
 	foreach var in d_ln_mw d_exp_ln_mw_17 ///
-	               d_rents p_d_ln_rents p_d_ln_rents_with_fe ///
-				   p_d_ln_rents_zillow p_d_ln_rents_with_fe_zillow {
+	               d_ln_rents d_rents  ///
+				   d_ln_rents_zillow d_rents_zillow ///
+				   d_ln_wagebill d_wagebill d_wagebill_per_hhld ///
+				   d_ln_wagebill_zillow d_wagebill_zillow d_wagebill_per_hhld_zillow {
 		
 		get_xlabel, var(`var')
 		local x_lab = r(x_lab)
@@ -32,13 +35,26 @@ program main
 end
 
 program compute_vars
-
-	gen p_d_ln_rents_zillow         = p_d_ln_rents         if !missing(ln_rents_pre)
-	gen p_d_ln_rents_with_fe_zillow = p_d_ln_rents_with_fe if !missing(ln_rents_pre)
+	local exp_ln_mw_on_ln_wagebill = 0.1588706
+	local exp_ln_mw_on_ln_rents = 0.064464323
+	local ln_mw_on_ln_rents = -0.030246906
 	
-	gen rents_pre  = exp(ln_rents_pre)
-	gen rents_post = exp(p_d_ln_rents + ln_rents_pre)
-    gen d_rents    = rents_post - rents_pre
+	gen ln_rents_post = ln_rents_pre + ///
+	    `exp_ln_mw_on_ln_rents'*d_exp_ln_mw_17 + `ln_mw_on_ln_rents'*d_ln_mw
+	gen d_ln_rents = ln_rents_post - ln_rents_pre
+    gen d_rents    = exp(ln_rents_post) - exp(ln_rents_pre)
+	
+	gen d_ln_rents_zillow = d_ln_rents if !missing(ln_rents_pre)
+    gen d_rents_zillow    = d_rents if !missing(ln_rents_pre)
+
+	gen ln_wagebill_post = ln_wagebill_pre + `exp_ln_mw_on_ln_wagebill'*d_exp_ln_mw_17
+	gen d_ln_wagebill = ln_wagebill_post - ln_wagebill_pre
+	gen d_wagebill = exp(ln_wagebill_post) - exp(ln_wagebill_pre)
+	gen d_wagebill_per_hhld = d_wagebill/n_hhlds_pre
+	
+	gen d_ln_wagebill_zillow = d_ln_wagebill if !missing(ln_rents_pre)
+	gen d_wagebill_zillow = d_wagebill if !missing(ln_rents_pre)
+	gen d_wagebill_per_hhld_zillow = d_wagebill_per_hhld if !missing(ln_rents_pre)
 end
 
 program get_xlabel, rclass
@@ -49,11 +65,23 @@ program get_xlabel, rclass
 	    return local x_lab "Change in log rents"
 	}
 	
-	if "`var'"=="d_rents"             return local x_lab "Change in rents per sq. foot"
-	if "`var'"=="d_ln_wagebill"       return local x_lab "Change in log wage bill"
-	if "`var'"=="d_wagebill"          return local x_lab "Change in wage bill ($)"
-	if "`var'"=="d_wagebill_per_hhld" return local x_lab "Change in wage bill per household ($)"
+	if "`var'"=="d_ln_mw"           return local x_lab "Change in residence log MW"
+	if "`var'"=="d_exp_ln_mw_17"    return local x_lab "Change in workplace log MW"
 	
+	if "`var'"=="d_ln_rents"           return local x_lab "Change in log rents per sq. foot"
+	if "`var'"=="d_ln_rents_zillow"    return local x_lab "Change in log rents per sq. foot"
+
+	if "`var'"=="d_rents"              return local x_lab "Change in rents per sq. foot"
+	if "`var'"=="d_rents_zillow"       return local x_lab "Change in rents per sq. foot"
+
+	if "`var'"=="d_ln_wagebill"        return local x_lab "Change in log wage bill"
+	if "`var'"=="d_ln_wagebill_zillow" return local x_lab "Change in log wage bill"
+
+	if "`var'"=="d_wagebill"          return local x_lab "Change in wage bill ($)"
+	if "`var'"=="d_wagebill_zillow"   return local x_lab "Change in wage bill ($)"
+
+	if "`var'"=="d_wagebill_per_hhld"        return local x_lab "Change in wage bill per household ($)"
+	if "`var'"=="d_wagebill_per_hhld_zillow" return local x_lab "Change in wage bill per household ($)"	
 end
 
 
