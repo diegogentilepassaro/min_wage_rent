@@ -8,7 +8,7 @@ program main
     local in_baseline "../../fd_baseline/output"
     local in_wages    "../../twfe_wages/output"
 	local geo         "../../../base/geo_master/output"
-use "`geo'/zip_county_place_usps_master.dta", clear
+    use "`geo'/zip_county_place_usps_master.dta", clear
 
     load_parameters, in_baseline(`in_baseline') in_wages(`in_wages')
     local beta    = r(beta)
