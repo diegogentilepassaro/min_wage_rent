@@ -29,6 +29,7 @@ if envir_vars is None:
 start_make_logging()
 
 fd_baseline_dir = "../../fd_baseline/output"
+fd_cf_dir       = "../../counterfactuals/output"
 fd_robust_dir   = "../../fd_robustness/output"
 fd_county_dir   = "../../fd_county/output"
 fd_wages_dir    = "../../twfe_wages/output"
@@ -37,21 +38,41 @@ tablefill(input    = os.path.join(fd_baseline_dir, 'static.txt'),
           template = '../input/static.tex', 
           output   = '../output/static.tex')
 
+tablefill(input    = os.path.join(fd_baseline_dir, 'static.txt'), 
+          template = '../input/slides_static.tex',
+          output   = '../output/slides_static.tex')
+
 tablefill(input    = os.path.join(fd_robust_dir, 'static_sample.txt'),
-          template = '../input/static_sample.tex', 
+          template = '../input/static_sample.tex',
           output   = '../output/static_sample.tex')
+
+tablefill(input    = os.path.join(fd_robust_dir, 'static_sample.txt'),
+          template = '../input/slides_static_sample.tex',
+          output   = '../output/slides_static_sample.tex')
+
+tablefill(input    = os.path.join(fd_robust_dir, 'static_robust.txt'),
+          template = '../input/static_robust.tex',
+          output   = '../output/static_robust.tex')
+
+tablefill(input    = os.path.join(fd_robust_dir, 'static_robust.txt'), 
+          template = '../input/slides_static_robust.tex', 
+          output   = '../output/slides_static_robust.tex')
 
 tablefill(input    = os.path.join(fd_robust_dir, 'static_ab.txt'),
           template = '../input/static_ab.tex', 
           output   = '../output/static_ab.tex')
 
-tablefill(input    = os.path.join(fd_robust_dir, 'static_robust.txt'),
-          template = '../input/static_robust.tex', 
-          output   = '../output/static_robust.tex')
-
 tablefill(input    = os.path.join(fd_county_dir, 'static_county.txt'),
           template = '../input/static_county.tex', 
           output   = '../output/static_county.tex')
+
+tablefill(input    = os.path.join(fd_robust_dir, 'static_expMW_sensitivity.txt'),
+          template = '../input/static_expMW_sensitivity.tex', 
+          output   = '../output/static_expMW_sensitivity.tex')
+
+tablefill(input    = os.path.join(fd_robust_dir, 'static_expMW_sensitivity.txt'),
+          template = '../input/slides_static_expMW_sensitivity.tex', 
+          output   = '../output/slides_static_expMW_sensitivity.tex')
 
 tablefill(input    = fd_wages_dir + '/static_wages.txt', 
           template = '../input/static_wages.tex', 
@@ -60,6 +81,14 @@ tablefill(input    = fd_wages_dir + '/static_wages.txt',
 tablefill(input    = fd_wages_dir + '/static_wages_robustness.txt', 
           template = '../input/static_wages_robustness.tex', 
           output   = '../output/static_wages_robustness.tex')
+
+tablefill(input    = fd_cf_dir + '/counterfactuals.txt', 
+          template = '../input/counterfactuals.tex', 
+          output   = '../output/counterfactuals.tex')
+
+tablefill(input    = fd_cf_dir + '/counterfactuals.txt', 
+          template = '../input/slides_counterfactuals.tex', 
+          output   = '../output/slides_counterfactuals.tex')
 
 end_make_logging()
 
