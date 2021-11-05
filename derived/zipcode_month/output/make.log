@@ -1,5 +1,5 @@
 
- make.py started: 2021-09-23 12:33:09 C:\Users\diegog\Desktop\Diego\min_wage_rent\derived\zipcode_month\code 
+ make.py started: 2021-10-30 13:52:57 C:\Users\diegog\Desktop\Diego\min_wage_rent\derived\zipcode_month\code 
 
 
 
@@ -54,38 +54,37 @@ Notes:
 
 . 
 . program main
-  1.     local in_derived_large "../../../drive/derived_large"
-  2.     local in_geo           "../../../base/geo_master/output"
-  3.     local in_base_large    "../../../drive/base_large"
-  4.     local in_qcew          "../../../base/qcew/output"
-  5.     local outstub          "../../../drive/derived_large/zipcode_month"
-  6.     local logfile          "../output/data_file_manifest.log"
+  1.     local in_der_large  "../../../drive/derived_large"
+  2.     local in_geo        "../../../base/geo_master/output"
+  3.     local in_base_large "../../../drive/base_large"
+  4.     local in_qcew       "../../../base/qcew/output"
+  5.     local outstub       "../../../drive/derived_large/zipcode_month"
+  6.     local logfile       "../output/data_file_manifest.log"
   7. 
 .     use zipcode place_code countyfips cbsa10 zcta statefips rural            
->      ///
+>  ///
 >         using "`in_geo'/zip_county_place_usps_master.dta", clear
   8. 
-.     merge 1:m zipcode using "`in_derived_large'/min_wage/zip_statutory_mw.dta
-> ",   ///
->        nogen assert(3) keepusing(year month actual* binding*)
+.     merge 1:m zipcode using "`in_der_large'/min_wage/zip_statutory_mw.dta",  
+>  ///
+>        nogen assert(1 3) keepusing(year month actual* binding*)
   9.     
 .     merge_zillow, instub("`in_base_large'/zillow")
  10.     
-.     merge_exp_mw, instub("`in_derived_large'/min_wage")
- 11. 
-.     merge_acs_pop, instub("`in_base_large'/demographics")
- 12.     
+.     merge_exp_mw, instub("`in_der_large'/min_wage")
+ 11.     
 .     make_date_variables
- 13. 
+ 12. 
 .     merge m:1 statefips countyfips year month                                
->      ///
+> ///
 >         using "`in_qcew'/ind_emp_wage_countymonth.dta", nogen keep(1 3)
- 14.         drop qmon end_month
+ 13.     drop qmon end_month
+ 14.         drop if (missing(zipcode) | missing(year_month))
  15. 
 .     strcompress
  16.     save_data "`outstub'/zipcode_month_panel.dta", replace ///
 >         key(zipcode year month) log(`logfile')
- 17.         export delimited "`outstub'/zipcode_month_panel.csv", replace
+ 17.     export delimited "`outstub'/zipcode_month_panel.csv", replace
  18. end
 
 . 
@@ -105,30 +104,36 @@ Notes:
 . program merge_exp_mw
   1.     syntax, instub(str)
   2. 
-.     merge 1:1 zipcode year month using "`instub'/zipcode_experienced_mw.dta",
->  ///
->         nogen keep(1 3) keepusing(exp*)
-  3. 
+.     foreach year in 10 14 17 18 {
+  3.         merge 1:1 zipcode year month using "`instub'/zipcode_experienced_m
+> w_20`year'.dta", ///
+>             nogen keep(1 3) keepusing(exp*)
+  4.         if `year' == 10 {
+  5.             describe exp*, varlist
+  6.             local vars = r(varlist)
+  7.         }
+  8.         foreach var of local vars {
+  9.             rename `var' `var'_`year'
+ 10.         }
+ 11.         drop *mean_`year'
+ 12.     }
+ 13. 
 .     qui sum medrentpricepsqft_SFCC if !missing(medrentpricepsqft_SFCC)
-  4.     local observations_with_rents = r(N)
-  5. 
-.     sum exp_ln_mw_tot if !missing(medrentpricepsqft_SFCC)
-  6.     assert r(N) == `observations_with_rents'
-  7. end
-
-. 
-. program merge_acs_pop
-  1.     syntax, instub(str)
-  2. 
-.     merge m:1 zipcode year using "`instub'/acs_population_zipyear.dta", ///
->         nogen keep(1 3)
-  3. 
-.     qui sum medrentpricepsqft_SFCC if !missing(medrentpricepsqft_SFCC)
-  4.     local observations_with_rents = r(N)
-  5. 
-.     qui sum acs_pop if !missing(medrentpricepsqft_SFCC)
-  6.     assert r(N) == `observations_with_rents'
-  7. end
+ 14.     local observations_with_rents = r(N)
+ 15. 
+.     foreach year in 10 14 17 18 {
+ 16.         sum exp_ln_mw_tot_`year' if !missing(medrentpricepsqft_SFCC)
+ 17.         assert r(N) == `observations_with_rents'
+ 18.     }
+ 19.     
+.     foreach year in 11 12 13 15 16 {
+ 20.         merge 1:1 zipcode year month using "`instub'/zipcode_experienced_m
+> w_20`year'.dta", ///
+>             nogen keep(1 3) keepusing(exp_ln_mw_tot)
+ 21.         
+.         rename exp_ln_mw_tot exp_ln_mw_tot_`year'
+ 22.     }
+ 23. end
 
 . 
 . program make_date_variables
@@ -146,56 +151,164 @@ Notes:
   9. end
 
 . 
+. 
 . main
 
     Result                           # of obs.
     -----------------------------------------
-    not matched                             0
-    matched                         4,858,560  
-    -----------------------------------------
-
-    Result                           # of obs.
-    -----------------------------------------
-    not matched                     6,406,967
-        from master                 1,000,440  (_merge==1)
-        from using                  5,406,527  (_merge==2)
-
-    matched                         3,858,120  (_merge==3)
-    -----------------------------------------
-(5,406,527 observations deleted)
-
-    Result                           # of obs.
-    -----------------------------------------
-    not matched                       706,200
-        from master                   706,200  
+    not matched                             1
+        from master                         1  
         from using                          0  
 
-    matched                         4,152,360  
+    matched                         4,898,927  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                     6,383,033
+        from master                 1,008,657  (_merge==1)
+        from using                  5,374,376  (_merge==2)
+
+    matched                         3,890,271  (_merge==3)
+    -----------------------------------------
+(5,374,376 observations deleted)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       208,362
+        from master                   208,362  
+        from using                          0  
+
+    matched                         4,690,566  
+    -----------------------------------------
+
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+exp_ln_mw_tot   double  %10.0g                
+exp_ln_mw_ag~29 double  %10.0g                
+exp_ln_mw_ag~54 double  %10.0g                
+exp_ln_mw_ag~55 double  %10.0g                
+exp_ln_mw_~1250 double  %10.0g                
+exp_ln_mw~_3333 double  %10.0g                
+exp_ln_mw~e3333 double  %10.0g                
+exp_ln_mw_goo~d double  %10.0g                
+exp_ln_mw_tra~l double  %10.0g                
+exp_ln_mw_oth~d double  %10.0g                
+exp_ln_mw_tot~n double  %10.0g                
+exp_ln_m~9_mean double  %10.0g                
+exp_ln_m~4_mean double  %10.0g                
+exp_ln_m~5_mean double  %10.0g                
+exp_ln_m~0_mean double  %10.0g                
+exp_~_3333_mean double  %10.0g                
+exp_~e3333_mean double  %10.0g                
+exp_ln_mw_goo~n double  %10.0g                
+exp_ln_mw_tra~n double  %10.0g                
+exp_ln_mw_oth~n double  %10.0g                
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       207,636
+        from master                   207,636  
+        from using                          0  
+
+    matched                         4,691,292  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       207,636
+        from master                   207,636  
+        from using                          0  
+
+    matched                         4,691,292  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       207,636
+        from master                   207,636  
+        from using                          0  
+
+    matched                         4,691,292  
     -----------------------------------------
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
-exp_ln_mw_~t |    197,978     2.12542    .1696592   1.981065   2.693328
+exp_ln_~t_10 |    197,978    2.120943    .1701719   1.849591    2.68817
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+exp_ln_~t_14 |    197,978    2.121229    .1700409   1.842676   2.688594
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+exp_ln_~t_17 |    197,978    2.121321    .1699807   1.815951    2.69731
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+exp_ln_~t_18 |    197,978    2.121512    .1699973   1.808574   2.702959
 
     Result                           # of obs.
     -----------------------------------------
-    not matched                       207,828
-        from master                   207,828  
+    not matched                       207,636
+        from master                   207,636  
         from using                          0  
 
-    matched                         4,650,732  
+    matched                         4,691,292  
     -----------------------------------------
 
     Result                           # of obs.
     -----------------------------------------
-    not matched                           912
-        from master                       912  
+    not matched                       207,636
+        from master                   207,636  
         from using                          0  
 
-    matched                         4,857,648  
+    matched                         4,691,292  
     -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       207,636
+        from master                   207,636  
+        from using                          0  
+
+    matched                         4,691,292  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       207,636
+        from master                   207,636  
+        from using                          0  
+
+    matched                         4,691,292  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       207,636
+        from master                   207,636  
+        from using                          0  
+
+    matched                         4,691,292  
+    -----------------------------------------
+(1 missing value generated)
+(1 missing value generated)
+(1 missing value generated)
+(1 missing value generated)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                        41,400
+        from master                    41,400  
+        from using                          0  
+
+    matched                         4,857,528  
+    -----------------------------------------
+(1 observation deleted)
   Converting str to strL: zipcode place_code countyfips cbsa10 zcta statefips
-    strcompress grew data 49% so far, but I'm not done yet!
+    strcompress grew data 38% so far, but I'm not done yet!
   variable medDailylistings_NSA_SFCC was long now int
   variable Monthlylistings_NSA_SFCC was long now int
   variable NewMonthlylistings_NSA_SFCC was long now int
@@ -214,158 +327,186 @@ exp_ln_mw_~t |    197,978     2.12542    .1696592   1.981065   2.693328
   variable cbsa10 was strL now str5
   variable zcta was strL now str5
   variable statefips was strL now str2
-  (2,079,219,015 bytes saved)
-       compress shrank data 37%
-    strcompress shrank data  7% overall
+  (2,098,399,264 bytes saved)
+       compress shrank data 31%
+    strcompress shrank data  5% overall
 (data now sorted by zipcode year month)
   (0 bytes saved)
 ===============================================================================
 File: ../../../drive/derived_large/zipcode_month/zipcode_month_panel.dta
 Key: zipcode year month
 ===============================================================================
-  4858560:116(107787):2114225923:951895725
+  4898927:140(62561):3676896391:1775870084
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
      zipcode |          0
-        year |  4,858,560      2014.5    2.872282       2010       2019
-       month |  4,858,560         6.5    3.452053          1         12
+        year |  4,898,927    2014.545    2.903404       2010       2020
+       month |  4,898,927    6.454545    3.473632          1         12
   place_code |          0
   countyfips |          0
 -------------+---------------------------------------------------------
       cbsa10 |          0
         zcta |          0
    statefips |          0
-       rural |  4,858,560     .444675    .4969298          0          1
-actual~w_max |  4,858,560    7.933845    1.134234       7.25       16.3
+       rural |  4,898,927    .4446612    .4969282          0          1
+   actual_mw |  4,858,440    7.933838    1.134233       7.25       16.3
 -------------+---------------------------------------------------------
-actual~l_max |  4,858,560    7.903267    1.042805       7.25         14
-ac~w_wg_mean |  4,858,560    7.931478    1.129282       7.25      16.09
-ac~l_wg_mean |  4,858,560    7.902423    1.042241       7.25         14
-   actual_mw |  4,858,560    7.931512    1.129657       7.25      16.09
-  binding_mw |  4,858,560    1.478565    .5600661          1          4
+actual_mw_~l |  4,858,440     7.90326    1.042802       7.25         14
+actua~w_mean |  4,858,440    7.931205    1.127841       7.25      16.09
+actua~l_mean |  4,858,440    7.902433    1.042105       7.25         14
+  binding_mw |  4,858,440    1.478446    .5596184          1          4
+binding_mw~l |  4,858,440    1.454431    .4979192          1          2
 -------------+---------------------------------------------------------
-actual_mw_~l |  4,858,560    7.902459    1.042369       7.25         14
-binding_mw~l |  4,858,560    1.454407     .497917          1          2
-medDailyli~C |    872,235    107.2474    96.89177         11       2234
+medDailyli~C |    883,536    106.7855    96.75242         11       2234
 medli~e_SFCC |    919,398    296524.5    256996.8      12000    6995000
 m~e_low_tier |    237,537    151736.7    94283.89      11750     939935
--------------+---------------------------------------------------------
 m~e_top_tier |    481,521    463979.4    350800.1     112450    7295000
 medli~t_SFCC |  1,083,813    165.6305    135.7581   11.57113   2802.347
+-------------+---------------------------------------------------------
 m~t_low_tier |    296,286    121.5329    83.33472   11.50727   1672.388
 m~t_top_tier |    516,368    206.6456    177.9822   31.52173   2799.423
 medpctpric~C |    828,016    3.957614    1.949874   .0002196   48.27586
--------------+---------------------------------------------------------
 medren~e_1BR |     69,440    1607.937     670.499        350       5195
 medren~e_2BR |    106,799    1766.741    879.0102        475      19500
+-------------+---------------------------------------------------------
 medren~e_3BR |     76,539    1928.871     1459.31        455      40000
 medren~e_4BR |     10,310    3116.339    5197.041        435      50000
 medren~e_5BR |        868     5715.09    7571.906       1250      50000
--------------+---------------------------------------------------------
 medre~e_SFCC |    192,932    1768.679    1527.426        500      50000
 medrent~e_CC |     34,676     2105.65    938.7924        700       8975
+-------------+---------------------------------------------------------
 med~e_MFdxtx |     26,880    1979.011    832.9655        375       6646
 m~e_Mfr5Plus |    175,096     1554.04    697.8883        375      20000
 medrent~e_SF |    142,386    1778.371    1931.017        500      50000
--------------+---------------------------------------------------------
 med~e_Studio |     28,999    1670.905    1365.808        300      50000
 medren~t_1BR |     55,424    2.191226    .9194792   .6388889   7.164352
+-------------+---------------------------------------------------------
 medren~t_2BR |     92,792    1.682865     .803698   .5015198   12.55461
 medren~t_3BR |     67,139    1.233209    .8117302   .5060225       17.5
 medren~t_4BR |      8,370     1.49865    2.559936   .5492424   21.85141
--------------+---------------------------------------------------------
 medren~t_5BR |        537    7.753782    7.031498   .3727683         22
 medre~t_SFCC |    197,978    1.303812    1.033133   .1091193   23.96932
+-------------+---------------------------------------------------------
 medrent~t_CC |     30,608    2.170225    1.168605   .5835432   12.92755
 med~t_MFdxtx |     11,949    2.451649    1.286775   .3627695   6.936796
 m~t_Mfr5Plus |    146,858    1.736677     .849114   .3150482   12.55435
--------------+---------------------------------------------------------
 medrent~t_SF |    144,593       1.145    1.002039   .1039069   24.48466
 med~t_Studio |     23,491    1.954625    1.574804   .4288971   7.347833
-Monthlylis~C |    946,793    127.9681    115.9901         11       2540
-NewMonthly~C |    106,535     52.3928    31.51132         11        609
+-------------+---------------------------------------------------------
+Monthlylis~C |    958,762    127.5251     115.849         11       2540
+NewMonthly~C |    111,046    51.64428    31.47532         11        609
 pctlisting~C |  1,108,016    13.15715     5.34997          0   47.94521
+ Sale_Counts |  3,702,630    11.16355    19.84411          0        493
+SalesPrevF~e |  2,632,281    .0325513    .1017394          0          1
 -------------+---------------------------------------------------------
- Sale_Counts |  3,682,580    11.14501    19.84515          0        493
-SalesPrevF~e |  2,623,186    .0326417    .1018719          0          1
     zhvi_2BR |  3,011,088    148986.8    146056.2       7879    3893638
-   zhvi_SFCC |  3,470,146    188959.5    191397.2       8565    6478929
-      zhvi_C |  1,207,185    210632.7      177676      13759    3815192
+   zhvi_SFCC |  3,500,577    189281.7    191817.9       8565    6564855
+      zhvi_C |  1,218,149    211001.4    177998.2      13687    3825300
+     zhvi_SF |  3,496,509    197836.6    234845.9       8565    8737684
+  zri_SFCCMF |  1,347,720    1356.072    875.9493        368      83894
 -------------+---------------------------------------------------------
-     zhvi_SF |  3,466,100    197499.4    234385.7       8565    8737684
-  zri_SFCCMF |  1,335,839        1355    876.0783        368      83894
-      zri_MF |    138,428    1516.469    639.5635        420      18349
-  exp_mw_tot |  4,152,360    7.939996    1.091968       7.25   14.92743
-exp_mw_young |  4,152,360    7.937314    1.084336       7.25   15.07641
+      zri_MF |    140,035    1518.065    639.5489        420      18349
+exp_ln_~t_10 |  4,690,566    1.839091    .6487642          0   2.742882
+exp_ln_~9_10 |  4,690,566    1.839186     .648721          0   2.740342
+exp_ln_~4_10 |  4,690,566    1.839004      .64878          0   2.743511
+exp_ln_~5_10 |  4,690,566    1.839203    .6488723          0    2.75524
 -------------+---------------------------------------------------------
-exp_mw_low~c |  4,152,360    7.932575    1.079528       7.25   14.99598
-exp_ln_mw_~t |  4,152,360    2.063029    .1213548   1.981001     2.6952
-exp_ln_mw_~g |  4,152,360    2.062733    .1205857   1.981001   2.705819
-exp_ln_mw_~c |  4,152,360    2.062301    .1203579   1.981001   2.699777
-exp_mw_tot~n |  4,152,360    7.939996    1.091968       7.25   14.92743
+exp_ln_~0_10 |  4,690,566    1.839482     .648798          0   2.751147
+exp~_3333_10 |  4,690,566    1.839023    .6486465          0    2.74814
+exp~e3333_10 |  4,690,566    1.838792    .6488237          0   2.739075
+exp_ln~od_10 |  4,690,566    1.839381    .6486672          0   2.726512
+exp_ln_~l_10 |  4,690,566     1.83803    .6483161          0   2.737219
 -------------+---------------------------------------------------------
-exp_mw_you~n |  4,152,360    7.937314    1.084336       7.25   15.07641
-exp_mw_low~n |  4,152,360    7.932575    1.079528       7.25   14.99598
-exp_ln_mw_.. |  4,152,360    2.063029    .1213548   1.981001     2.6952
-exp_ln_mw_.. |  4,152,360    2.062733    .1205857   1.981001   2.705819
-exp_ln_mw_.. |  4,152,360    2.062301    .1203579   1.981001   2.699777
+exp_ln~nd_10 |  4,690,566    1.839193    .6489748          0   2.746967
+exp_ln_~t_14 |  4,691,292    1.839458    .6490167          0    2.73948
+exp_ln_~9_14 |  4,691,292    1.839498    .6488502          0   2.745119
+exp_ln_~4_14 |  4,691,292    1.839425     .649058          0   2.739504
+exp_ln_~5_14 |  4,691,292    1.839455    .6490734          0   2.749136
 -------------+---------------------------------------------------------
-exp_mw_tot~x |  4,152,360    7.943717    1.097813       7.25   14.97792
-exp_mw_you~x |  4,152,360    7.940998     1.08995       7.25    15.1129
-exp_mw_low~x |  4,152,360    7.936206    1.084743       7.25   15.07594
-exp_ln~t_max |  4,152,360    2.063399    .1218168   1.981001   2.698825
-exp_ln~g_max |  4,152,360    2.063101     .121032   1.981001   2.708444
+exp_ln_~0_14 |  4,691,292    1.839711     .649004          0    2.74259
+exp~_3333_14 |  4,691,292    1.839373    .6488777          0   2.744955
+exp~e3333_14 |  4,691,292    1.839298     .649101          0   2.741674
+exp_ln~od_14 |  4,691,292    1.839693    .6486811          0   2.717283
+exp_ln_~l_14 |  4,691,292    1.838481    .6484383          0   2.759219
 -------------+---------------------------------------------------------
-exp_ln~c_max |  4,152,360    2.062667    .1207738   1.981001   2.705522
-     acs_pop |  4,650,732    8108.076    13091.87          0   117602.2
-  year_month |  4,858,560       659.5    34.63982        600        719
-     quarter |  4,858,560         2.5    1.118034          1          4
-year_quarter |  4,858,560       219.5     11.5434        200        239
+exp_ln~nd_14 |  4,691,292    1.839615    .6492614          0   2.744452
+exp_ln_~t_17 |  4,691,292     1.83963    .6490688          0   2.746004
+exp_ln_~9_17 |  4,691,292    1.839588    .6488879          0   2.752397
+exp_ln_~4_17 |  4,691,292    1.839628    .6491285          0   2.746649
+exp_ln_~5_17 |  4,691,292    1.839656    .6491069          0   2.751747
 -------------+---------------------------------------------------------
-estcount_b~v |  4,854,930    2828.841    6806.763          1      57730
-avgwwage_b~v |  4,854,930     948.061    439.6875          0      26956
- emp_bizserv |  4,854,930    37474.46    93420.58          0     652629
-estcount_c~t |  4,855,071    1050.912    2125.605          1      17241
-avgwwage_c~t |  4,855,071     910.546    324.5793          0       8024
+exp_ln_~0_17 |  4,691,292    1.839691    .6489298          0   2.749526
+exp~_3333_17 |  4,691,292    1.839534     .648907          0   2.742419
+exp~e3333_17 |  4,691,292    1.839599    .6492179          0   2.750123
+exp_ln~od_17 |  4,691,292    1.840129    .6488541          0   2.720812
+exp_ln_~l_17 |  4,691,292    1.838925    .6486298          0   2.772347
 -------------+---------------------------------------------------------
-   emp_const |  4,855,071    10036.14     22364.8          0     174156
-estcount_e~e |  4,853,259    3755.616    20496.05          1     247503
-avgwwage_e~e |  4,853,259    768.9607    214.2911          0       2749
-   emp_eduhe |  4,853,259    37565.05    92864.97          0     848521
-estcount_f~v |  4,857,462    52.87882    68.72248          1        456
+exp_ln~nd_17 |  4,691,292    1.839671    .6492477          0   2.747787
+exp_ln_~t_18 |  4,691,292    1.839685    .6490866          0   2.748027
+exp_ln_~9_18 |  4,691,292    1.839562    .6488704          0   2.756266
+exp_ln_~4_18 |  4,691,292     1.83971    .6491615          0   2.747525
+exp_ln_~5_18 |  4,691,292    1.839705    .6491161          0    2.75128
 -------------+---------------------------------------------------------
-avgwwage_f~v |  4,857,462     1191.62    297.2385          0       3704
-  emp_fedgov |  4,857,462    5185.439    17235.76          0     215436
-estcount_fin |  4,854,741    1439.245    3546.852          1      30868
-avgwwage_fin |  4,854,741    1065.029    574.8823          0      12775
-     emp_fin |  4,854,741    15100.96    39271.64          0     398481
+exp_ln_~0_18 |  4,691,292    1.839672    .6489135          0   2.748993
+exp~_3333_18 |  4,691,292    1.839573     .648912          0   2.748132
+exp~e3333_18 |  4,691,292     1.83972    .6492554          0   2.752265
+exp_ln~od_18 |  4,691,292    1.840073    .6488082          0   2.718764
+exp_ln_~l_18 |  4,691,292    1.838972    .6486798          0   2.775898
 -------------+---------------------------------------------------------
-estcount_i~o |  4,813,338    308.2667    1151.355          1      13783
-avgwwage_i~o |  4,813,338    994.9525    637.4869          0      16227
-    emp_info |  4,813,338    6736.829    24994.16          0     240358
-estcount_l~s |  4,855,572    1400.558    3864.192          1      40355
-avgwwage_l~s |  4,855,572    331.4298     125.588          0       2473
+exp_ln~nd_18 |  4,691,292    1.839754    .6492689          0   2.745376
+exp_ln_mw~11 |  4,691,292    1.839251    .6490253          0   2.747021
+exp_ln_mw~12 |  4,691,292    1.839386    .6490449          0   2.749497
+exp_ln_mw~13 |  4,691,292    1.839465    .6490569          0   2.750332
+exp_ln_mw~15 |  4,691,292    1.839485    .6490395          0   2.742535
 -------------+---------------------------------------------------------
-    emp_leis |  4,855,572    26512.73    65950.14          0     555057
-estcount_l~v |  4,857,648    178.8058    449.8659          1       4167
-avgwwage_l~v |  4,857,648    760.6475    295.6058          0       2104
-  emp_locgov |  4,857,648    22126.56    58021.82          0     463785
-estcount_m~u |  4,835,526    560.1001    1564.848          1      13469
+exp_ln_mw~16 |  4,691,292    1.839477    .6490422          0   2.744543
+  year_month |  4,898,927         660     34.9285        600        720
+     quarter |  4,898,927    2.487603    1.121655          1          4
+year_quarter |  4,898,927    219.6694    11.64445        200        240
+estcount_b~v |  4,854,810    2828.782    6806.836          1      57730
 -------------+---------------------------------------------------------
-avgwwage_m~u |  4,835,526    1015.391    427.5086          0       7592
-    emp_manu |  4,835,526    18152.73    47142.04          0     376653
-estcount_n~s |  4,829,340    96.85451    198.2932          1       1859
-avgwwage_n~s |  4,829,340    876.2312    569.3089          0      23770
-  emp_natres |  4,829,340    1913.918    7515.095          0      97846
+avgwwage_b~v |  4,854,810    948.0594    439.6925          0      26956
+ emp_bizserv |  4,854,810    37473.83    93421.64          0     652629
+estcount_c~t |  4,854,951    1050.885    2125.625          1      17241
+avgwwage_c~t |  4,854,951    910.5342    324.5739          0       8024
+   emp_const |  4,854,951    10035.79    22364.96          0     174156
 -------------+---------------------------------------------------------
-estcount_s~v |  4,790,640    82.05716    355.9897          1       5969
-avgwwage_s~v |  4,790,640    886.5078    339.4114          0       4279
-   emp_stgov |  4,790,640    6192.275    13383.44          0     114555
-estcount_t~p |  4,857,573    2887.218    7098.594          1      59640
-avgwwage_t~p |  4,857,573    715.4686    187.6451          0      11257
+estcount_e~e |  4,853,139     3755.63    20496.31          1     247503
+avgwwage_e~e |  4,853,139    768.9555    214.2908          0       2749
+   emp_eduhe |  4,853,139    37564.44    92866.04          0     848521
+estcount_f~v |  4,857,342    52.87519    68.71943          1        456
+avgwwage_f~v |  4,857,342    1191.614    297.2392          0       3704
 -------------+---------------------------------------------------------
-  emp_transp |  4,857,573    44348.46    108596.8          0     875412
+  emp_fedgov |  4,857,342      5184.8    17235.49          0     215436
+estcount_fin |  4,854,621    1439.222    3546.892          1      30868
+avgwwage_fin |  4,854,621    1065.025    574.8883          0      12775
+     emp_fin |  4,854,621    15100.81    39272.11          0     398481
+estcount_i~o |  4,813,218    308.2625    1151.369          1      13783
+-------------+---------------------------------------------------------
+avgwwage_i~o |  4,813,218     994.947    637.4937          0      16227
+    emp_info |  4,813,218    6736.813    24994.47          0     240358
+estcount_l~s |  4,855,452    1400.524    3864.234          1      40355
+avgwwage_l~s |  4,855,452    331.4248    125.5851          0       2473
+    emp_leis |  4,855,452     26511.7    65950.62          0     555057
+-------------+---------------------------------------------------------
+estcount_l~v |  4,857,528    178.8095    449.8708          1       4167
+avgwwage_l~v |  4,857,528    760.6362    295.6001          0       2104
+  emp_locgov |  4,857,528    22126.81    58022.52          0     463785
+estcount_m~u |  4,835,406    560.0983    1564.868          1      13469
+avgwwage_m~u |  4,835,406    1015.395    427.5129          0       7592
+-------------+---------------------------------------------------------
+    emp_manu |  4,835,406    18152.91    47142.61          0     376653
+estcount_n~s |  4,829,220    96.85255    198.2952          1       1859
+avgwwage_n~s |  4,829,220    876.2339    569.3157          0      23770
+  emp_natres |  4,829,220    1913.915    7515.188          0      97846
+estcount_s~v |  4,790,520    82.05128    355.9922          1       5969
+-------------+---------------------------------------------------------
+avgwwage_s~v |  4,790,520    886.5079    339.4153          0       4279
+   emp_stgov |  4,790,520    6191.123    13381.62          0     114555
+estcount_t~p |  4,857,453    2887.166    7098.674          1      59640
+avgwwage_t~p |  4,857,453    715.4661    187.6463          0      11257
+  emp_transp |  4,857,453     44347.5      108598          0     875412
 
 
 
@@ -380,4 +521,4 @@ file ../../../drive/derived_large/zipcode_month/zipcode_month_panel.csv saved
 . 
 end of do-file
 
- make.py ended: 2021-09-23 12:55:26
+ make.py ended: 2021-10-30 14:24:26

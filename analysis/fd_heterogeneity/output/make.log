@@ -1,0 +1,431 @@
+
+ make.py started: 2021-10-26 16:15:37 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\fd_heterogeneity\code 
+
+
+
+
+Execute:  StataMP-64 /e do "./estimates.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./estimates.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. adopath + ../../../lib/stata/min_wage/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+  [8]              "../../../lib/stata/min_wage/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.         local instub  "../../../drive/derived_large/estimation_samples"
+  2.         local outstub "../output"
+  3.         
+.         define_controls
+  4.         local controls     "`r(economic_controls)'"
+  5.         local cluster_vars "statefips"
+  6.         
+.         ** STATIC
+.         load_and_clean, instub(`instub')
+  7. 
+.         xtset zipcode_num year_month
+  8.         eststo clear
+  9.         foreach var in under29 30to54 under1250 above3333 underHS College 
+> {
+ 10.         eststo: reghdfe D.ln_rents D.ln_mw D.ln_mw_times_wrks_`var' ///
+>              D.exp_ln_mw_17 D.exp_ln_mw_times_res_`var', nocons ///
+>                 absorb(year_month) cluster(`cluster_vars')      
+ 11.         }
+ 12.     esttab *, se r2
+ 13. end
+
+. 
+. 
+. program load_and_clean
+  1.     syntax, instub(str)
+  2. 
+.         use "`instub'/baseline_zipcode_months.dta", clear
+  3.         
+.         xtset zipcode_num year_month
+  4.                 
+.         foreach var in under29 30to54 under1250 above3333 underHS College {
+  5.             bys statefips: egen sh_res_`var'_med = median(sh_residents_`va
+> r'_2014)
+  6.             bys statefips: egen sh_ws_`var'_med  = median(sh_workers_`var'
+> _2014)        
+  7.             
+.                 gen above_med_st_res_`var'  = (sh_residents_`var'_2014 > sh_r
+> es_`var'_med)
+  8.             gen above_med_st_wrks_`var' = (sh_workers_`var'_2014   > sh_ws
+> _`var'_med)
+  9.             drop *_med
+ 10.                 
+.             gen ln_mw_times_wrks_`var'    = ln_mw*above_med_st_wrks_`var'
+ 11.             gen exp_ln_mw_times_res_`var' = exp_ln_mw_17*above_med_st_res_
+> `var'
+ 12.         }
+ 13. end
+
+. 
+. 
+. main
+       panel variable:  zipcode_num (strongly balanced)
+        time variable:  year_month, 2010m1 to 2019m12
+                delta:  1 month
+(120 missing values generated)
+(120 missing values generated)
+(120 missing values generated)
+(120 missing values generated)
+(120 missing values generated)
+(120 missing values generated)
+(120 missing values generated)
+(120 missing values generated)
+(120 missing values generated)
+(120 missing values generated)
+(120 missing values generated)
+(120 missing values generated)
+       panel variable:  zipcode_num (strongly balanced)
+        time variable:  year_month, 2010m1 to 2019m12
+                delta:  1 month
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    132,255
+Absorbing 1 HDFE group                            F(   4,     40) =       1.35
+Statistics robust to heteroskedasticity           Prob > F        =     0.2677
+                                                  R-squared       =     0.0208
+                                                  Adj R-squared   =     0.0199
+                                                  Within R-sq.    =     0.0002
+Number of clusters (statefips) =         41       Root MSE        =     0.0291
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+         D1. |  -.0201773   .0175362    -1.15   0.257    -.0556192    .0152646
+             |
+ln_mw_tim~29 |
+         D1. |  -.0069468   .0154194    -0.45   0.655    -.0381105    .0242169
+             |
+exp_ln_mw_17 |
+         D1. |   .0518899   .0319659     1.62   0.112    -.0127156    .1164955
+             |
+exp_ln_mw~29 |
+         D1. |    .011591   .0183741     0.63   0.532    -.0255445    .0487265
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       118           0         118     |
+-----------------------------------------------------+
+(est1 stored)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    132,255
+Absorbing 1 HDFE group                            F(   4,     40) =       7.97
+Statistics robust to heteroskedasticity           Prob > F        =     0.0001
+                                                  R-squared       =     0.0208
+                                                  Adj R-squared   =     0.0199
+                                                  Within R-sq.    =     0.0002
+Number of clusters (statefips) =         41       Root MSE        =     0.0291
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+         D1. |  -.0239806   .0200512    -1.20   0.239    -.0645056    .0165444
+             |
+ln_mw_tim~54 |
+         D1. |    .002887   .0178725     0.16   0.872    -.0332346    .0390085
+             |
+exp_ln_mw_17 |
+         D1. |   .0489255   .0370933     1.32   0.195    -.0260429    .1238939
+             |
+exp_ln_mw~54 |
+         D1. |   .0148294   .0181448     0.82   0.419    -.0218426    .0515014
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       118           0         118     |
+-----------------------------------------------------+
+(est2 stored)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    132,255
+Absorbing 1 HDFE group                            F(   4,     40) =       2.30
+Statistics robust to heteroskedasticity           Prob > F        =     0.0750
+                                                  R-squared       =     0.0208
+                                                  Adj R-squared   =     0.0199
+                                                  Within R-sq.    =     0.0001
+Number of clusters (statefips) =         41       Root MSE        =     0.0291
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+         D1. |  -.0223907   .0178115    -1.26   0.216     -.058389    .0136076
+             |
+ln_mw_t~1250 |
+         D1. |   .0018226   .0140946     0.13   0.898    -.0266637    .0303089
+             |
+exp_ln_mw_17 |
+         D1. |   .0606737   .0295983     2.05   0.047     .0008533     .120494
+             |
+exp_ln_~1250 |
+         D1. |  -.0105931   .0140393    -0.75   0.455    -.0389677    .0177814
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       118           0         118     |
+-----------------------------------------------------+
+(est3 stored)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    132,255
+Absorbing 1 HDFE group                            F(   4,     40) =       1.45
+Statistics robust to heteroskedasticity           Prob > F        =     0.2355
+                                                  R-squared       =     0.0208
+                                                  Adj R-squared   =     0.0199
+                                                  Within R-sq.    =     0.0001
+Number of clusters (statefips) =         41       Root MSE        =     0.0291
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+         D1. |  -.0207795    .021718    -0.96   0.344    -.0646732    .0231141
+             |
+ln_mw_t~3333 |
+         D1. |   -.002593   .0168165    -0.15   0.878    -.0365803    .0313944
+             |
+exp_ln_mw_17 |
+         D1. |   .0568487   .0301781     1.88   0.067    -.0041435    .1178409
+             |
+exp_ln_~3333 |
+         D1. |  -.0017402   .0128973    -0.13   0.893    -.0278067    .0243262
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       118           0         118     |
+-----------------------------------------------------+
+(est4 stored)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    132,255
+Absorbing 1 HDFE group                            F(   4,     40) =       1.31
+Statistics robust to heteroskedasticity           Prob > F        =     0.2839
+                                                  R-squared       =     0.0208
+                                                  Adj R-squared   =     0.0199
+                                                  Within R-sq.    =     0.0002
+Number of clusters (statefips) =         41       Root MSE        =     0.0291
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+         D1. |  -.0148182   .0198439    -0.75   0.460    -.0549243    .0252878
+             |
+ln_mw_time~S |
+         D1. |  -.0127849   .0125185    -1.02   0.313    -.0380856    .0125159
+             |
+exp_ln_mw_17 |
+         D1. |   .0510793   .0292248     1.75   0.088    -.0079863     .110145
+             |
+exp_ln_mw_~S |
+         D1. |   .0087173   .0150686     0.58   0.566    -.0217375    .0391721
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       118           0         118     |
+-----------------------------------------------------+
+(est5 stored)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    132,255
+Absorbing 1 HDFE group                            F(   4,     40) =       2.22
+Statistics robust to heteroskedasticity           Prob > F        =     0.0844
+                                                  R-squared       =     0.0208
+                                                  Adj R-squared   =     0.0199
+                                                  Within R-sq.    =     0.0002
+Number of clusters (statefips) =         41       Root MSE        =     0.0291
+
+                             (Std. Err. adjusted for 41 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+       ln_mw |
+         D1. |  -.0131622   .0230216    -0.57   0.571    -.0596905    .0333661
+             |
+ln_mw_time~e |
+         D1. |  -.0176498   .0183196    -0.96   0.341    -.0546751    .0193754
+             |
+exp_ln_mw_17 |
+         D1. |   .0552032   .0313928     1.76   0.086     -.008244    .1186503
+             |
+exp_ln_mw_~e |
+         D1. |   .0013158   .0136858     0.10   0.924    -.0263443    .0289759
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       118           0         118     |
+-----------------------------------------------------+
+(est6 stored)
+
+-------------------------------------------------------------------------------
+> -----------------------------
+                      (1)             (2)             (3)             (4)      
+>        (5)             (6)   
+               D.ln_rents      D.ln_rents      D.ln_rents      D.ln_rents      
+> D.ln_rents      D.ln_rents   
+-------------------------------------------------------------------------------
+> -----------------------------
+D.ln_mw           -0.0202         -0.0240         -0.0224         -0.0208      
+>    -0.0148         -0.0132   
+                 (0.0175)        (0.0201)        (0.0178)        (0.0217)      
+>   (0.0198)        (0.0230)   
+
+D.ln_mw_t~29     -0.00695                                                      
+>                              
+                 (0.0154)                                                      
+>                              
+
+D.exp_l~w_17       0.0519          0.0489          0.0607*         0.0568      
+>     0.0511          0.0552   
+                 (0.0320)        (0.0371)        (0.0296)        (0.0302)      
+>   (0.0292)        (0.0314)   
+
+D.exp_ln_~29       0.0116                                                      
+>                              
+                 (0.0184)                                                      
+>                              
+
+D.ln_mw_t~54                      0.00289                                      
+>                              
+                                 (0.0179)                                      
+>                              
+
+D.exp_ln_~54                       0.0148                                      
+>                              
+                                 (0.0181)                                      
+>                              
+
+D.ln_mw~1250                                      0.00182                      
+>                              
+                                                 (0.0141)                      
+>                              
+
+D.exp_l~1250                                      -0.0106                      
+>                              
+                                                 (0.0140)                      
+>                              
+
+D.ln_mw~3333                                                     -0.00259      
+>                              
+                                                                 (0.0168)      
+>                              
+
+D.exp_l~3333                                                     -0.00174      
+>                              
+                                                                 (0.0129)      
+>                              
+
+D.ln_mw_ti~S                                                                   
+>    -0.0128                   
+                                                                               
+>   (0.0125)                   
+
+D.exp_ln_m~S                                                                   
+>    0.00872                   
+                                                                               
+>   (0.0151)                   
+
+D.ln_mw_ti~e                                                                   
+>                    -0.0176   
+                                                                               
+>                   (0.0183)   
+
+D.exp_ln_m~e                                                                   
+>                    0.00132   
+                                                                               
+>                   (0.0137)   
+-------------------------------------------------------------------------------
+> -----------------------------
+N                  132255          132255          132255          132255      
+>     132255          132255   
+R-sq                0.021           0.021           0.021           0.021      
+>      0.021           0.021   
+-------------------------------------------------------------------------------
+> -----------------------------
+Standard errors in parentheses
+* p<0.05, ** p<0.01, *** p<0.001
+
+. 
+end of do-file
+
+ make.py ended: 2021-10-26 16:16:12
