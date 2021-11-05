@@ -1,5 +1,5 @@
 
- make.py started: 2021-09-30 06:20:42 C:\Users\shermo\Documents\GitHub\min_wage_rent\derived\min_wage\code 
+ make.py started: 2021-10-29 10:21:47 C:\Users\diegog\Desktop\Diego\min_wage_rent\derived\min_wage\code 
 
 
 
@@ -70,7 +70,7 @@ The following objects are masked from 'package:base':
 +    if (file.exists(log_file)) file.remove(log_file)
 +    
 +    start_date <- "2010-01-01"
-+    end_date   <- "2019-12-31"
++    end_date   <- "2020-01-31"
 +    
 +    dt <- build_frame(base_geo_dir, start_date, end_date)
 +    
@@ -108,7 +108,9 @@ The following objects are masked from 'package:base':
 > build_frame <- function(instub, start_date, end_date, freq = "month") {
 +    
 +    dt <- fread(file.path(instub, "zip_county_place_usps_all.csv"), 
-+                colClasses = c(rep("character", 10), "numeric", "numeric"))
++                colClasses = c("zipcode"    = "character", "place_code" = "character", 
++                               "countyfips" = "character", "statefips"  = "character", 
++                               "cbsa10"     = "character"))
 +    
 +    setnames(dt, old = c('state_abb', 'place_name', 'county_name'), 
 +                 new = c('stateabb',  'placename',  'county'))
@@ -250,9 +252,12 @@ The following objects are masked from 'package:base':
 +    dt[, fed_mw_cf_9usd  := 9]
 +    dt[, fed_mw_cf_15usd := 15]
 + 
-+    dt[, actual_mw_cf_10pc  := pmax(actual_mw, fed_mw_cf_10pc)]
-+    dt[, actual_mw_cf_9usd  := pmax(actual_mw, fed_mw_cf_9usd)]
-+    dt[, actual_mw_cf_15usd := pmax(actual_mw, fed_mw_cf_15usd)]
++    dt[, actual_mw_cf_10pc  := fcase(year == 2019 & month == 12, actual_mw,
++                                     year == 2020 & month ==  1, pmax(actual_mw, fed_mw_cf_10pc))]
++    dt[, actual_mw_cf_9usd  := fcase(year == 2019 & month == 12, actual_mw,
++                                     year == 2020 & month ==  1, pmax(actual_mw, fed_mw_cf_9usd))]
++    dt[, actual_mw_cf_15usd := fcase(year == 2019 & month == 12, actual_mw,
++                                     year == 2020 & month ==  1, pmax(actual_mw, fed_mw_cf_15usd))]
 + 
 +    return(dt)
 + }
@@ -267,7 +272,7 @@ The following objects are masked from 'package:base':
 > 
 > proc.time()
    user  system elapsed 
- 272.82   25.20  265.15 
+ 258.25   28.26  251.42 
 
 
 Execute:  R CMD BATCH --no-save "./build_experienced.R" build_experienced.Rout
@@ -336,7 +341,7 @@ The following objects are masked from 'package:base':
 
 > 
 > library(parallel)
-> n_cores <- 10
+> n_cores <- 16
 > 
 > main <- function(paquetes, n_cores){
 +   in_mw    <- "../../../drive/derived_large/min_wage"
@@ -564,6 +569,259 @@ The following objects are masked from 'package:base':
 > 
 > proc.time()
     user   system  elapsed 
- 4476.01   881.64 24036.48 
+ 5036.59  1535.62 20956.48 
 
- make.py ended: 2021-09-30 13:05:49
+
+Execute:  R CMD BATCH --no-save "./build_experienced_cf.R" build_experienced_cf.Rout
+
+R version 4.1.1 (2021-08-10) -- "Kick Things"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list = ls())
+> 
+> source("../../../lib/R/save_data.R")
+
+Please cite as: 
+
+ Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+ R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
+
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+
+Attaching package: 'data.table'
+
+The following objects are masked from 'package:dplyr':
+
+    between, first, last
+
+> 
+> paquetes <- c("data.table", "zoo")
+> lapply(paquetes, require, character.only = TRUE)
+Loading required package: zoo
+
+Attaching package: 'zoo'
+
+The following objects are masked from 'package:base':
+
+    as.Date, as.Date.numeric
+
+[[1]]
+[1] TRUE
+
+[[2]]
+[1] TRUE
+
+> 
+> library(parallel)
+> n_cores <- 10
+> 
+> main <- function(paquetes, n_cores){
++   in_mw    <- "../../../drive/derived_large/min_wage"
++   in_lodes <- "../../../drive/base_large/lodes_od"
++   outstub  <- "../../../drive/derived_large/min_wage"
++   log_file <- "../output/data_file_manifest_cfs.log"
++   
++   od_yy = 2018
++   geo = "zipcode"
++ 
++   dt <- fread(file.path(in_mw, "zipcode_cfs.csv"),
++                   colClasses = c("zipcode" = "character"))
++   dt[, year_month := as.yearmon(paste0(year, "-", month))]
++     
++   periods <- unique(dt$year_month)
++   
++   od_files <- list.files(file.path(in_lodes, od_yy), 
++                          pattern = sprintf("odzip*"),
++                          full.names = T) |>
++                 add_missing_state_years(in_lodes, geo, od_yy)
++   
++   # Parallel set-up
++   cl <- makeCluster(n_cores, type = "PSOCK")   # Create cluster. Use type = "FORK" in Mac
++       
++   clusterExport(cl, "paquetes")                                         # Load "paquetes" object in nodes
++   clusterEvalQ(cl, lapply(paquetes, require, character.only = TRUE))    # Load packages in nodes
++   clusterExport(cl, "load_od_matrix", env = .GlobalEnv)                 # Load global environment objects in nodes
++   clusterExport(cl, "assemble_expmw_state", env = .GlobalEnv)           # Load global environment objects in nodes
++   clusterExport(cl, c("dt", "periods", "in_mw", "in_lodes", "geo", "outstub"), 
++                 env = environment())                                    # Load local environment objects in nodes
++   
++   # Build exp MW data
++   dt.exp_mw_10pc <- rbindlist(
++     parLapply(cl, od_files, function(ff) {
++       
++       dt.st <- assemble_expmw_state(ff, yy, periods, "actual_mw_cf_10pc", dt, in_lodes, geo)
++       return(dt.st)
++     })
++   )
++   dt.exp_mw_10pc[, counterfactual := "fed_10pc"]
++   
++   dt.exp_mw_9usd <- rbindlist(
++     parLapply(cl, od_files, function(ff) {
++       
++       dt.st <- assemble_expmw_state(ff, yy, periods, "actual_mw_cf_9usd", dt, in_lodes, geo)
++       return(dt.st)
++     })
++   )
++   dt.exp_mw_9usd[, counterfactual := "fed_9usd"]
++   
++   dt.exp_mw_15usd <- rbindlist(
++     parLapply(cl, od_files, function(ff) {
++       
++       dt.st <- assemble_expmw_state(ff, yy, periods, "actual_mw_cf_15usd", dt, in_lodes, geo)
++       return(dt.st)
++     })
++   )
++   dt.exp_mw_15usd[, counterfactual := "fed_15usd"]
++   
++   stopCluster(cl)
++   
++   # Put data together and format
++   dt.exp_mw <- rbindlist(list(dt.exp_mw_10pc, dt.exp_mw_9usd, dt.exp_mw_15usd))
++   
++   dt.exp_mw[, month := as.numeric(format(dt.exp_mw$year_month, "%m"))]
++   dt.exp_mw[, year  := as.numeric(format(dt.exp_mw$year_month, "%Y"))]
++   
++   # Drop duplicate in zipcode 75501
++   dt.rogue  <- dt.exp_mw[zipcode == "75501" & exp_ln_mw_tot > 0]
++   dt.exp_mw <- rbindlist(list(dt.exp_mw[zipcode != "75501"], dt.rogue))
++   
++   # Save data
++   save_data(dt.exp_mw, key = c(geo, "year", "month", "counterfactual"),
++             filename = file.path(outstub, "zipcode_experienced_mw_cfs.csv"),
++             logfile  = log_file)
++   save_data(dt.exp_mw, key = c(geo, "year", "month", "counterfactual"),
++             filename = file.path(outstub, "zipcode_experienced_mw_cfs.dta"),
++             nolog    = TRUE)
++ }
+> 
+> add_missing_state_years <- function(od_files, instub, geo, yy) {
++   
++   if (geo == "countyfips") geo <- "county"
++   else                     geo <- "zip"
++   
++   if (yy == 2009) {
++     return(c(od_files, sprintf("%s/2010/od%s_11.csv", instub, geo), 
++                        sprintf("%s/2011/od%s_25.csv", instub, geo)))
++   } else if (yy == 2010) {
++     return(c(od_files, sprintf("%s/2011/od%s_25.csv", instub, geo)))
++   } else if (yy %in% c(2017, 2018)) {
++     return(c(od_files, sprintf("%s/2016/od%s_02.csv", instub, geo)))
++   } else {
++     return(od_files)
++   }
++ }
+> 
+> assemble_expmw_state <- function(ff, yy, periods, mw_var, dt, in_lodes, .geo) {
++   
++   if (.geo == "countyfips") {
++     .w_var = "w_countyfips"
++     .r_var = "r_countyfips"
++   }
++   else {
++     .w_var = "w_zipcode"
++     .r_var = "r_zipcode"
++   }
++   
++   dt.od     <- load_od_matrix(ff, .geo, .w_var, .r_var)
++   jobs_vars <- names(dt.od)[grepl("jobs", names(dt.od))]
++   
++   # Computes share of treated and experienced MW for every period
++   dts.period <- lapply(periods, function(ym, od.st = dt.od, dt.geo = dt,
++                                          geo = .geo, w_var = .w_var, h_var = .r_var) {
++      
++      dt.ym <- dt.geo[year_month == ym, ]            # Select given date
++      dt.ym[, c(w_var) := get(geo)]                  # Create matching variable
++      
++      vars_to_keep <- c(w_var, mw_var, "year_month")
++      dt.ym <- dt.ym[, ..vars_to_keep]
++      
++      dt.ym <- dt.ym[od.st, on = w_var]       # Paste MW to every residence(h)-workplace(w) combination in 'od.st'
++      dt.ym <- dt.ym[!is.na(year_month),]     # Drop missings (geo not showing up in mw data)
++    
++      dt.ym <- dt.ym[,
++          .(exp_ln_mw_tot             = sum(log(get(mw_var))*sh_tot,            na.rm = T),
++            exp_ln_mw_age_under29     = sum(log(get(mw_var))*sh_age_under29,    na.rm = T),
++            exp_ln_mw_age_30to54      = sum(log(get(mw_var))*sh_age_30to54,     na.rm = T),
++            exp_ln_mw_age_above55     = sum(log(get(mw_var))*sh_age_above55,    na.rm = T),
++            exp_ln_mw_earn_under1250  = sum(log(get(mw_var))*sh_earn_under1250, na.rm = T),
++            exp_ln_mw_earn_1250_3333  = sum(log(get(mw_var))*sh_earn_1250_3333, na.rm = T),
++            exp_ln_mw_earn_above3333  = sum(log(get(mw_var))*sh_earn_above3333, na.rm = T),
++            exp_ln_mw_goods_prod      = sum(log(get(mw_var))*sh_goods_producing, na.rm = T),
++            exp_ln_mw_trad_tran_util  = sum(log(get(mw_var))*sh_trade_transp_util, na.rm = T),
++            exp_ln_mw_other_serv_ind  = sum(log(get(mw_var))*sh_other_service_industry, na.rm = T)),
++       .SDcols = jobs_vars,
++       by = c(h_var, "year_month")
++     ]
++      
++     setnames(dt.ym, old = h_var, new = geo)
++    
++     return(dt.ym)
++   })
++   
++   return(rbindlist(dts.period))
++ }
+> 
+> load_od_matrix <- function(ff, geo, workplace_var, residence_var) {
++   
++   if (geo == "countyfips") {
++     od <- fread(file.path(ff),
++                 colClasses = c("r_countyfips" = "character",
++                                "w_countyfips" = "character"))
++   } else{
++     od <- fread(file.path(ff), 
++                 colClasses = c("r_zipcode" = "character",
++                                "w_zipcode" = "character"))
++   }
++   
++   
++   jobs_vars <- names(od)[grepl("jobs", names(od))]
++   
++   # Sum all jobs originitaing in residence zipcode
++   od[, c(paste0("r_", jobs_vars)) := lapply(.SD, sum, na.rm = T) , 
++     .SDcols = jobs_vars, 
++     by = residence_var]
++   
++   # Compute share of job to each destination for each jobs_var
++   for (var in jobs_vars) {
++     od[, c(gsub("jobs_", "sh_", var)) := get(var)/get(paste0("r_", var))]
++     od[, c(var, paste0("r_", var))    := NULL]
++   }
++   
++   setorderv(od, c(workplace_var, residence_var))
++   return(od)
++ }
+> 
+> main(paquetes, n_cores)
+[1] "File '../../../drive/derived_large/min_wage/zipcode_experienced_mw_cfs.csv' saved successfully."
+[1] "File '../../../drive/derived_large/min_wage/zipcode_experienced_mw_cfs.dta' saved successfully."
+> 
+> proc.time()
+   user  system elapsed 
+  26.07    2.93   97.23 
+
+ make.py ended: 2021-10-29 16:16:59

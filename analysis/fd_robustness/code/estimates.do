@@ -12,6 +12,7 @@ program main
     local controls "`r(economic_controls)'"    
     local cluster  "statefips"
     
+    local specifications ""
     
     use "`instub'/baseline_zipcode_months.dta", clear
     xtset zipcode_num year_month
@@ -19,59 +20,74 @@ program main
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(exp_ln_mw_17) w(0) stat_var(ln_mw) test_equality ///
         controls(`controls') absorb(year_month) cluster(`cluster') ///
-        model_name(static_baseline) outfolder("../temp")
+        model_name(baseline) outfolder("../temp")
         
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(exp_ln_mw_17) w(0) stat_var(ln_mw) test_equality ///
         controls(" ") absorb(year_month) cluster(`cluster') ///
-        model_name(static_nocontrols) outfolder("../temp")
+        model_name(nocontrols) outfolder("../temp")
 
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(exp_ln_mw_17) w(0) stat_var(ln_mw) test_equality ///
         controls(`controls') ab absorb(year_month) cluster(`cluster') ///
-        model_name(static_AB) outfolder("../temp")
+        model_name(AB) outfolder("../temp")
 
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(exp_ln_mw_17) w(0) stat_var(ln_mw) test_equality wgt(wgt_cbsa100) ///
         controls(`controls') absorb(year_month) cluster(`cluster') ///
-        model_name(static_baseline_wgt) outfolder("../temp")
-        
+        model_name(baseline_wgt) outfolder("../temp")
+    
+    local specifications "`specifications' baseline nocontrols AB baseline_wgt"
+
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(exp_ln_mw_17) w(0) stat_var(ln_mw) test_equality ///
         controls(`controls') absorb(year_month zipcode) cluster(`cluster') ///
-        model_name(static_zip_spec_trend) outfolder("../temp")
+        model_name(zip_spec_trend) outfolder("../temp")
         
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(exp_ln_mw_17) w(0) stat_var(ln_mw) test_equality ///
         controls(`controls') absorb(year_month##county_num) ///
         cluster(`cluster') ///
-        model_name(static_county_timefe) outfolder("../temp")
+        model_name(county_timefe) outfolder("../temp")
 
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(exp_ln_mw_17) w(0) stat_var(ln_mw) test_equality ///
         controls(`controls') absorb(year_month##cbsa10_num) ///
         cluster(`cluster') ///
-        model_name(static_cbsa_timefe) outfolder("../temp")
+        model_name(cbsa_timefe) outfolder("../temp")
         
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(exp_ln_mw_17) w(0) stat_var(ln_mw) test_equality ///
         controls(`controls') absorb(year_month##statefips_num) ///
         cluster(`cluster') ///
-        model_name(static_state_timefe) outfolder("../temp")
+        model_name(state_timefe) outfolder("../temp")
     
+    local specifications "`specifications' zip_spec_trend county_timefe cbsa_timefe state_timefe"
+
+    foreach exp_mw_var in exp_ln_mw_10 exp_ln_mw_14 exp_ln_mw_18 exp_ln_mw_earn_under1250_14 exp_ln_mw_age_under29_14 {
+        
+        estimate_dist_lag_model, depvar(ln_rents) ///
+            dyn_var(`exp_mw_var') w(0) stat_var(ln_mw) test_equality ///
+            controls(`controls') absorb(year_month) cluster(`cluster') ///
+            model_name(baseline_`exp_mw_var') outfolder("../temp")
+            
+        local specifications "`specifications' baseline_`exp_mw_var'"
+    }
+
     use "`instub'/all_zipcode_months.dta", clear
     xtset zipcode_num year_month
 
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(exp_ln_mw_17) w(0) stat_var(ln_mw) test_equality ///
         controls(`controls') absorb(year_month) cluster(`cluster') ///
-        model_name(static_unbal) outfolder("../temp")
+        model_name(unbal) outfolder("../temp")
     
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(exp_ln_mw_17) w(0) stat_var(ln_mw) test_equality wgt(wgt_cbsa100) ///
         controls(`controls') absorb(year_month) cluster(`cluster') ///
-        model_name(static_unbal_wgt) outfolder("../temp")
+        model_name(unbal_wgt) outfolder("../temp")
 
+    local specifications "`specifications' unbal unbal_wgt"
     
     use "`instub'/balanced_zipcode_months.dta", clear
     xtset zipcode_num year_month    
@@ -79,22 +95,17 @@ program main
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(exp_ln_mw_17) w(0) stat_var(ln_mw) test_equality ///
         controls(`controls') absorb(year_month) cluster(`cluster') ///
-        model_name(static_fullbal) outfolder("../temp")
+        model_name(fullbal) outfolder("../temp")
     
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(exp_ln_mw_17) w(0) stat_var(ln_mw) test_equality wgt(wgt_cbsa100) ///
         controls(`controls') absorb(year_month) cluster(`cluster') ///
-        model_name(static_fullbal_wgt) outfolder("../temp")
-        
+        model_name(fullbal_wgt) outfolder("../temp")
+    
+    local specifications "`specifications' fullbal fullbal_wgt"
 
-    use "../temp/estimates_static_baseline.dta", clear
-    foreach ff in static_nocontrols          static_AB                 ///
-                  static_zip_spec_trend      static_state_timefe       ///
-                  static_county_timefe       static_cbsa_timefe        ///
-                  static_unbal               static_unbal_wgt          ///
-                  static_fullbal             static_fullbal_wgt        ///
-                  static_baseline_wgt {
-        
+    clear
+    foreach ff in `specifications' {        
         append using ../temp/estimates_`ff'.dta
     }
     save             `outstub'/estimates_static.dta, replace

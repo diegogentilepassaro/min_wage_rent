@@ -16,7 +16,7 @@ main <- function(){
    if (file.exists(log_file)) file.remove(log_file)
    
    start_date <- "2010-01-01"
-   end_date   <- "2019-12-31"
+   end_date   <- "2020-01-31"
    
    dt <- build_frame(base_geo_dir, start_date, end_date)
    
@@ -54,7 +54,9 @@ main <- function(){
 build_frame <- function(instub, start_date, end_date, freq = "month") {
    
    dt <- fread(file.path(instub, "zip_county_place_usps_all.csv"), 
-               colClasses = c(rep("character", 10), "numeric", "numeric"))
+               colClasses = c("zipcode"    = "character", "place_code" = "character", 
+                              "countyfips" = "character", "statefips"  = "character", 
+                              "cbsa10"     = "character"))
    
    setnames(dt, old = c('state_abb', 'place_name', 'county_name'), 
                 new = c('stateabb',  'placename',  'county'))
@@ -196,9 +198,12 @@ compute_counterfactual <- function(dt) {
    dt[, fed_mw_cf_9usd  := 9]
    dt[, fed_mw_cf_15usd := 15]
 
-   dt[, actual_mw_cf_10pc  := pmax(actual_mw, fed_mw_cf_10pc)]
-   dt[, actual_mw_cf_9usd  := pmax(actual_mw, fed_mw_cf_9usd)]
-   dt[, actual_mw_cf_15usd := pmax(actual_mw, fed_mw_cf_15usd)]
+   dt[, actual_mw_cf_10pc  := fcase(year == 2019 & month == 12, actual_mw,
+                                    year == 2020 & month ==  1, pmax(actual_mw, fed_mw_cf_10pc))]
+   dt[, actual_mw_cf_9usd  := fcase(year == 2019 & month == 12, actual_mw,
+                                    year == 2020 & month ==  1, pmax(actual_mw, fed_mw_cf_9usd))]
+   dt[, actual_mw_cf_15usd := fcase(year == 2019 & month == 12, actual_mw,
+                                    year == 2020 & month ==  1, pmax(actual_mw, fed_mw_cf_15usd))]
 
    return(dt)
 }
