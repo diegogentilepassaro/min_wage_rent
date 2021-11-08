@@ -19,7 +19,6 @@ program main
 	    d_ln_emp_* d_ln_estcount_* d_ln_avgwwage_* , ///
 	    nocons absorb(year_month#event_id) cluster(cbsa10)
 		
-		
     reghdfe ln_rents ln_rents ln_mw exp_ln_mw ///
 	    ln_emp_* ln_estcount_* ln_avgwwage_* , ///
 	    nocons absorb(zipcode_num#event_id year_month#event_id) cluster(cbsa10)
