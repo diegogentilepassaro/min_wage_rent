@@ -29,11 +29,9 @@ program main
 	    bysort cbsa10 (year_month): gen nbr_cum_changes = sum(change_within_cbsa)
 		bysort cbsa10 (event_year_month): ///
 		    gen time_since_treated = event_year_month[_n] - event_year_month[_n - 1]
-		bysort cbsa10 (event_year_month): ///
-		    gen time_until_treated = -(event_year_month[_n] - event_year_month[_n + 1])
 		egen event_id = group(nbr_cum_changes cbsa10)
 		keep cbsa10 event_id event_year event_year_month ///
-		    time_since_treated time_until_treated
+		    time_since_treated
 		save_data "../temp/event_ids", ///
 		    key(cbsa10 event_year_month) log(none) replace
 	restore
@@ -55,6 +53,7 @@ program build_stacked_data
     syntax, window_size(int)
 	
     use "../temp/event_ids", clear
+	drop if inrange(time_since_treated, 1, `window_size')
 	qui levelsof event_id, local(events)
     foreach event of local events{
 	    preserve
@@ -99,8 +98,7 @@ program build_stacked_data
 			keep if nbr_months_around_event == 2*`window_size' + 1
 			keep zipcode zipcode_num year_month event_id zipcode_event_id ///
 			    cbsa10 statefips rural  actual_mw ///
-			    exp_ln_mw exp_ln_mw_17 ln_* d_* L* F* ///
-				time_since_treated time_until_treated
+			    exp_ln_mw exp_ln_mw_17 ln_* d_* L* F*
 			save_data "../temp/sample_event_`event'.dta", ///
 			    key(zipcode year_month event_id) log(none) replace
 	    restore
@@ -111,8 +109,6 @@ program build_stacked_data
 	    append using "../temp/sample_event_`event'.dta"
 	}
 	drop if missing(zipcode)
-	drop if inrange(time_since_treated, 1, `window_size')
-	drop if inrange(time_until_treated, 1, `window_size')
 end
 
 main
