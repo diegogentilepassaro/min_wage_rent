@@ -2,49 +2,42 @@ remove(list = ls())
 
 
 main <- function() {
-  
   instub  <- "../output/"
   outstub <- "../output/"
   
-  est <- read.csv(file.path(instub, "estimates_static.csv"))
-  est_var <- est[est$var != "cumsum_from0", ]
+  est <- read.csv(file.path(instub, "estimates_stacked_static.csv"))
   
-  
-  txt <- c("<tab:static>")
+  txt <- c("<tab:stacked>")
   txt <- c(txt, 
-           paste(est_var[est_var$model == "exp_mw_on_mw",]$b,
-                 est_var[est_var$model == "static_statutory",]$b, 
-                 est_var[est_var$model == "static_both" & est_var$var == "ln_mw",]$b, sep = "\t"),
-            paste(est_var[est_var$model == "exp_mw_on_mw",]$se,
-                 est_var[est_var$model == "static_statutory",]$se, 
-                 est_var[est_var$model == "static_both" & est_var$var == "ln_mw",]$se, sep = "\t"))
+           paste(est[est$model == "stacked_static_w3" & est$var == "d_ln_mw",]$b,
+                 est[est$model == "stacked_static_w6" & est$var == "d_ln_mw",]$b, 
+                 est[est$model == "stacked_static_w9" & est$var == "d_ln_mw",]$b, sep = "\t"),
+           paste(est[est$model == "stacked_static_w3" & est$var == "d_ln_mw",]$se,
+                 est[est$model == "stacked_static_w6" & est$var == "d_ln_mw",]$se, 
+                 est[est$model == "stacked_static_w9" & est$var == "d_ln_mw",]$se, sep = "\t"))
   
   txt <- c(txt, 
-           paste(est_var[est_var$model == "static_experienced",]$b, 
-                 est_var[est_var$model == "static_both" & est_var$var == "exp_ln_mw_17",]$b, sep = "\t"),
-            paste(est_var[est_var$model == "static_experienced",]$se, 
-                 est_var[est_var$model == "static_both" & est_var$var == "exp_ln_mw_17",]$se, sep = "\t"))
-  
-  txt <- c(txt, paste0(est[est$model == "static_both" & est$var == "cumsum_from0",]$b))
-  txt <- c(txt, paste0(est[est$model == "static_both" & est$var == "cumsum_from0",]$se))
-  txt <- c(txt, paste0(est[est$model == "static_both" & est$var == "cumsum_from0",]$p_equality))
+           paste(est[est$model == "stacked_static_w3" & est$var == "d_exp_ln_mw",]$b,
+                 est[est$model == "stacked_static_w6" & est$var == "d_exp_ln_mw",]$b, 
+                 est[est$model == "stacked_static_w9" & est$var == "d_exp_ln_mw",]$b, sep = "\t"),
+           paste(est[est$model == "stacked_static_w3" & est$var == "d_exp_ln_mw",]$se,
+                 est[est$model == "stacked_static_w6" & est$var == "d_exp_ln_mw",]$se, 
+                 est[est$model == "stacked_static_w9" & est$var == "d_exp_ln_mw",]$se, sep = "\t"))
   
   txt <- c(txt, 
-           paste(est_var[est_var$model == "exp_mw_on_mw",]$r2,
-                 est_var[est_var$model == "static_statutory",]$r2, 
-                 est_var[est_var$model == "static_experienced",]$r2, 
-                 est_var[est_var$model == "static_both",]$r2[1], sep = "\t"),
-            paste(est_var[est_var$model == "exp_mw_on_mw",]$N,
-                 est_var[est_var$model == "static_statutory",]$N, 
-                 est_var[est_var$model == "static_experienced",]$N, 
-                 est_var[est_var$model == "static_both",]$N[1], sep = "\t"))
+           paste(est[est$model == "stacked_static_w3" & est$var == "d_ln_mw",]$p_equality,
+                 est[est$model == "stacked_static_w6" & est$var == "d_ln_mw",]$p_equality,
+                 est[est$model == "stacked_static_w9" & est$var == "d_ln_mw",]$p_equality, sep = "\t"),
+           paste(est[est$model == "stacked_static_w3" & est$var == "d_ln_mw",]$r2,
+                 est[est$model == "stacked_static_w6" & est$var == "d_ln_mw",]$r2,
+                 est[est$model == "stacked_static_w9" & est$var == "d_ln_mw",]$r2, sep = "\t"),
+           paste(est[est$model == "stacked_static_w3" & est$var == "d_ln_mw",]$N,
+                 est[est$model == "stacked_static_w6" & est$var == "d_ln_mw",]$N,
+                 est[est$model == "stacked_static_w9" & est$var == "d_ln_mw",]$N, sep = "\t"))
   
-  fileConn <- file(file.path(outstub, "static.txt"))
+  fileConn <- file(file.path(outstub, "stacked.txt"))
   writeLines(txt, fileConn)
   close(fileConn)
 }
-
-
-
 
 main()
