@@ -3,56 +3,40 @@ clear all
 adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
-    local in_der_large "../../../drive/derived_large"
-    local outstub      "../../../drive/derived_large/stacked_sample"
-    local logfile      "../output/data_file_manifest.log"
+    local in_est        "../../../drive/derived_large/estimation_samples"
+	local in_cbsa_month "../../../drive/derived_large/cbsa_month"
+    local outstub       "../../../drive/derived_large/stacked_sample"
+    local logfile       "../output/data_file_manifest.log"
 
     use zipcode zipcode_num year_month year statefips cbsa10 rural ///
 	    medrentpricepsqft_SFCC ln_rents ///
 		actual_mw ln_mw exp_ln_mw_1* ///
 		ln_emp_* ln_estcount_* ln_avgwwage_* using ///
-	    "`in_der_large'/estimation_samples/all_zipcode_months.dta", clear
+	    "`in_est'/all_zipcode_months.dta", clear
     xtset zipcode_num year_month
-
     drop if missing(medrentpricepsqft_SFCC)
     drop if cbsa10 == "99999"
 	gen change_mw = (actual_mw > L.actual_mw)
 	save_data "../temp/all_zipcodes.dta", ///
 	    key(zipcode year_month) log(none) replace
-	
-	preserve
-	    collapse (max) change_within_cbsa = change_mw, by(cbsa10 year year_month)
-		keep if change_within_cbsa == 1
-		gen event_year_month = year_month
-		format event_year_month %tm
-		gen event_year = year
-	    bysort cbsa10 (year_month): gen nbr_cum_changes = sum(change_within_cbsa)
-		bysort cbsa10 (event_year_month): ///
-		    gen time_since_treated = event_year_month[_n] - event_year_month[_n - 1]
-		egen event_id = group(nbr_cum_changes cbsa10)
-		keep cbsa10 event_id event_year event_year_month ///
-		    time_since_treated
-		save_data "../temp/event_ids", ///
-		    key(cbsa10 event_year_month) log(none) replace
-	restore
 
-	build_stacked_data, window_size(3)
+	build_stacked_data, instub(`in_cbsa_month') window_size(3)
 	save_data "`outstub'/stacked_sample_window3.dta", ///
 	    key(zipcode year_month event_id) log(`logfile') replace
 
-	build_stacked_data, window_size(6)
+	build_stacked_data, instub(`in_cbsa_month') window_size(6)
 	save_data "`outstub'/stacked_sample_window6.dta", ///
 	    key(zipcode year_month event_id) log(`logfile') replace
 
-	build_stacked_data, window_size(9)
+	build_stacked_data, instub(`in_cbsa_month') window_size(9)
 	save_data "`outstub'/stacked_sample_window9.dta", ///
 	    key(zipcode year_month event_id) log(`logfile') replace				
 end
 
 program build_stacked_data
-    syntax, window_size(int)
+    syntax, instub(str) window_size(int)
 	
-    use "../temp/event_ids", clear
+    use "`instub'/events.dta", clear
 	drop if inrange(time_since_treated, 1, `window_size')
 	qui levelsof event_id, local(events)
     foreach event of local events{
