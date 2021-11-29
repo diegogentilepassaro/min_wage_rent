@@ -37,7 +37,7 @@ program build_stacked_data
     syntax, instub(str) window_size(int)
 	
     use "`instub'/events.dta", clear
-	drop if inrange(time_since_treated, 1, `window_size')
+	*drop if inrange(time_since_treated, 1, `window_size')
 	qui levelsof event_id, local(events)
     foreach event of local events{
 	    preserve
