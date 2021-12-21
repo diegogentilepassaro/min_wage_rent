@@ -4,35 +4,34 @@ adopath + ../../../lib/stata/gslab_misc/ado
 adopath + ../../../lib/stata/mental_coupons/ado
 
 program main
-    local in_derived_large "../../../drive/derived_large"
-    local in_geo           "../../../base/geo_master/output"
-    local in_base_large    "../../../drive/base_large"
-    local in_qcew          "../../../base/qcew/output"
-    local outstub          "../../../drive/derived_large/zipcode_month"
-    local logfile          "../output/data_file_manifest.log"
+    local in_der_large  "../../../drive/derived_large"
+    local in_geo        "../../../base/geo_master/output"
+    local in_base_large "../../../drive/base_large"
+    local in_qcew       "../../../base/qcew/output"
+    local outstub       "../../../drive/derived_large/zipcode_month"
+    local logfile       "../output/data_file_manifest.log"
 
-    use zipcode place_code countyfips cbsa10 zcta statefips rural                 ///
+    use zipcode place_code countyfips cbsa10 zcta statefips rural             ///
         using "`in_geo'/zip_county_place_usps_master.dta", clear
 
-    merge 1:m zipcode using "`in_derived_large'/min_wage/zip_statutory_mw.dta",   ///
-       nogen assert(3) keepusing(year month actual* binding*)
+    merge 1:m zipcode using "`in_der_large'/min_wage/zip_statutory_mw.dta",   ///
+       nogen assert(1 3) keepusing(year month actual* binding*)
     
     merge_zillow, instub("`in_base_large'/zillow")
     
-    merge_exp_mw, instub("`in_derived_large'/min_wage")
-
-    merge_acs_pop, instub("`in_base_large'/demographics")
+    merge_exp_mw, instub("`in_der_large'/min_wage")
     
     make_date_variables
 
-    merge m:1 statefips countyfips year month                                     ///
+    merge m:1 statefips countyfips year month                                ///
         using "`in_qcew'/ind_emp_wage_countymonth.dta", nogen keep(1 3)
-	drop qmon end_month
+    drop qmon end_month
+	drop if (missing(zipcode) | missing(year_month))
 
     strcompress
     save_data "`outstub'/zipcode_month_panel.dta", replace ///
         key(zipcode year month) log(`logfile')
-	export delimited "`outstub'/zipcode_month_panel.csv", replace
+    export delimited "`outstub'/zipcode_month_panel.csv", replace
 end
 
 program merge_zillow
@@ -49,27 +48,33 @@ end
 program merge_exp_mw
     syntax, instub(str)
 
-    merge 1:1 zipcode year month using "`instub'/zipcode_experienced_mw.dta", ///
-        nogen keep(1 3) keepusing(exp*)
+    foreach year in 10 14 17 18 {
+        merge 1:1 zipcode year month using "`instub'/zipcode_experienced_mw_20`year'.dta", ///
+            nogen keep(1 3) keepusing(exp*)
+        if `year' == 10 {
+            describe exp*, varlist
+            local vars = r(varlist)
+        }
+        foreach var of local vars {
+            rename `var' `var'_`year'
+        }
+        drop *mean_`year'
+    }
 
     qui sum medrentpricepsqft_SFCC if !missing(medrentpricepsqft_SFCC)
     local observations_with_rents = r(N)
 
-    sum exp_ln_mw_tot if !missing(medrentpricepsqft_SFCC)
-    assert r(N) == `observations_with_rents'
-end
-
-program merge_acs_pop
-    syntax, instub(str)
-
-    merge m:1 zipcode year using "`instub'/acs_population_zipyear.dta", ///
-        nogen keep(1 3)
-
-    qui sum medrentpricepsqft_SFCC if !missing(medrentpricepsqft_SFCC)
-    local observations_with_rents = r(N)
-
-    qui sum acs_pop if !missing(medrentpricepsqft_SFCC)
-    assert r(N) == `observations_with_rents'
+    foreach year in 10 14 17 18 {
+        sum exp_ln_mw_tot_`year' if !missing(medrentpricepsqft_SFCC)
+        assert r(N) == `observations_with_rents'
+    }
+    
+    foreach year in 11 12 13 15 16 {
+        merge 1:1 zipcode year month using "`instub'/zipcode_experienced_mw_20`year'.dta", ///
+            nogen keep(1 3) keepusing(exp_ln_mw_tot)
+        
+        rename exp_ln_mw_tot exp_ln_mw_tot_`year'
+    }
 end
 
 program make_date_variables
@@ -85,5 +90,6 @@ program make_date_variables
 
     drop day date
 end
+
 
 main

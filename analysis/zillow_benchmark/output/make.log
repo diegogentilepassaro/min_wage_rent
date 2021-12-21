@@ -1,5 +1,5 @@
 
- make.py started: 2020-12-15 06:56:54 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\zillow_benchmark\code 
+ make.py started: 2021-10-27 14:27:05 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\zillow_benchmark\code 
 
 
 
@@ -47,35 +47,54 @@ Notes:
 
 . 
 . program main 
-  1.         local instub_zillow "../../../drive/derived_large/output"
-  2.         local instub_safmr "../../../base/alt_rents/output"
+  1.         local instub_zillow "../../../drive/derived_large/estimation_sampl
+> es"
+  2.         local instub_safmr "../../../base/safmr/output"
   3.         local logfile "../output/data_file_manifest.log"
-  4. 
-.         import delim ../../../drive/raw_data/census/cpi2012_usa.csv, clear  
+  4.         
+.         import delim "../../../drive/raw_data/census/cpi2012_usa.csv", clear 
+>  
   5.         replace cpi2012 = cpi2012 /100
   6.         save ../temp/cpi2012.dta, replace
   7. 
-.         import delim ../../../drive/raw_data/ahs/AHS_sfcc_est_by_br.csv, clea
-> r
+.         import delim "../../../drive/raw_data/ahs/AHS_sfcc_est_by_br.csv", cl
+> ear
   8.         prepare_ahs_weights
   9.         save ../temp/ahs_wgt.dta, replace 
- 10. 
-.         use `instub_safmr'/safrm.dta, clear 
- 11.         prepare_weighted_safmr
- 12.         save ../temp/wgt_safmr.dta, replace 
- 13. 
-.         compare_zillow_safmr_zipcode, tseries(sfcc) inzillow(`instub_zillow')
->  insafmr(`instub_safmr') mlist(1 6 12)
- 14. 
-. 
-. end 
+ 10.         
+.         use "`instub_safmr'/safrm_2017_2019_by_zipcode_cbsa10.dta", clear
+ 11.         collapse (sum) safmr1br safmr2br safmr3br safmr4br, ///
+>             by(zipcode year)
+ 12.         save "../temp/safmr_2017_2019.dta", replace
+ 13.         
+.         use "`instub_safmr'/safrm_2012_2016_by_zipcode_county_cbsa10.dta", cl
+> ear
+ 14.         collapse (sum) safmr1br safmr2br safmr3br safmr4br, ///
+>             by(zipcode year)
+ 15.         append using "../temp/safmr_2017_2019.dta"
+ 16.         save "../temp/safmr.dta", replace
+ 17.         prepare_weighted_safmr
+ 18.         save ../temp/wgt_safmr.dta, replace 
+ 19. 
+.         compare_zillow_safmr_zipcode, inzillow(`instub_zillow') ///
+>             mlist(1 6 12)
+ 20.         drop _merge
+ 21.         reshape wide medrentprice_SFCC safmrbr, i(zipcode safmr_type) j(ye
+> ar)
+ 22.         gen chg_safmrbr = safmrbr2019 - safmrbr2018
+ 23.         gen chg_medrent_price = medrentprice_SFCC2019 - medrentprice_SFCC2
+> 018
+ 24.         
+.         binscatter chg_medrent_price chg_safmrbr if safmr_type == 2
+ 25.         graph export "../output/binscatter_zillow_vs_safmr2br.png", replac
+> e
+ 26. end 
 
 . 
 . program prepare_ahs_weights
   1.         
 .         collapse (sum) estimate, by(year br)
-  2. 
-.         bys year: egen tot_house = sum(estimate)
+  2.         bys year: egen tot_house = sum(estimate)
   3.         g br_share = estimate / tot_house
   4. 
 .         keep year br br_share
@@ -91,53 +110,46 @@ Notes:
   2.         collapse (mean) `safmrvars', by(year)
   3.         reshape long safmr@br, i(year) j(br)
   4.         rename safmrbr safmr
-  5.         merge 1:1 year br using ../temp/ahs_wgt.dta, nogen assert(1 2 3) k
-> eep(1 3)
+  5.         merge 1:1 year br using "../temp/ahs_wgt.dta", nogen assert(1 2 3)
+>  keep(1 3)
   6.         collapse (mean) safmr [w = br_share], by(year)
   7. end 
 
 . 
 . 
 . program compare_zillow_safmr_zipcode
-  1.         syntax, tseries(str) inzillow(str) insafmr(str) mlist(str)
+  1.         syntax, inzillow(str) mlist(str)
   2.         
-.         local target vars "" 
-  3.         foreach s in `tseries' {
-  4.                 local target_vars `"`target_vars' medrentprice_`s'"'
-  5.         }
-  6.         
-.         use zipcode place_code msa countyfips statefips ///
->                 year_month `target_vars' ///
->                 using `inzillow'/zipcode_yearmonth_panel_all.dta
-  7. 
-.         foreach s in `tseries' {
-  8.                 g rmtag = (medrentprice_`s'==.)
-  9.                 bys zipcode (year_month): g ziplen = _N
- 10.                 bys zipcode (year_month): gegen rmcount = sum(rmtag)
- 11.                 g sample_`s' = (ziplen!=rmcount)
- 12.                 drop ziplen rmtag rmcount
- 13.         }
- 14. 
+.         use zipcode place_code cbsa10 countyfips statefips ///
+>                 year_month medrentprice_SFCC ///
+>                 using "`inzillow'/all_zipcode_months.dta"
+  3. 
+.         g rmtag = (medrentprice_SFCC == .)
+  4.         bys zipcode (year_month): g ziplen = _N
+  5.         bys zipcode (year_month): gegen rmcount = sum(rmtag)
+  6.         g sample_SFCC = (ziplen != rmcount)
+  7.         drop ziplen rmtag rmcount
+  8. 
 .         unab samplist: sample_*
- 15.         gegen allmis = rowtotal(`samplist')
- 16.         drop if allmis==0 
- 17.         drop allmis 
- 18.         g year = yofd(dofm(year_month))
- 19.         keep if inrange(year, 2010, 2019)
- 20. 
+  9.         gegen allmis = rowtotal(`samplist')
+ 10.         drop if allmis==0 
+ 11.         drop allmis 
+ 12.         g year = yofd(dofm(year_month))
+ 13.         keep if inrange(year, 2010, 2019)
+ 14. 
 .         preserve
- 21.         collapse (mean) `target_vars', by(year)
- 22.         merge 1:1 year using ../temp/wgt_safmr.dta, nogen assert(1 2 3) ke
+ 15.         collapse (mean) medrentprice_SFCC, by(year)
+ 16.         merge 1:1 year using ../temp/wgt_safmr.dta, nogen assert(1 2 3) ke
 > ep(1 3)
- 23. 
+ 17. 
 .         merge 1:1 year using ../temp/cpi2012.dta, nogen keep(1 3)
- 24.         foreach v in `target_vars' safmr {
- 25.                 replace `v' = `v'/cpi2012
- 26.         }
- 27.         
-.         corr safmr medrentprice_sfcc
- 28. 
-.         twoway (line medrentprice_sfcc year, lc(eltblue)) ///
+ 18.         foreach v in medrentprice_SFCC safmr {
+ 19.                 replace `v' = `v'/cpi2012
+ 20.         }
+ 21.         
+.         corr safmr medrentprice_SFCC
+ 22. 
+.         twoway (line medrentprice_SFCC year, lc(eltblue)) ///
 >                    (line safmr year, lp(dash) lc(gs10)), ///
 >                    legend(order(1 "zillow single family/condo" 2 "SAFMR")) //
 > /
@@ -145,24 +157,23 @@ Notes:
 > 12 USD)", size(medsmall)) ///
 >                    xlabel(, labsize(small))  xtitle(, size(medsmall)) ///
 >                    graphregion(color(white)) bgcolor(white)
- 29.         graph export ../output/trend_zillow_safmrwgt_zipcode_avg.eps, repl
-> ace
- 30.         restore 
- 31.         * Option 1: take year average 
+ 23.         graph export "../output/trend_zillow_safmrwgt_zipcode_avg.png", re
+> place
+ 24.         restore 
+ 25.         * Option 1: take year average 
 .         preserve
- 32.         collapse (mean) `target_vars', by(zipcode year)
- 33.         merge 1:1 zipcode year using `insafmr'/safrm.dta        
- 34. 
+ 26.         collapse (mean) medrentprice_SFCC, by(zipcode year)
+ 27.         merge 1:1 zipcode year using "../temp/safmr.dta"
+ 28. 
 .         unab safmrvars: safmr*
- 35.         local target_final `"`target_vars' `safmrvars'"'
- 36.         collapse (mean) `target_final', by(year)
- 37. 
-.         merge 1:1 year using ../temp/cpi2012.dta, nogen keep(1 3)
- 38.         foreach v in `target_final' {
- 39.                 replace `v' = `v'/cpi2012
- 40.         }
- 41. 
-.         twoway (line medrentprice_sfcc year, lc(eltblue)) ///
+ 29.         collapse (mean) medrentprice_SFCC `safmrvars', by(year)
+ 30. 
+.         merge 1:1 year using "../temp/cpi2012.dta", nogen keep(1 3)
+ 31.         foreach v in  medrentprice_SFCC `safmrvars' {
+ 32.                 replace `v' = `v'/cpi2012
+ 33.         }
+ 34. 
+.         twoway (line medrentprice_SFCC year, lc(eltblue)) ///
 >                    (line safmr2br year, lp(dash) lc(gs11)) ///
 >                    (line safmr3br year, lp(dash) lc(lavender)) ///
 >                    (line safmr4br year, lp(dash) lc(black)), ///
@@ -172,9 +183,10 @@ Notes:
 > ze(medsmall)) ///
 >                    xlabel(, labsize(small)) xtitle(, size(medsmall)) ///
 >                    graphregion(color(white)) bgcolor(white)
- 42.         graph export ../output/trend_zillow_safmr_zipcode_avg.eps, replace
- 43. 
-.         twoway (line medrentprice_sfcc year, lc(eltblue)) ///
+ 35.         graph export "../output/trend_zillow_safmr_zipcode_avg.png", repla
+> ce
+ 36. 
+.         twoway (line medrentprice_SFCC year, lc(eltblue)) ///
 >                    (line safmr3br year, lp(dash) lc(black)), ///
 >                    legend(order(1 "zillow single family/condo" 2 "SAFMR 3br")
 >  cols(3)) ///
@@ -182,32 +194,29 @@ Notes:
 > ze(medsmall)) ///
 >                    xlabel(, labsize(small)) xtitle(, size(medsmall)) ///
 >                    graphregion(color(white)) bgcolor(white)
- 44.         graph export ../output/trend_zillow_safmr3br_zipcode_avg.eps, repl
-> ace
- 45. 
+ 37.         graph export "../output/trend_zillow_safmr3br_zipcode_avg.png", re
+> place
+ 38. 
 .         restore
- 46. 
+ 39. 
 .         * Option 2: take given month 
 .         foreach m in `mlist' {
- 47.                 preserve
- 48.                 g month = month(dofm(year_month))
- 49. 
+ 40.                 preserve
+ 41.                 g month = month(dofm(year_month))
+ 42. 
 .                 keep if month == `m'
- 50.                 merge 1:1 zipcode year using `insafmr'/safrm.dta        
- 51. 
+ 43.                 merge 1:1 zipcode year using "../temp/safmr.dta"        
+ 44. 
 . 
 .                 unab safmrvars: safmr*
- 52.                 local target_final `"`target_vars' `safmrvars'"'
- 53.                 collapse (mean) `target_final', by(year)
- 54.                 //use `instub_safmr'/safrm.dta, clear
-. 
-. 
-.                 merge 1:1 year using ../temp/cpi2012.dta, nogen keep(1 3)
- 55.                 foreach v in `target_final' {
- 56.                         replace `v' = `v'/cpi2012
- 57.                 }
- 58. 
-.                 twoway (line medrentprice_sfcc year, lc(eltblue)) ///
+ 45.                 collapse (mean)  medrentprice_SFCC `safmrvars', by(year)
+ 46. 
+.                 merge 1:1 year using "../temp/cpi2012.dta", nogen keep(1 3)
+ 47.                 foreach v in medrentprice_SFCC {
+ 48.                         replace `v' = `v'/cpi2012
+ 49.                 }
+ 50. 
+.                 twoway (line medrentprice_SFCC year, lc(eltblue)) ///
 >                            (line safmr2br year, lp(dash) lc(gs11)) (line safm
 > r3br year, lp(dash) lc(lavender)) (line safmr4br year, lp(dash) lc(black)), /
 > //
@@ -218,10 +227,10 @@ Notes:
 >                            xlabel(, labsize(small)) xtitle(, size(medsmall)) 
 > ///
 >                            graphregion(color(white)) bgcolor(white)
- 59.                 graph export ../output/trend_zillow_safmr_zipcode_m`m'.eps
+ 51.                 graph export ../output/trend_zillow_safmr_zipcode_m`m'.png
 > , replace
- 60. 
-.                 twoway (line medrentprice_sfcc year, lc(eltblue)) ///
+ 52. 
+.                 twoway (line medrentprice_SFCC year, lc(eltblue)) ///
 >                            (line safmr3br year, lp(dash) lc(black)), ///
 >                            legend(order(1 "zillow single family/condo" 2 "SAF
 > MR 3br") cols(3)) ///
@@ -230,58 +239,51 @@ Notes:
 >                            xlabel(, labsize(small)) xtitle(, size(medsmall)) 
 > ///
 >                            graphregion(color(white)) bgcolor(white)
- 61.                 graph export ../output/trend_zillow_safmr3br_zipcode_m`m'.
-> eps, replace
- 62.                 restore 
- 63.         }
- 64. 
+ 53.                 graph export "../output/trend_zillow_safmr3br_zipcode_m`m'
+> .png", replace
+ 54.                 restore 
+ 55.         }
+ 56. 
 .         *binscatter correlation         
-.         collapse (mean) `target_vars', by(zipcode year)
- 65.         merge 1:1 zipcode year using `insafmr'/safrm.dta        
- 66. 
-.         reshape long safmr@br, i(zipcode year `target_vars') j(safmr_type)
- 67. 
+.         collapse (mean) medrentprice_SFCC, by(zipcode year)
+ 57.         merge 1:1 zipcode year using "../temp/safmr.dta"        
+ 58. 
+.         reshape long safmr@br, i(zipcode year medrentprice_SFCC) j(safmr_type
+> )
+ 59. 
 .         * zipcode average time series correlations
 .         preserve 
- 68.         collapse (mean) medrentprice_sfcc safmrbr, by(year safmr_type)
- 69.         bys safmr_type: corr medrentprice_sfcc safmrbr
- 70.         restore
- 71. 
-. 
-.         binscatter medrentprice_sfcc safmrbr if safmr_type>0, ///
->         by(safmr_type) absorb(zipcode) ylabel(0(1000)6000, grid labsize(small
-> )) xlabel(0(1000)4000, labsize(small)) ///
->         ytitle("Median Rent Price (2012 USD)", size(medsmall)) xtitle("Small 
-> Area Fair Market Rent", size(medsmall)) ///
->         legend(order(1 "1br" 2 "2br" 3 "3br" 4 "4br") rows(1))
- 72.         graph export ../output/bins_sfcc_safmr_bytype.png, replace
- 73. 
-.         winsor2 medrentprice_sfcc, replace by(safmr_type year) cuts(5 95)
- 74. 
+ 60.                 collapse (mean) medrentprice_SFCC safmrbr, by(year safmr_t
+> ype)
+ 61.                 bys safmr_type: corr medrentprice_SFCC safmrbr
+ 62.         restore
+ 63. 
+.         winsor2 medrentprice_SFCC, replace by(safmr_type year) cuts(5 95)
+ 64. 
 .         preserve
- 75.         local nbr = 3
- 76.         foreach var in medrentprice_sfcc safmrbr {
- 77.                 qui reghdfe `var' if safmr_type==`nbr', absorb(zipcode) re
+ 65.         local nbr = 3
+ 66.         foreach var in medrentprice_SFCC safmrbr {
+ 67.                 qui reghdfe `var' if safmr_type==`nbr', absorb(zipcode) re
 > s(`var'R)
- 78.         }
- 79.         qui corr medrentprice_sfccR safmrbrR if safmr_type==`nbr'
- 80.         local rho = round(r(rho), .001)
- 81.         di `rho'
- 82. 
-.         qui reghdfe medrentprice_sfcc safmrbr if safmr_type==`nbr', absorb(zi
+ 68.         }
+ 69.         qui corr medrentprice_SFCCR safmrbrR if safmr_type==`nbr'
+ 70.         local rho = round(r(rho), .001)
+ 71.         di `rho'
+ 72. 
+.         qui reghdfe medrentprice_SFCC safmrbr if safmr_type==`nbr', absorb(zi
 > pcode)
- 83.         local estbeta = round(_b[safmrbr], .001)
- 84.         local estse = round(_se[safmrbr], .001)
- 85.         binscatter medrentprice_sfcc safmrbr if safmr_type==`nbr', ///
+ 73.         local estbeta = round(_b[safmrbr], .001)
+ 74.         local estse = round(_se[safmrbr], .001)
+ 75.         binscatter medrentprice_SFCC safmrbr if safmr_type==`nbr', ///
 >         absorb(zipcode) ///
 >         ytitle("Median Rent Price (2012 USD)", size(medsmall)) xtitle("Small 
 > Area Fair Market Rent - `nbr'br", size(medsmall)) ///
 >         mc(navy) lc(gs10) text(1600 2200 "{&beta} = `estbeta' (`estse')") tex
 > t(1580 2150 "{&rho} = `rho'")
- 86. 
-.         graph export ../output/bins_sfcc_safmr`nbr'br.eps, replace
- 87.         restore
- 88. end
+ 76. 
+.         graph export "../output/bins_sfcc_safmr`nbr'br.png", replace
+ 77.         restore
+ 78. end
 
 . 
 . 
@@ -297,29 +299,33 @@ file ../temp/cpi2012.dta saved
 br_share:  (20 real changes made)
 (note: file ../temp/ahs_wgt.dta not found)
 file ../temp/ahs_wgt.dta saved
-(note: j = 0 1 2 3 4)
+(note: file ../temp/safmr_2017_2019.dta not found)
+file ../temp/safmr_2017_2019.dta saved
+(note: file ../temp/safmr.dta not found)
+file ../temp/safmr.dta saved
+(note: j = 1 2 3 4)
 
 Data                               wide   ->   long
 -----------------------------------------------------------------------------
-Number of obs.                        8   ->      40
-Number of variables                   6   ->       3
-j variable (5 values)                     ->   br
+Number of obs.                        8   ->      32
+Number of variables                   5   ->       3
+j variable (4 values)                     ->   br
 xij variables:
-         safmr0br safmr1br ... safmr4br   ->   safmrbr
+         safmr1br safmr2br ... safmr4br   ->   safmrbr
 -----------------------------------------------------------------------------
 
     Result                           # of obs.
     -----------------------------------------
     not matched                             0
-    matched                                40  
+    matched                                32  
     -----------------------------------------
 (analytic weights assumed)
 (note: file ../temp/wgt_safmr.dta not found)
 file ../temp/wgt_safmr.dta saved
 performance warning: -by- prefix may be slower than -by()-
 rowtotal() is not a gtools function and no by(); falling back on egen
-(8,037,567 observations deleted)
-(573,814 observations deleted)
+(4,446,000 observations deleted)
+(0 observations deleted)
 
     Result                           # of obs.
     -----------------------------------------
@@ -339,21 +345,21 @@ rowtotal() is not a gtools function and no by(); falling back on egen
 (7 real changes made)
 (obs=8)
 
-             |    safmr medren~c
+             |    safmr medren~C
 -------------+------------------
        safmr |   1.0000
-medrentpri~c |   0.9406   1.0000
+medrentpri~C |   0.6175   1.0000
 
-(note: file ../output/trend_zillow_safmrwgt_zipcode_avg.eps not found)
-(file ../output/trend_zillow_safmrwgt_zipcode_avg.eps written in EPS format)
+(note: file ../output/trend_zillow_safmrwgt_zipcode_avg.png not found)
+(file ../output/trend_zillow_safmrwgt_zipcode_avg.png written in PNG format)
 
     Result                           # of obs.
     -----------------------------------------
-    not matched                       142,913
-        from master                     7,701  (_merge==1)
-        from using                    135,212  (_merge==2)
+    not matched                       159,118
+        from master                     7,629  (_merge==1)
+        from using                    151,489  (_merge==2)
 
-    matched                            26,669  (_merge==3)
+    matched                            26,741  (_merge==3)
     -----------------------------------------
 
     Result                           # of obs.
@@ -366,20 +372,19 @@ medrentpri~c |   0.9406   1.0000
 (7 real changes made)
 (7 real changes made)
 (7 real changes made)
-(7 real changes made)
-(note: file ../output/trend_zillow_safmr_zipcode_avg.eps not found)
-(file ../output/trend_zillow_safmr_zipcode_avg.eps written in EPS format)
-(note: file ../output/trend_zillow_safmr3br_zipcode_avg.eps not found)
-(file ../output/trend_zillow_safmr3br_zipcode_avg.eps written in EPS format)
+(note: file ../output/trend_zillow_safmr_zipcode_avg.png not found)
+(file ../output/trend_zillow_safmr_zipcode_avg.png written in PNG format)
+(note: file ../output/trend_zillow_safmr3br_zipcode_avg.png not found)
+(file ../output/trend_zillow_safmr3br_zipcode_avg.png written in PNG format)
 (378,070 observations deleted)
 
     Result                           # of obs.
     -----------------------------------------
-    not matched                       142,913
-        from master                     7,701  (_merge==1)
-        from using                    135,212  (_merge==2)
+    not matched                       159,118
+        from master                     7,629  (_merge==1)
+        from using                    151,489  (_merge==2)
 
-    matched                            26,669  (_merge==3)
+    matched                            26,741  (_merge==3)
     -----------------------------------------
 
     Result                           # of obs.
@@ -388,24 +393,19 @@ medrentpri~c |   0.9406   1.0000
     matched                                10  
     -----------------------------------------
 (8 real changes made)
-(7 real changes made)
-(7 real changes made)
-(7 real changes made)
-(7 real changes made)
-(7 real changes made)
-(note: file ../output/trend_zillow_safmr_zipcode_m1.eps not found)
-(file ../output/trend_zillow_safmr_zipcode_m1.eps written in EPS format)
-(note: file ../output/trend_zillow_safmr3br_zipcode_m1.eps not found)
-(file ../output/trend_zillow_safmr3br_zipcode_m1.eps written in EPS format)
+(note: file ../output/trend_zillow_safmr_zipcode_m1.png not found)
+(file ../output/trend_zillow_safmr_zipcode_m1.png written in PNG format)
+(note: file ../output/trend_zillow_safmr3br_zipcode_m1.png not found)
+(file ../output/trend_zillow_safmr3br_zipcode_m1.png written in PNG format)
 (378,070 observations deleted)
 
     Result                           # of obs.
     -----------------------------------------
-    not matched                       142,913
-        from master                     7,701  (_merge==1)
-        from using                    135,212  (_merge==2)
+    not matched                       159,118
+        from master                     7,629  (_merge==1)
+        from using                    151,489  (_merge==2)
 
-    matched                            26,669  (_merge==3)
+    matched                            26,741  (_merge==3)
     -----------------------------------------
 
     Result                           # of obs.
@@ -414,24 +414,19 @@ medrentpri~c |   0.9406   1.0000
     matched                                10  
     -----------------------------------------
 (9 real changes made)
-(7 real changes made)
-(7 real changes made)
-(7 real changes made)
-(7 real changes made)
-(7 real changes made)
-(note: file ../output/trend_zillow_safmr_zipcode_m6.eps not found)
-(file ../output/trend_zillow_safmr_zipcode_m6.eps written in EPS format)
-(note: file ../output/trend_zillow_safmr3br_zipcode_m6.eps not found)
-(file ../output/trend_zillow_safmr3br_zipcode_m6.eps written in EPS format)
+(note: file ../output/trend_zillow_safmr_zipcode_m6.png not found)
+(file ../output/trend_zillow_safmr_zipcode_m6.png written in PNG format)
+(note: file ../output/trend_zillow_safmr3br_zipcode_m6.png not found)
+(file ../output/trend_zillow_safmr3br_zipcode_m6.png written in PNG format)
 (378,070 observations deleted)
 
     Result                           # of obs.
     -----------------------------------------
-    not matched                       142,913
-        from master                     7,701  (_merge==1)
-        from using                    135,212  (_merge==2)
+    not matched                       159,118
+        from master                     7,629  (_merge==1)
+        from using                    151,489  (_merge==2)
 
-    matched                            26,669  (_merge==3)
+    matched                            26,741  (_merge==3)
     -----------------------------------------
 
     Result                           # of obs.
@@ -440,92 +435,94 @@ medrentpri~c |   0.9406   1.0000
     matched                                10  
     -----------------------------------------
 (9 real changes made)
-(7 real changes made)
-(7 real changes made)
-(7 real changes made)
-(7 real changes made)
-(7 real changes made)
-(note: file ../output/trend_zillow_safmr_zipcode_m12.eps not found)
-(file ../output/trend_zillow_safmr_zipcode_m12.eps written in EPS format)
-(note: file ../output/trend_zillow_safmr3br_zipcode_m12.eps not found)
-(file ../output/trend_zillow_safmr3br_zipcode_m12.eps written in EPS format)
+(note: file ../output/trend_zillow_safmr_zipcode_m12.png not found)
+(file ../output/trend_zillow_safmr_zipcode_m12.png written in PNG format)
+(note: file ../output/trend_zillow_safmr3br_zipcode_m12.png not found)
+(file ../output/trend_zillow_safmr3br_zipcode_m12.png written in PNG format)
 
     Result                           # of obs.
     -----------------------------------------
-    not matched                       142,913
-        from master                     7,701  (_merge==1)
-        from using                    135,212  (_merge==2)
+    not matched                       159,118
+        from master                     7,629  (_merge==1)
+        from using                    151,489  (_merge==2)
 
-    matched                            26,669  (_merge==3)
+    matched                            26,741  (_merge==3)
     -----------------------------------------
-(note: j = 0 1 2 3 4)
+(note: j = 1 2 3 4)
 
 Data                               wide   ->   long
 -----------------------------------------------------------------------------
-Number of obs.                   169582   ->  847910
-Number of variables                   9   ->       6
-j variable (5 values)                     ->   safmr_type
+Number of obs.                   185859   ->  743436
+Number of variables                   8   ->       6
+j variable (4 values)                     ->   safmr_type
 xij variables:
-         safmr0br safmr1br ... safmr4br   ->   safmrbr
+         safmr1br safmr2br ... safmr4br   ->   safmrbr
 -----------------------------------------------------------------------------
-
--------------------------------------------------------------------------------
--> safmr_type = 0
-(obs=8)
-
-             | medren~c  safmrbr
--------------+------------------
-medrentpri~c |   1.0000
-     safmrbr |   0.9389   1.0000
-
 
 -------------------------------------------------------------------------------
 -> safmr_type = 1
 (obs=8)
 
-             | medren~c  safmrbr
+             | medren~C  safmrbr
 -------------+------------------
-medrentpri~c |   1.0000
-     safmrbr |   0.9583   1.0000
+medrentpri~C |   1.0000
+     safmrbr |   0.7693   1.0000
 
 
 -------------------------------------------------------------------------------
 -> safmr_type = 2
 (obs=8)
 
-             | medren~c  safmrbr
+             | medren~C  safmrbr
 -------------+------------------
-medrentpri~c |   1.0000
-     safmrbr |   0.9638   1.0000
+medrentpri~C |   1.0000
+     safmrbr |   0.8568   1.0000
 
 
 -------------------------------------------------------------------------------
 -> safmr_type = 3
 (obs=8)
 
-             | medren~c  safmrbr
+             | medren~C  safmrbr
 -------------+------------------
-medrentpri~c |   1.0000
-     safmrbr |   0.9591   1.0000
+medrentpri~C |   1.0000
+     safmrbr |   0.8906   1.0000
 
 
 -------------------------------------------------------------------------------
 -> safmr_type = 4
 (obs=8)
 
-             | medren~c  safmrbr
+             | medren~C  safmrbr
 -------------+------------------
-medrentpri~c |   1.0000
-     safmrbr |   0.9604   1.0000
+medrentpri~C |   1.0000
+     safmrbr |   0.9086   1.0000
 
 
-(note: file ../output/bins_sfcc_safmr_bytype.png not found)
-(file ../output/bins_sfcc_safmr_bytype.png written in PNG format)
-.465
-(note: file ../output/bins_sfcc_safmr3br.eps not found)
-(file ../output/bins_sfcc_safmr3br.eps written in EPS format)
+.258
+(note: file ../output/bins_sfcc_safmr3br.png not found)
+(file ../output/bins_sfcc_safmr3br.png written in PNG format)
+(note: j = 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019)
+
+Data                               long   ->   wide
+-----------------------------------------------------------------------------
+Number of obs.                   743436   ->   97396
+Number of variables                   5   ->      22
+j variable (10 values)             year   ->   (dropped)
+xij variables:
+                      medrentprice_SFCC   ->   medrentprice_SFCC2010 medrentpri
+> ce_SFCC2011 ... medrentprice_SFCC2019
+                                safmrbr   ->   safmrbr2010 safmrbr2011 ... safm
+> rbr2019
+-----------------------------------------------------------------------------
+(3,128 missing values generated)
+(83,836 missing values generated)
+warning: nquantiles(20) was specified, but only 18 were generated. see help fil
+> e under nquantiles() for explanation.
+(note: file ../output/binscatter_zillow_vs_safmr2br.png not found)
+(file ../output/binscatter_zillow_vs_safmr2br.png written in PNG format)
 
 . 
 end of do-file
 
- make.py ended: 2020-12-15 06:57:46
+ make.py ended: 2021-10-27 14:28:08

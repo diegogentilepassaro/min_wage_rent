@@ -12,12 +12,11 @@ program main
 
 	substate_min_wage_change, instub(`raw') outstub(`temp') temp(`temp')
 	prepare_local, temp(`temp')
-	prepare_state, outstub(`outstub') temp(`temp') finaldate(31Dec2019)
+	prepare_state, outstub(`outstub') temp(`temp') finaldate(31Jan2020)
 	
 	local mw_list = "mw mw_smallbusiness"
-	prepare_finaldata, temp(`temp') finaldate(31Dec2019) target_mw(`mw_list')
+	prepare_finaldata, temp(`temp') finaldate(31Jan2020) target_mw(`mw_list')
 
-	export_substate_daily,     outstub(`outstub') temp(`temp') 
 	export_substate_monthly,   outstub(`outstub') temp(`temp') target_mw(`mw_list')
 	export_substate_quarterly, outstub(`outstub') temp(`temp') target_mw(`mw_list')
 	export_substate_yearly,    outstub(`outstub') temp(`temp') target_mw(`mw_list')
@@ -125,7 +124,8 @@ program prepare_finaldata
 
 	keep if date <= td(`finaldate')
 
-	merge 1:m statefips locality date using `temp'/statemw.dta, assert(2 3) nogenerate
+	merge 1:m statefips locality date using "`temp'/statemw.dta", ///
+	    assert(2 3) nogen
 
 	replace mw = state_mw if mw == .
 	replace mw = round(mw,0.01)
@@ -149,14 +149,6 @@ program prepare_finaldata
 	save_data `temp'/data_substate.dta, key(statefips locality date) replace log(none)
 end
 
-program export_substate_daily
-	syntax, outstub(str) temp(str) 
-		
-	use `temp'/data_substate.dta, clear
-	save_data `outstub'/substate_daily.csv, key(locality date) ///
-        outsheet replace
-end
-
 program export_substate_monthly
 	syntax, outstub(str) temp(str) target_mw(str)
 	use `temp'/data_substate.dta, clear
@@ -164,7 +156,8 @@ program export_substate_monthly
 	gen monthly_date = mofd(date)
 	format monthly_date %tm
 
-	collapse (max) `target_mw' abovestate_*, by(statefips statename stateabb locality monthly_date)
+	collapse (max) `target_mw' abovestate_*, ///
+	    by(statefips statename stateabb locality monthly_date)
 
 	label var monthly_date "Monthly Date"
 	label_mw_vars, time_level("Monthly")
@@ -180,7 +173,8 @@ program export_substate_quarterly
 	gen quarterly_date = qofd(date)
 	format quarterly_date %tq
 
-	collapse (max) `target_mw' abovestate_*, by(statefips statename stateabb locality quarterly_date)
+	collapse (max) `target_mw' abovestate_*, ///
+	    by(statefips statename stateabb locality quarterly_date)
 
 	label var quarterly_date "Quarterly Date"
 	label_mw_vars, time_level("Quarterly")
@@ -196,7 +190,8 @@ program export_substate_yearly
 	gen year = yofd(date)
 	format year %ty
 
-	collapse (max) `target_mw' abovestate_*, by(statefips statename stateabb locality year)
+	collapse (max) `target_mw' abovestate_*, ///
+	    by(statefips statename stateabb locality year)
 
 	label var year "Year"
 	label_mw_vars, time_level("Annual")

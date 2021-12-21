@@ -5,14 +5,23 @@ adopath + ../../../lib/stata/gslab_misc/ado
 program main
     local xwalk_dir  "../../../raw/crosswalk"
     local zillow_dir "../../../drive/base_large/zillow"
+    local shape_dir  "../../../drive/raw_data/shapefiles/USPS_zipcodes"
     local output     "../output"
     
-    build_geomaster_large, instub(`xwalk_dir') outstub(`output')
-    build_geomaster_small, instub(`xwalk_dir') outstub(`output')
+    build_geomaster_large, instub(`xwalk_dir') ///
+	    in_shape(`shape_dir') outstub(`output')
+    build_geomaster_small, instub(`xwalk_dir') ///
+	    outstub(`output')
 end
 
 program build_geomaster_large
-    syntax, instub(str) outstub(str)
+    syntax, instub(str) in_shape(str) outstub(str)
+	
+	import dbase "`in_shape'/USPS_zipcodes_July2020.dbf", clear
+    rename (ZIP_CODE PO_NAME STATE POPULATION SQMI) ///
+	    (zipcode zipcode_name statefips pop2020_esri area_sqmi)
+	keep zipcode pop2020_esri area_sqmi
+	save_data "../temp/usps_shape.dta", key(zipcode) replace log(none)
 
     import excel "`instub'/zip_to_zcta_2019.xlsx", ///
         sheet("ZiptoZCTA_crosswalk") firstrow allstring clear
@@ -21,9 +30,8 @@ program build_geomaster_large
     keep zipcode zcta zipcode_name
     save_data "../temp/usps_master.dta", key(zipcode) replace log(none)
     
-    clear
     import delimited "`instub'/geocorr2018.csv", ///
-        varnames(1) stringcols(1 2 3 4 5)
+        varnames(1) stringcols(1 2 3 4 5) clear
 
     drop metdiv10 mdivname10 afact
     rename (zcta5      county       placefp     state)                  ///
@@ -46,7 +54,11 @@ program build_geomaster_large
 
     keep  `keep_vars'
     order `keep_vars'
-	    
+	
+	merge m:1 zipcode using "../temp/usps_master.dta", nogen keep(1 3)
+	
+	replace place_code = "47766" if zipcode == "95035" /* Manual fix for Milpitas*/
+	
 	save_data "`outstub'/zip_county_place_usps_all.dta", ///
         key(zipcode countyfips place_code) replace
     export delimited "`outstub'/zip_county_place_usps_all.csv", replace
@@ -74,7 +86,7 @@ program build_geomaster_small
         key(tract_fips zipcode) replace
     save_data "`outstub'/tract_zip_master.csv", outsheet ///
         key(tract_fips zipcode) replace 
-end 
+end
 
 *EXECUTE
 main 

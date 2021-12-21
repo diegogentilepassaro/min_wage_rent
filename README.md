@@ -55,7 +55,8 @@ Note that none of these folders is compiled using `make` nor `SCons`.
 
   - Use [oxford comma](https://i.kym-cdn.com/photos/images/original/000/946/427/5a4.jpg).
 
-  - To cite a specific section, appendix, or figure use caps. E.g.,  `Section \ref{sec:sec_name}` or `Appendix Table \ref{tab:tab_name}`.
+  - To cite a specific section, appendix, table, or figure use caps. E.g.,  `Section \ref{sec:sec_name}` or `Appendix Table \ref{tab:tab_name}`.
+    - When the reference is not specific _do not_ use caps. E.g., `The following section shows that ..` or `.. according to the table ..`
 
   - To cite math or an equation do `\eqref{eq:eq_name}` or `equation \eqref{eq:eq_name}` when appropriate.
       - Equations are part of a paragraph

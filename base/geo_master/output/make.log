@@ -1,5 +1,5 @@
 
- make.py started: 2021-05-29 17:17:31 C:\Users\diegog\Desktop\Diego\min_wage_rent\base\geo_master\code 
+ make.py started: 2021-10-29 10:12:26 C:\Users\diegog\Desktop\Diego\min_wage_rent\base\geo_master\code 
 
 
 
@@ -46,63 +46,76 @@ Notes:
 . program main
   1.     local xwalk_dir  "../../../raw/crosswalk"
   2.     local zillow_dir "../../../drive/base_large/zillow"
-  3.     local output     "../output"
-  4.     
-.     build_geomaster_large, instub(`xwalk_dir') outstub(`output')
-  5.     build_geomaster_small, instub(`xwalk_dir') outstub(`output')
-  6. end
+  3.     local shape_dir  "../../../drive/raw_data/shapefiles/USPS_zipcodes"
+  4.     local output     "../output"
+  5.     
+.     build_geomaster_large, instub(`xwalk_dir') ///
+>             in_shape(`shape_dir') outstub(`output')
+  6.     build_geomaster_small, instub(`xwalk_dir') ///
+>             outstub(`output')
+  7. end
 
 . 
 . program build_geomaster_large
-  1.     syntax, instub(str) outstub(str)
-  2. 
+  1.     syntax, instub(str) in_shape(str) outstub(str)
+  2.         
+.         import dbase "`in_shape'/USPS_zipcodes_July2020.dbf", clear
+  3.     rename (ZIP_CODE PO_NAME STATE POPULATION SQMI) ///
+>             (zipcode zipcode_name statefips pop2020_esri area_sqmi)
+  4.         keep zipcode pop2020_esri area_sqmi
+  5.         save_data "../temp/usps_shape.dta", key(zipcode) replace log(none)
+  6. 
 .     import excel "`instub'/zip_to_zcta_2019.xlsx", ///
 >         sheet("ZiptoZCTA_crosswalk") firstrow allstring clear
-  3.     rename (ZIP_CODE ZCTA PO_NAME) (zipcode zcta zipcode_name)
-  4.     drop if zipcode == "96898" & zcta == "No ZCTA"
-  5.     keep zipcode zcta zipcode_name
-  6.     save_data "../temp/usps_master.dta", key(zipcode) replace log(none)
-  7.     
-.     clear
-  8.     import delimited "`instub'/geocorr2018.csv", ///
->         varnames(1) stringcols(1 2 3 4 5)
-  9. 
+  7.     rename (ZIP_CODE ZCTA PO_NAME) (zipcode zcta zipcode_name)
+  8.     drop if zipcode == "96898" & zcta == "No ZCTA"
+  9.     keep zipcode zcta zipcode_name
+ 10.     save_data "../temp/usps_master.dta", key(zipcode) replace log(none)
+ 11.     
+.     import delimited "`instub'/geocorr2018.csv", ///
+>         varnames(1) stringcols(1 2 3 4 5) clear
+ 12. 
 .     drop metdiv10 mdivname10 afact
- 10.     rename (zcta5      county       placefp     state)                  //
+ 13.     rename (zcta5      county       placefp     state)                  //
 > /
 >            (zcta       countyfips   place_code  statefips)
- 11.     rename (zipname    cntyname     placenm     cbsaname10   stab)      //
+ 14.     rename (zipname    cntyname     placenm     cbsaname10   stab)      //
 > /
 >            (zcta_name  county_name  place_name  cbsa10_name  state_abb)
- 12.     rename hus10 houses_zcta_place_county
- 13. 
+ 15.     rename hus10 houses_zcta_place_county
+ 16. 
 .     gen rural = place_code == "99999"
- 14. 
+ 17. 
 .     merge m:m zcta using "../temp/usps_master.dta", nogen keep(3)
- 15. 
+ 18. 
 .     * Make sure zipcode-county-place combinations are unique
 .     isid zipcode place_code countyfips
- 16. 
+ 19. 
 .     local keep_vars ///
 >         zipcode     place_code   countyfips   cbsa10     zcta       ///
 >         place_name  county_name  cbsa10_name  state_abb  statefips  ///
 >         houses_zcta_place_county rural
- 17. 
+ 20. 
 .     keep  `keep_vars'
- 18.     order `keep_vars'
- 19.             
+ 21.     order `keep_vars'
+ 22.         
+.         merge m:1 zipcode using "../temp/usps_master.dta", nogen keep(1 3)
+ 23.         
+.         replace place_code = "47766" if zipcode == "95035" /* Manual fix for 
+> Milpitas*/
+ 24.         
 .         save_data "`outstub'/zip_county_place_usps_all.dta", ///
 >         key(zipcode countyfips place_code) replace
- 20.     export delimited "`outstub'/zip_county_place_usps_all.csv", replace
- 21.         
+ 25.     export delimited "`outstub'/zip_county_place_usps_all.csv", replace
+ 26.         
 .     gen   neg_houses = -houses_zcta_place_county
- 22.     bys   zipcode (neg_houses): keep if _n == 1
- 23.     drop  neg_houses            
- 24.         
+ 27.     bys   zipcode (neg_houses): keep if _n == 1
+ 28.     drop  neg_houses            
+ 29.         
 .     save_data "`outstub'/zip_county_place_usps_master.dta", ///
 >         key(zipcode) replace
- 25.     export delimited "`outstub'/zip_county_place_usps_master.csv", replace
- 26. end
+ 30.     export delimited "`outstub'/zip_county_place_usps_master.csv", replace
+ 31. end
 
 . 
 . program build_geomaster_small
@@ -119,11 +132,31 @@ Notes:
 >         key(tract_fips zipcode) replace
   6.     save_data "`outstub'/tract_zip_master.csv", outsheet ///
 >         key(tract_fips zipcode) replace 
-  7. end 
+  7. end
 
 . 
 . *EXECUTE
 . main 
+(9 vars, 31,985 obs)
+(data now sorted by zipcode)
+  (0 bytes saved)
+===============================================================================
+File: ../temp/usps_shape.dta
+Key: zipcode
+===============================================================================
+  31985:3(47856):2632292210:254409311
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+pop2020_esri |     31,985    10428.53    15079.92          0     133324
+   area_sqmi |     31,985    112.7203    765.6261          0   95698.64
+
+
+
+
+(note: file ../temp/usps_shape.dta not found)
+file ../temp/usps_shape.dta saved
 (1 observation deleted)
 (data now sorted by zipcode)
   (0 bytes saved)
@@ -152,15 +185,23 @@ file ../temp/usps_master.dta saved
     not matched                             0
     matched                            87,799  
     -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            87,799  
+    -----------------------------------------
+(1 real change made)
 (data now sorted by zipcode countyfips place_code)
   variable rural was float now byte
   variable zcta was str7 now str5
-  (438,995 bytes saved)
+  variable zipcode_name was str57 now str26
+  (3,160,764 bytes saved)
 ===============================================================================
 File: ../output/zip_county_place_usps_all.dta
 Key: zipcode countyfips place_code
 ===============================================================================
-  87799:12(15803):1520888658:143548167
+  87799:13(64378):3252530079:3044680579
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -178,6 +219,7 @@ Key: zipcode countyfips place_code
 -------------+---------------------------------------------------------
 houses_zct~y |     87,799    1796.605    3756.885          1      47617
        rural |     87,799     .443513    .4968018          0          1
+zipcode_name |          0
 
 
 
@@ -190,12 +232,13 @@ file ../output/zip_county_place_usps_all.csv saved
 (data already sorted by zipcode)
   variable rural was float now byte
   variable zcta was str7 now str5
-  (202,440 bytes saved)
+  variable zipcode_name was str57 now str26
+  (1,457,568 bytes saved)
 ===============================================================================
 File: ../output/zip_county_place_usps_master.dta
 Key: zipcode
 ===============================================================================
-  40488:12(81338):2396928722:1567900855
+  40488:13(64378):3596658418:1014299020
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -213,6 +256,7 @@ Key: zipcode
 -------------+---------------------------------------------------------
 houses_zct~y |     40,488    3314.308      5032.1          1      47617
        rural |     40,488     .444675    .4969359          0          1
+zipcode_name |          0
 
 
 
@@ -262,4 +306,4 @@ Key: tract_fips zipcode
 . 
 end of do-file
 
- make.py ended: 2021-05-29 17:18:21
+ make.py ended: 2021-10-29 10:13:26
