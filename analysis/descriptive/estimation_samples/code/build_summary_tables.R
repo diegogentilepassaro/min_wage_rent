@@ -1,14 +1,14 @@
 remove(list = ls())
-source("../../../lib/R/save_data.R")
+source("../../../../lib/R/save_data.R")
 
 library(readr)
 library(readxl)
 
 main <- function() {
-  instub_base_l <- "../../../drive/base_large/demographics"
-  instub_derv_l <- "../../../drive/derived_large/output"
-  instub_cbsa   <- "../../../drive/raw_data/census/cbsa/nhgis0049_csv"
-  instub_xwalk  <- "../../../raw/crosswalk"
+  instub_base_l <- "../../../../drive/base_large/demographics"
+  instub_derv_l <- "../../../../drive/derived_large/output"
+  instub_cbsa   <- "../../../../drive/raw_data/census/cbsa/nhgis0049_csv"
+  instub_xwalk  <- "../../../../raw/crosswalk"
   outstub       <- "../output/"
   
   rent_vars <- paste0("medrentpricepsqft", c("_2br", "_mfr5plus", "_sfcc"))
