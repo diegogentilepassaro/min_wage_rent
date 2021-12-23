@@ -1,11 +1,8 @@
 clear all
 set more off
-adopath + ../../../lib/stata/gslab_misc/ado
-adopath + ../../../lib/stata/min_wage/ado
-set maxvar 32000
 
 program main
-	local instub "../../../drive/derived_large/estimation_samples"
+	local instub "../../../../drive/derived_large/estimation_samples"
 	local outstub "../output"
 
     use zipcode zipcode_num year_month actual_mw ///

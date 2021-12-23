@@ -3,7 +3,7 @@ clear all
 adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
-	local instub  "../../../drive/derived_large/estimation_samples"
+	local instub  "../../../../drive/derived_large/estimation_samples"
 	local outstub "../output"
 	
 	local rent_var  "medrentpricepsqft_SFCC"
