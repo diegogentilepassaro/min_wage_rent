@@ -1,5 +1,5 @@
 
- make.py started: 2021-11-11 08:56:29 C:\Users\diegog\Desktop\Diego\min_wage_rent\derived\cbsa_month\code 
+ make.py started: 2022-01-10 14:31:15 C:\Users\shermo\Documents\GitHub\min_wage_rent\derived\cbsa_month\code 
 
 
 
@@ -44,69 +44,97 @@ Notes:
 
 . 
 . program main
-  1.     local in_der_large "../../../drive/derived_large"
-  2.     local outstub      "../../../drive/derived_large/cbsa_month"
-  3.     local logfile      "../output/data_file_manifest.log"
+  1.     local instub  "../../../drive/derived_large"
+  2.     local outstub "../../../drive/derived_large/cbsa_month"
+  3.     local logfile "../output/data_file_manifest.log"
   4. 
-.     use zipcode zipcode_num year_month year statefips cbsa10 rural ///
->             medrentpricepsqft_SFCC ln_rents ///
->                 actual_mw ln_mw exp_ln_mw_1* ///
->                 ln_emp_* ln_estcount_* ln_avgwwage_* using ///
->             "`in_der_large'/estimation_samples/all_zipcode_months.dta", clear
-  5.     xtset zipcode_num year_month
-  6.     gen d_ln_mw = D.ln_mw
-  7.     gen d_exp_ln_mw_17 = D.exp_ln_mw_17
-  8.         
-.     drop if missing(medrentpricepsqft_SFCC)
-  9.     drop if cbsa10 == "99999"
- 10.         gen change_mw = (actual_mw > L.actual_mw)
- 11.         collapse (count) nbr_zipcodes = zipcode_num ///
->             (sum) nbr_zipcodes_with_change = change_mw ///
->             (max) change_within_cbsa = change_mw ///
->                 max_actual_mw = actual_mw ///
->                 max_d_ln_mw = d_ln_mw ///
->                 max_d_exp_ln_mw_17 = exp_ln_mw_17 ///
->                 (mean) avg_actual_mw = actual_mw ///
->                 avg_d_ln_mw = d_ln_mw ///
->                 avg_d_exp_ln_mw_17 = exp_ln_mw_17, by(cbsa10 year year_month)
- 12.         save_data "`outstub'/cbsa_month.dta", ///
->                 key(cbsa10 year_month) log(`logfile') replace           
- 13. 
-.         keep if change_within_cbsa == 1
- 14.         gen event_year_month = year_month
- 15.         format event_year_month %tm
- 16.         gen event_year = year
- 17.         bysort cbsa10 (year_month): gen nbr_cum_changes = sum(change_withi
-> n_cbsa)
- 18.         bysort cbsa10 (event_year_month): ///
->                 gen time_since_treated = event_year_month[_n] - event_year_mo
-> nth[_n - 1]
- 19.         egen event_id = group(nbr_cum_changes cbsa10)
- 20.         keep cbsa10 event_id event_year event_year_month ///
->                 change_within_cbsa time_since_treated
- 21.         save_data "`outstub'/events.dta", ///
->                 key(cbsa10 event_year_month) log(`logfile') replace
- 22. end
+.     load_data, instub(`instub')
+  5. 
+.     collapse (count) nbr_zipcodes             = zipcode_num   ///
+>              (sum)   nbr_zipcodes_with_change = mw_change     ///
+>              (max)   change_within_cbsa       = mw_change     ///
+>                      max_actual_mw            = actual_mw     ///
+>                      max_d_ln_mw              = d_ln_mw       ///
+>                      max_d_exp_ln_mw_17       = exp_ln_mw_17  ///
+>              (mean)  avg_actual_mw            = actual_mw     ///
+>                      avg_d_ln_mw              = d_ln_mw       ///
+>                      avg_d_exp_ln_mw_17       = exp_ln_mw_17, ///
+>             by(cbsa10 year year_month)
+  6. 
+.     gen all_zip_changed = (nbr_zipcodes == nbr_zipcodes_with_change)
+  7.     
+.     save_data "`outstub'/cbsa_month.dta", ///
+>         key(cbsa10 year_month) log(`logfile') replace           
+  8. 
+.     make_cbsa_event_data
+  9. 
+.     save_data "`outstub'/events.dta", ///
+>         key(cbsa10 event_year_month) log(`logfile') replace
+ 10. end
 
+. 
+. program load_data
+  1.     syntax, instub(str)
+  2. 
+.     clear
+  3.     use zipcode zipcode_num year_month year statefips cbsa10 rural       /
+> //
+>           medrentpricepsqft_SFCC ln_rents actual_mw ln_mw exp_ln_mw_1*   ///
+>           ln_emp_* ln_estcount_* ln_avgwwage_*                           ///
+>         if cbsa10 != "99999"                                             ///
+>         using  "`instub'/estimation_samples/all_zipcode_months.dta"
+  4. 
+.     xtset zipcode_num year_month
+  5. 
+.     gen d_ln_mw        = D.ln_mw
+  6.     gen d_exp_ln_mw_17 = D.exp_ln_mw_17
+  7. 
+.     gen mw_change = (actual_mw > L.actual_mw)
+  8.     
+.     drop if missing(medrentpricepsqft_SFCC)
+  9. end
+
+. 
+. program make_cbsa_event_data
+  1. 
+.     keep if change_within_cbsa == 1
+  2. 
+.     rename year_month event_year_month
+  3.     rename year       event_year
+  4. 
+.     format event_year_month %tm
+  5. 
+.     bys cbsa10 (event_year_month): gen mw_change_id = sum(change_within_cbsa)
+  6.     egen event_id = group(mw_change_id cbsa10)
+  7. 
+.     bys cbsa10 (event_year_month): ///
+>         gen time_since_treated = event_year_month[_n] - event_year_month[_n -
+>  1]
+  8. 
+.     keep cbsa10 event_id event_year event_year_month all_zip_changed time_sin
+> ce_treated
+  9. end
+
+. 
 . 
 . main
        panel variable:  zipcode_num (strongly balanced)
         time variable:  year_month, 2010m1 to 2019m12
                 delta:  1 month
-(40,487 missing values generated)
-(244,691 missing values generated)
-(4,660,462 observations deleted)
-(326 observations deleted)
+(30,889 missing values generated)
+(217,719 missing values generated)
+(3,509,028 observations deleted)
 (data now sorted by cbsa10 year_month)
   variable nbr_zipcodes was long now int
   variable change_within_cbsa was float now byte
+  variable all_zip_changed was float now byte
   variable nbr_zipcodes_with_change was double now int
-  (198,495 bytes saved)
+  (252,630 bytes saved)
 ===============================================================================
 File: ../../../drive/derived_large/cbsa_month/cbsa_month.dta
 Key: cbsa10 year_month
 ===============================================================================
-  18045:12(57659):2275813162:1338862655
+  18045:13(22035):1384985686:1683326554
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -114,9 +142,9 @@ Key: cbsa10 year_month
   year_month |     18,045    677.6941    30.27867        601        719
         year |     18,045    2016.005    2.515046       2010       2019
 nbr_zipcodes |     18,045    10.95328    21.13661          1        167
-nbr_zipcod~e |     18,045    .4152397    4.629211          0        151
+nbr_zipcod~e |     18,045    .4372402    4.769238          0        151
 -------------+---------------------------------------------------------
-change_wit~a |     18,045    .0335273    .1800139          0          1
+change_wit~a |     18,045    .0344694    .1824365          0          1
 max_actual~w |     18,045    8.208436    1.424897       7.25       16.3
  max_d_ln_mw |     18,045    .0017912     .012444          0   .2412503
 max_d_exp~17 |     18,045    2.090499    .1492878    1.91728    2.69731
@@ -124,35 +152,34 @@ avg_actual~w |     18,045    8.144476    1.286185       7.25   14.53906
 -------------+---------------------------------------------------------
  avg_d_ln_mw |     18,045    .0014629    .0105134  -.2652272    .216913
 avg_d_exp~17 |     18,045    2.085223    .1438312   1.866656   2.637691
+all_zip_ch~d |     18,045    .0290939    .1680745          0          1
 
 
 
 
 file ../../../drive/derived_large/cbsa_month/cbsa_month.dta saved
-(17,440 observations deleted)
-(134 missing values generated)
+(17,423 observations deleted)
+(135 missing values generated)
 (data already sorted by cbsa10 event_year_month)
-  variable event_year_month was float now int
-  variable change_within_cbsa was float now byte
-  variable event_year was float now int
-  variable time_since_treated was float now byte
+  variable all_zip_changed was float now byte
   variable event_id was float now int
-  (7,260 bytes saved)
+  variable time_since_treated was float now byte
+  (4,976 bytes saved)
 ===============================================================================
 File: ../../../drive/derived_large/cbsa_month/events.dta
 Key: cbsa10 event_year_month
 ===============================================================================
-  605:6(18685):1765835773:634860100
+  622:6(17358):3110056273:190931991
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
       cbsa10 |          0
-event_year~h |        605    678.0099    27.61418        612        719
-change_wit~a |        605           1           0          1          1
-  event_year |        605    2016.374    2.291496       2011       2019
-time_since~d |        471    12.16561    4.541788          1         24
+event_year~h |        622    677.6688    27.74376        612        719
+  event_year |        622    2016.347    2.304162       2011       2019
+all_zip_ch~d |        622    .8440514    .3630986          0          1
+    event_id |        622       311.5    179.7002          1        622
 -------------+---------------------------------------------------------
-    event_id |        605         303    174.7927          1        605
+time_since~d |        487    12.17659     4.55122          1         24
 
 
 
@@ -162,4 +189,4 @@ file ../../../drive/derived_large/cbsa_month/events.dta saved
 . 
 end of do-file
 
- make.py ended: 2021-11-11 08:56:51
+ make.py ended: 2022-01-10 14:31:36

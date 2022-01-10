@@ -33,7 +33,6 @@ if "StataSE" in envir_vars:
 start_make_logging()
 
 run_stata(program = 'build.do', executable = stata)
-clear_dirs('../temp/')
 
 end_make_logging()
 
