@@ -48,7 +48,7 @@ end
 program merge_exp_mw
     syntax, instub(str)
 
-    foreach year in 10 11 12 13 14 15 16 17 18 {
+    forvalues year = 10(1)18 {
         merge 1:1 zipcode year month using "`instub'/zipcode_experienced_mw_20`year'.dta", ///
             nogen keep(1 3) keepusing(exp*)
         if `year' == 10 {
