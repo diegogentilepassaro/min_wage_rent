@@ -1,8 +1,8 @@
 cap program drop estimate_dyn_stacked_model
 program estimate_dyn_stacked_model 
     syntax [if], depvar(str) res_mw_var(str) wkp_mw_var(str)     ///
-        controls(str) absorb(str) cluster(str) model_name(str) ///
-        [wgt(str) outfolder(str) w(int 6)]
+        absorb(str) cluster(str) model_name(str) ///
+        [controls(str) wgt(str) outfolder(str) w(int 6)]
 
     if "`outfolder'"==""{
         local outfolder "../output"
@@ -15,13 +15,6 @@ program estimate_dyn_stacked_model
         local wgtsyntax "[pw=`wgt']"
     }
 
-    if "`controls'"==" " {
-        local contlist ""
-    }
-    else {
-        local contlist `controls'
-    }
-
     forval i = `w'(-1)1 {
         local leads "`leads' F`i'_`wkp_mw_var'"
     }
@@ -31,7 +24,7 @@ program estimate_dyn_stacked_model
 
     preserve
         reghdfe `depvar' `leads' `wkp_mw_var' `lags' `res_mw_var' ///
-            `contlist' `wgtsyntax' `if', ///
+            `controls' `wgtsyntax' `if', ///
             absorb(`absorb') cluster(`cluster') nocons                   
 
         ** Model diagnostics
