@@ -1,8 +1,8 @@
 cap program drop estimate_stacked_model
 program estimate_stacked_model 
     syntax [if], depvar(str) res_mw_var(str) wkp_mw_var(str)        ///
-        controls(str) absorb(str) cluster(str) model_name(str) ///
-        [wgt(str) outfolder(str) w(int 6)]
+        absorb(str) cluster(str) model_name(str) ///
+        [controls(str) wgt(str) outfolder(str)]
 
     if "`outfolder'"==""{
         local outfolder "../output"
@@ -15,15 +15,8 @@ program estimate_stacked_model
         local wgtsyntax "[pw=`wgt']"
     }
 
-    if "`controls'"==" " {
-        local contlist ""
-    }
-    else {
-        local contlist `controls'
-    }
-
     preserve
-        reghdfe `depvar' `res_mw_var' `wkp_mw_var' `contlist' `wgtsyntax' `if', ///
+        reghdfe `depvar' `res_mw_var' `wkp_mw_var' `controls' `wgtsyntax' `if', ///
             absorb(`absorb') cluster(`cluster') nocons
 
         ** Model diagnostics
