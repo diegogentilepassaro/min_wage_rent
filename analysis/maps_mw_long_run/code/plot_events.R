@@ -41,7 +41,7 @@ prepare_data <- function(in_map_zip, in_data) {
     mutate(ln_actual_mw = log(actual_mw)) %>%
     filter((year == 2010 & month == 1) | (year == 2019 & month == 12)) %>%
     group_by(zipcode) %>%
-    summarise(change_perc_actual_mw = (last(actual_mw) - first(actual_mw))/first(actual_mw)) %>%
+    summarise(change_perc_actual_mw = 100*(last(actual_mw) - first(actual_mw))/first(actual_mw)) %>%
     ungroup()
   
   data_for_map <- left_join(USPS_zipcodes, mw_rent_data, by = "zipcode") %>%
@@ -54,13 +54,12 @@ prepare_data <- function(in_map_zip, in_data) {
 }
 
 build_map <- function(data_zip, data_states, var, var_legend, map_name,
-                      .dpi = 900){
+                      .dpi = 300){
   map <- tm_shape(data_states) +
     tm_borders(lwd = 1,
                alpha = 0.5) +
     tm_shape(data_zip) +
-    tm_borders(lwd = 0,
-               alpha = 0) +
+    tm_borders(lwd = 0) +
     tm_fill(col = var,
             title = var_legend,
             style = "cont",
