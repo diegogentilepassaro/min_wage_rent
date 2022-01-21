@@ -4,7 +4,7 @@
 #****************************************************
 import subprocess, shutil, os
 from distutils.dir_util import copy_tree
-copy_tree("../../../lib/python/gslab_make", "./gslab_make") # Copy from gslab tools stored locally
+copy_tree("../../../../lib/python/gslab_make", "./gslab_make") # Copy from gslab tools stored locally
 from gslab_make.get_externals import *
 from gslab_make.make_log import *
 from gslab_make.make_links import *
@@ -19,26 +19,24 @@ from gslab_make.dir_mod import *
 set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
-delete_files('../output/*')
+clear_dirs('../output/')
 
 envir_vars = os.getenv('PATH')
 if envir_vars is None:
     envir_vars = os.getenv('Path')
 
+stata = "StataMP-64"
 if "StataSE" in envir_vars:
-    stata = "stataSE"
-elif "StataMP-64" in envir_vars:
-    stata = "StataMP-64"
-elif "Stata15" in envir_vars:
-    stata = "StataMP-64"
+    stata = "StataSE-64"
 
 start_make_logging()
 
-run_stata(program = 'zillow_entry.do', executable = stata)
 run_stata(program = 'plot_mw.do', executable = stata)
+run_stata(program = 'zillow_entry.do', executable = stata)
+
+# run_rbatch(program = 'build_summary_tables.R')  # Doesn't work
 
 end_make_logging()
 
 shutil.rmtree('gslab_make')
 input('\n Press <Enter> to exit.')
-
