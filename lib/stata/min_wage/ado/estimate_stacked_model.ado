@@ -1,8 +1,8 @@
 cap program drop estimate_stacked_model
 program estimate_stacked_model 
-    syntax [if], depvar(str) res_mw_var(str) wkp_mw_var(str)        ///
+    syntax [if], depvar(str) res_mw_var(str)    ///
         absorb(str) cluster(str) model_name(str) ///
-        [controls(str) wgt(str) outfolder(str)]
+        [wkp_mw_var(str)  controls(str) wgt(str) outfolder(str)]
 
     if "`outfolder'"==""{
         local outfolder "../output"
@@ -22,9 +22,11 @@ program estimate_stacked_model
         ** Model diagnostics
         local N  = e(N)
         local r2 = e(r2)
-
-        test `res_mw_var' = `wkp_mw_var'
-        local p_equality = r(p)
+        
+        if "`wkp_mw_var'" != "" {
+        	test `res_mw_var' = `wkp_mw_var'
+            local p_equality = r(p)
+        }
         estimate save "../temp/estimates.dta", replace
         
         ** Build basic results
@@ -43,7 +45,9 @@ program estimate_stacked_model
         gen model = "`model_name'"
         gen N     = `N'
         gen r2    = `r2'
-        gen p_equality = `p_equality'
+        if "`wkp_mw_var'" != "" {
+            gen p_equality = `p_equality'
+        }
 
         order  model var  at b se
         gsort  model -var at b se
