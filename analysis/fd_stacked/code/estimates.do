@@ -15,54 +15,39 @@ program main
     *local controls = r(varlist)
 	
 	estimate_stacked_model if !missing(d_ln_rents), ///
-	    depvar(d_exp_ln_mw) res_mw_var(d_ln_mw) ///
+	    depvar(d_exp_ln_mw) mw_var1(d_ln_mw) mw_var2(d_ln_mw) ///
         absorb(`absorb') cluster(statefips) ///
-        model_name(stacked_exp_mw_on_mw) outfolder("../temp")
+        model_name(exp_mw_on_mw_w6) outfolder("../temp")
     
-    estimate_stacked_model, depvar(d_ln_rents) res_mw_var(d_ln_mw) ///
-        wkp_mw_var(d_exp_ln_mw) ///
+    estimate_stacked_model, depvar(d_ln_rents) ///
+	    mw_var1(d_ln_mw) mw_var2(d_ln_mw) ///
         absorb(`absorb') cluster(statefips) ///
-        model_name(stacked_static_w6) outfolder("../temp")
-        
-    estimate_dyn_stacked_model, depvar(d_ln_rents) res_mw_var(d_ln_mw) ///
-        wkp_mw_var(d_exp_ln_mw) ///
+        model_name(res_only_w6) outfolder("../temp")
+		
+    estimate_stacked_model, depvar(d_ln_rents) ///
+	    mw_var1(d_exp_ln_mw) mw_var2(d_exp_ln_mw) ///
         absorb(`absorb') cluster(statefips) ///
-        model_name(stacked_dyn_w6) outfolder("../temp")
-        
-    use "`instub'/stacked_sample_window3.dta", clear
-    estimate_stacked_model, depvar(d_ln_rents) res_mw_var(d_ln_mw) ///
-        wkp_mw_var(d_exp_ln_mw) ///
+        model_name(exp_only_w6) outfolder("../temp")
+
+    estimate_stacked_model, depvar(d_ln_rents) ///
+	    mw_var1(d_ln_mw) mw_var2(d_exp_ln_mw) ///
         absorb(`absorb') cluster(statefips) ///
-        model_name(stacked_static_w3) outfolder("../temp")
+        model_name(static_w6) outfolder("../temp")
         
-    estimate_dyn_stacked_model, depvar(d_ln_rents) res_mw_var(d_ln_mw) ///
-        wkp_mw_var(d_exp_ln_mw) w(3) ///
+    estimate_dyn_stacked_model, depvar(d_ln_rents) ///
+	    res_mw_var(d_ln_mw) wkp_mw_var(d_exp_ln_mw) ///
         absorb(`absorb') cluster(statefips) ///
-        model_name(stacked_dyn_w3) outfolder("../temp")
+        model_name(dyn_w6) outfolder("../temp")
         
-    use "`instub'/stacked_sample_window9.dta", clear
-    estimate_stacked_model, depvar(d_ln_rents) res_mw_var(d_ln_mw) ///
-        wkp_mw_var(d_exp_ln_mw) ///
-        absorb(`absorb') cluster(statefips) ///
-        model_name(stacked_static_w9) outfolder("../temp")
-        
-    estimate_dyn_stacked_model, depvar(d_ln_rents) res_mw_var(d_ln_mw) ///
-        wkp_mw_var(d_exp_ln_mw) w(9) ///
-        absorb(`absorb') cluster(statefips) ///
-        model_name(stacked_dyn_w9) outfolder("../temp")
-        
-    use ../temp/estimates_stacked_static_w6.dta, clear
-    foreach ff in stacked_static_w3 stacked_static_w9 {
+    use ../temp/estimates_exp_mw_on_mw_w6.dta, clear
+    foreach ff in res_only_w6 exp_only_w6 static_w6 {
         append using ../temp/estimates_`ff'.dta
     }
     save_data "../output/estimates_stacked_static.dta", ///
         key(model var at) log(`logfile') replace
     export delimited "../output/estimates_stacked_static.csv", replace
     
-    use ../temp/estimates_stacked_dyn_w6.dta, clear
-    foreach ff in stacked_dyn_w3 stacked_dyn_w9 {
-        append using ../temp/estimates_`ff'.dta
-    }
+    use ../temp/estimates_dyn_w6.dta, clear
     save_data "../output/estimates_stacked_dyn.dta", ///
         key(model var at) log(`logfile') replace
     export delimited "../output/estimates_stacked_dyn.csv", replace
