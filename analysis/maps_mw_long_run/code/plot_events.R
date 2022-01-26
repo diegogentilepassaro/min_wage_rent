@@ -56,16 +56,14 @@ prepare_data <- function(in_map_zip, in_data) {
 build_map <- function(data_zip, data_states, var, var_legend, map_name,
                       .dpi = 300){
   map <- tm_shape(data_states) +
-    tm_borders(lwd = 1,
-               alpha = 0.5) +
+    tm_polygons(lwd = 1) +
     tm_shape(data_zip) +
-    tm_borders(lwd = 0) +
     tm_fill(col = var,
             title = var_legend,
             style = "cont",
             palette = c("#FFFFFF", "#A6E1F4", "#077187"),
-            textNA = "NA") +
-    tm_borders(lwd = .0001, alpha = 0.1) +
+            textNA = "NA",
+            alpha = 0.8) +
     tm_layout(legend.position = c("left", "bottom")) +
     tmap_options(check.and.fix = TRUE)
   
