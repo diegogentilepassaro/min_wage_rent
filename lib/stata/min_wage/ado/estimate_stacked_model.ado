@@ -23,7 +23,7 @@ program estimate_stacked_model
         local N  = e(N)
         local r2 = e(r2)
         
-        if ("`mw_var1'" != "`mw_var2'") {
+        if "`mw_var1'" != "`mw_var2'" {
         	test `mw_var1' = `mw_var2'
             local p_equality = r(p)
         }
@@ -70,7 +70,7 @@ program estimate_stacked_model
         gen model = "`model_name'"
         gen N     = `N'
         gen r2    = `r2'
-        if ("`mw_var1'" != "` mw_var2'") {
+        if ("`mw_var1'" != "`mw_var2'") {
             gen p_equality = `p_equality'
         }
 
