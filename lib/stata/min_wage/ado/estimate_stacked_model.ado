@@ -23,7 +23,7 @@ program estimate_stacked_model
         local N  = e(N)
         local r2 = e(r2)
         
-        if ("`mw_var1'" != "` mw_var2'") {
+        if ("`mw_var1'" != "`mw_var2'") {
         	test `mw_var1' = `mw_var2'
             local p_equality = r(p)
         }
@@ -38,11 +38,11 @@ program estimate_stacked_model
 
         ** Add cumsum
         if "`mw_var1'" == "`mw_var2'" {
-            local sum_string "`mw_var1'"
+            local sum_string   "`mw_var1'"
             local sum_string_b "_b[`mw_var1']"
         }
         else {
-            local sum_string "`mw_var1' + `mw_var2'" 
+            local sum_string   "`mw_var1' + `mw_var2'" 
             local sum_string_b "_b[`mw_var1'] + _b[`mw_var2']" 
         }
 
