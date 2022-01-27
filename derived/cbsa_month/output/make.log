@@ -1,0 +1,192 @@
+
+ make.py started: 2022-01-10 14:31:15 C:\Users\shermo\Documents\GitHub\min_wage_rent\derived\cbsa_month\code 
+
+
+
+
+Execute:  StataMP-64 /e do "./build.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./build.do 
+
+. set more off
+
+. clear all
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. 
+. program main
+  1.     local instub  "../../../drive/derived_large"
+  2.     local outstub "../../../drive/derived_large/cbsa_month"
+  3.     local logfile "../output/data_file_manifest.log"
+  4. 
+.     load_data, instub(`instub')
+  5. 
+.     collapse (count) nbr_zipcodes             = zipcode_num   ///
+>              (sum)   nbr_zipcodes_with_change = mw_change     ///
+>              (max)   change_within_cbsa       = mw_change     ///
+>                      max_actual_mw            = actual_mw     ///
+>                      max_d_ln_mw              = d_ln_mw       ///
+>                      max_d_exp_ln_mw_17       = exp_ln_mw_17  ///
+>              (mean)  avg_actual_mw            = actual_mw     ///
+>                      avg_d_ln_mw              = d_ln_mw       ///
+>                      avg_d_exp_ln_mw_17       = exp_ln_mw_17, ///
+>             by(cbsa10 year year_month)
+  6. 
+.     gen all_zip_changed = (nbr_zipcodes == nbr_zipcodes_with_change)
+  7.     
+.     save_data "`outstub'/cbsa_month.dta", ///
+>         key(cbsa10 year_month) log(`logfile') replace           
+  8. 
+.     make_cbsa_event_data
+  9. 
+.     save_data "`outstub'/events.dta", ///
+>         key(cbsa10 event_year_month) log(`logfile') replace
+ 10. end
+
+. 
+. program load_data
+  1.     syntax, instub(str)
+  2. 
+.     clear
+  3.     use zipcode zipcode_num year_month year statefips cbsa10 rural       /
+> //
+>           medrentpricepsqft_SFCC ln_rents actual_mw ln_mw exp_ln_mw_1*   ///
+>           ln_emp_* ln_estcount_* ln_avgwwage_*                           ///
+>         if cbsa10 != "99999"                                             ///
+>         using  "`instub'/estimation_samples/all_zipcode_months.dta"
+  4. 
+.     xtset zipcode_num year_month
+  5. 
+.     gen d_ln_mw        = D.ln_mw
+  6.     gen d_exp_ln_mw_17 = D.exp_ln_mw_17
+  7. 
+.     gen mw_change = (actual_mw > L.actual_mw)
+  8.     
+.     drop if missing(medrentpricepsqft_SFCC)
+  9. end
+
+. 
+. program make_cbsa_event_data
+  1. 
+.     keep if change_within_cbsa == 1
+  2. 
+.     rename year_month event_year_month
+  3.     rename year       event_year
+  4. 
+.     format event_year_month %tm
+  5. 
+.     bys cbsa10 (event_year_month): gen mw_change_id = sum(change_within_cbsa)
+  6.     egen event_id = group(mw_change_id cbsa10)
+  7. 
+.     bys cbsa10 (event_year_month): ///
+>         gen time_since_treated = event_year_month[_n] - event_year_month[_n -
+>  1]
+  8. 
+.     keep cbsa10 event_id event_year event_year_month all_zip_changed time_sin
+> ce_treated
+  9. end
+
+. 
+. 
+. main
+       panel variable:  zipcode_num (strongly balanced)
+        time variable:  year_month, 2010m1 to 2019m12
+                delta:  1 month
+(30,889 missing values generated)
+(217,719 missing values generated)
+(3,509,028 observations deleted)
+(data now sorted by cbsa10 year_month)
+  variable nbr_zipcodes was long now int
+  variable change_within_cbsa was float now byte
+  variable all_zip_changed was float now byte
+  variable nbr_zipcodes_with_change was double now int
+  (252,630 bytes saved)
+===============================================================================
+File: ../../../drive/derived_large/cbsa_month/cbsa_month.dta
+Key: cbsa10 year_month
+===============================================================================
+  18045:13(22035):1384985686:1683326554
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+      cbsa10 |          0
+  year_month |     18,045    677.6941    30.27867        601        719
+        year |     18,045    2016.005    2.515046       2010       2019
+nbr_zipcodes |     18,045    10.95328    21.13661          1        167
+nbr_zipcod~e |     18,045    .4372402    4.769238          0        151
+-------------+---------------------------------------------------------
+change_wit~a |     18,045    .0344694    .1824365          0          1
+max_actual~w |     18,045    8.208436    1.424897       7.25       16.3
+ max_d_ln_mw |     18,045    .0017912     .012444          0   .2412503
+max_d_exp~17 |     18,045    2.090499    .1492878    1.91728    2.69731
+avg_actual~w |     18,045    8.144476    1.286185       7.25   14.53906
+-------------+---------------------------------------------------------
+ avg_d_ln_mw |     18,045    .0014629    .0105134  -.2652272    .216913
+avg_d_exp~17 |     18,045    2.085223    .1438312   1.866656   2.637691
+all_zip_ch~d |     18,045    .0290939    .1680745          0          1
+
+
+
+
+file ../../../drive/derived_large/cbsa_month/cbsa_month.dta saved
+(17,423 observations deleted)
+(135 missing values generated)
+(data already sorted by cbsa10 event_year_month)
+  variable all_zip_changed was float now byte
+  variable event_id was float now int
+  variable time_since_treated was float now byte
+  (4,976 bytes saved)
+===============================================================================
+File: ../../../drive/derived_large/cbsa_month/events.dta
+Key: cbsa10 event_year_month
+===============================================================================
+  622:6(17358):3110056273:190931991
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+      cbsa10 |          0
+event_year~h |        622    677.6688    27.74376        612        719
+  event_year |        622    2016.347    2.304162       2011       2019
+all_zip_ch~d |        622    .8440514    .3630986          0          1
+    event_id |        622       311.5    179.7002          1        622
+-------------+---------------------------------------------------------
+time_since~d |        487    12.17659     4.55122          1         24
+
+
+
+
+file ../../../drive/derived_large/cbsa_month/events.dta saved
+
+. 
+end of do-file
+
+ make.py ended: 2022-01-10 14:31:36

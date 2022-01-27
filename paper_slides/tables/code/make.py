@@ -33,10 +33,15 @@ fd_cf_dir       = "../../../analysis/counterfactuals/output"
 fd_robust_dir   = "../../../analysis/fd_robustness/output"
 fd_county_dir   = "../../../analysis/fd_county/output"
 fd_wages_dir    = "../../../analysis/twfe_wages/output"
+fd_stacked_dir    = "../../../analysis/fd_stacked/output"
 
 tablefill(input    = os.path.join(fd_baseline_dir, 'static.txt'), 
           template = '../input/static.tex', 
           output   = '../output/static.tex')
+
+tablefill(input    = os.path.join(fd_stacked_dir, 'stacked.txt'), 
+          template = '../input/stacked.tex', 
+          output   = '../output/stacked.tex')
 
 tablefill(input    = os.path.join(fd_baseline_dir, 'static.txt'), 
           template = '../input/slides_static.tex',

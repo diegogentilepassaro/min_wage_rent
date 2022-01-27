@@ -1,0 +1,588 @@
+
+ make.py started: 2022-01-26 17:47:54 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\fd_stacked\code 
+
+
+
+
+Execute:  StataMP-64 /e do "./estimates.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./estimates.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/min_wage/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/min_wage/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.     local instub "../../../drive/derived_large/estimation_samples"
+  2.     local logfile "../output/data_file_manifest.log"
+  3. 
+.     local cluster "statefips"
+  4.     local absorb  "year_month#event_id"
+  5. 
+.     use "`instub'/stacked_sample_window6.dta", clear
+  6.     *describe d_ln_emp_* d_ln_estcount_* d_ln_avgwwage_*, varlist
+.     *local controls = r(varlist)
+. 
+.     estimate_stacked_model if !missing(d_ln_rents), depvar(d_exp_ln_mw) ///
+>         mw_var1(d_ln_mw) mw_var2(d_ln_mw) ///
+>         absorb(`absorb') cluster(`cluster') ///
+>         model_name(exp_mw_on_mw_w6) outfolder("../temp")
+  7. 
+.     estimate_stacked_model, depvar(d_ln_rents) ///
+>         mw_var1(d_ln_mw) mw_var2(d_ln_mw) ///
+>         absorb(`absorb') cluster(`cluster') ///
+>         model_name(res_only_w6) outfolder("../temp")
+  8.         
+.     estimate_stacked_model, depvar(d_ln_rents) ///
+>         mw_var1(d_exp_ln_mw) mw_var2(d_exp_ln_mw) ///
+>         absorb(`absorb') cluster(`cluster') ///
+>         model_name(exp_only_w6) outfolder("../temp")
+  9. 
+.     estimate_stacked_model, depvar(d_ln_rents) ///
+>         mw_var1(d_ln_mw) mw_var2(d_exp_ln_mw) ///
+>         absorb(`absorb') cluster(`cluster') ///
+>         model_name(static_w6) outfolder("../temp")
+ 10. 
+.     estimate_dyn_stacked_model, depvar(d_ln_rents) ///
+>         res_mw_var(d_ln_mw) wkp_mw_var(d_exp_ln_mw) ///
+>         absorb(`absorb') cluster(`cluster') ///
+>         model_name(dyn_w6) outfolder("../temp")
+ 11. 
+.     use ../temp/estimates_exp_mw_on_mw_w6.dta, clear
+ 12.     foreach ff in res_only_w6 exp_only_w6 static_w6 {
+ 13.         append using ../temp/estimates_`ff'.dta
+ 14.     }
+ 15.     save_data "../output/estimates_stacked_static.dta", ///
+>         key(model var at) log(`logfile') replace
+ 16.     export delimited "../output/estimates_stacked_static.csv", replace
+ 17. 
+.     use ../temp/estimates_dyn_w6.dta, clear
+ 18.     save_data "../output/estimates_stacked_dyn.dta", ///
+>         key(model var at) log(`logfile') replace
+ 19.     export delimited "../output/estimates_stacked_dyn.csv", replace
+ 20. end
+
+. 
+. main
+(dropped 2008 singleton observations)
+(MWFE estimator converged in 1 iterations)
+note: d_ln_mw omitted because of collinearity
+
+HDFE Linear regression                            Number of obs   =    106,345
+Absorbing 1 HDFE group                            F(   1,     27) =     253.72
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9739
+                                                  Adj R-squared   =     0.9725
+                                                  Within R-sq.    =     0.7870
+Number of clusters (statefips) =         28       Root MSE        =     0.0030
+
+                             (Std. Err. adjusted for 28 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+ d_exp_ln_mw |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+     d_ln_mw |   .5209567   .0327058    15.93   0.000     .4538499    .5880634
+     d_ln_mw |          0  (omitted)
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+---------------------------------------------------------------+
+           Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-----------------------+---------------------------------------|
+   year_month#event_id |      5159           0        5159     |
+---------------------------------------------------------------+
+(note: file ../temp/estimates.dta not found)
+file ../temp/estimates.dta saved
+file ../temp/estimates.dta saved
+
+ ( 1)  d_ln_mw = 0
+
+------------------------------------------------------------------------------
+ d_exp_ln_mw |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .5209567   .0327058    15.93   0.000     .4538499    .5880634
+------------------------------------------------------------------------------
+number of observations will be reset to 1
+Press any key to continue, or Break to abort
+number of observations (_N) was 0, now 1
+(note: file ../temp/estimates_cumsum_from0.dta not found)
+file ../temp/estimates_cumsum_from0.dta saved
+(108,600 observations deleted)
+(1 observation deleted)
+(0 real changes made)
+(1 real change made)
+(note: variable at was byte, now float to accommodate using data's values)
+(note: variable var was str7, now str12 to accommodate using data's values)
+(note: file ../temp/estimates_exp_mw_on_mw_w6.dta not found)
+file ../temp/estimates_exp_mw_on_mw_w6.dta saved
+(note: file ../temp/estimates_exp_mw_on_mw_w6.csv not found)
+file ../temp/estimates_exp_mw_on_mw_w6.csv saved
+(dropped 2008 singleton observations)
+(MWFE estimator converged in 1 iterations)
+note: d_ln_mw omitted because of collinearity
+
+HDFE Linear regression                            Number of obs   =    106,345
+Absorbing 1 HDFE group                            F(   1,     27) =       0.93
+Statistics robust to heteroskedasticity           Prob > F        =     0.3441
+                                                  R-squared       =     0.0846
+                                                  Adj R-squared   =     0.0380
+                                                  Within R-sq.    =     0.0000
+Number of clusters (statefips) =         28       Root MSE        =     0.0325
+
+                             (Std. Err. adjusted for 28 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+  d_ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+     d_ln_mw |   .0116332   .0120793     0.96   0.344    -.0131515    .0364178
+     d_ln_mw |          0  (omitted)
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+---------------------------------------------------------------+
+           Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-----------------------+---------------------------------------|
+   year_month#event_id |      5159           0        5159     |
+---------------------------------------------------------------+
+file ../temp/estimates.dta saved
+file ../temp/estimates.dta saved
+
+ ( 1)  d_ln_mw = 0
+
+------------------------------------------------------------------------------
+  d_ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0116332   .0120793     0.96   0.344    -.0131515    .0364178
+------------------------------------------------------------------------------
+number of observations will be reset to 1
+Press any key to continue, or Break to abort
+number of observations (_N) was 0, now 1
+file ../temp/estimates_cumsum_from0.dta saved
+(108,600 observations deleted)
+(1 observation deleted)
+(0 real changes made)
+(1 real change made)
+(note: variable at was byte, now float to accommodate using data's values)
+(note: variable var was str7, now str12 to accommodate using data's values)
+(note: file ../temp/estimates_res_only_w6.dta not found)
+file ../temp/estimates_res_only_w6.dta saved
+(note: file ../temp/estimates_res_only_w6.csv not found)
+file ../temp/estimates_res_only_w6.csv saved
+(dropped 2008 singleton observations)
+(MWFE estimator converged in 1 iterations)
+note: d_exp_ln_mw omitted because of collinearity
+
+HDFE Linear regression                            Number of obs   =    106,345
+Absorbing 1 HDFE group                            F(   1,     27) =       1.71
+Statistics robust to heteroskedasticity           Prob > F        =     0.2022
+                                                  R-squared       =     0.0847
+                                                  Adj R-squared   =     0.0380
+                                                  Within R-sq.    =     0.0000
+Number of clusters (statefips) =         28       Root MSE        =     0.0325
+
+                             (Std. Err. adjusted for 28 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+  d_ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+ d_exp_ln_mw |   .0332445   .0254348     1.31   0.202    -.0189434    .0854324
+ d_exp_ln_mw |          0  (omitted)
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+---------------------------------------------------------------+
+           Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-----------------------+---------------------------------------|
+   year_month#event_id |      5159           0        5159     |
+---------------------------------------------------------------+
+file ../temp/estimates.dta saved
+file ../temp/estimates.dta saved
+
+ ( 1)  d_exp_ln_mw = 0
+
+------------------------------------------------------------------------------
+  d_ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0332445   .0254348     1.31   0.202    -.0189434    .0854324
+------------------------------------------------------------------------------
+number of observations will be reset to 1
+Press any key to continue, or Break to abort
+number of observations (_N) was 0, now 1
+file ../temp/estimates_cumsum_from0.dta saved
+(108,600 observations deleted)
+(1 observation deleted)
+(0 real changes made)
+(1 real change made)
+(note: variable at was byte, now float to accommodate using data's values)
+(note: variable var was str11, now str12 to accommodate using data's values)
+(note: file ../temp/estimates_exp_only_w6.dta not found)
+file ../temp/estimates_exp_only_w6.dta saved
+(note: file ../temp/estimates_exp_only_w6.csv not found)
+file ../temp/estimates_exp_only_w6.csv saved
+(dropped 2008 singleton observations)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    106,345
+Absorbing 1 HDFE group                            F(   2,     27) =       1.90
+Statistics robust to heteroskedasticity           Prob > F        =     0.1686
+                                                  R-squared       =     0.0847
+                                                  Adj R-squared   =     0.0380
+                                                  Within R-sq.    =     0.0001
+Number of clusters (statefips) =         28       Root MSE        =     0.0325
+
+                             (Std. Err. adjusted for 28 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+  d_ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+     d_ln_mw |  -.0266966   .0155773    -1.71   0.098    -.0586585    .0052654
+ d_exp_ln_mw |   .0735756   .0385937     1.91   0.067     -.005612    .1527633
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+---------------------------------------------------------------+
+           Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-----------------------+---------------------------------------|
+   year_month#event_id |      5159           0        5159     |
+---------------------------------------------------------------+
+
+ ( 1)  d_ln_mw - d_exp_ln_mw = 0
+
+       F(  1,    27) =    3.80
+            Prob > F =    0.0616
+file ../temp/estimates.dta saved
+file ../temp/estimates.dta saved
+
+ ( 1)  d_ln_mw + d_exp_ln_mw = 0
+
+------------------------------------------------------------------------------
+  d_ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0468791   .0286646     1.64   0.114    -.0119358    .1056939
+------------------------------------------------------------------------------
+number of observations will be reset to 1
+Press any key to continue, or Break to abort
+number of observations (_N) was 0, now 1
+file ../temp/estimates_cumsum_from0.dta saved
+(108,600 observations deleted)
+(0 observations deleted)
+(1 missing value generated)
+variable var was str7 now str11
+(1 real change made)
+(2 real changes made)
+(note: variable at was byte, now float to accommodate using data's values)
+(note: variable var was str11, now str12 to accommodate using data's values)
+(note: file ../temp/estimates_static_w6.dta not found)
+file ../temp/estimates_static_w6.dta saved
+(note: file ../temp/estimates_static_w6.csv not found)
+file ../temp/estimates_static_w6.csv saved
+(dropped 1873 singleton observations)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    100,157
+Absorbing 1 HDFE group                            F(  14,     27) =      43.09
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.0868
+                                                  Adj R-squared   =     0.0394
+                                                  Within R-sq.    =     0.0003
+Number of clusters (statefips) =         28       Root MSE        =     0.0321
+
+                             (Std. Err. adjusted for 28 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+  d_ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+F6_d_exp_l~w |   .0008694   .0229064     0.04   0.970    -.0461307    .0478694
+F5_d_exp_l~w |   .0416334   .0221006     1.88   0.070    -.0037132    .0869801
+F4_d_exp_l~w |  -.0401971   .0202094    -1.99   0.057    -.0816635    .0012692
+F3_d_exp_l~w |  -.0139594   .0259523    -0.54   0.595    -.0672091    .0392904
+F2_d_exp_l~w |   .0035798   .0430901     0.08   0.934    -.0848338    .0919934
+F1_d_exp_l~w |  -.0076453   .0316692    -0.24   0.811    -.0726251    .0573345
+ d_exp_ln_mw |   .0956723   .0511222     1.87   0.072    -.0092219    .2005665
+L1_d_exp_l~w |  -.0246571   .0490524    -0.50   0.619    -.1253043    .0759902
+L2_d_exp_l~w |  -.0215499   .0277753    -0.78   0.445    -.0785401    .0354402
+L3_d_exp_l~w |   .0094474   .0249433     0.38   0.708    -.0417321    .0606268
+L4_d_exp_l~w |   .0107435    .042052     0.26   0.800    -.0755402    .0970271
+L5_d_exp_l~w |  -.0068275   .0245214    -0.28   0.783    -.0571413    .0434862
+L6_d_exp_l~w |  -.0002263   .0221095    -0.01   0.992    -.0455911    .0451386
+     d_ln_mw |  -.0475221   .0197837    -2.40   0.023    -.0881149   -.0069294
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+---------------------------------------------------------------+
+           Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-----------------------+---------------------------------------|
+   year_month#event_id |      4922           0        4922     |
+---------------------------------------------------------------+
+
+ ( 1)  - d_exp_ln_mw + d_ln_mw = 0
+
+       F(  1,    27) =    4.36
+            Prob > F =    0.0464
+
+ ( 1)  F1_d_exp_ln_mw = 0
+ ( 2)  F2_d_exp_ln_mw = 0
+ ( 3)  F3_d_exp_ln_mw = 0
+ ( 4)  F4_d_exp_ln_mw = 0
+ ( 5)  F5_d_exp_ln_mw = 0
+ ( 6)  F6_d_exp_ln_mw = 0
+
+       F(  6,    27) =    4.82
+            Prob > F =    0.0018
+file ../temp/estimates.dta saved
+(108,588 observations deleted)
+(0 observations deleted)
+(1 missing value generated)
+(1 real change made)
+(14 real changes made)
+(1 real change made)
+(note: file ../temp/estimates_dyn_w6.dta not found)
+file ../temp/estimates_dyn_w6.dta saved
+(note: file ../temp/estimates_dyn_w6.csv not found)
+file ../temp/estimates_dyn_w6.csv saved
+(data now sorted by model var at)
+  variable at was float now byte
+  (27 bytes saved)
+===============================================================================
+File: ../output/estimates_stacked_static.dta
+Key: model var at
+===============================================================================
+  9:8(69955):3824345520:785242916
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+       model |          0
+         var |          0
+          at |          9           0           0          0          0
+           b |          9    .1361585    .2198705  -.0266966   .5209567
+          se |          9    .0248084    .0096157   .0120793   .0385937
+-------------+---------------------------------------------------------
+           N |          9      106345           0     106345     106345
+          r2 |          9    .2822715     .392105   .0846442   .9738798
+  p_equality |          3    .0615567           0   .0615567   .0615567
+
+
+
+
+(note: file ../output/estimates_stacked_static.dta not found)
+file ../output/estimates_stacked_static.dta saved
+(note: file ../output/estimates_stacked_static.csv not found)
+file ../output/estimates_stacked_static.csv saved
+(data now sorted by model var at)
+  (0 bytes saved)
+===============================================================================
+File: ../output/estimates_stacked_dyn.dta
+Key: model var at
+===============================================================================
+  14:9(97289):1134886578:1249787609
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+       model |          0
+         var |          0
+          at |         14           0    3.741657         -6          6
+           b |         14   -.0000456    .0354653  -.0475221   .0956723
+          se |         14    .0305206    .0110135   .0197837   .0511222
+-------------+---------------------------------------------------------
+           N |         14      100157           0     100157     100157
+          r2 |         14    .0867505           0   .0867505   .0867505
+  p_equality |         14    .0464464           0   .0464464   .0464464
+  p_pretrend |         14    .0018298           0   .0018298   .0018298
+
+
+
+
+(note: file ../output/estimates_stacked_dyn.dta not found)
+file ../output/estimates_stacked_dyn.dta saved
+(note: file ../output/estimates_stacked_dyn.csv not found)
+file ../output/estimates_stacked_dyn.csv saved
+
+. 
+end of do-file
+
+
+Execute:  R CMD BATCH --no-save "./tables.R" tables.Rout
+
+R version 4.1.1 (2021-08-10) -- "Kick Things"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list = ls())
+> 
+> 
+> main <- function() {
++   instub  <- "../output/"
++   outstub <- "../output/"
++   
++   est <- read.csv(file.path(instub, "estimates_stacked_static.csv"))
++   
++   txt <- c("<tab:stacked>")
++   txt <- c(txt, 
++            paste(est[est$model == "exp_mw_on_mw_w6" & est$var == "d_ln_mw",]$b,
++                  est[est$model == "res_only_w6" & est$var == "d_ln_mw",]$b,
++                  est[est$model == "static_w6" & est$var == "d_ln_mw",]$b, sep = "\t"),
++             paste(est[est$model == "exp_mw_on_mw_w6" & est$var == "d_ln_mw",]$se,
++                  est[est$model == "res_only_w6" & est$var == "d_ln_mw",]$se, 
++                  est[est$model == "static_w6" & est$var == "d_ln_mw",]$se, sep = "\t"))
++   
++   txt <- c(txt, 
++            paste(est[est$model == "exp_only_w6" & est$var == "d_exp_ln_mw",]$b, 
++                  est[est$model == "static_w6" & est$var == "d_exp_ln_mw",]$b, sep = "\t"),
++             paste(est[est$model == "exp_only_w6" & est$var == "d_exp_ln_mw",]$se, 
++                  est[est$model == "static_w6" & est$var == "d_exp_ln_mw",]$se, sep = "\t"))
++   
++   txt <- c(txt, paste0(est[est$model == "static_w6" & est$var == "cumsum_from0",]$b))
++   txt <- c(txt, paste0(est[est$model == "static_w6" & est$var == "cumsum_from0",]$se))
++   txt <- c(txt, paste0(est[est$model == "static_w6" & est$var == "cumsum_from0",]$p_equality))
++   
++   txt <- c(txt, 
++            paste(est[est$model == "exp_mw_on_mw_w6" & est$var == "d_ln_mw",]$r2,
++                  est[est$model == "res_only_w6" & est$var == "d_ln_mw",]$r2, 
++                  est[est$model == "exp_only_w6" & est$var == "d_exp_ln_mw",]$r2, 
++                  est[est$model == "static_w6" & est$var == "d_ln_mw",]$r2, sep = "\t"),
++             paste(est[est$model == "exp_mw_on_mw_w6" & est$var == "d_ln_mw",]$N,
++                  est[est$model == "res_only_w6" & est$var == "d_ln_mw",]$N, 
++                  est[est$model == "exp_only_w6" & est$var == "d_exp_ln_mw",]$N, 
++                  est[est$model == "static_w6" & est$var == "d_ln_mw",]$N, sep = "\t"))
++   
++   fileConn <- file(file.path(outstub, "stacked.txt"))
++   writeLines(txt, fileConn)
++   close(fileConn)
++ }
+> 
+> main()
+> 
+> proc.time()
+   user  system elapsed 
+   0.29    0.21    0.45 
+
+
+Execute:  StataMP-64 /e do "./figures.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./figures.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/min_wage/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/min_wage/ado"
+
+. set maxvar 32000 
+
+
+. 
+. program main
+  1.     use "../output/estimates_stacked_dyn.dta", clear
+  2.     make_bounds
+  3.     
+.     local y_label       "-0.16(0.04).2"
+  4.     local exp_ln_mw_var "exp_ln_mw_17"
+  5.     sum at
+  6.     local w = r(max)
+  7. 
+.     offset_x_axis
+  8. 
+.     plot_dynamics_both, model(dyn_w6) dyn_var(d_exp_ln_mw) ///
+>         legend_dyn_var(Workplace MW) y_label(`y_label') ///
+>         color_dyn_var(navy) symbol_dyn_var(cirlce) ///
+>         stat_var(d_ln_mw) legend_stat_var(Residence MW) ///
+>         color_stat_var(maroon) symbol_stat_var(square) ///
+>         x_label(-6(1)6) name(fd_stacked_w6)
+  9. end
+
+. 
+. main
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+          at |         14           0    3.741657         -6          6
+(0 observations deleted)
+(note:  named style cirlce not found in class symbol, default attributes
+    used)
+(note:  named style cirlce not found in class symbol, default attributes
+    used)
+(note: file ../output/fd_stacked_w6.png not found)
+(file ../output/fd_stacked_w6.png written in PNG format)
+(note: file ../output/fd_stacked_w6.eps not found)
+(file ../output/fd_stacked_w6.eps written in EPS format)
+
+. 
+end of do-file
+
+ make.py ended: 2022-01-26 17:48:11
