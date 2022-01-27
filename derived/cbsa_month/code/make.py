@@ -19,7 +19,7 @@ from gslab_make.dir_mod import *
 set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
-delete_files('../../../drive/derived_large/estimation_samples/*')
+delete_files('../../../drive/derived_large/stacked_sample_experimental/*')
 delete_files('../output/*')
 
 envir_vars = os.getenv('PATH')
@@ -32,9 +32,7 @@ if "StataSE" in envir_vars:
 
 start_make_logging()
 
-run_stata(program = 'make_main_samples.do', executable = stata)
-run_stata(program = 'make_stacked_sample.do', executable = stata)
-clear_dirs('../temp/')
+run_stata(program = 'build.do', executable = stata)
 
 end_make_logging()
 

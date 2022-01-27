@@ -48,7 +48,7 @@ end
 program merge_exp_mw
     syntax, instub(str)
 
-    foreach year in 10 14 17 18 {
+    forvalues year = 10(1)18 {
         merge 1:1 zipcode year month using "`instub'/zipcode_experienced_mw_20`year'.dta", ///
             nogen keep(1 3) keepusing(exp*)
         if `year' == 10 {
@@ -60,20 +60,12 @@ program merge_exp_mw
         }
         drop *mean_`year'
     }
-
     qui sum medrentpricepsqft_SFCC if !missing(medrentpricepsqft_SFCC)
     local observations_with_rents = r(N)
 
-    foreach year in 10 14 17 18 {
+    foreach year in 10 11 12 13 14 15 16 17 18 {
         sum exp_ln_mw_tot_`year' if !missing(medrentpricepsqft_SFCC)
         assert r(N) == `observations_with_rents'
-    }
-    
-    foreach year in 11 12 13 15 16 {
-        merge 1:1 zipcode year month using "`instub'/zipcode_experienced_mw_20`year'.dta", ///
-            nogen keep(1 3) keepusing(exp_ln_mw_tot)
-        
-        rename exp_ln_mw_tot exp_ln_mw_tot_`year'
     }
 end
 
