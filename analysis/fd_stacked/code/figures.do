@@ -14,7 +14,7 @@ program main
 
     offset_x_axis
 
-    plot_dynamics_both, model(stacked_dyn_w6) dyn_var(d_exp_ln_mw) ///
+    plot_dynamics_both, model(dyn_w6) dyn_var(d_exp_ln_mw) ///
         legend_dyn_var(Workplace MW) y_label(`y_label') ///
         color_dyn_var(navy) symbol_dyn_var(cirlce) ///
         stat_var(d_ln_mw) legend_stat_var(Residence MW) ///
