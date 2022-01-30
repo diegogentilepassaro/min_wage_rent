@@ -54,9 +54,9 @@ prepare_data <- function(in_map_zip, in_data) {
 }
 
 build_map <- function(data_zip, data_states, var, var_legend, map_name,
-                      .dpi = 300){
+                      .dpi = 600){
   map <- tm_shape(data_states) +
-    tm_polygons(lwd = 1) +
+    tm_polygons(lwd = 0.5) +
     tm_shape(data_zip) +
     tm_fill(col = var,
             title = var_legend,
@@ -66,7 +66,9 @@ build_map <- function(data_zip, data_states, var, var_legend, map_name,
             alpha = 0.8) +
     tm_layout(legend.position = c("left", "bottom")) +
     tmap_options(check.and.fix = TRUE)
-  
+
+  tmap_save(map, 
+            paste0("../output/", map_name, ".eps"))  
   tmap_save(map, 
             paste0("../output/", map_name, ".png"),
             dpi = .dpi)
