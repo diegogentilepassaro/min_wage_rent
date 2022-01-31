@@ -33,7 +33,6 @@ main <- function(){
             n     = 5,
             palette = c("white", "#fff0f0", "#ffd6d6", "#ff9494", "#ff0000"),
             alpha = 0.8) +
-    tm_borders(lwd = .0001, alpha = 0.1) +
     tmap_mode("plot") + 
     tmap_options(check.and.fix = TRUE)
 
@@ -51,7 +50,6 @@ main <- function(){
             style ="cat", 
             palette = c("white", "red"),
             alpha = 0.8) +
-    tm_borders(lwd = .0001, alpha = 0.1) +
     tmap_mode("plot") + 
     tmap_options(check.and.fix = TRUE)
 
