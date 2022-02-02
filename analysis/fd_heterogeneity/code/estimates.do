@@ -18,7 +18,7 @@ program main
 	xtset zipcode_num year_month
 	eststo clear
 	foreach var in under29 30to54 under1250 above3333 underHS College {
-	eststo: reghdfe D.ln_med_rent_var D.ln_mw D.ln_mw_times_wrks_`var' ///
+	eststo: reghdfe D.ln_rents D.ln_mw D.ln_mw_times_wrks_`var' ///
 	     D.exp_ln_mw_17 D.exp_ln_mw_times_res_`var', nocons ///
 		absorb(year_month) cluster(`cluster_vars')	
 	}
