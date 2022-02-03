@@ -50,8 +50,8 @@ end
 
 program create_variables
 
-    gen agi_per_hhld = adj_gross_inc/pop_irs
-    gen agi_per_cap  = adj_gross_inc/num_hhlds_irs
+    gen agi_per_hhld = adj_gross_inc/num_hhlds_irs
+    gen agi_per_cap  = adj_gross_inc/pop_irs
 
     gen wage_per_wage_hhld = total_wage/num_wage_hhlds_irs
     gen wage_per_hhld      = total_wage/num_hhlds_irs
