@@ -9,7 +9,8 @@ main <- function(){
   
   for (yyyy in c(2011, 2015, 2019)) {
     dt <- get_acs(geography = "zcta", 
-                  variables = c("B25011_001E", "B25011_002E", 
+                  variables = c("B01003_001E",
+                                "B25011_001E", "B25011_002E", 
                                 "B25007_012E", "B01001B_001E",
                                 "B01001I_001E", "B08202_001E",
                                 "B08202_002E", "B08202_003E",
@@ -26,6 +27,7 @@ main <- function(){
                   values_from = estimate)
     dt <- dt %>%
       rename(zcta = GEOID,
+             population = B01003_001,
              total_households = B25011_001,
              owner_occupied = B25011_002,
              renter_occupied = B25007_012,
