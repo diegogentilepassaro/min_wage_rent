@@ -1,6 +1,7 @@
 library(tidycensus)
 library(tidyverse)
 library(data.table)
+library(stringr)
 
 source("../../../lib/R/save_data.R")
 
@@ -20,14 +21,14 @@ main <- function(){
                                 "B19051_003E", "B19052_001E", 
                                 "B19052_002E", "B19052_003E"), 
                   year = yyyy) %>%
-      select(-NAME, -moe)
+      mutate(zcta = substring(NAME, 7)) %>%
+      select(-GEOID, -NAME, -moe)
     
     dt <- dt %>%
       pivot_wider(names_from = variable,
                   values_from = estimate)
     dt <- dt %>%
-      rename(zcta = GEOID,
-             population = B01003_001,
+      rename(population = B01003_001,
              total_households = B25011_001,
              owner_occupied = B25011_002,
              renter_occupied = B25007_012,
