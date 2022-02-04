@@ -12,7 +12,7 @@ program main
     }
 
     foreach y in "09" "10" "11" "12" "13" "14" "15" "16" "17" "18" "19" {
-    	append using "../temp/irs_zip_`y'.dta"
+        append using "../temp/irs_zip_`y'.dta"
     }
     
     drop if num_hhlds_irs == 0.0001
@@ -24,7 +24,10 @@ program main
     
     create_variables
 
-    save_data "`outstub'/irs_zip.dta", key(zipcode statefips year) log(`logfile') replace
+    save_data "`outstub'/irs_zip.dta", key(zipcode statefips year) ///
+        log(`logfile') replace
+    save_data "`outstub'/irs_zip.csv", key(zipcode statefips year) ///
+        log(none) outsheet replace
 end
 
 program read_excel_files
