@@ -140,8 +140,7 @@ end
 program drop_vars
     foreach var in medlistingprice_low_tier ///
         medlistingprice_top_tier medpctpricereduction_SFCC ///
-        medrentprice_1BR medrentprice_2BR medrentprice_3BR ///
-        medrentprice_4BR medrentprice_5BR ///
+        medrentprice_1BR medrentprice_4BR medrentprice_5BR ///
         medrentprice_CC medrentprice_MFdxtx medrentprice_Mfr5Plus ///
         medrentprice_SF medrentprice_Studio medrentpricepsqft_1BR ///
         medrentpricepsqft_4BR medrentpricepsqft_5BR medrentpricepsqft_CC ///
