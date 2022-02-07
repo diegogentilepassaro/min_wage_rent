@@ -1,196 +1,98 @@
 remove(list = ls())
 source("../../../lib/R/save_data.R")
 
-library(readr)
-library(readxl)
+library(data.table)
+library(dplyr)
 
 main <- function() {
-  instub_base_l <- "../../../drive/base_large/demographics"
-  instub_derv_l <- "../../../drive/derived_large/output"
-  instub_cbsa   <- "../../../drive/raw_data/census/cbsa/nhgis0049_csv"
-  instub_xwalk  <- "../../../raw/crosswalk"
-  outstub       <- "../output/"
   
-  rent_vars <- paste0("medrentpricepsqft", c("_2br", "_mfr5plus", "_sfcc"))
+  ## ZIP level stats
+  all_zipcodes <- fread("../output/all_zipcode_lvl_data.csv",
+                  colClasses = c(zipcode = "character"))
+  all_urban_zipcodes <- fread("../output/all_urban_zipcode_lvl_data.csv",
+                        colClasses = c(zipcode = "character"))
+  all_zillow_rents_zipcodes <- fread("../output/all_zillow_rents_zipcode_lvl_data.csv",
+                              colClasses = c(zipcode = "character"))
+  baseline_zillow_rents_zipcodes <- fread("../output/baseline_zillow_rents_zipcode_lvl_data.csv",
+                                     colClasses = c(zipcode = "character"))
+
+  all_zipcodes_stats   <- build_basic_stats(all_zipcodes)
+  all_urban_zipcodes_stats <- build_basic_stats(all_urban_zipcodes)
+  all_zillow_rents_zipcodes_stats <- build_basic_stats(all_zillow_rents_zipcodes)
+  baseline_zillow_rents_zipcodes_stats   <- build_basic_stats(baseline_zillow_rents_zipcodes)
   
-  df_zipdemo <- read_csv(file.path(instub_base_l, "zip_demo_2010.csv"))
-    
-  df_cbsa    <- load_top_CBSA(df_zipdemo, instub_cbsa, instub_xwalk)
+  zip_lvl_stats <- rbind(all_zipcodes_stats, all_urban_zipcodes_stats, 
+                 all_zillow_rents_zipcodes_stats, baseline_zillow_rents_zipcodes_stats)
+  zip_lvl_stats <- t(zip_lvl_stats)
+  colnames(zip_lvl_stats) <- c("All U.S. ZIP codes", "Urban US ZIP codes", 
+                               "ZIP codes with Zillow SFCC rents", "Baseline panel")
   
-  df_rents_panel <- load_rents(df_zipdemo, instub_derv_l, rent_vars)
-  df_rents_all   <- load_rents(df_zipdemo, instub_derv_l, rent_vars, all = T)
+  stats_row_labels <- c("Avg population (ACS 2011)", "Avg number of households (ACS 2011)", 
+                        "Avg household size (ACS 2011)", "Share of urban ZIP codes", 
+                        "Share of renter households (ACS 2011)", 
+                        "Share of black population (ACS 2011)",
+                        "Share of hispanic population (ACS 2011)", 
+                        "Share of households with wage inc. (IRS 2010)",
+                        "Share of households with  business inc. (IRS 2010)",
+                        "Avg AGI per household (IRS 2010)", 
+                        "Avg Wage inc. per household (IRS 2010)",
+                        "Avg 40th percentile rent 2br (SAFMR 2012)",
+                        "Min residence MW (Feb 2010)",
+                        "Avg residence MW (Feb 2010)",
+                        "Max residence MW (Feb 2010)",
+                        "Number of ZIP codes")
+  rownames(zip_lvl_stats) <- stats_row_labels
   
-  panel_zipcodes  <- unique(df_rents_panel$zipcode)
-  zillow_zipcodes <- unique(df_rents_all %>% 
-                              filter(!is.na(medrentpricepsqft_sfcc)) %>%
-                              pull(zipcode))
-  
-  # Compare our sample to full US and urban US
-  US_stats   <- build_basic_stats(df_zipdemo)
-  CBSA_stats <- build_basic_stats(df_cbsa)
-  rents_panel_stats <- build_basic_stats(df_zipdemo %>% filter(zipcode %in% panel_zipcodes))
-  rents_all_stats   <- build_basic_stats(df_zipdemo %>% filter(zipcode %in% zillow_zipcodes))
-  
-  stats <- rbind(US_stats, CBSA_stats, rents_all_stats, rents_panel_stats)
-  
-  stats <- add_basic_rents_and_format(stats, df_rents_panel, df_rents_all, rent_vars[3])
-  
-  row_labels <- c("Population (millions) (2010)", "Population as share of U.S.", 
-                  "Housing Units (millions) (2010)", "Housing Units as share of U.S.", 
-                  paste0(c("Urban", "College", "African-American", "Hispanic", "Elder",
-                           "Poor", "Unemployed"), " Share (2010)"),
-                  "Mean HH income (2010)", "Rent House Share (2010)", #"Work in same county share (2010)",
-                  "Unique zipcodes", 
-                  #paste0("Share of ", c("state ", "county ", "local "), "events"), 
-                  "Mean SFCC psqft rent")
-  rownames(stats) <- row_labels
-  
-  tab = capture.output(stargazer(stats, summary = F, digits = 2,
+  tab = capture.output(stargazer(zip_lvl_stats, summary = F, digits = 2,
                                type = "latex", float = F))
   tab = gsub("ccccc", "lcccc", tab)
-  cat(paste(tab, "\n"), file = file.path(outstub, "stats_sample.tex"))
+  cat(paste(tab, "\n"), file = "../output/stats_sample.tex")
   
   
-  # Short Statistics of estimating panel
-  df_est <- as.data.frame(df_rents_panel %>% 
-                            select(c("zipcode", "year_month", 
-                                     "actual_mw", "exp_mw_totjob",
-                                     "medrentpricepsqft_sfcc", "medrentprice_sfcc",
-                                     paste0(c("avgwwage_", "emp_", "estcount_"), "fin"))) %>%
-                            mutate(zipcode = as.factor(zipcode),
-                                   year_month = as.factor(year_month)))
+  ## ZIP-month stats of baseline panel
+  baseline_panel <- fread("../output/baseline_zillow_rents_zipcode_months.csv",
+                                          colClasses = c(zipcode = "character")) %>%
+    select(zipcode, year_month, actual_mw, ln_mw, exp_ln_mw_17,
+           medrentprice_SFCC, medrentpricepsqft_SFCC,ln_rents, 
+           medrentprice_2BR, medrentpricepsqft_2BR,
+           ln_emp_bizserv, ln_estcount_bizserv, ln_avgwwage_bizserv, 
+           ln_emp_info, ln_estcount_info, ln_avgwwage_info, 
+           ln_emp_fin, ln_estcount_fin, ln_avgwwage_fin) %>%
+    mutate(zipcode = as.factor(zipcode),
+           year_month = as.factor(year_month))
   
-  var_labels = c("Statutory MW", "Experienced MW",
-                 "Median rent psqft. SFCC", "Median rent SFCC",
-                 paste0(c("Avg. wage", "Employment", "Estab. count"), " Fin. activities"))
+  var_labels = c("Residence MW", "Ln residence MW", "Workplace ln MW",
+                 "Median rent SFCC", "Median rent psqft. SFCC", "Ln median rent psqft. SFCC",
+                 "Median rent 2br", "Median rent psqft. 2br",
+                 paste0(c("Avg. wage", "Employment", "Estab. count"), " Business serv."),
+                 paste0(c("Avg. wage", "Employment", "Estab. count"), " Information serv."), 
+                 paste0(c("Avg. wage", "Employment", "Estab. count"), " Financial serv."))
   
-  stargazer(df_est, digits = 2,
+  stargazer(baseline_panel, digits = 2,
             omit.summary.stat = c("p25", "p75"), covariate.labels = var_labels,
             #add.lines = list(c("Unique zipcodes", format(length(panel_zipcodes), big.mark = ","), "", "", "", "")),
-            float = F, out = file.path(outstub, "stats_est_panel.tex"))
-  
-  # Full Statistics of estimating panel
-  df_est <- as.data.frame(df_rents_panel %>% 
-                            select(c("zipcode", "year_month", 
-                                     "actual_mw", "exp_mw_totjob", "exp_mw_job_lowinc", "exp_mw_job_young",
-                                     rent_vars, "medrentprice_sfcc",
-                                     paste0(c("avgwwage_", "emp_", "estcount_"), "fin"),
-                                     paste0(c("avgwwage_", "emp_", "estcount_"), "bizserv"),
-                                     paste0(c("avgwwage_", "emp_", "estcount_"), "info"))) %>%
-                            mutate(zipcode = as.factor(zipcode),
-                                   year_month = as.factor(year_month)))
-  
-  var_labels = c("Statutory MW", paste("Experienced MW", c("(total jobs)", "(low inc.)", "(young)")),
-                 paste0("Median rent psqft.", c(" 2BR", " MFR5plus", " SFCC")), "Median rent SFCC",
-                 paste0(c("Avg. wage", "Employment", "Estab. count"), " Fin. activities"),
-                 paste0(c("Avg. wage", "Employment", "Estab. count"), " Prof. and bus. serv."),
-                 paste0(c("Avg. wage", "Employment", "Estab. count"), " Information"))
-  
-  stargazer(df_est, digits = 2,
-            omit.summary.stat = c("p25", "p75"), covariate.labels = var_labels,
-            #add.lines = list(c("Unique zipcodes", format(length(panel_zipcodes), big.mark = ","), "", "", "", "")),
-            float = F, out = file.path(outstub, "stats_est_panel_full.tex"))
+            float = F, out = "../output/stats_est_panel.tex")
 }
-
-load_top_CBSA <- function(df_zipdemo, instub_cbsa, instub_xwalk, n = 100) {
-  
-  zip_cbsa <- read_excel(file.path(instub_xwalk, "ZIP_CBSA_122019.xlsx"),
-                         col_types = "numeric") %>%
-    rename(zipcode = ZIP, cbsa = CBSA, totratio = TOT_RATIO) %>%
-    select(zipcode, cbsa, totratio)
-  
-  df <- left_join(zip_cbsa, df_zipdemo) %>%
-    filter(totratio > 0.5) %>%
-    group_by(cbsa) %>%
-    mutate(pop_cbsa = sum(pop2010)) %>%
-    ungroup()
-  
-  pop_cbsa <- read_csv(file.path(instub_cbsa, "nhgis0049_ds172_2010_cbsa.csv")) %>%
-    rename(pop_cbsa = H7V001, cbsa = CBSAA) %>%
-    select(pop_cbsa, cbsa) %>% arrange(-pop_cbsa) %>%
-    mutate(topn = ifelse(row_number() <= n, 1, 0))
-  
-  df <- left_join(df, pop_cbsa[, c("cbsa", "topn")])
-  
-  return(df %>% filter(topn == 1))
-}
-
-load_rents <- function(df_zipdemo, instub, rent_vars, all = F) {
-  
-  if (all) {
-    df_rents <- read_dta(file.path(instub, "zipcode_yearmonth_panel_all.dta")) %>%
-      select(c("zipcode", "year_month", "year", "month", rent_vars, "medrentprice_sfcc",
-               "state_event", "county_event", "local_event")) %>%
-      filter(!(year == 2010) | !(month == 1))
-  } else {
-    df_rents <- read_dta(file.path(instub, "baseline_rent_panel.dta")) %>%
-      filter(!(year == 2010) | !(month == 1))
-    
-    cpi      <- read_csv(file.path("../../../drive/raw_data/bls", "cpi_bls.csv")) %>%
-      mutate(Period = as.numeric(str_replace(Period, "M", ""))) %>%
-      rename(year = Year, month = Period, cpi = Value) %>%
-      filter(year != 2020) %>% select(year, month, cpi) %>%
-      mutate(cpi = cpi/last(cpi))    # Bring everything to Dec 2019 prices
-    
-    df_rents <- left_join(df_rents, cpi, by = c('year', 'month'))
-    for (var in rent_vars){
-      df_rents[, var] <- df_rents[, var]/df_rents$cpi
-    }
-    df_rents <- df_rents %>% mutate(cpi = NULL)
-  }
-  
-  return(df_rents)
-}
-
 
 build_basic_stats <- function(df) {
   
   stats <- df %>%
-    summarise(pop_2010            = sum(pop2010, na.rm = T)/1e6,
-              housing_units_2010  = sum(housing_units2010, na.rm = T)/1e6,
-              urb_share2010       = mean(urb_share2010, na.rm = T),
-              college_share2010   = mean(college_share20105, na.rm = T),
-              poor_share20105     = mean(poor_share20105, na.rm = T),
-              black_share2010     = mean(black_share2010, na.rm = T),
-              hisp_share2010      = mean(hisp_share2010, na.rm = T),
-              elder_share2010     = mean(elder_share2010, na.rm = T),
-              unemp_share20105    = mean(unemp_share20105, na.rm = T),
-              med_hhinc20105      = mean(med_hhinc20105, na.rm = T),
-              renthouse_share2010 = mean(renthouse_share2010, na.rm = T),
-              zip_count           = n_distinct(zipcode))
-  
-  return(stats)
-}
-
-add_basic_rents_and_format <- function(stats, df_rents_panel, df_rents_all, rent_var) {
-  
-  stats <- stats %>%
-    mutate(sh_pop     = pop_2010/first(pop_2010), 
-           sh_housing = housing_units_2010/first(housing_units_2010))
-  
-  # for (type in c("state", "county", "local")) {
-  #   var <- paste0(type, "_event")
-  #   stats[, paste0(var, "_sh")] = c(NA, NA, mean(pull(df_rents_panel, var), na.rm = T), 
-  #                            mean(pull(df_rents_all, var), na.rm = T))
-  # }
-  
-  stats$mean_sfcc_psqft <- c(NA, NA, mean(pull(df_rents_all, rent_var), na.rm = T), 
-                                     mean(pull(df_rents_panel, rent_var), na.rm = T))
-  # stats$non_na_zipcod <- c(NA, NA, 
-  #                          n_distinct(df_rents_all[!is.na(pull(df_rents_all, rent_var)), "zipcode"], na.rm = T), 
-  #                          n_distinct(df_rents_panel[!is.na(pull(df_rents_panel, rent_var)), "zipcode"], na.rm = T))
-  
-  desired_order <- c("pop_2010", "sh_pop", "housing_units_2010", "sh_housing", 
-                     "urb_share2010", "college_share2010", "black_share2010", "hisp_share2010", 
-                     "elder_share2010", "poor_share20105", "unemp_share20105", 
-                     "med_hhinc20105", "renthouse_share2010", #"work_county_share20105",
-                     "zip_count", 
-                     #"state_event_sh", "county_event_sh", "local_event_sh", 
-                     "mean_sfcc_psqft") #, "non_na_zipcod")
-  
-  stats <- t(stats[, desired_order])
-  colnames(stats) <- c("U.S.", "Top 100 CBSA", "Full Panel", "Est. Panel")
-  
+    summarise(population_acs2011              = mean(population, na.rm = T),
+              households_acs2011              = mean(total_households, na.rm = T),
+              hhld_size_acs_2011              = mean(hhld_size, na.rm = T),
+              urb_zip_share_geo_master        = 1 - mean(rural, na.rm = T),
+              share_renter_hhlds_acs2011      = mean(share_renter_hhlds, na.rm = T),
+              share_black_pop_acs2011         = mean(share_black_pop, na.rm = T),
+              share_hispanic_pop_acs2011      = mean(share_hispanic_pop, na.rm = T),
+              share_wage_hhlds_irs2010        = mean(share_wage_hhlds, na.rm = T),
+              share_bussiness_hhlds_irs2010   = mean(share_bussiness_hhlds, na.rm = T),
+              agi_per_hhld_irs_2010           = mean(agi_per_hhld, na.rm = T),
+              wage_per_hhld_irs2010           = mean(wage_per_hhld, na.rm = T),
+              rent40thperc_2br_safmr2012      = mean(safmr2br, na.rm = T),
+              min_binding_mw_feb2010          = min(actual_mw, na.rm = T),
+              avg_binding_mw_feb2010          = mean(actual_mw, na.rm = T),
+              max_binding_mw_feb2010          = max(actual_mw, na.rm = T),
+              zip_count                       = n_distinct(zipcode))
   return(stats)
 }
 

@@ -1,5 +1,5 @@
 
- make.py started: 2021-10-29 17:12:47 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\describe_estimation_samples\code 
+ make.py started: 2022-02-07 12:46:26 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\describe_estimation_samples\code 
 
 
 
@@ -86,7 +86,7 @@ Notes:
 
 . 
 . main
-(4,660,582 observations deleted)
+(4,660,462 observations deleted)
 Number of unique values of zipcode is  3316
 Number of records is  3316
 (3,214 observations deleted)
@@ -206,13 +206,13 @@ Notes:
        panel variable:  zipcode_num (strongly balanced)
         time variable:  year_month, 2010m1 to 2019m12
                 delta:  1 month
-(40,488 missing values generated)
-(40,488 observations deleted)
+(40,487 missing values generated)
+(40,487 observations deleted)
 (note: file ../output/pct_ch_mw_dist.png not found)
 (file ../output/pct_ch_mw_dist.png written in PNG format)
 (note: file ../output/pct_ch_mw_dist.eps not found)
 (file ../output/pct_ch_mw_dist.eps written in EPS format)
-(4,695,197 observations deleted)
+(4,695,082 observations deleted)
 (note: file ../output/pct_ch_mw_date_dist.png not found)
 (file ../output/pct_ch_mw_date_dist.png written in PNG format)
 (note: file ../output/pct_ch_mw_date_dist.eps not found)
@@ -221,4 +221,933 @@ Notes:
 . 
 end of do-file
 
- make.py ended: 2021-10-29 17:13:42
+
+Execute:  StataMP-64 /e do "./preclean_summary_tables.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./preclean_summary_tables.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. adopath + ../../../lib/stata/min_wage/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+  [8]              "../../../lib/stata/min_wage/ado"
+
+. set maxvar 32000
+
+
+. 
+. program main
+  1.     local instub_acs      "../../../base/acs/output"
+  2.     local instub_irs      "../../../drive/base_large/irs_soi"
+  3.     local instub_safmr    "../../../base/safmr/output"
+  4.     local instub_est_samp "../../../drive/derived_large/estimation_samples
+> "     
+  5. 
+.     clean_acs, instub(`instub_acs')
+  6.         save_data "../temp/acs_2011_clean.dta", ///
+>             key(zcta) log(none) replace
+  7.         
+.         clean_irs, instub(`instub_irs')
+  8.         save_data "../temp/irs_2010_clean.dta", ///
+>             key(zipcode) log(none) replace
+  9.         
+.         clean_safmr, instub(`instub_safmr')
+ 10.         save_data "../temp/safmr_clean.dta", ///
+>             key(zipcode countyfips cbsa10 year) log(none) replace
+ 11.         keep if year == 2012
+ 12.         drop year
+ 13.         save_data "../temp/safmr_2012_clean.dta", ///
+>             key(zipcode countyfips cbsa10) log(none) replace
+ 14.         
+.         build_zip_lvl_samples, instub(`instub_est_samp')
+ 15.         foreach data in "all" "all_urban" "all_zillow_rents" "baseline_zil
+> low_rents" {
+ 16.             use "../temp/`data'_zipcodes.dta", clear
+ 17.                 merge 1:1 zipcode using "../temp/actual_mw_feb2010.dta", /
+> //
+>                     nogen keep(1 3)
+ 18.                 merge 1:1 zipcode using "../temp/rents_jan2015.dta", ///
+>                     nogen keep(1 3)
+ 19.                 merge 1:1 zipcode using "../temp/irs_2010_clean.dta", ///
+>                     nogen keep(1 3)
+ 20.                 merge m:1 zcta using "../temp/acs_2011_clean.dta", ///
+>                     nogen keep(1 3)
+ 21.                 merge 1:1 zipcode countyfips cbsa10 ///
+>                     using "../temp/safmr_2012_clean.dta", nogen keep(1 3)
+ 22.                 drop zcta countyfips cbsa10 statefips
+ 23.                 save_data "../output/`data'_zipcode_lvl_data.dta", ///
+>                     key(zipcode) replace
+ 24.         export delimited "../output/`data'_zipcode_lvl_data.csv", replace
+ 25.         }
+ 26.         
+.         use zipcode countyfips cbsa10 statefips year_month year month ///
+>             actual_mw exp_ln_mw_17 ln_mw ///
+>             medrentpricepsqft_SFCC medrentprice_SFCC ///
+>                 ln_rents medrentpricepsqft_2BR medrentprice_2BR ///
+>                 ln_emp_bizserv ln_emp_info ln_emp_fin ///
+>                 ln_estcount_bizserv ln_estcount_info ln_estcount_fin ///
+>                 ln_avgwwage_bizserv ln_avgwwage_info ln_avgwwage_fin ///
+>             using "`instub_est_samp'/baseline_zipcode_months.dta", clear
+ 27.         merge m:1 zipcode using "../temp/baseline_zillow_rents_zipcodes.dt
+> a", ///
+>             nogen keep(3)
+ 28.         merge m:1 zipcode countyfips cbsa10 year using "../temp/safmr_clea
+> n.dta", ///
+>             nogen keep(1 3)
+ 29.     save_data "../output/baseline_zillow_rents_zipcode_months.dta", ///
+>                     key(zipcode year_month) replace
+ 30.         export delimited "../output/baseline_zillow_rents_zipcode_months.c
+> sv", replace
+ 31. end
+
+. 
+. program clean_acs
+  1.         syntax, instub(str)
+  2.         
+.         import delimited "`instub'/acs_2011.csv", clear stringcols(1)
+  3.         
+.         gen share_black_pop     = black/population
+  4.         gen share_hispanic_pop  = hispanic/population
+  5.     gen share_renter_hhlds    = renter_occupied/total_households
+  6.         gen hhld_size             = population/total_households
+  7.     keep zcta population total_households hhld_size share_renter_hhlds ///
+>         share_black_pop share_hispanic_pop total_earnings_hhld
+  8. end
+
+. 
+. program clean_irs 
+  1.     syntax, instub(str)
+  2.         
+.         use "`instub'/irs_zip.dta", clear
+  3.         drop if zipcode == "0"
+  4.         drop if zipcode == "00000"
+  5.         
+.         keep if year == 2010
+  6.         
+.     keep zipcode statefips share_wage_hhlds share_bussiness_hhlds /// 
+>             share_farmer_hhlds agi_per_hhld wage_per_wage_hhld ///
+>                 wage_per_hhld bussines_rev_per_owner
+  7. end
+
+. 
+. program clean_safmr 
+  1.     syntax, instub(str)
+  2.         
+.         use "`instub'/safmr_2012_2016_by_zipcode_county_cbsa10.dta", clear
+  3.         keep zipcode countyfips cbsa10 year safmr1br safmr2br safmr3br  
+  4. end
+
+. 
+. program build_zip_lvl_samples
+  1.     syntax, instub(str)
+  2.         
+.         use zipcode zcta countyfips cbsa10 statefips year_month year ///
+>             month medrentprice_SFCC medrentpricepsqft_SFCC ///
+>                 medrentprice_2BR medrentpricepsqft_2BR rural actual_mw ///
+>                 using "`instub'/all_zipcode_months.dta", clear
+  3.                 
+.         preserve
+  4.             keep if year == 2015 & month == 1
+  5.                 keep zipcode medrentprice_SFCC medrentpricepsqft_SFCC ///
+>                 medrentprice_2BR medrentpricepsqft_2BR
+  6.                 save "../temp/rents_jan2015.dta", replace
+  7.         restore
+  8.                 
+.         preserve
+  9.             keep if year == 2010 & month == 2
+ 10.                 keep zipcode actual_mw
+ 11.                 save "../temp/actual_mw_feb2010.dta", replace
+ 12.         restore
+ 13.         
+.         preserve
+ 14.             keep zipcode zcta countyfips cbsa10 statefips rural
+ 15.                 duplicates drop zipcode, force
+ 16.                 save "../temp/all_zipcodes.dta", replace
+ 17.         restore 
+ 18.         
+.         preserve
+ 19.             keep if rural == 0
+ 20.             keep zipcode zcta countyfips cbsa10 statefips rural
+ 21.                 duplicates drop zipcode, force
+ 22.                 save "../temp/all_urban_zipcodes.dta", replace
+ 23.         restore 
+ 24.         
+.         preserve
+ 25.             keep if !missing(medrentpricepsqft_SFCC)
+ 26.             keep zipcode zcta countyfips cbsa10 statefips rural
+ 27.                 duplicates drop zipcode, force
+ 28.                 save "../temp/all_zillow_rents_zipcodes.dta", replace
+ 29.         restore 
+ 30.         
+.     use zipcode zcta countyfips cbsa10 statefips year_month year ///
+>             month medrentpricepsqft_SFCC rural actual_mw ///
+>                 using "`instub'/baseline_zipcode_months.dta", clear
+ 31.                 
+.         preserve
+ 32.             keep if !missing(medrentpricepsqft_SFCC)
+ 33.             keep zipcode zcta countyfips cbsa10 statefips rural
+ 34.                 duplicates drop zipcode, force
+ 35.                 save "../temp/baseline_zillow_rents_zipcodes.dta", replace
+ 36.         restore 
+ 37. end
+
+. 
+. main
+(15 vars, 33,120 obs)
+(369 missing values generated)
+(369 missing values generated)
+(615 missing values generated)
+(615 missing values generated)
+(data now sorted by zcta)
+  (0 bytes saved)
+===============================================================================
+File: ../temp/acs_2011_clean.dta
+Key: zcta
+===============================================================================
+  33120:8(82335):3196475668:3305693153
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+        zcta |          0
+  population |     33,120    9369.843    13669.67          0     114941
+total_hous~s |     33,120    3502.078    5001.961          0      43174
+total_earn~d |     33,120    3502.078    5001.961          0      43174
+share_blac~p |     32,751    .0761297    .1604614          0          1
+-------------+---------------------------------------------------------
+share_hisp~p |     32,751    .0850276    .1630296          0          1
+share_rent~s |     32,505    .2552482    .1733507          0          1
+   hhld_size |     32,505    2.908295    12.09175          1   1632.333
+
+
+
+
+(note: file ../temp/acs_2011_clean.dta not found)
+file ../temp/acs_2011_clean.dta saved
+(51 observations deleted)
+(510 observations deleted)
+(279,503 observations deleted)
+(data already sorted by zipcode)
+  (0 bytes saved)
+===============================================================================
+File: ../temp/irs_2010_clean.dta
+Key: zipcode
+===============================================================================
+  27786:9(21818):1932880674:3815721213
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+   statefips |          0
+agi_per_hhld |     27,786    53.22892    38.25782   5.001689   2368.675
+wage_per_w~d |     27,786    44.24283     22.7597   9.360238   554.9895
+wage_per_h~d |     27,786     36.2376     17.4025   2.959625   351.1373
+-------------+---------------------------------------------------------
+bussines_r~r |     27,211    10.92395    8.321206  -42.98553   515.2208
+share_wage~s |     27,786    .8224208    .0596334   .0782161          1
+share_buss~s |     27,786    .1594272    .0500167          0   .6312504
+share_farm~s |     27,786     .049988    .0772806          0   .6884065
+
+
+
+
+(note: file ../temp/irs_2010_clean.dta not found)
+file ../temp/irs_2010_clean.dta saved
+(data now sorted by zipcode countyfips cbsa10 year)
+  (0 bytes saved)
+===============================================================================
+File: ../temp/safmr_clean.dta
+Key: zipcode countyfips cbsa10 year
+===============================================================================
+  121696:7(38046):3605355970:137238601
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+  countyfips |          0
+      cbsa10 |          0
+        year |    121,696    2014.043    1.431673       2012       2016
+    safmr1br |    121,696    749.0634     270.163        310       2370
+-------------+---------------------------------------------------------
+    safmr2br |    121,696    926.0885    322.9981        370       2960
+    safmr3br |    121,696    1237.018    434.3868        510       4090
+
+
+
+
+(note: file ../temp/safmr_clean.dta not found)
+file ../temp/safmr_clean.dta saved
+(98,005 observations deleted)
+(data now sorted by zipcode countyfips cbsa10)
+  variable countyfips was str40 now str5
+  (829,185 bytes saved)
+===============================================================================
+File: ../temp/safmr_2012_clean.dta
+Key: zipcode countyfips cbsa10
+===============================================================================
+  23691:6(39041):3722580878:3198509310
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+  countyfips |          0
+      cbsa10 |          0
+    safmr1br |     23,691    725.2433    276.3298        370       2060
+    safmr2br |     23,691    868.6003    317.7878        430       2340
+-------------+---------------------------------------------------------
+    safmr3br |     23,691    1138.101    416.9569        540       3340
+
+
+
+
+(note: file ../temp/safmr_2012_clean.dta not found)
+file ../temp/safmr_2012_clean.dta saved
+(4,817,953 observations deleted)
+(note: file ../temp/rents_jan2015.dta not found)
+file ../temp/rents_jan2015.dta saved
+(4,817,953 observations deleted)
+(note: file ../temp/actual_mw_feb2010.dta not found)
+file ../temp/actual_mw_feb2010.dta saved
+
+Duplicates in terms of zipcode
+
+(4,817,953 observations deleted)
+(note: file ../temp/all_zipcodes.dta not found)
+file ../temp/all_zipcodes.dta saved
+(2,160,360 observations deleted)
+
+Duplicates in terms of zipcode
+
+(2,675,596 observations deleted)
+(note: file ../temp/all_urban_zipcodes.dta not found)
+file ../temp/all_urban_zipcodes.dta saved
+(4,660,462 observations deleted)
+
+Duplicates in terms of zipcode
+
+(194,662 observations deleted)
+(note: file ../temp/all_zillow_rents_zipcodes.dta not found)
+file ../temp/all_zillow_rents_zipcodes.dta saved
+(27,800 observations deleted)
+
+Duplicates in terms of zipcode
+
+(132,255 observations deleted)
+(note: file ../temp/baseline_zillow_rents_zipcodes.dta not found)
+file ../temp/baseline_zillow_rents_zipcodes.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            40,487  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            40,487  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                        12,712
+        from master                    12,712  
+        from using                          0  
+
+    matched                            27,775  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            40,487  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                        22,977
+        from master                    22,977  
+        from using                          0  
+
+    matched                            17,510  
+    -----------------------------------------
+(data already sorted by zipcode)
+  (0 bytes saved)
+===============================================================================
+File: ../output/all_zipcode_lvl_data.dta
+Key: zipcode
+===============================================================================
+  40487:24(52915):3411997051:2259614395
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+       rural |     40,487    .4446612    .4969343          0          1
+   actual_mw |     40,487    7.417361    .3435169       7.25      12.67
+medren~e_2BR |        485    1909.961    970.7352        495       6595
+medre~e_SFCC |      1,253    1607.497    701.1304        630       6000
+-------------+---------------------------------------------------------
+medren~t_2BR |        368    1.763289    .8660091   .5687694   5.653199
+medre~t_SFCC |      1,345    1.224143    1.038714   .4660688   18.86792
+agi_per_hhld |     27,775    53.23756     38.2623   5.001689   2368.675
+wage_per_w~d |     27,775     44.2487    22.76138   9.360238   554.9895
+wage_per_h~d |     27,775    36.24179    17.40363   2.959625   351.1373
+-------------+---------------------------------------------------------
+bussines_r~r |     27,207    10.92492    8.321408  -42.98553   515.2208
+share_wage~s |     27,775    .8224067    .0595445   .0782161          1
+share_buss~s |     27,775    .1594657    .0499599          0   .6312504
+share_farm~s |     27,775    .0500078    .0772895          0   .6884065
+  population |     40,487    12161.23    15421.91          0     114941
+-------------+---------------------------------------------------------
+total_hous~s |     40,487    4600.471    5698.488          0      43174
+total_earn~d |     40,487    4600.471    5698.488          0      43174
+share_blac~p |     40,254    .0913958    .1728419          0          1
+share_hisp~p |     40,254      .09315    .1622822          0          1
+share_rent~s |     40,153    .2876089    .1951975          0          1
+-------------+---------------------------------------------------------
+   hhld_size |     40,153    2.906887    13.78134          1   1632.333
+    safmr1br |     17,510    749.5443     289.948        370       2060
+    safmr2br |     17,510    897.8464    333.6114        490       2340
+    safmr3br |     17,510     1175.93    438.5535        620       3340
+
+
+
+
+(note: file ../output/all_zipcode_lvl_data.dta not found)
+file ../output/all_zipcode_lvl_data.dta saved
+(note: file ../output/all_zipcode_lvl_data.csv not found)
+file ../output/all_zipcode_lvl_data.csv saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            22,484  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            22,484  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                         8,210
+        from master                     8,210  
+        from using                          0  
+
+    matched                            14,274  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            22,484  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                        11,784
+        from master                    11,784  
+        from using                          0  
+
+    matched                            10,700  
+    -----------------------------------------
+(data already sorted by zipcode)
+  (0 bytes saved)
+===============================================================================
+File: ../output/all_urban_zipcode_lvl_data.dta
+Key: zipcode
+===============================================================================
+  22484:24(52915):732434346:1587835415
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+       rural |     22,484           0           0          0          0
+   actual_mw |     22,484    7.453184    .3743535       7.25      12.67
+medren~e_2BR |        463    1945.329    976.4421        495       6595
+medre~e_SFCC |      1,067    1647.435    733.0511        630       6000
+-------------+---------------------------------------------------------
+medren~t_2BR |        351    1.791583     .874597   .5687694   5.653199
+medre~t_SFCC |      1,136    1.289657    1.112276   .4660688   18.86792
+agi_per_hhld |     14,274    56.93483    46.48873   5.001689   2368.675
+wage_per_w~d |     14,274    46.70688    26.61911   9.360238   554.9895
+wage_per_h~d |     14,274    38.34746    20.02312   2.959625   351.1373
+-------------+---------------------------------------------------------
+bussines_r~r |     14,096    11.70737    8.487626  -41.63597   158.9954
+share_wage~s |     14,274    .8274571    .0607072   .0782161          1
+share_buss~s |     14,274    .1558073    .0469325          0   .5154931
+share_farm~s |     14,274    .0382455    .0686314          0   .5625018
+  population |     22,484    16147.11    16970.15          0     114941
+-------------+---------------------------------------------------------
+total_hous~s |     22,484    6114.667    6230.992          0      43174
+total_earn~d |     22,484    6114.667    6230.992          0      43174
+share_blac~p |     22,423    .1110106    .1899214          0          1
+share_hisp~p |     22,423    .1262462     .186392          0          1
+share_rent~s |     22,358    .3472593    .2103158          0          1
+-------------+---------------------------------------------------------
+   hhld_size |     22,358    3.093284    18.28447          1   1632.333
+    safmr1br |     10,700    792.2327    312.9079        370       2060
+    safmr2br |     10,700    947.7234    359.7258        490       2340
+    safmr3br |     10,700     1248.63    475.4874        620       3340
+
+
+
+
+(note: file ../output/all_urban_zipcode_lvl_data.dta not found)
+file ../output/all_urban_zipcode_lvl_data.dta saved
+(note: file ../output/all_urban_zipcode_lvl_data.csv not found)
+file ../output/all_urban_zipcode_lvl_data.csv saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                             3,316  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                             3,316  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             9
+        from master                         9  
+        from using                          0  
+
+    matched                             3,307  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                             3,316  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                           166
+        from master                       166  
+        from using                          0  
+
+    matched                             3,150  
+    -----------------------------------------
+(data already sorted by zipcode)
+  (0 bytes saved)
+===============================================================================
+File: ../output/all_zillow_rents_zipcode_lvl_data.dta
+Key: zipcode
+===============================================================================
+  3316:24(52915):1347581301:1191384723
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+       rural |      3,316    .1574186    .3642499          0          1
+   actual_mw |      3,316    7.476258    .4104291       7.25      12.67
+medren~e_2BR |        383    1890.483    1014.196        495       6595
+medre~e_SFCC |      1,184    1592.807    695.0302        630       6000
+-------------+---------------------------------------------------------
+medren~t_2BR |        341    1.776714    .8886875   .5687694   5.653199
+medre~t_SFCC |      1,345    1.224143    1.038714   .4660688   18.86792
+agi_per_hhld |      3,307    70.26437    55.84332   18.96593   736.5855
+wage_per_w~d |      3,307    57.77744    34.41434    17.9185   373.1573
+wage_per_h~d |      3,307    47.46964    25.86023   8.523639   302.1292
+-------------+---------------------------------------------------------
+bussines_r~r |      3,307    13.95997    9.641045  -9.688676   130.2502
+share_wage~s |      3,307    .8328935    .0656901   .2685518    .951295
+share_buss~s |      3,307    .1660188     .041824   .0519342   .3421915
+share_farm~s |      3,307    .0029139    .0054401          0   .0980049
+  population |      3,316     33635.9    14894.13        214     114941
+-------------+---------------------------------------------------------
+total_hous~s |      3,316    12709.32    5157.537        114      43174
+total_earn~d |      3,316    12709.32    5157.537        114      43174
+share_blac~p |      3,316    .1531673    .1984358          0   .9795615
+share_hisp~p |      3,316    .1694839    .1694562          0   .9604186
+share_rent~s |      3,316    .3707847    .1693551   .0252809   .9725058
+-------------+---------------------------------------------------------
+   hhld_size |      3,316    2.638339    .4328408   1.374038   9.683417
+    safmr1br |      3,150    909.8508    314.4171        420       1980
+    safmr2br |      3,150    1081.594    372.5557        520       2340
+    safmr3br |      3,150    1441.492    501.2219        690       3240
+
+
+
+
+(note: file ../output/all_zillow_rents_zipcode_lvl_data.dta not found)
+file ../output/all_zillow_rents_zipcode_lvl_data.dta saved
+(note: file ../output/all_zillow_rents_zipcode_lvl_data.csv not found)
+file ../output/all_zillow_rents_zipcode_lvl_data.csv saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                             1,345  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                             1,345  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             2
+        from master                         2  
+        from using                          0  
+
+    matched                             1,343  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                             1,345  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            58
+        from master                        58  
+        from using                          0  
+
+    matched                             1,287  
+    -----------------------------------------
+(data already sorted by zipcode)
+  (0 bytes saved)
+===============================================================================
+File: ../output/baseline_zillow_rents_zipcode_lvl_data.dta
+Key: zipcode
+===============================================================================
+  1345:24(52915):3065228103:754459560
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+       rural |      1,345    .1553903    .3624111          0          1
+   actual_mw |      1,345    7.426178    .3520287       7.25       9.79
+medren~e_2BR |        302    1915.675    1036.769        495       6495
+medre~e_SFCC |      1,098     1598.47    704.5947        630       6000
+-------------+---------------------------------------------------------
+medren~t_2BR |        281    1.806776    .9461427   .5687694   5.653199
+medre~t_SFCC |      1,345    1.224143    1.038714   .4660688   18.86792
+agi_per_hhld |      1,343    71.15059    53.35111   21.34437   736.5855
+wage_per_w~d |      1,343    59.16787    32.02206   19.95767   318.5271
+wage_per_h~d |      1,343    49.28763    25.17034   10.55406   269.0834
+-------------+---------------------------------------------------------
+bussines_r~r |      1,343    13.37291    9.268477  -9.688676   93.66172
+share_wage~s |      1,343    .8398445    .0622921   .3109279    .951295
+share_buss~s |      1,343    .1700053    .0426119   .0619388   .3283778
+share_farm~s |      1,343    .0021612    .0036782          0   .0385341
+  population |      1,345    37965.93    15289.83        214     114941
+-------------+---------------------------------------------------------
+total_hous~s |      1,345    14238.33    5299.719        114      43174
+total_earn~d |      1,345    14238.33    5299.719        114      43174
+share_blac~p |      1,345    .1596182    .1941105          0   .9795615
+share_hisp~p |      1,345    .1840015    .1697882          0   .9604186
+share_rent~s |      1,345    .3612558     .166178   .0640885   .9722357
+-------------+---------------------------------------------------------
+   hhld_size |      1,345    2.663412    .4281475   1.381368   4.488525
+    safmr1br |      1,287    947.3038    306.4437        440       1940
+    safmr2br |      1,287    1122.354    367.8851        560       2280
+    safmr3br |      1,287    1501.764    493.5175        760       3240
+
+
+
+
+(note: file ../output/baseline_zillow_rents_zipcode_lvl_data.dta not found)
+file ../output/baseline_zillow_rents_zipcode_lvl_data.dta saved
+(note: file ../output/baseline_zillow_rents_zipcode_lvl_data.csv not found)
+file ../output/baseline_zillow_rents_zipcode_lvl_data.csv saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           161,400  
+    -----------------------------------------
+(note: variable countyfips was str5, now str40 to accommodate using data's
+       values)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       100,020
+        from master                   100,020  
+        from using                          0  
+
+    matched                            61,380  
+    -----------------------------------------
+(data now sorted by zipcode year_month)
+  variable countyfips was str40 now str5
+  (5,649,000 bytes saved)
+===============================================================================
+File: ../output/baseline_zillow_rents_zipcode_months.dta
+Key: zipcode year_month
+===============================================================================
+  161400:29(71325):3494210224:3484256543
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+  year_month |    161,400       659.5    34.63992        600        719
+        year |    161,400      2014.5     2.87229       2010       2019
+       month |    161,400         6.5    3.452063          1         12
+  countyfips |          0
+-------------+---------------------------------------------------------
+      cbsa10 |          0
+   statefips |          0
+   actual_mw |    161,400    8.072287    1.266082       7.25         16
+medren~e_2BR |     46,056    1815.501    921.5752        480       6910
+medre~e_SFCC |    116,333     1665.61    827.2101        595      30000
+-------------+---------------------------------------------------------
+medren~t_2BR |     44,196    1.700968    .8444674   .5015198   6.506977
+medre~t_SFCC |    133,600    1.233179    .9003418   .4180214       22.2
+exp_ln_mw_17 |    161,400    2.074907    .1335155   1.868756    2.69731
+    ln_rents |    133,600    .0763131    .4611457  -.8722227   3.100092
+       ln_mw |    161,400    2.078232    .1366838   1.981001   2.772589
+-------------+---------------------------------------------------------
+ln_emp_biz~v |    161,400    11.09626    1.408494    5.57973   13.38876
+ ln_emp_info |    160,362    8.984546    1.564948    1.94591   12.38988
+  ln_emp_fin |    161,307    10.15679    1.459743   4.454347   12.89542
+ln_estcoun~v |    161,400    8.637802     1.27942   3.931826   10.96353
+ln_estcoun~o |    161,400    6.067781    1.366467   .6931472   9.531191
+-------------+---------------------------------------------------------
+ln_estcoun~n |    161,400     7.94459    1.232345   3.433987   10.33748
+ln_avgwwag~v |    161,400    7.075329    .3154548   5.420535   8.432724
+ln_avgwwag~o |    160,362    7.253476    .3472527   5.693732   8.906665
+ln_avgwwag~n |    161,307    7.227268    .3794056   6.180017   9.163982
+        zcta |          0
+-------------+---------------------------------------------------------
+       rural |    161,400    .1553903    .3622775          0          1
+    safmr1br |     61,380    948.5728    289.2457        440       1940
+    safmr2br |     61,380    1163.754    359.1435        560       2400
+    safmr3br |     61,380    1582.483    490.7643        760       3380
+
+
+
+
+(note: file ../output/baseline_zillow_rents_zipcode_months.dta not found)
+file ../output/baseline_zillow_rents_zipcode_months.dta saved
+(note: file ../output/baseline_zillow_rents_zipcode_months.csv not found)
+file ../output/baseline_zillow_rents_zipcode_months.csv saved
+
+. 
+end of do-file
+
+
+Execute:  R CMD BATCH --no-save "./build_summary_tables.R" build_summary_tables.Rout
+
+R version 4.1.1 (2021-08-10) -- "Kick Things"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list = ls())
+> source("../../../lib/R/save_data.R")
+
+Please cite as: 
+
+ Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+ R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
+
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+
+Attaching package: 'data.table'
+
+The following objects are masked from 'package:dplyr':
+
+    between, first, last
+
+> 
+> library(data.table)
+> library(dplyr)
+> 
+> main <- function() {
++   
++   ## ZIP level stats
++   all_zipcodes <- fread("../output/all_zipcode_lvl_data.csv",
++                   colClasses = c(zipcode = "character"))
++   all_urban_zipcodes <- fread("../output/all_urban_zipcode_lvl_data.csv",
++                         colClasses = c(zipcode = "character"))
++   all_zillow_rents_zipcodes <- fread("../output/all_zillow_rents_zipcode_lvl_data.csv",
++                               colClasses = c(zipcode = "character"))
++   baseline_zillow_rents_zipcodes <- fread("../output/baseline_zillow_rents_zipcode_lvl_data.csv",
++                                      colClasses = c(zipcode = "character"))
++ 
++   all_zipcodes_stats   <- build_basic_stats(all_zipcodes)
++   all_urban_zipcodes_stats <- build_basic_stats(all_urban_zipcodes)
++   all_zillow_rents_zipcodes_stats <- build_basic_stats(all_zillow_rents_zipcodes)
++   baseline_zillow_rents_zipcodes_stats   <- build_basic_stats(baseline_zillow_rents_zipcodes)
++   
++   zip_lvl_stats <- rbind(all_zipcodes_stats, all_urban_zipcodes_stats, 
++                  all_zillow_rents_zipcodes_stats, baseline_zillow_rents_zipcodes_stats)
++   zip_lvl_stats <- t(zip_lvl_stats)
++   colnames(zip_lvl_stats) <- c("All U.S. ZIP codes", "Urban US ZIP codes", 
++                                "ZIP codes with Zillow SFCC rents", "Baseline panel")
++   
++   stats_row_labels <- c("Avg population (ACS 2011)", "Avg number of households (ACS 2011)", 
++                         "Avg household size (ACS 2011)", "Share of urban ZIP codes", 
++                         "Share of renter households (ACS 2011)", 
++                         "Share of black population (ACS 2011)",
++                         "Share of hispanic population (ACS 2011)", 
++                         "Share of households with wage inc. (IRS 2010)",
++                         "Share of households with  business inc. (IRS 2010)",
++                         "Avg AGI per household (IRS 2010)", 
++                         "Avg Wage inc. per household (IRS 2010)",
++                         "Avg 40th percentile rent 2br (SAFMR 2012)",
++                         "Min residence MW (Feb 2010)",
++                         "Avg residence MW (Feb 2010)",
++                         "Max residence MW (Feb 2010)",
++                         "Number of ZIP codes")
++   rownames(zip_lvl_stats) <- stats_row_labels
++   
++   tab = capture.output(stargazer(zip_lvl_stats, summary = F, digits = 2,
++                                type = "latex", float = F))
++   tab = gsub("ccccc", "lcccc", tab)
++   cat(paste(tab, "\n"), file = "../output/stats_sample.tex")
++   
++   
++   ## ZIP-month stats of baseline panel
++   baseline_panel <- fread("../output/baseline_zillow_rents_zipcode_months.csv",
++                                           colClasses = c(zipcode = "character")) %>%
++     select(zipcode, year_month, actual_mw, ln_mw, exp_ln_mw_17,
++            medrentprice_SFCC, medrentpricepsqft_SFCC,ln_rents, 
++            medrentprice_2BR, medrentpricepsqft_2BR,
++            ln_emp_bizserv, ln_estcount_bizserv, ln_avgwwage_bizserv, 
++            ln_emp_info, ln_estcount_info, ln_avgwwage_info, 
++            ln_emp_fin, ln_estcount_fin, ln_avgwwage_fin) %>%
++     mutate(zipcode = as.factor(zipcode),
++            year_month = as.factor(year_month))
++   
++   var_labels = c("Residence MW", "Ln residence MW", "Workplace ln MW",
++                  "Median rent SFCC", "Median rent psqft. SFCC", "Ln median rent psqft. SFCC",
++                  "Median rent 2br", "Median rent psqft. 2br",
++                  paste0(c("Avg. wage", "Employment", "Estab. count"), " Business serv."),
++                  paste0(c("Avg. wage", "Employment", "Estab. count"), " Information serv."), 
++                  paste0(c("Avg. wage", "Employment", "Estab. count"), " Financial serv."))
++   
++   stargazer(baseline_panel, digits = 2,
++             omit.summary.stat = c("p25", "p75"), covariate.labels = var_labels,
++             #add.lines = list(c("Unique zipcodes", format(length(panel_zipcodes), big.mark = ","), "", "", "", "")),
++             float = F, out = "../output/stats_est_panel.tex")
++ }
+> 
+> build_basic_stats <- function(df) {
++   
++   stats <- df %>%
++     summarise(population_acs2011              = mean(population, na.rm = T),
++               households_acs2011              = mean(total_households, na.rm = T),
++               hhld_size_acs_2011              = mean(hhld_size, na.rm = T),
++               urb_zip_share_geo_master        = 1 - mean(rural, na.rm = T),
++               share_renter_hhlds_acs2011      = mean(share_renter_hhlds, na.rm = T),
++               share_black_pop_acs2011         = mean(share_black_pop, na.rm = T),
++               share_hispanic_pop_acs2011      = mean(share_hispanic_pop, na.rm = T),
++               share_wage_hhlds_irs2010        = mean(share_wage_hhlds, na.rm = T),
++               share_bussiness_hhlds_irs2010   = mean(share_bussiness_hhlds, na.rm = T),
++               agi_per_hhld_irs_2010           = mean(agi_per_hhld, na.rm = T),
++               wage_per_hhld_irs2010           = mean(wage_per_hhld, na.rm = T),
++               rent40thperc_2br_safmr2012      = mean(safmr2br, na.rm = T),
++               min_binding_mw_feb2010          = min(actual_mw, na.rm = T),
++               avg_binding_mw_feb2010          = mean(actual_mw, na.rm = T),
++               max_binding_mw_feb2010          = max(actual_mw, na.rm = T),
++               zip_count                       = n_distinct(zipcode))
++   return(stats)
++ }
+> 
+> main()
+
+% Table created by stargazer v.5.2.2 by Marek Hlavac, Harvard University. E-mail: hlavac at fas.harvard.edu
+% Date and time: Mon, Feb 07, 2022 - 12:48:31 PM
+\begin{tabular}{@{\extracolsep{5pt}}lccccc} 
+\\[-1.8ex]\hline 
+\hline \\[-1.8ex] 
+Statistic & \multicolumn{1}{c}{N} & \multicolumn{1}{c}{Mean} & \multicolumn{1}{c}{St. Dev.} & \multicolumn{1}{c}{Min} & \multicolumn{1}{c}{Max} \\ 
+\hline \\[-1.8ex] 
+Residence MW & 161,400 & 8.07 & 1.27 & 7 & 16 \\ 
+Ln residence MW & 161,400 & 2.08 & 0.14 & 1.98 & 2.77 \\ 
+Workplace ln MW & 161,400 & 2.07 & 0.13 & 1.87 & 2.70 \\ 
+Median rent SFCC & 116,333 & 1,665.61 & 827.21 & 595.00 & 30,000.00 \\ 
+Median rent psqft. SFCC & 133,600 & 1.23 & 0.90 & 0.42 & 22.20 \\ 
+Ln median rent psqft. SFCC & 133,600 & 0.08 & 0.46 & $-$0.87 & 3.10 \\ 
+Median rent 2br & 46,056 & 1,815.50 & 921.58 & 480.00 & 6,910.00 \\ 
+Median rent psqft. 2br & 44,196 & 1.70 & 0.84 & 0.50 & 6.51 \\ 
+Avg. wage Business serv. & 161,400 & 11.10 & 1.41 & 5.58 & 13.39 \\ 
+Employment Business serv. & 161,400 & 8.64 & 1.28 & 3.93 & 10.96 \\ 
+Estab. count Business serv. & 161,400 & 7.08 & 0.32 & 5.42 & 8.43 \\ 
+Avg. wage Information serv. & 160,362 & 8.98 & 1.56 & 1.95 & 12.39 \\ 
+Employment Information serv. & 161,400 & 6.07 & 1.37 & 0.69 & 9.53 \\ 
+Estab. count Information serv. & 160,362 & 7.25 & 0.35 & 5.69 & 8.91 \\ 
+Avg. wage Financial serv. & 161,307 & 10.16 & 1.46 & 4.45 & 12.90 \\ 
+Employment Financial serv. & 161,400 & 7.94 & 1.23 & 3.43 & 10.34 \\ 
+Estab. count Financial serv. & 161,307 & 7.23 & 0.38 & 6.18 & 9.16 \\ 
+\hline \\[-1.8ex] 
+\end{tabular} 
+> 
+> proc.time()
+   user  system elapsed 
+   4.73    0.81    5.46 
+
+ make.py ended: 2022-02-07 12:48:34
