@@ -2,7 +2,7 @@ program plot_dynamics_both
     syntax, model(str) dyn_var(str) stat_var(str) y_label(str) ///
         legend_dyn_var(str) color_dyn_var(str) symbol_dyn_var(str) ///
         legend_stat_var(str) color_stat_var(str) symbol_stat_var(str) ///
-        x_label(str) name(str)
+        x_label(str) name(str) [width(int 2221) height(int 1615)]
         
     preserve
         keep if model == "`model'"
@@ -24,7 +24,7 @@ program plot_dynamics_both
             legend(order(1 `"`legend_dyn_var'"' 5 `"`legend_stat_var'"' ))      ///
             graphregion(color(white)) bgcolor(white)
         
-        graph export "../output/`name'.png", replace
+        graph export "../output/`name'.png", replace width(`width') height(`height')
         graph export "../output/`name'.eps", replace
     restore
 end

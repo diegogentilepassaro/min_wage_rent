@@ -1,7 +1,7 @@
 program plot_dynamics
     syntax, model(str) var(str) y_label(str) ///
         legend_var(str) color(str) symbol(str) ///
-        name(str)
+        name(str) [width(int 2221) height(int 1615)]
         
     preserve
         keep if model == "`model'"
@@ -13,7 +13,7 @@ program plot_dynamics
             legend(order(1 `"`legend_var'"'))                                          ///
             graphregion(color(white)) bgcolor(white)
         
-        graph export "../output/`name'.png", replace
+        graph export "../output/`name'.png", replace width(`width') height(`height')
         graph export "../output/`name'.eps", replace
     restore
 end
