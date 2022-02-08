@@ -28,12 +28,22 @@ if envir_vars is None:
 
 start_make_logging()
 
+desc_est_samples_dir = "../../../descriptive/estimation_samples/output"
+
 fd_baseline_dir = "../../../analysis/fd_baseline/output"
 fd_cf_dir       = "../../../analysis/counterfactuals/output"
 fd_robust_dir   = "../../../analysis/fd_robustness/output"
 fd_county_dir   = "../../../analysis/fd_county/output"
 fd_wages_dir    = "../../../analysis/twfe_wages/output"
 fd_stacked_dir    = "../../../analysis/fd_stacked/output"
+
+tablefill(input    = os.path.join(desc_est_samples_dir, 'stats_zip_samples.txt'), 
+          template = '../input/stats_zip_samples.tex', 
+          output   = '../output/stats_zip_samples.tex')
+
+tablefill(input    = os.path.join(desc_est_samples_dir, 'stats_est_panel.txt'), 
+          template = '../input/stats_est_panel.tex', 
+          output   = '../output/stats_est_panel.tex')
 
 tablefill(input    = os.path.join(fd_baseline_dir, 'static.txt'), 
           template = '../input/static.tex', 
