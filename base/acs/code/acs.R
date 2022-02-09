@@ -1,11 +1,12 @@
+remove(list = ls())
+
 library(tidycensus)
 library(tidyverse)
-library(data.table)
-library(stringr)
 
 source("../../../lib/R/save_data.R")
 
 main <- function(){
+# In case the key ceases working see https://www.census.gov/content/dam/Census/library/publications/2020/acs/acs_api_handbook_2020_ch02.pdf
   census_api_key("b04b7f3197f8bf4bdc31956fcfb3f28364ccf6cb")
   
   for (yyyy in c(2011, 2015, 2019)) {
