@@ -11,11 +11,11 @@ main <- function() {
   baseline_zipcodes <- load_data("baseline_zillow_rents_zipcode_lvl_data.csv")
 
   all_zipcodes_stats      <- build_basic_stats(all_zipcodes)
-  urban_zipcodes_stats    <- build_basic_stats(all_urban_zipcodes)
+  urban_zipcodes_stats    <- build_basic_stats(urban_zipcodes)
   zillow_zipcodes_stats   <- build_basic_stats(zillow_zipcodes)
   baseline_zipcodes_stats <- build_basic_stats(baseline_zipcodes)
   
-  zip_lvl_stats <- t(rbind(all_zipcodes_stats, all_urban_zipcodes_stats, 
+  zip_lvl_stats <- t(rbind(all_zipcodes_stats, urban_zipcodes_stats, 
                            zillow_zipcodes_stats, baseline_zipcodes_stats))
   
   txt <- c("<tab:stats_zip_samples>")
@@ -46,7 +46,7 @@ main <- function() {
 
 load_data <- function(filename, instub = "../output") {
   return(data.table::fread(file.path(instub, filename),
-                           colClasses = c(zipcode = "character"))
+                           colClasses = c(zipcode = "character")))
 }
 
 build_basic_stats <- function(df) {
