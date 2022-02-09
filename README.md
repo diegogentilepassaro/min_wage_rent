@@ -9,6 +9,7 @@ housing market across metropolitan areas.
 
    - Make a local copy of the Google Drive folder.
    - Create a juncture link to the datastore in the root of the repo. In windows, run `mklink /J "<Root of repo>/drive/" "<Local Google Drive folder>"` from the command line.
+   - A python 2 compiler is required to run the code in this repo. We recommend to install [Anaconda](https://www.anaconda.com/products/individual) and create a python2 environment.
 
 
 ## Writing the paper
