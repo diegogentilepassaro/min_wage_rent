@@ -1,29 +1,22 @@
 remove(list = ls())
-source("../../../lib/R/save_data.R")
-
-library(data.table)
 library(dplyr)
+source("../../../lib/R/save_data.R")
 
 main <- function() {
   
   ## ZIP level stats
-  all_zipcodes <- fread("../output/all_zipcode_lvl_data.csv",
-                  colClasses = c(zipcode = "character"))
-  all_urban_zipcodes <- fread("../output/all_urban_zipcode_lvl_data.csv",
-                        colClasses = c(zipcode = "character"))
-  all_zillow_rents_zipcodes <- fread("../output/all_zillow_rents_zipcode_lvl_data.csv",
-                              colClasses = c(zipcode = "character"))
-  baseline_zillow_rents_zipcodes <- fread("../output/baseline_zillow_rents_zipcode_lvl_data.csv",
-                                     colClasses = c(zipcode = "character"))
+  all_zipcodes      <- load_data("all_zipcode_lvl_data.csv")
+  urban_zipcodes    <- load_data("all_urban_zipcode_lvl_data.csv")
+  zillow_zipcodes   <- load_data("all_zillow_rents_zipcode_lvl_data.csv")
+  baseline_zipcodes <- load_data("baseline_zillow_rents_zipcode_lvl_data.csv")
 
-  all_zipcodes_stats   <- build_basic_stats(all_zipcodes)
-  all_urban_zipcodes_stats <- build_basic_stats(all_urban_zipcodes)
-  all_zillow_rents_zipcodes_stats <- build_basic_stats(all_zillow_rents_zipcodes)
-  baseline_zillow_rents_zipcodes_stats   <- build_basic_stats(baseline_zillow_rents_zipcodes)
+  all_zipcodes_stats      <- build_basic_stats(all_zipcodes)
+  urban_zipcodes_stats    <- build_basic_stats(all_urban_zipcodes)
+  zillow_zipcodes_stats   <- build_basic_stats(zillow_zipcodes)
+  baseline_zipcodes_stats <- build_basic_stats(baseline_zipcodes)
   
-  zip_lvl_stats <- rbind(all_zipcodes_stats, all_urban_zipcodes_stats, 
-                 all_zillow_rents_zipcodes_stats, baseline_zillow_rents_zipcodes_stats)
-  zip_lvl_stats <- t(zip_lvl_stats)
+  zip_lvl_stats <- t(rbind(all_zipcodes_stats, all_urban_zipcodes_stats, 
+                           zillow_zipcodes_stats, baseline_zipcodes_stats))
   
   txt <- c("<tab:stats_zip_samples>")
   writeLines(txt, "../output/stats_zip_samples.txt")
@@ -31,10 +24,8 @@ main <- function() {
               append = TRUE, sep = "\t", dec = ".",
               row.names = FALSE, col.names = FALSE)
   
-  
   ## ZIP-month stats of baseline panel
-  baseline_panel <- fread("../output/baseline_zillow_rents_zipcode_months.csv",
-                                          colClasses = c(zipcode = "character"))
+  baseline_panel <- load_data("baseline_zillow_rents_zipcode_months.csv")
   
   vars_for_table <- c("actual_mw", "ln_mw", "exp_ln_mw_17",
                       "medrentprice_SFCC", "medrentpricepsqft_SFCC", "ln_rents", 
@@ -53,37 +44,41 @@ main <- function() {
   }
 }
 
+load_data <- function(filename, instub = "../output") {
+  return(data.table::fread(file.path(instub, filename),
+                           colClasses = c(zipcode = "character"))
+}
+
 build_basic_stats <- function(df) {
   stats <- df %>%
-    summarise(population_acs2011              = mean(population, na.rm = T),
-              households_acs2011              = mean(total_households, na.rm = T),
-              hhld_size_acs_2011              = mean(hhld_size, na.rm = T),
-              urb_zip_share_geo_master        = 1 - mean(rural, na.rm = T),
-              share_renter_hhlds_acs2011      = mean(share_renter_hhlds, na.rm = T),
-              share_black_pop_acs2011         = mean(share_black_pop, na.rm = T),
-              share_hispanic_pop_acs2011      = mean(share_hispanic_pop, na.rm = T),
-              share_wage_hhlds_irs2010        = mean(share_wage_hhlds, na.rm = T),
-              share_bussiness_hhlds_irs2010   = mean(share_bussiness_hhlds, na.rm = T),
-              agi_per_hhld_irs_2010           = mean(agi_per_hhld, na.rm = T),
-              wage_per_hhld_irs2010           = mean(wage_per_hhld, na.rm = T),
-              rent40thperc_2br_safmr2012      = mean(safmr2br, na.rm = T),
-              min_binding_mw_feb2010          = min(actual_mw, na.rm = T),
-              avg_binding_mw_feb2010          = mean(actual_mw, na.rm = T),
-              max_binding_mw_feb2010          = max(actual_mw, na.rm = T),
-              zip_count                       = n_distinct(zipcode))
+    summarise(population_acs2011            = mean(population, na.rm = T),
+              households_acs2011            = mean(total_households, na.rm = T),
+              hhld_size_acs_2011            = mean(hhld_size, na.rm = T),
+              urb_zip_share_geo_master      = 1 - mean(rural, na.rm = T),
+              share_renter_hhlds_acs2011    = mean(share_renter_hhlds, na.rm = T),
+              share_black_pop_acs2011       = mean(share_black_pop, na.rm = T),
+              share_hispanic_pop_acs2011    = mean(share_hispanic_pop, na.rm = T),
+              share_wage_hhlds_irs2010      = mean(share_wage_hhlds, na.rm = T),
+              share_bussiness_hhlds_irs2010 = mean(share_bussiness_hhlds, na.rm = T),
+              agi_per_hhld_irs_2010         = mean(agi_per_hhld, na.rm = T),
+              wage_per_hhld_irs2010         = mean(wage_per_hhld, na.rm = T),
+              rent40thperc_2br_safmr2012    = mean(safmr2br, na.rm = T),
+              min_binding_mw_feb2010        = min(actual_mw, na.rm = T),
+              avg_binding_mw_feb2010        = mean(actual_mw, na.rm = T),
+              max_binding_mw_feb2010        = max(actual_mw, na.rm = T),
+              zip_count                     = n_distinct(zipcode))
   return(stats)
 }
 
-
 build_panel_stats_row <-  function(panel, var){
-  panel_stats_row <- panel %>% 
-    summarise(across(.cols = var, 
-                     .fns=list(n =  ~ sum(!is.na(.x)), 
-                               mean = ~ mean(.x, na.rm = T), 
-                               sd = ~ sd(.x, na.rm = T), 
-                               min = ~ min(.x, na.rm = T), 
-                               max = ~ max(.x, na.rm = T))))
-  return(panel_stats_row)
+  panel %>% 
+    summarise(across(.cols = var,
+                    .fns=list(n    =  ~ sum(!is.na(.x)), 
+                              mean = ~ mean(.x, na.rm = T), 
+                              sd   = ~ sd(.x, na.rm = T), 
+                              min  = ~ min(.x, na.rm = T), 
+                              max  = ~ max(.x, na.rm = T))))
 }
+
 
 main()
