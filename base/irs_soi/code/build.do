@@ -26,8 +26,7 @@ program main
 
     save_data "`outstub'/irs_zip.dta", key(zipcode statefips year) ///
         log(`logfile') replace
-    save_data "`outstub'/irs_zip.csv", key(zipcode statefips year) ///
-        log(none) outsheet replace
+    export delimited "`outstub'/irs_zip.csv", replace
 end
 
 program read_excel_files
