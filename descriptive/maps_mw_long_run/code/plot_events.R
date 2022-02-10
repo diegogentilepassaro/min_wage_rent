@@ -18,8 +18,7 @@ main <- function(){
   data_states <- read_sf(dsn = in_map_states, layer = "state") %>%
     select(STPOSTAL) %>%
     rename(state_name = STPOSTAL) %>%
-    filter(state_name != "AK" & state_name != "HI" & state_name != "VI" & state_name != "MP"
-           & state_name != "PR" & state_name != "GU" & state_name != "AS")
+    filter(!(state_name %in% c("AK", "HI", "VI", "MP", "PR", "GU", "AS")))
   data_states <- data_states[st_is_valid(data_states),]
   
   build_map(data_for_map, data_states,  "change_perc_actual_mw", "Percentage change in binding MW", 

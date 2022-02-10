@@ -15,8 +15,7 @@ main <- function(){
   data_states <- read_sf(dsn = in_map_states, layer = "state") %>%
     select(STPOSTAL) %>%
     rename(state_name = STPOSTAL) %>%
-    filter(state_name != "AK" & state_name != "HI" & state_name != "VI" & state_name != "MP"
-           & state_name != "PR" & state_name != "GU" & state_name != "AS")
+    filter(!(state_name %in% c("AK", "HI", "VI", "MP", "PR", "GU", "AS")))
   data_states <- data_states[st_is_valid(data_states),]
   
   df_all <- prepare_data(in_map, in_zip)
