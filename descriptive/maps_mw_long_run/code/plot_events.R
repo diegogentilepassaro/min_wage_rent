@@ -64,10 +64,9 @@ build_map <- function(data_zip, data_states, var, var_legend, map_name,
             textNA = "NA",
             alpha = 0.8) +
     tm_layout(legend.position = c("left", "bottom")) +
-    tmap_options(check.and.fix = TRUE)
+    tmap_options(check.and.fix = TRUE) +
+    tm_layout(frame = FALSE)
 
-  tmap_save(map, 
-            paste0("../output/", map_name, ".eps"))  
   tmap_save(map, 
             paste0("../output/", map_name, ".png"),
             dpi = .dpi)

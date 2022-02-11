@@ -19,24 +19,20 @@ main <- function(){
   data_states <- data_states[st_is_valid(data_states),]
   
   df_all <- prepare_data(in_map, in_zip)
-
-  #matched <- df_all %>%
-  #  filter(!is.na(houses_zcta_place_county))
     
   pop_density_map <- tm_shape(data_states) +
     tm_polygons(lwd = 0.5) +
     tm_shape(df_all) + 
     tm_fill(col   = "pop2020_per_sq_miles",
-            title = "Population\ndensity",
+            title = "Population\ndensity (pop per sq mile)",
             style = "quantile",
             n     = 5,
             palette = c("white", "#fff0f0", "#ffd6d6", "#ff9494", "#ff0000"),
             alpha = 0.8) +
     tmap_mode("plot") + 
-    tmap_options(check.and.fix = TRUE)
+    tmap_options(check.and.fix = TRUE) +
+    tm_layout(frame = FALSE)
 
-  tmap_save(pop_density_map,
-            "../output/USPS_zipcodes_pop_density.eps")
   tmap_save(pop_density_map,
             "../output/USPS_zipcodes_pop_density.png",
             dpi = 600)
@@ -50,10 +46,9 @@ main <- function(){
             palette = c("white", "red"),
             alpha = 0.8) +
     tmap_mode("plot") + 
-    tmap_options(check.and.fix = TRUE)
+    tmap_options(check.and.fix = TRUE) +
+    tm_layout(frame = FALSE)
 
-  tmap_save(zillow_zipcodes_map, 
-            "../output/USPS_zipcodes_zillow_data.eps")
   tmap_save(zillow_zipcodes_map, 
             "../output/USPS_zipcodes_zillow_data.png",
             dpi = 600)
