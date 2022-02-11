@@ -95,7 +95,7 @@ program compare_zillow_safmr_zipcode
 		twoway (line medrentprice_SFCC year, lc(eltblue)) ///
 			   (line safmr2br year, lp(dash) lc(gs11)) (line safmr3br year, ///
 			   lp(dash) lc(lavender)) (line safmr4br year, lp(dash) lc(black)), ///
-			   legend(order(1 "zillow single family/condo" 2 "SAFMR 2br" 3 "SAFMR 3br" 4 "SAFMR 4br") cols(3)) ///
+			   legend(order(1 "Zillow single family/condo" 2 "SAFMR 2br" 3 "SAFMR 3br" 4 "SAFMR 4br") cols(3)) ///
 			   ylabel(, grid labsize(small)) ytitle("Rent (2012 USD)", size(medsmall)) ///
 			   xlabel(, labsize(small)) xtitle(, size(medsmall)) ///
 			   graphregion(color(white)) bgcolor(white)
@@ -103,7 +103,7 @@ program compare_zillow_safmr_zipcode
 
 		twoway (line medrentprice_SFCC year, lc(eltblue)) ///
 			   (line safmr3br year, lp(dash) lc(black)), ///
-			   legend(order(1 "zillow single family/condo" 2 "SAFMR 3br") cols(3)) ///
+			   legend(order(1 "Zillow single family/condo" 2 "SAFMR 3br") cols(3)) ///
 			   ylabel(, grid labsize(small)) ytitle("Rent (2012 USD)", size(medsmall)) ///
 			   xlabel(, labsize(small)) xtitle(, size(medsmall)) ///
 			   graphregion(color(white)) bgcolor(white)
