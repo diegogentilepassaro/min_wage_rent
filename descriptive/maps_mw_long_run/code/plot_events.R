@@ -21,7 +21,8 @@ main <- function(){
     filter(!(state_name %in% c("AK", "HI", "VI", "MP", "PR", "GU", "AS")))
   data_states <- data_states[st_is_valid(data_states),]
   
-  build_map(data_for_map, data_states,  "change_perc_actual_mw", "Percentage change in binding MW", 
+  build_map(data_for_map, data_states,  "change_perc_actual_mw", 
+  	        "Percentage change in statutory MW", 
             paste0("US", "change_perc_actual_mw"))
 }
 

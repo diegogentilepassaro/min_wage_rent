@@ -29,10 +29,10 @@ main <- function(){
       max_break_mw    <- round(max(df$change_ln_actual_mw, na.rm = TRUE), digits = 2)
       max_break_rents <- round(max(df$change_ln_rents, na.rm = TRUE), digits = 2)
       
-      build_map(df, "change_ln_actual_mw", "Change in\nlog(MW)", 
+      build_map(df, "change_ln_actual_mw", "Change in\nresidence MW", 
                 c(0, max_break_mw/2, max_break_mw), 
                 paste0(event[[1]], "_", event[[3]], "-", event[[4]], "_actual_mw"))
-      build_map(df, "change_exp_ln_mw", "Change in\nexp MW", 
+      build_map(df, "change_exp_ln_mw", "Change in\nworkplace MW", 
                 c(0, max_break_mw/2, max_break_mw), 
                 paste0(event[[1]], event[[3]], "-", event[[4]], "_exp_mw"))
       build_map(df, "change_ln_rents", "Change in\nlog(rents)",
@@ -89,7 +89,8 @@ build_map <- function(data, var, var_legend, break_values,
             breaks = break_values,
             textNA = "NA") +
     tm_borders(col = "white", lwd = .01, alpha = 0.7) +
-    tm_layout(legend.position = c("left", "bottom"))
+    tm_layout(legend.position = c("left", "bottom"),
+    	      frame = FALSE)
   
   tmap_save(map, 
             paste0("../output/", map_name, ".png"),

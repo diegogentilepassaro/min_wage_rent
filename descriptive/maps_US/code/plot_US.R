@@ -54,7 +54,6 @@ main <- function(){
             dpi = 600)
 }
 
-
 prepare_data <- function(in_map, in_zip) {
   
   map <- read_sf(dsn = in_map, 
