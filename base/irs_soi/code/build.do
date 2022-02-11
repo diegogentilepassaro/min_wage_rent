@@ -52,14 +52,14 @@ end
 
 program create_variables
 
-    gen agi_per_hhld = adj_gross_inc/num_hhlds_irs
-    gen agi_per_cap  = adj_gross_inc/pop_irs
+    gen agi_per_hhld = adj_gross_inc/num_hhlds_irs*1000
+    gen agi_per_cap  = adj_gross_inc/pop_irs*1000
 
-    gen wage_per_wage_hhld = total_wage/num_wage_hhlds_irs
-    gen wage_per_hhld      = total_wage/num_hhlds_irs
-    gen wage_per_cap       = total_wage/pop_irs
+    gen wage_per_wage_hhld = total_wage/num_wage_hhlds_irs*1000
+    gen wage_per_hhld      = total_wage/num_hhlds_irs*1000
+    gen wage_per_cap       = total_wage/pop_irs*1000
 
-    gen bussines_rev_per_owner = total_bizinc/num_bus_hhlds_irs
+    gen bussines_rev_per_owner = total_bizinc/num_bus_hhlds_irs*1000
 
     gen share_wage_hhlds      = num_wage_hhlds_irs/num_hhlds_irs
     gen share_bussiness_hhlds = num_bus_hhlds_irs/num_hhlds_irs
