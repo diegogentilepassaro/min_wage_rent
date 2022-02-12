@@ -92,21 +92,25 @@ program compare_zillow_safmr_zipcode
 			replace `v' = `v'/cpi2012
 		}
 
-		twoway (line medrentprice_SFCC year, lc(eltblue)) ///
-			   (line safmr2br year, lp(dash) lc(gs11)) (line safmr3br year, ///
-			   lp(dash) lc(lavender)) (line safmr4br year, lp(dash) lc(black)), ///
-			   legend(order(1 "Zillow single family/condo" 2 "SAFMR 2br" 3 "SAFMR 3br" 4 "SAFMR 4br") cols(3)) ///
-			   ylabel(, grid labsize(small)) ytitle("Rent (2012 USD)", size(medsmall)) ///
-			   xlabel(, labsize(small)) xtitle(, size(medsmall)) ///
-			   graphregion(color(white)) bgcolor(white)
+		twoway (line medrentprice_SFCC year, lc(eltblue))            ///
+			   (line safmr2br year, lp(dash) lc(gs11))               ///
+			   (line safmr3br year, lp(dash) lc(lavender))           ///
+			   (line safmr4br year, lp(dash) lc(black)),             ///
+			legend(order(1 "Zillow SFCC" 2 "SAFMR 2br"               ///
+			             3 "SAFMR 3br" 4 "SAFMR 4br") cols(2))       ///
+			ylabel(, grid labsize(small)) ytitle("Rent (2012 $)",    ///
+			                                     size(medsmall))     ///
+			xlabel(, labsize(small))      xtitle(, size(medsmall))   ///
+			graphregion(color(white)) bgcolor(white)
 		graph export ../output/trend_zillow_safmr_zipcode_m`m'.png, replace
 
-		twoway (line medrentprice_SFCC year, lc(eltblue)) ///
-			   (line safmr3br year, lp(dash) lc(black)), ///
-			   legend(order(1 "Zillow single family/condo" 2 "SAFMR 3br") cols(3)) ///
-			   ylabel(, grid labsize(small)) ytitle("Rent (2012 USD)", size(medsmall)) ///
-			   xlabel(, labsize(small)) xtitle(, size(medsmall)) ///
-			   graphregion(color(white)) bgcolor(white)
+		twoway (line medrentprice_SFCC year, lc(eltblue))           ///
+			   (line safmr3br year, lp(dash) lc(black)),            ///
+			legend(order(1 "Zillow SFCC" 2 "SAFMR 3br") cols(2))    ///
+			ylabel(, grid labsize(small)) ytitle("Rent (2012 $)",   ///
+			                                     size(medsmall))    ///
+			xlabel(, labsize(small))      xtitle(, size(medsmall))  ///
+			graphregion(color(white)) bgcolor(white)
 		graph export "../output/trend_zillow_safmr3br_zipcode_m`m'.png", replace
 		restore	
 	}
