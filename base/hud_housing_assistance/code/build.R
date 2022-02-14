@@ -38,11 +38,11 @@ main <- function () {
       "program_label"
     )
   
-  geographies <- c("zipcode", "census_tract", "city")
+  geographies <- c("zipcode", "census_tract")
   
   data_path <- '../../../drive/raw_data/hud_housing_assistance'
   
-  drive_path <- '../../../drive/base_large/hud_housing_assistance/'
+  drive_path <- '../../../drive/base_large/hud_housing_assistance'
   
   for (gg in geographies) {
     files_path <- file.path(data_path, gg)
@@ -51,23 +51,16 @@ main <- function () {
     
     data <- rbindlist(lapply(files_names, function (x) {
       year <- str_remove(x, ".*/") %>%
-        str_remove("PLACE_") %>%
-        str_remove(".xlsx") %>%
         str_remove("_2010geography.*") %>%
-        str_remove("Zipcode_") %>%
         str_remove("TRACT_AK_MN_") %>%
         str_remove("TRACT_MO_WY_") %>%
+        str_remove("Zipcode_") %>%
+        str_remove(".xlsx") %>%
         as.numeric()
       
       data <- as.data.table(readxl::read_xlsx(x))[, year := year]
       
-      if (gg == "city") {
-        data <- data[state != "PR"]
-        setnames(data, "entities", gg)
-      }
-      else {
-        setnames(data, "code", gg)
-      }
+      setnames(data, "code", gg)
       
       vars_av <- intersect(names(data), vars)
       
