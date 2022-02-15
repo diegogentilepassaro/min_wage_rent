@@ -1,5 +1,5 @@
 
- make.py started: 2022-02-15 07:31:39 C:\Users\diegog\Desktop\Diego\min_wage_rent\base\census_block_zip_spatial_match\code 
+ make.py started: 2022-02-15 13:35:31 C:\Users\diegog\Desktop\Diego\min_wage_rent\base\census_block_zip_spatial_match\code 
 
 
 
@@ -107,34 +107,79 @@ Notes:
 . program main
   1.     local instub_xwalk    "../../../drive/raw_data/zcta_census_tract/"
   2.     local instub          "../temp"
-  3.         local outstub         "../../../../drive/base_large/census_block_z
-> ip_spatial_match"
+  3.         local outstub         "../../../drive/base_large/census_block_zip_
+> spatial_match"
   4.     local logfile         "../output/data_file_manifest.log"
-  5.     
+  5.         
+.         clean_zcta_tract_xwalk, instub(`instub_xwalk')
+  6.         save_data "`instub'/tract_to_zcta.dta", ///
+>             key(statefips countyfips census_tract) replace 
+  7.                 
 .     use "`instub'/census_blocks_2010_centroids_coord.dta", clear
-  6.         rename _ID cb_centroid_geo_id
-  7.         rename (_X _Y) (longitude latitude)
-  8.         geoinpoly latitude longitude ///
+  8.         rename _ID cb_centroid_geo_id
+  9.         rename (_X _Y) (longitude latitude)
+ 10.         geoinpoly latitude longitude ///
 >                 using "`instub'/USPS_zipcodes_July2020_coord.dta"
-  9.                 
+ 11.                 
 .         rename _ID usps_zip_poly_geo_id
- 10.         merge m:1 cb_centroid_geo_id using "`instub'/census_blocks_2010_ce
+ 12.         merge m:1 cb_centroid_geo_id using "`instub'/census_blocks_2010_ce
 > ntroids_db.dta", ///
 >                 keep(1 3) nogen
- 11.     rename (statfps cntyfps cnss_tr cnss_bl nm_hs10 pop10) ///
+ 13.     rename (statfps cntyfps cnss_tr cnss_bl nm_hs10 pop10) ///
 >             (statefips countyfips census_tract census_block num_house10 pop10
 > )
- 12.         merge m:1 usps_zip_poly_geo_id using "`instub'/USPS_zipcodes_July2
+ 14.         merge m:1 usps_zip_poly_geo_id using "`instub'/USPS_zipcodes_July2
 > 020_db.dta", ///
 >                 keep(1 3) nogen keepusing(ZIP_CODE)
- 13.         rename ZIP_CODE zipcode
- 14.         
-.         save_data "`outstub'/census_to_zip.dta", ///
+ 15.         rename ZIP_CODE zipcode
+ 16.         drop longitude latitude usps_zip_poly_geo_id cb_centroid_geo_id
+ 17.         merge m:1 statefips countyfips census_tract using "`instub'/tract_
+> to_zcta.dta", ///
+>             keep(1 3) nogen
+ 18.         save_data "`outstub'/census_block_master.dta", ///
 >             key(census_block) log(`logfile') replace
- 15. end
+ 19. end
+
+. 
+. program clean_zcta_tract_xwalk
+  1.     syntax, instub(str)
+  2.         
+.         import delimited "`instub'/zcta_census_tract.txt", ///
+>             clear stringcols(1 2 3 4 5)
+  3. 
+.         gen   neg_hupt = -hupt  
+  4.         bysort state county tract (neg_hupt): keep if _n == 1
+  5.         drop neg_hupt
+  6.         
+.         keep state county zcta5 tract
+  7.         rename (state county zcta5 tract) ///
+>             (statefips countyfips zcta census_tract)
+  8. end
 
 . 
 . main
+(25 vars, 74,800 obs)
+(36,642 observations deleted)
+(data already sorted by statefips countyfips census_tract)
+  (0 bytes saved)
+===============================================================================
+File: ../temp/tract_to_zcta.dta
+Key: statefips countyfips census_tract
+===============================================================================
+  38158:4(116560):2680374772:578656039
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+   statefips |          0
+  countyfips |          0
+census_tract |          0
+        zcta |          0
+
+
+
+
+(note: file ../temp/tract_to_zcta.dta not found)
+file ../temp/tract_to_zcta.dta saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -150,43 +195,45 @@ Notes:
 
     matched                        11,037,710  
     -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                     6,355,438
+        from master                 6,355,438  
+        from using                          0  
+
+    matched                         4,722,859  
+    -----------------------------------------
 (data now sorted by census_block)
-  variable usps_zip_poly_geo_id was long now int
-  (22,156,594 bytes saved)
+  (0 bytes saved)
 ===============================================================================
-File: ../../../../drive/base_large/census_block_zip_spatial_match/census_to_zip
-> .dta
+File: ../../../drive/base_large/census_block_zip_spatial_match/census_block_mas
+> ter.dta
 Key: census_block
 ===============================================================================
-  11078297:11(114673):1247605505:3271315776
+  11078297:8(105952):3784367032:3889695251
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
 census_block |          0
-cb_centroi~d | 11,078,297     5539149     3198029          1   1.11e+07
-   longitude | 11,078,297   -93.01002    14.71122    -179.13   179.7497
-    latitude | 11,078,297    38.10679    5.297984   18.91167   71.39945
-usps_zip_p~d | 11,037,710    17528.95    8982.547          1      31985
--------------+---------------------------------------------------------
    statefips |          0
   countyfips |          0
 census_tract |          0
  num_house10 | 11,078,297    11.88854    33.80024          0       4022
-       pop10 | 11,078,297     27.8694    78.59192          0      19352
 -------------+---------------------------------------------------------
+       pop10 | 11,078,297     27.8694    78.59192          0      19352
      zipcode |          0
+        zcta |          0
 
 
 
 
-(note: file ../../../../drive/base_large/census_block_zip_spatial_match/census_
-> to_zip.dta not found)
-file
-    ../../../../drive/base_large/census_block_zip_spatial_match/census_to_zip
-    > .dta could not be opened
-r(603);
+(note: file ../../../drive/base_large/census_block_zip_spatial_match/census_blo
+> ck_master.dta not found)
+file ../../../drive/base_large/census_block_zip_spatial_match/census_block_mast
+> er.dta saved
 
+. 
 end of do-file
-r(603);
 
- make.py ended: 2022-02-15 08:29:16
+ make.py ended: 2022-02-15 14:32:42
