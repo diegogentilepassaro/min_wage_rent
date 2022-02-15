@@ -1,0 +1,192 @@
+
+ make.py started: 2022-02-15 07:31:39 C:\Users\diegog\Desktop\Diego\min_wage_rent\base\census_block_zip_spatial_match\code 
+
+
+
+
+Execute:  StataMP-64 /e do "./shp_to_dta.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./shp_to_dta.do 
+
+. clear all
+
+. set more off
+
+. 
+. program main
+  1.     local instub_centroids "../../../drive/base_large/census_blocks_centro
+> ids"
+  2.         local instub_usps_zip  "../../../drive/raw_data/shapefiles/USPS_zi
+> pcodes"
+  3.         local outstub          "../temp"
+  4.         
+.         shp2dta using "`instub_centroids'/census_blocks_2010_centroids.shp", 
+> ///
+>                 database("`outstub'/census_blocks_2010_centroids_db") ///
+>                 coordinates("`outstub'/census_blocks_2010_centroids_coord") /
+> //
+>                 genid(cb_centroid_geo_id) replace
+  5.                 
+.     shp2dta using "`instub_usps_zip'/USPS_zipcodes_July2020.shp", ///
+>                 database("`outstub'/USPS_zipcodes_July2020_db") ///
+>                 coordinates("`outstub'/USPS_zipcodes_July2020_coord") ///
+>                 genid(usps_zip_poly_geo_id) replace
+  6. end
+
+. 
+. main
+type: 1
+type: 5
+
+. 
+. 
+. 
+end of do-file
+
+
+Execute:  StataMP-64 /e do "./spatial_match.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./spatial_match.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/min_wage/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/min_wage/ado"
+
+. 
+. program main
+  1.     local instub_xwalk    "../../../drive/raw_data/zcta_census_tract/"
+  2.     local instub          "../temp"
+  3.         local outstub         "../../../../drive/base_large/census_block_z
+> ip_spatial_match"
+  4.     local logfile         "../output/data_file_manifest.log"
+  5.     
+.     use "`instub'/census_blocks_2010_centroids_coord.dta", clear
+  6.         rename _ID cb_centroid_geo_id
+  7.         rename (_X _Y) (longitude latitude)
+  8.         geoinpoly latitude longitude ///
+>                 using "`instub'/USPS_zipcodes_July2020_coord.dta"
+  9.                 
+.         rename _ID usps_zip_poly_geo_id
+ 10.         merge m:1 cb_centroid_geo_id using "`instub'/census_blocks_2010_ce
+> ntroids_db.dta", ///
+>                 keep(1 3) nogen
+ 11.     rename (statfps cntyfps cnss_tr cnss_bl nm_hs10 pop10) ///
+>             (statefips countyfips census_tract census_block num_house10 pop10
+> )
+ 12.         merge m:1 usps_zip_poly_geo_id using "`instub'/USPS_zipcodes_July2
+> 020_db.dta", ///
+>                 keep(1 3) nogen keepusing(ZIP_CODE)
+ 13.         rename ZIP_CODE zipcode
+ 14.         
+.         save_data "`outstub'/census_to_zip.dta", ///
+>             key(census_block) log(`logfile') replace
+ 15. end
+
+. 
+. main
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                        11,078,297  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                        40,587
+        from master                    40,587  
+        from using                          0  
+
+    matched                        11,037,710  
+    -----------------------------------------
+(data now sorted by census_block)
+  variable usps_zip_poly_geo_id was long now int
+  (22,156,594 bytes saved)
+===============================================================================
+File: ../../../../drive/base_large/census_block_zip_spatial_match/census_to_zip
+> .dta
+Key: census_block
+===============================================================================
+  11078297:11(114673):1247605505:3271315776
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+census_block |          0
+cb_centroi~d | 11,078,297     5539149     3198029          1   1.11e+07
+   longitude | 11,078,297   -93.01002    14.71122    -179.13   179.7497
+    latitude | 11,078,297    38.10679    5.297984   18.91167   71.39945
+usps_zip_p~d | 11,037,710    17528.95    8982.547          1      31985
+-------------+---------------------------------------------------------
+   statefips |          0
+  countyfips |          0
+census_tract |          0
+ num_house10 | 11,078,297    11.88854    33.80024          0       4022
+       pop10 | 11,078,297     27.8694    78.59192          0      19352
+-------------+---------------------------------------------------------
+     zipcode |          0
+
+
+
+
+(note: file ../../../../drive/base_large/census_block_zip_spatial_match/census_
+> to_zip.dta not found)
+file
+    ../../../../drive/base_large/census_block_zip_spatial_match/census_to_zip
+    > .dta could not be opened
+r(603);
+
+end of do-file
+r(603);
+
+ make.py ended: 2022-02-15 08:29:16
