@@ -3,6 +3,8 @@ remove(list = ls())
 library(data.table)
 library(stringr)
 
+`%notin%` <- Negate(`%in%`)
+
 source("../../../lib/R/save_data.R")
 
 main <- function () {
@@ -20,9 +22,9 @@ main <- function () {
     
     data <- rbindlist(lapply(files_names, function (x) {
       if (gg == "zipcode")
-        year <- as.integer(substr(str_remove(x, ".*/"), 9, 12))
+        year <- as.integer(substr(x, 64, 67))
       if (gg == "census_tract")
-        year <- as.integer(substr(str_remove(x, ".*/"), 13, 16))
+        year <- as.integer(substr(x, 73, 76))
       
       data <- as.data.table(readxl::read_xlsx(x))[, year := year]
       
@@ -59,8 +61,17 @@ manual_fixes <- function(data, gg, year) {
   data <- as.data.table(lapply(data, function(x)
     ifelse(x == -1, NA, x)))
   
+  data[, spending_per_month := ifelse(spending_per_month < (-5), NA, spending_per_month)]
+  
+  data <- select_hud_programs(data)
+  
   return(data)
 }
 
+select_hud_programs <- function(data) {
+  data <-
+    data[program_label %notin% c("Mod Rehab", "S236/BMIR")]
+  return(data)
+}
 # Execute
 main()
