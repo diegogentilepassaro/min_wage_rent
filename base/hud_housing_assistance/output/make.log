@@ -1,0 +1,135 @@
+
+ make.py started: 2022-02-14 23:43:55 C:\Users\Usuario\Documents\GitHub\min_wage_rent\base\hud_housing_assistance\code 
+
+
+
+
+Execute:  R CMD BATCH --no-save "./build.R" build.Rout
+
+R version 4.1.2 (2021-11-01) -- "Bird Hippie"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R es un software libre y viene sin GARANTIA ALGUNA.
+Usted puede redistribuirlo bajo ciertas circunstancias.
+Escriba 'license()' o 'licence()' para detalles de distribucion.
+
+R es un proyecto colaborativo con muchos contribuyentes.
+Escriba 'contributors()' para obtener más información y
+'citation()' para saber cómo citar R o paquetes de R en publicaciones.
+
+Escriba 'demo()' para demostraciones, 'help()' para el sistema on-line de ayuda,
+o 'help.start()' para abrir el sistema de ayuda HTML con su navegador.
+Escriba 'q()' para salir de R.
+
+> remove(list = ls())
+> 
+> library(data.table)
+> library(stringr)
+> 
+> source("../../../lib/R/save_data.R")
+
+Please cite as: 
+
+ Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+ R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
+
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:data.table':
+
+    between, first, last
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+> 
+> main <- function () {
++   in_hud <- '../../../drive/raw_data/hud_housing_assistance'
++   outdir <- '../../../drive/base_large/hud_housing_assistance'
++   
++   vars <- fread('variables.csv', header = F)$V1
++   
++   geographies <- c("zipcode", "census_tract")
++   
++   for (gg in geographies) {
++     files_path <- file.path(in_hud, gg)
++     files_names <-
++       list.files(files_path, pattern = ".xlsx", full.names = T)
++     
++     data <- rbindlist(lapply(files_names, function (x) {
++       if (gg == "zipcode")
++         year <-
++           as.integer(x %>% str_remove(".*/") %>% substr(9, 12))
++       if (gg == "census_tract")
++         year <-
++           as.integer(x %>% str_remove(".*/") %>% substr(13, 16))
++       
++       data <- as.data.table(readxl::read_xlsx(x))[, year := year]
++       
++       setnames(data, "code", gg)
++       
++       vars_av <- intersect(names(data), vars)
++       
++       data <- manual_fixes(data, gg, year)
++       
++       return(data[, ..vars_av])
++     }),
++     fill = TRUE)
++     
++     save_data(
++       data,
++       key = c(gg, "program_label", "year"),
++       filename = file.path(outdir, paste0(gg, ".csv")),
++       logfile = file.path("../output", paste0(gg, "_data_manifest.log"))
++     )
++     save_data(
++       data,
++       key = c(gg, "program_label", "year"),
++       filename = file.path(outdir, paste0(gg, ".dta")),
++       nolog = TRUE
++     )
++   }
++ }
+> 
+> manual_fixes <- function(data, gg, year) {
++   if (gg == "census_tract" & year == 2015) {
++     data <-
++       data[entities != "MO Missouri 186 Ste. Genevieve County 29186960200"]
++   }
++   return(data)
++ }
+> 
+> # Execute
+> main()
+[1] "File '../../../drive/base_large/hud_housing_assistance/zipcode.csv' saved successfully."
+[1] "File '../../../drive/base_large/hud_housing_assistance/zipcode.dta' saved successfully."
+[1] "File '../../../drive/base_large/hud_housing_assistance/census_tract.csv' saved successfully."
+[1] "File '../../../drive/base_large/hud_housing_assistance/census_tract.dta' saved successfully."
+Warning messages:
+1: In read_fun(path = enc2native(normalizePath(path)), sheet_i = sheet,  :
+  Expecting numeric in J37131 / R37131C10: got '.'
+2: In read_fun(path = enc2native(normalizePath(path)), sheet_i = sheet,  :
+  Expecting numeric in J37157 / R37157C10: got '.'
+3: In read_fun(path = enc2native(normalizePath(path)), sheet_i = sheet,  :
+  Expecting numeric in J37514 / R37514C10: got '.'
+4: In read_fun(path = enc2native(normalizePath(path)), sheet_i = sheet,  :
+  Expecting numeric in J37515 / R37515C10: got '.'
+5: In read_fun(path = enc2native(normalizePath(path)), sheet_i = sheet,  :
+  Expecting numeric in J37887 / R37887C10: got '.'
+6: In read_fun(path = enc2native(normalizePath(path)), sheet_i = sheet,  :
+  Expecting numeric in J37967 / R37967C10: got '.'
+7: In read_fun(path = enc2native(normalizePath(path)), sheet_i = sheet,  :
+  Expecting numeric in J38002 / R38002C10: got '.'
+> 
+> proc.time()
+   user  system elapsed 
+ 340.31  182.62 1926.56 
+
+ make.py ended: 2022-02-15 00:16:02
