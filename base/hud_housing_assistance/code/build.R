@@ -62,6 +62,8 @@ manual_fixes <- function(data, gg, year) {
     ifelse(x == -1, NA, x)))
   
   data[, spending_per_month := ifelse(spending_per_month < (-5), NA, spending_per_month)]
+
+  data[, total_units := ifelse(total_units == (-2), NA, total_units)]
   
   data <- select_hud_programs(data)
   
