@@ -10,16 +10,12 @@ source("make_xwalk.R")
 
 
 main <- function() {
-  in_lodes       <- '../../../drive/raw_data/lodes'
-  in_xwalk_lodes <- '../../../raw/crosswalk/lodes'
-  in_xwalk       <- '../../geo_master/output'
-  outdir         <- '../../../drive/base_large/lodes_zipcodes'
-  log_file       <- '../output/data_file_manifest.log'
+  in_lodes <- "../../../drive/raw_data/lodes"
+  in_xwalk <- "../../../drive/base_large/census_block_master"
+  outstub  <- "../../../drive/base_large/lodes_zipcodes"
+  log_file <- "../output/data_file_manifest.log"
   
-  xwalk <- make_xwalk_raw_wac(in_xwalk_lodes)
-  
-  tract_zip_xwalk <- fread(file.path(in_xwalk, "tract_zip_master.csv"), 
-                           colClasses = c("tract_fips" = "numeric", "zipcode" = "character", "res_ratio" = "numeric"))
+  dt_xwalk <- load_xwalk(in_xwalk)
   
   #Datasets:
   # Point of View (pov) : statistics for either residents ('rac') or workers ('wac') in given geographies
@@ -35,8 +31,7 @@ main <- function() {
     lodes_wac <- format_lodes(pov         = 'wac',
                               year        = yy,
                               instub      = in_lodes,
-                              xw          = xwalk,
-                              xw_tractzip = tract_zip_xwalk)
+                              xwalk       = dt_xwalk)
     
     # Zipcode as residence: all workers
     lodes_rac <- format_lodes(pov         = 'rac',
@@ -51,16 +46,29 @@ main <- function() {
     dt.all <- rbindlist(list(dt.all, dt))
   }
   
-  save_data(dt.all, key = c('zipcode', 'year', 'jobs_by'),
-            filename = file.path(outdir, 'jobs.csv'),
+  save_data(dt.all, key = c("zipcode", "year", "jobs_by"),
+            filename = file.path(outstub, "jobs.csv"),
             logfile = log_file)
   
   setnames(dt.all, old = names(dt.all),
                    new = gsub("outofstate", "ost", names(dt.all)))
   
-  save_data(dt.all, key = c('zipcode', 'year', 'jobs_by'),
-            filename = file.path(outdir, 'jobs.dta'),
+  save_data(dt.all, key = c("zipcode", "year", "jobs_by"),
+            filename = file.path(outstub, "jobs.dta"),
             nolog = TRUE)
+}
+
+load_xwalk <- function(instub) {
+
+  xwalk <- fread(file.path(instub, "census_block_master.csv"),
+                 select = c("census_block", "zipcode"),
+                 colClasses = c(zipcode = "character"))
+  
+  setnames(xwalk, old = c("census_block"), 
+                  new = c("blockfips"))
+  setkey(xwalk, "blockfips")
+
+  return(xwalk)
 }
 
 format_lodes <- function(pov, year, instub, xw, xw_tractzip,
@@ -74,11 +82,12 @@ format_lodes <- function(pov, year, instub, xw, xw_tractzip,
                    'CE01', 'CE02', 'CE03', 
                    'CD01', 'CD02', 'CD03', 'CD04',
                    'CNS05', 'CNS07', 'CNS10', 'CNS18')
-  new_names    <- c('jobs_tot',
-                    'jobs_age_under29',    'jobs_age_30to54',     'jobs_age_above55',
-                    'jobs_earn_under1250', 'jobs_earn_1250_3333', 'jobs_earn_above3333',
-                    'jobs_sch_underHS',    'jobs_sch_HS_noColl',  'jobs_sch_someColl',  'jobs_sch_College',
-                    'jobs_naics_manuf',    'jobs_naics_retail',   'jobs_naics_finance', 'jobs_naics_accomm_food')
+  new_varnames <- paste0('jobs_',
+                   c("tot",
+                     "age_under29",    "age_30to54",     "age_above55",
+                     "earn_under1250", "earn_1250_3333", "earn_above3333",
+                     "sch_underHS",    "sch_HS_noColl",  "sch_someColl",  "sch_College",
+                     "naics_manuf",    "naics_retail",   "naics_finance", "naics_accomm_food"))
   
   files <- list.files(file.path(instub, year, pov, seg, type),
                       full.names = T, pattern = "*.gz")
@@ -86,20 +95,16 @@ format_lodes <- function(pov, year, instub, xw, xw_tractzip,
   
   dt <- rbindlist(lapply(files, fread, select = c(geo_name, target_vars)))
   
-  setnames(dt, old = c(geo_name, target_vars),
-               new = c('blockfips', new_names))
+  setnames(dt, old = c(geo_name,    target_vars),
+               new = c("blockfips", new_varnames))
   dt[, blockfips := as.numeric(blockfips)]
   
-  dttract <- xw[dt, on = 'blockfips'][, 'blockfips':= NULL]
-  dttract <- dttract[, lapply(.SD, sum, na.rm = T),
-                    by = c('tract_fips', 'st')]
+  dtzip <- xwalk[dt, on = "blockfips"][, blockfips := NULL]
+  dtzip <- dtzip[, lapply(.SD, sum, na.rm = T),
+                  .SDcols = new_varnames,
+                  by = c("zipcode")]
   
-  dtzip <- dttract[xw_tractzip, on = 'tract_fips']
-  
-  dtzip <- dtzip[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), w = res_ratio), 
-                  by = c('zipcode', 'st'), .SDcols = new_names]
-  
-  dtzip <- make_shares(dtzip, new_names)
+  dtzip <- make_shares(dtzip, new_varnames)
   
   if      (pov == 'rac') dtzip[, jobs_by := "residence"]
   else if (pov == 'wac') dtzip[, jobs_by := "workplace"]
@@ -115,15 +120,15 @@ make_shares <- function(dt, vnames) {
   vnames      <- vnames[!grepl("tot$", vnames)]
   share_names <- gsub("jobs", "share", vnames)
   
-  dt[, (share_names) := lapply(.SD, function(x) x / get("jobs_tot")),
+  dt[, (share_names) := lapply(.SD, function(x) x / jobs_tot),
      .SDcols = vnames]
   
   dt[, state_jobs_tot := sum(jobs_tot, na.rm = T),
-         by = 'st']
+       by = 'st']
   
   share_names <- gsub("jobs", "share_outofstate", vnames)
   
-  dt[, (share_names) := lapply(.SD, function(x) x / get("state_jobs_tot")),
+  dt[, (share_names) := lapply(.SD, function(x) x / state_jobs_tot),
      .SDcols = vnames][, state_jobs_tot := NULL]
   
   return(dt)
