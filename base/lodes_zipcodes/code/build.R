@@ -1,13 +1,9 @@
 remove(list = ls())
-
 library(data.table)
 library(stringr)
 library(bit64)
 
-source("../../../lib/R/load_packages.R")
 source("../../../lib/R/save_data.R")
-source("make_xwalk.R")
-
 
 main <- function() {
   in_lodes <- "../../../drive/raw_data/lodes"
@@ -27,18 +23,12 @@ main <- function() {
   dt.all <- data.table()
   
   for (yy in 2009:2018) {
-    # Zipcode as workplace: all workers
-    lodes_wac <- format_lodes(pov         = 'wac',
-                              year        = yy,
-                              instub      = in_lodes,
-                              xwalk       = dt_xwalk)
     
-    # Zipcode as residence: all workers
-    lodes_rac <- format_lodes(pov         = 'rac',
-                              year        = yy,
-                              instub      = in_lodes, 
-                              xw          = xwalk, 
-                              xw_tractzip = tract_zip_xwalk)
+    lodes_wac <- format_lodes(pov    = "wac",    year  = yy,
+                              instub = in_lodes, xwalk = dt_xwalk)
+    
+    lodes_rac <- format_lodes(pov    = "rac",    year  = yy,
+                              instub = in_lodes, xwalk = dt_xwalk)
     
     dt <- rbindlist(list(lodes_wac, lodes_rac))
     dt[, year := yy]
@@ -71,18 +61,18 @@ load_xwalk <- function(instub) {
   return(xwalk)
 }
 
-format_lodes <- function(pov, year, instub, xw, xw_tractzip,
-                         seg = 'S000', type = 'JT00') {
+format_lodes <- function(pov, year, instub, xwalk,
+                         seg = "S000", type = "JT00") {
   
-  if      (pov == 'rac') geo_name <- 'h_geocode'
-  else if (pov == 'wac') geo_name <- 'w_geocode'
+  if (pov == "wac") geo_name <- "w_geocode"
+  if (pov == "rac") geo_name <- "h_geocode"
   
-  target_vars <- c('C000', 
-                   'CA01', 'CA02', 'CA03',
-                   'CE01', 'CE02', 'CE03', 
-                   'CD01', 'CD02', 'CD03', 'CD04',
-                   'CNS05', 'CNS07', 'CNS10', 'CNS18')
-  new_varnames <- paste0('jobs_',
+  target_vars <- c("C000", 
+                   "CA01", "CA02", "CA03",
+                   "CE01", "CE02", "CE03", 
+                   "CD01", "CD02", "CD03", "CD04",
+                   "CNS05", "CNS07", "CNS10", "CNS18")
+  new_varnames <- paste0("jobs_",
                    c("tot",
                      "age_under29",    "age_30to54",     "age_above55",
                      "earn_under1250", "earn_1250_3333", "earn_above3333",
@@ -95,9 +85,7 @@ format_lodes <- function(pov, year, instub, xw, xw_tractzip,
   
   dt <- rbindlist(lapply(files, fread, select = c(geo_name, target_vars)))
   
-  setnames(dt, old = c(geo_name,    target_vars),
-               new = c("blockfips", new_varnames))
-  dt[, blockfips := as.numeric(blockfips)]
+  setnames(dt, old = geo_name, new = "blockfips")
   
   dtzip <- xwalk[dt, on = "blockfips"][, blockfips := NULL]
   dtzip <- dtzip[, lapply(.SD, sum, na.rm = T),
@@ -106,11 +94,8 @@ format_lodes <- function(pov, year, instub, xw, xw_tractzip,
   
   dtzip <- make_shares(dtzip, new_varnames)
   
-  if      (pov == 'rac') dtzip[, jobs_by := "residence"]
-  else if (pov == 'wac') dtzip[, jobs_by := "workplace"]
-  
-  dtzip <- dtzip[!is.na(st)]                       # Drop some unintentionally duplicated zip codes
-  dtzip <- dtzip[!(zipcode == "75501" & st == 5)]  # For some reason this Texas zipcode also appears in Arkansas
+  if (pov == "wac") dtzip[, jobs_by := "workplace"]
+  if (pov == "rac") dtzip[, jobs_by := "residence"]
   
   return(dtzip)
 }
@@ -124,7 +109,7 @@ make_shares <- function(dt, vnames) {
      .SDcols = vnames]
   
   dt[, state_jobs_tot := sum(jobs_tot, na.rm = T),
-       by = 'st']
+       by = .(st)]
   
   share_names <- gsub("jobs", "share_outofstate", vnames)
   
@@ -133,7 +118,6 @@ make_shares <- function(dt, vnames) {
   
   return(dt)
 }
-
 
 # Execute
 main()
