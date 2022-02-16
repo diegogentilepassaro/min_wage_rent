@@ -34,6 +34,8 @@ start_make_logging()
 run_stata(program = 'shp_to_dta.do', executable = stata)
 run_stata(program = 'spatial_match.do', executable = stata)
 
+clear_dirs('../temp/')
+
 end_make_logging()
 
 shutil.rmtree('gslab_make')
