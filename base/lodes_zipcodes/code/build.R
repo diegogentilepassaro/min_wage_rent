@@ -40,9 +40,6 @@ main <- function() {
             filename = file.path(outstub, "jobs.csv"),
             logfile = log_file)
   
-  setnames(dt.all, old = names(dt.all),
-                   new = gsub("outofstate", "ost", names(dt.all)))
-  
   save_data(dt.all, key = c("zipcode", "year", "jobs_by"),
             filename = file.path(outstub, "jobs.dta"),
             nolog = TRUE)
@@ -85,7 +82,8 @@ format_lodes <- function(pov, year, instub, xwalk,
   
   dt <- rbindlist(lapply(files, fread, select = c(geo_name, target_vars)))
   
-  setnames(dt, old = geo_name, new = "blockfips")
+  setnames(dt, old = c(geo_name,    target_vars), 
+               new = c("blockfips", new_varnames))
   
   dtzip <- xwalk[dt, on = "blockfips"][, blockfips := NULL]
   dtzip <- dtzip[, lapply(.SD, sum, na.rm = T),
@@ -107,14 +105,6 @@ make_shares <- function(dt, vnames) {
   
   dt[, (share_names) := lapply(.SD, function(x) x / jobs_tot),
      .SDcols = vnames]
-  
-  dt[, state_jobs_tot := sum(jobs_tot, na.rm = T),
-       by = .(st)]
-  
-  share_names <- gsub("jobs", "share_outofstate", vnames)
-  
-  dt[, (share_names) := lapply(.SD, function(x) x / state_jobs_tot),
-     .SDcols = vnames][, state_jobs_tot := NULL]
   
   return(dt)
 }
