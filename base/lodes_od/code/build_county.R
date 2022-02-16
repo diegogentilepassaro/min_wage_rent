@@ -76,10 +76,11 @@ make_odmatrix_state <- function(file_, year, aux, xwalk) {
                    "SA01", "SA02", "SA03", 
                    "SE01", "SE02", "SE03", 
                    "SI01", "SI02", "SI03")
-  new_names   <- c("jobs_tot",
-                   "jobs_age_under29",     "jobs_age_30to54",        "jobs_age_above55",
-                   "jobs_earn_under1250",  "jobs_earn_1250_3333",    "jobs_earn_above3333",
-                   "jobs_goods_producing", "jobs_trade_transp_util", "jobs_other_service_industry")
+  new_varnames <- paste0("jobs_", 
+                  c("tot",
+                    "age_under29",     "age_30to54",        "age_above55",
+                    "earn_under1250",  "earn_1250_3333",    "earn_above3333",
+                    "goods_producing", "trade_transp_util", "other_service_industry")
   
   dt_main <- fread(file_, select = c("w_geocode", "h_geocode", target_vars))
   
@@ -90,7 +91,7 @@ make_odmatrix_state <- function(file_, year, aux, xwalk) {
   rm(dt_main)
 
   setnames(dt, old = c("w_geocode",   "h_geocode",   target_vars), 
-               new = c("r_blockfips", "w_blockfips", new_names))
+               new = c("r_blockfips", "w_blockfips", new_varnames))
     
   # Add crosswalk to main data
   dt <- dt[xwalk, on = c("r_blockfips" = "blockfips"), nomatch = 0]    
@@ -100,7 +101,7 @@ make_odmatrix_state <- function(file_, year, aux, xwalk) {
   setnames(dt, old = "countyfips", new = "w_countyfips")
   
   dt <- dt[, lapply(.SD, function(x) sum(x, na.rm = T)),
-                    .SDcols = vars,
+                    .SDcols = new_varnames,
                     by = c("r_countyfips", "w_countyfips")]
   
   return(list("dt"   = dt,
