@@ -51,7 +51,7 @@ main <- function(paquetes, n_cores) {
     # Save OD matrices
     for (state in odzip_list) {
       save_data(state$dt, key = c("r_countyfips", "w_countyfips"),
-                filename = file.path(outstub, yy, paste0("odzip_", state$fips, ".csv")),
+                filename = file.path(outstub, yy, paste0("odcounty_", state$fips, ".csv")),
                 logfile  = "../output/od_county_data_manifest.log")
     }
   }
