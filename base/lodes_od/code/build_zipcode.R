@@ -80,7 +80,7 @@ make_odmatrix_state <- function(file_, year, aux, xwalk) {
                   c("tot",
                     "age_under29",     "age_30to54",        "age_above55",
                     "earn_under1250",  "earn_1250_3333",    "earn_above3333",
-                    "goods_producing", "trade_transp_util", "other_service_industry")
+                    "goods_producing", "trade_transp_util", "other_service_industry"))
   
   dt_main <- fread(file_, select = c("w_geocode", "h_geocode", target_vars))
   
