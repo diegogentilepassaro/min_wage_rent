@@ -21,10 +21,8 @@ main <- function () {
       list.files(files_path, pattern = ".xlsx", full.names = T)
     
     data <- rbindlist(lapply(files_names, function (x) {
-      if (gg == "zipcode")
-        year <- as.integer(substr(x, 64, 67))
-      if (gg == "census_tract")
-        year <- as.integer(substr(x, 73, 76))
+      if (gg == "zipcode")      year <- as.integer(substr(x, 64, 67))
+      if (gg == "census_tract") year <- as.integer(substr(x, 73, 76))
       
       data <- as.data.table(readxl::read_xlsx(x))[, year := year]
       
@@ -58,22 +56,22 @@ manual_fixes <- function(data, gg, year) {
     data <-
       data[entities != "MO Missouri 186 Ste. Genevieve County 29186960200"]
   }
-  data <- as.data.table(lapply(data, function(x)
-    ifelse(x == -1, NA, x)))
   
-  data[, spending_per_month := ifelse(spending_per_month < (-5), NA, spending_per_month)]
-
-  data[, total_units := ifelse(total_units == (-2), NA, total_units)]
+  for (col in names(data)) data[get(col) == -1, c(col):=0]
+  
+  data[spending_per_month < -5, spending_per_month := NA]
+  data[total_units       == -2, total_units        := NA]
   
   data <- select_hud_programs(data)
   
   return(data)
 }
 
-select_hud_programs <- function(data) {
-  data <-
-    data[program_label %notin% c("Mod Rehab", "S236/BMIR")]
-  return(data)
+select_hud_programs <- function(data,
+                                progr_to_drop = c("Mod Rehab", "S236/BMIR")) {
+  
+  return(data[program_label %notin% progr_to_drop])
 }
+
 # Execute
 main()
