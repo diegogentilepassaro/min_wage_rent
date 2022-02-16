@@ -37,6 +37,7 @@ program main
 
     save_data "`outstub'/census_block_master.dta", ///
         key(census_block) log(`logfile') replace
+    export delimited "`outstub'/census_block_master.csv"
 end
 
 program clean_zcta_tract_xwalk
