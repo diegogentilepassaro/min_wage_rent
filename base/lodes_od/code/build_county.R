@@ -1,29 +1,32 @@
 remove(list = ls())
-options(scipen=999)
+options(scipen = 999)
 
 paquetes <- c("stringr", "data.table", "bit64", "parallel")
 lapply(paquetes, require, character.only = TRUE)
 
 source("../../../lib/R/save_data.R")
-source("make_xwalk.R")
 
 library(parallel)
 n_cores <- 10
 
+# Note: See README in source/raw/lodes for a few missing state-years
+
 main <- function(paquetes, n_cores) {
-  instub  <- "../../../drive/raw_data/lodes"
-  outstub <- "../../../drive/base_large/lodes_od"
+  in_lodes <- "../../../drive/raw_data/lodes"
+  in_xwalk <- "../../../drive/base_large/census_block_master"
+  outstub  <- "../../../drive/base_large/lodes_od"
+
+  # Prepare crosswalks 
+  dt_xwalk <- load_xwalk(in_xwalk)
   
   for (yy in 2009:2018) {
     # Prepare states od matrices
-    files <- list.files(file.path(instub, yy, "od", "JT00"),
+    files <- list.files(file.path(in_lodes, yy, "od", "JT00"),
                         full.names = T, pattern = "*.gz")
     files <- files[!grepl("pr", files)]          # Ignore Puerto Rico
     
     files_main <- files[grepl("_main_", files)]
     files_aux  <- files[grepl("_aux_", files)]
-    
-    state_list <- c(tolower(state.abb), "dc")
     
     dt_aux <- rbindlist(lapply(files_aux, fread))
     dt_aux[, h_statefips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0), 1, 2))]
@@ -35,25 +38,39 @@ main <- function(paquetes, n_cores) {
     clusterExport(cl, "paquetes")                                         # Load "paquetes" object in nodes
     clusterEvalQ(cl, lapply(paquetes, require, character.only = TRUE))    # Load packages in nodes
     clusterExport(cl, "make_odmatrix_state", env = .GlobalEnv)            # Load global environment objects in nodes
-    clusterExport(cl, c("instub", "dt_aux"), 
-                  env = environment())                                # Load local environment objects in nodes
-    
-    odcounty_list <- parLapply(cl, files_main, function(ff) {
-      make_odmatrix_state(file_ = ff, aux = dt_aux)
+    clusterExport(cl, c("in_lodes", "dt_aux", "dt_xwalk"), 
+                      env = environment())                                # Load local environment objects in nodes
+  
+    # Make OD matrix
+    odzip_list <- parLapply(cl, files_main, function(ff) {
+      make_odmatrix_state(file_ = ff, year = yy,
+                          aux = dt_aux, xwalk = dt_xwalk)
     })
     stopCluster(cl)
     
-    # Save OD matrices  
-    for (state in odcounty_list) {
+    # Save OD matrices
+    for (state in odzip_list) {
       save_data(state$dt, key = c("r_countyfips", "w_countyfips"),
-                filename = file.path(outstub, yy, paste0("odcounty_", state$fips, ".csv")),
-                logfile  = "../output/odmatrix_data_manifest.log")
+                filename = file.path(outstub, yy, paste0("odzip_", state$fips, ".csv")),
+                logfile  = "../output/od_county_data_manifest.log")
     }
   }
 }
 
+load_xwalk <- function(instub) {
 
-make_odmatrix_state <- function(file_, aux, xwalk) {
+  xwalk <- fread(file.path(instub, "census_block_master.csv"),
+                 select = c("census_block", "countyfips"),
+                 colClasses = c(countyfips = "character"))
+  
+  setnames(xwalk, old = c("census_block"), 
+                  new = c("blockfips"))
+  setkey(xwalk, "blockfips")
+
+  return(xwalk)
+}
+
+make_odmatrix_state <- function(file_, year, aux, xwalk) {
   
   target_vars <- c("S000", 
                    "SA01", "SA02", "SA03", 
@@ -66,25 +83,27 @@ make_odmatrix_state <- function(file_, aux, xwalk) {
   
   dt_main <- fread(file_, select = c("w_geocode", "h_geocode", target_vars))
   
+  # Add auxiliary to main
   st_fips  <- as.numeric(substr(str_pad(dt_main$h_geocode[1], 15, pad = 0), 1, 2))
-  
-  dt_main <- rbindlist(list(dt_main, 
-                            aux[h_statefips == st_fips][, h_statefips := NULL]))
-  
-  setnames(dt_main, old = target_vars, new = new_names)
-  
-  # Collapse at tract level
-  dt_main[, w_countyfips := as.numeric(substr(str_pad(w_geocode, 15, pad = 0), 1, 5))]
-  dt_main <- dt_main[, lapply(.SD, sum, na.rm = T),
-                           .SDcols = new_names, 
-                           by = c("h_geocode", "w_countyfips")]
+  dt       <- rbindlist(list(dt_main, 
+                             aux[h_statefips == st_fips][, h_statefips := NULL]))
+  rm(dt_main)
 
-  dt_main[, r_countyfips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0), 1, 5))]
-  dt_main <- dt_main[, lapply(.SD, sum, na.rm = T),
-                           .SDcols = new_names,
-                           by = c("r_countyfips", "w_countyfips")]
+  setnames(dt, old = c("w_geocode",   "h_geocode",   target_vars), 
+               new = c("r_blockfips", "w_blockfips", new_names))
+    
+  # Add crosswalk to main data
+  dt <- dt[xwalk, on = c("r_blockfips" = "blockfips"), nomatch = 0]    
+  setnames(dt, old = "countyfips", new = "r_countyfips")
+
+  dt <- dt[xwalk, on = c("w_blockfips" = "blockfips"), nomatch = 0]    
+  setnames(dt, old = "countyfips", new = "w_countyfips")
   
-  return(list("dt"   = dt_main,
+  dt <- dt[, lapply(.SD, function(x) sum(x, na.rm = T)),
+                    .SDcols = vars,
+                    by = c("r_countyfips", "w_countyfips")]
+  
+  return(list("dt"   = dt,
               "fips" = str_pad(st_fips, 2, pad = 0)))
 }
 

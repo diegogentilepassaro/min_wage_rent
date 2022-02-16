@@ -1,12 +1,10 @@
 remove(list = ls())
+options(scipen = 999)
 
 paquetes <- c("stringr", "data.table", "bit64", "parallel")
 lapply(paquetes, require, character.only = TRUE)
 
 source("../../../lib/R/save_data.R")
-source("make_xwalk.R")
-options(scipen = 999)
-
 
 library(parallel)
 n_cores <- 10
@@ -14,15 +12,12 @@ n_cores <- 10
 # Note: See README in source/raw/lodes for a few missing state-years
 
 main <- function(paquetes, n_cores) {
-  in_lodes       <- "../../../drive/raw_data/lodes"
-  in_xwalk       <- "../../geo_master/output"
-  in_xwalk_lodes <- "../../../raw/crosswalk/lodes"
-  outstub         <- "../../../drive/base_large/lodes_od"
+  in_lodes <- "../../../drive/raw_data/lodes"
+  in_xwalk <- "../../../drive/base_large/census_block_master"
+  outstub  <- "../../../drive/base_large/lodes_od"
 
   # Prepare crosswalks 
-  blc_tract_xwalk <- make_xwalk_raw_wac(in_xwalk_lodes)
-  tract_zip_xwalk <- fread(file.path(in_xwalk, "tract_zip_master.csv"), 
-                           colClasses = c("numeric", "character", "numeric"))
+  dt_xwalk <- load_xwalk(in_xwalk)
   
   for (yy in 2009:2018) {
     # Prepare states od matrices
@@ -43,12 +38,13 @@ main <- function(paquetes, n_cores) {
     clusterExport(cl, "paquetes")                                         # Load "paquetes" object in nodes
     clusterEvalQ(cl, lapply(paquetes, require, character.only = TRUE))    # Load packages in nodes
     clusterExport(cl, "make_odmatrix_state", env = .GlobalEnv)            # Load global environment objects in nodes
-    clusterExport(cl, c("in_lodes", "dt_aux", "tract_zip_xwalk"), 
+    clusterExport(cl, c("in_lodes", "dt_aux", "dt_xwalk"), 
                       env = environment())                                # Load local environment objects in nodes
   
+    # Make OD matrix
     odzip_list <- parLapply(cl, files_main, function(ff) {
       make_odmatrix_state(file_ = ff, year = yy,
-                          aux = dt_aux, xwalk = tract_zip_xwalk)
+                          aux = dt_aux, xwalk = dt_xwalk)
     })
     stopCluster(cl)
     
@@ -56,11 +52,23 @@ main <- function(paquetes, n_cores) {
     for (state in odzip_list) {
       save_data(state$dt, key = c("r_zipcode", "w_zipcode"),
                 filename = file.path(outstub, yy, paste0("odzip_", state$fips, ".csv")),
-                logfile  = "../output/odmatrix_data_manifest.log")
+                logfile  = "../output/od_zipcode_data_manifest.log")
     }
   }
 }
 
+load_xwalk <- function(instub) {
+
+  xwalk <- fread(file.path(instub, "census_block_master.csv"),
+                 select = c("census_block", "zipcode"),
+                 colClasses = c(zipcode = "character"))
+  
+  setnames(xwalk, old = c("census_block"), 
+                  new = c("blockfips"))
+  setkey(xwalk, "blockfips")
+
+  return(xwalk)
+}
 
 make_odmatrix_state <- function(file_, year, aux, xwalk) {
   
@@ -77,55 +85,25 @@ make_odmatrix_state <- function(file_, year, aux, xwalk) {
   
   # Add auxiliary to main
   st_fips  <- as.numeric(substr(str_pad(dt_main$h_geocode[1], 15, pad = 0), 1, 2))
-  dt_main <- rbindlist(list(dt_main, 
-                            aux[h_statefips == st_fips][, h_statefips := NULL]))
-  
-  setnames(dt_main, old = target_vars, new = new_names)
-  
-  # Collapse at tract level
-  dt_main[, w_tractfips := as.numeric(substr(str_pad(w_geocode, 15, pad = 0), 1, 11))]
-  dt_main <- dt_main[, lapply(.SD, sum, na.rm = T),
-                     .SDcols = new_names, 
-                     by = c("h_geocode", "w_tractfips")]
-  
-  dt_main[, h_tractfips := as.numeric(substr(str_pad(h_geocode, 15, pad = 0), 1, 11))]
-  dt_main <- dt_main[, lapply(.SD, sum, na.rm = T),
-                      .SDcols = new_names,
-                      by = c("h_tractfips", "w_tractfips")]
-  
-  # Crosswalk destination tract to zipcode for each origin tract separately
-  tract_to_zip_work <- function(dt, xwlk = xwalk, vars = new_names) {
+  dt       <- rbindlist(list(dt_main, 
+                             aux[h_statefips == st_fips][, h_statefips := NULL]))
+  rm(dt_main)
 
-    dt <- dt[xwlk, on = c("w_tractfips" = "tract_fips"), nomatch = 0]
-    dt <- dt[, lapply(.SD, 
-             function(x, w) sum(x*w, na.rm = T), w = res_ratio), 
-             .SDcols = vars, 
-             by = c("h_tractfips", "zipcode")]
+  setnames(dt, old = c("w_geocode",   "h_geocode",   target_vars), 
+               new = c("r_blockfips", "w_blockfips", new_names))
     
-    setnames(dt, old = "zipcode", new = "w_zipcode")
-    return(dt)
-  }
+  # Add crosswalk to main data
+  dt <- dt[xwalk, on = c("r_blockfips" = "blockfips"), nomatch = 0]    
+  setnames(dt, old = "zipcode", new = "r_zipcode")
 
-  # Crosswalk origin tract to zipcode for each destination zipcode separately
-  tract_to_zip_home <- function(dt, xwlk = xwalk, vars = new_names) {
-
-    dt <- dt[xwlk, on = c("h_tractfips" = "tract_fips"), nomatch = 0]
-    dt <- dt[, lapply(.SD, 
-                      function(x, w) sum(x*w, na.rm = T), w = res_ratio),
-                      .SDcols = vars, 
-                      by = c("w_zipcode", "zipcode")]
-    
-    setnames(dt, old = "zipcode", new = "r_zipcode")
-    
-    return(dt)
-  }
+  dt <- dt[xwalk, on = c("w_blockfips" = "blockfips"), nomatch = 0]    
+  setnames(dt, old = "zipcode", new = "w_zipcode")
   
-  dt_zip <- split(dt_main, by = "h_tractfips")
-  dt_zip <- rbindlist(lapply(dt_zip, tract_to_zip_work))
-  dt_zip <- split(dt_zip, by = "w_zipcode")
-  dt_zip <- rbindlist(lapply(dt_zip, tract_to_zip_home))
+  dt <- dt[, lapply(.SD, function(x) sum(x, na.rm = T)),
+                    .SDcols = vars,
+                    by = c("r_zipcode", "w_zipcode")]
   
-  return(list("dt"   = dt_zip,
+  return(list("dt"   = dt,
               "fips" = str_pad(st_fips, 2, pad = 0)))
 }
 
