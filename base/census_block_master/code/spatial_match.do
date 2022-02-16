@@ -5,7 +5,7 @@ adopath + ../../../lib/stata/min_wage/ado
 program main
     local in_data   "../temp"
     local in_xwalk  "../../../drive/raw_data/zcta_census_tract/"
-    local outstub   "../../../drive/base_large/census_block_zip_spatial_match"
+    local outstub   "../../../drive/base_large/census_block_master"
     local logfile   "../output/data_file_manifest.log"
     
     clean_zcta_tract_xwalk, instub(`in_xwalk')
