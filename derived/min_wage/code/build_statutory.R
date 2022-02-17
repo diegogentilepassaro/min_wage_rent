@@ -15,7 +15,7 @@ main <- function(){
    
    if (file.exists(log_file)) file.remove(log_file)
    
-   start_date <- "2010-01-01"
+   start_date <- "2009-07-01"
    end_date   <- "2020-01-31"
    
    dt <- build_frame(base_geo_dir, start_date, end_date)
