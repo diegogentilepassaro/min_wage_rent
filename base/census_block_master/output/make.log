@@ -1,5 +1,5 @@
 
- make.py started: 2022-02-16 16:17:36 C:\Users\shermo\Documents\GitHub\min_wage_rent\base\census_block_master\code 
+ make.py started: 2022-02-17 09:56:12 C:\Users\diegog\Desktop\Diego\min_wage_rent\base\census_block_master\code 
 
 
 
@@ -37,24 +37,32 @@ Notes:
 . program main
   1.     local in_centroids "../../../drive/base_large/census_blocks_centroids"
   2.     local in_usps_zip  "../../../drive/raw_data/shapefiles/USPS_zipcodes"
-  3.     local outstub      "../temp"
-  4.     
-.     shp2dta using "`in_centroids'/census_blocks_2010_centroids.shp", ///
->         database("`outstub'/census_blocks_2010_centroids_db")        ///
->         coordinates("`outstub'/census_blocks_2010_centroids_coord")  ///
->         genid(cb_centroid_geo_id) replace
+  3.     local in_places    "../../../drive/base_large/assemble_place_shapefile
+> "
+  4.     local outstub      "../temp"
   5.         
 .     shp2dta using "`in_usps_zip'/USPS_zipcodes_July2020.shp",        ///
 >         database("`outstub'/USPS_zipcodes_July2020_db")              ///
 >         coordinates("`outstub'/USPS_zipcodes_July2020_coord")        ///
 >         genid(usps_zip_poly_geo_id) replace
-  6. end
+  6.                 
+.     shp2dta using "`in_places'/us_places_2010.shp",        ///
+>         database("`outstub'/us_places_2010_db")              ///
+>         coordinates("`outstub'/us_places_2010_coord")        ///
+>         genid(us_place_poly_geo_id) replace
+  7.                 
+.     shp2dta using "`in_centroids'/census_blocks_2010_centroids.shp", ///
+>         database("`outstub'/census_blocks_2010_centroids_db")        ///
+>         coordinates("`outstub'/census_blocks_2010_centroids_coord")  ///
+>         genid(cb_centroid_geo_id) replace
+  8. end
 
 . 
 . 
 . main
-type: 1
 type: 5
+type: 5
+type: 1
 
 . 
 end of do-file
@@ -110,36 +118,41 @@ Notes:
 >         key(statefips countyfips census_tract) replace 
   7.         
 .     use "`in_data'/census_blocks_2010_centroids_coord.dta", clear
-  8. 
-.     rename _ID     cb_centroid_geo_id
+  8.     rename _ID     cb_centroid_geo_id
   9.     rename (_X _Y) (longitude latitude)
- 10.     
-.     geoinpoly latitude longitude ///
->         using "`in_data'/USPS_zipcodes_July2020_coord.dta"
- 11.     rename _ID usps_zip_poly_geo_id
- 12. 
+ 10.         
 .     merge m:1 cb_centroid_geo_id using "`in_data'/census_blocks_2010_centroid
 > s_db.dta", ///
 >         keep(1 3) nogen
- 13.     rename (statfps   cntyfps    cnss_tr      cnss_bl      nm_hs10    ) //
+ 11.     rename (statfps   cntyfps    cnss_tr      cnss_bl      nm_hs10    ) //
 > /
 >            (statefips countyfips census_tract census_block num_house10)
- 14. 
-.     merge m:1 usps_zip_poly_geo_id using "`in_data'/USPS_zipcodes_July2020_db
-> .dta", ///
+ 12.     
+.     geoinpoly latitude longitude ///
+>         using "`in_data'/USPS_zipcodes_July2020_coord.dta"
+ 13.     rename _ID usps_zip_poly_geo_id
+ 14.     merge m:1 usps_zip_poly_geo_id using "`in_data'/USPS_zipcodes_July2020
+> _db.dta", ///
 >         keep(1 3) nogen keepusing(ZIP_CODE)
  15.     rename ZIP_CODE zipcode
- 16. 
-.     drop longitude latitude usps_zip_poly_geo_id cb_centroid_geo_id
- 17. 
+ 16.     drop usps_zip_poly_geo_id cb_centroid_geo_id
+ 17.         
+.         geoinpoly latitude longitude ///
+>         using "`in_data'/us_places_2010_coord.dta"
+ 18.     rename _ID us_place_poly_geo_id
+ 19.     merge m:1 us_place_poly_geo_id using "`in_data'/us_places_2010_db.dta"
+> , ///
+>         keep(1 3) nogen keepusing(place_code place_name place_type)
+ 20.         drop us_place_poly_geo_id latitude longitude
+ 21.         
 .     merge m:1 statefips countyfips census_tract using "`in_data'/tract_to_zct
 > a.dta", ///
 >         keep(1 3) nogen
- 18. 
+ 22. 
 .     save_data "`outstub'/census_block_master.dta", ///
 >         key(census_block) log(`logfile') replace
- 19.     export delimited "`outstub'/census_block_master.csv"
- 20. end
+ 23.     export delimited "`outstub'/census_block_master.csv"
+ 24. end
 
 . 
 . program clean_zcta_tract_xwalk
@@ -153,22 +166,25 @@ Notes:
   5.     drop neg_hupt
   6.     
 .     keep state county zcta5 tract
-  7.     rename (state     county     zcta5 tract       ) ///
->            (statefips countyfips zcta  census_tract)
-  8. end
+  7.         replace county = state + county
+  8.     rename (state     county     zcta5 tract       ) ///
+>            (statefips countyfips zcta  census_tract)  
+  9. end
 
 . 
 . 
 . main
 (25 vars, 148,897 obs)
 (75,301 observations deleted)
-(data already sorted by statefips countyfips census_tract)
+variable county was str3 now str5
+(73,596 real changes made)
+(data now sorted by statefips countyfips census_tract)
   (0 bytes saved)
 ===============================================================================
 File: ../temp/tract_to_zcta.dta
 Key: statefips countyfips census_tract
 ===============================================================================
-  73596:4(116560):1036730091:3130203221
+  73596:4(116560):786098208:698911353
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -200,19 +216,32 @@ file ../temp/tract_to_zcta.dta saved
 
     Result                           # of obs.
     -----------------------------------------
-    not matched                         9,743
-        from master                     9,743  
+    not matched                     5,672,388
+        from master                 5,672,388  
         from using                          0  
 
-    matched                        11,068,554  
+    matched                         5,405,909  
+    -----------------------------------------
+(note: variable countyfips was str3, now str5 to accommodate using data's
+       values)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                    11,078,297
+        from master                11,078,297  
+        from using                          0  
+
+    matched                                 0  
     -----------------------------------------
 (data now sorted by census_block)
-  (0 bytes saved)
+  variable countyfips was str5 now str3
+  variable zcta was str5 now str1
+  (66,469,782 bytes saved)
 ===============================================================================
 File: ../../../drive/base_large/census_block_master/census_block_master.dta
 Key: census_block
 ===============================================================================
-  11078297:8(105952):29522126:752649811
+  11078297:11(63907):299518920:1485426692
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -224,6 +253,10 @@ census_tract |          0
 -------------+---------------------------------------------------------
        pop10 | 11,078,297     27.8694    78.59192          0      19352
      zipcode |          0
+  place_code |          0
+  place_name |          0
+  place_type |          0
+-------------+---------------------------------------------------------
         zcta |          0
 
 
@@ -239,4 +272,4 @@ file ../../../drive/base_large/census_block_master/census_block_master.csv save
 . 
 end of do-file
 
- make.py ended: 2022-02-16 17:30:53
+ make.py ended: 2022-02-17 11:31:07
