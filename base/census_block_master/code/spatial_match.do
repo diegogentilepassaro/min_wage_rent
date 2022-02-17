@@ -4,7 +4,7 @@ adopath + ../../../lib/stata/min_wage/ado
 
 program main
     local in_data   "../temp"
-    local in_xwalk  "../../../drive/raw_data/zcta_census_tract/"
+    local in_xwalk  "../../../drive/raw_data/census_crosswalks/"
     local outstub   "../../../drive/base_large/census_block_master"
     local logfile   "../output/data_file_manifest.log"
     
