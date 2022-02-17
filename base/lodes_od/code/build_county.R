@@ -57,19 +57,6 @@ main <- function(paquetes, n_cores) {
   }
 }
 
-load_xwalk <- function(instub) {
-
-  xwalk <- fread(file.path(instub, "census_block_master.csv"),
-                 select = c("census_block", "countyfips"),
-                 colClasses = c(countyfips = "character"))
-  
-  setnames(xwalk, old = c("census_block"), 
-                  new = c("blockfips"))
-  setkey(xwalk, "blockfips")
-
-  return(xwalk)
-}
-
 make_odmatrix_state <- function(file_, year, aux, xwalk) {
   
   target_vars <- c("S000", 
@@ -93,12 +80,9 @@ make_odmatrix_state <- function(file_, year, aux, xwalk) {
   setnames(dt, old = c("w_geocode",   "h_geocode",   target_vars), 
                new = c("r_blockfips", "w_blockfips", new_varnames))
     
-  # Add crosswalk to main data
-  dt <- dt[xwalk, on = c("r_blockfips" = "blockfips"), nomatch = 0]    
-  setnames(dt, old = "countyfips", new = "r_countyfips")
-
-  dt <- dt[xwalk, on = c("w_blockfips" = "blockfips"), nomatch = 0]    
-  setnames(dt, old = "countyfips", new = "w_countyfips")
+  # Crosswalk not needed for these data
+  dt[, r_countyfips := as.numeric(substr(str_pad(r_blockfips, 15, pad = 0), 1, 5))]
+  dt[, w_countyfips := as.numeric(substr(str_pad(w_blockfips, 15, pad = 0), 1, 5))]
   
   dt <- dt[, lapply(.SD, function(x) sum(x, na.rm = T)),
                     .SDcols = new_varnames,
