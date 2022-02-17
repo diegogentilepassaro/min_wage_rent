@@ -5,69 +5,58 @@ library(zoo)
 library(stringr)
 source("../../../lib/R/save_data.R")
 
-setDTthreads(16)
+setDTthreads(20)
 
 main <- function(){
-  in_xwalk  <- "../../../drive/base_large/census_block_master"
-  in_base   <- "../../../base/min_wage/output"
-  outstub   <- "../../../drive/derived_large/min_wage"
-  log_file  <- "../output/data_file_manifest.log"
-  
-  if (file.exists(log_file)) file.remove(log_file)
-  
-  start_date <- "2009-01-01"
-  end_date   <- "2020-01-31"
-  
-  for (yy in 2009:2020) {
-    dt <- build_frame(base_geo_dir, start_date, end_date)
-    
-  }
-  
-  
-  dt.mw <- load_mw(in_base)
-  
-  dt <- assemble_statutory_mw(dt, dt.mw)
-  
-  dt.zip    <- collapse_datatable(copy(dt), key_vars = c("zipcode",    "year", "month"))
-  dt.county <- collapse_datatable(copy(dt), key_vars = c("countyfips", "year", "month"))
-  
-  save_data(dt.zip, key = c("zipcode", "year", "month"),
-            filename = file.path(outstub, "zip_statutory_mw.csv"),
-            logfile  = log_file)
-  save_data(dt.zip, key = c("zipcode", "year", "month"),
-            filename = file.path(outstub, "zip_statutory_mw.dta"),
-            nolog    = TRUE)
+   base_geo_dir <- "../../../base/geo_master/output"
+   base_mw_dir  <- "../../../base/min_wage/output"
+   outstub      <- "../../../drive/derived_large/min_wage"
+   log_file     <- "../output/data_file_manifest.log"
+   
+   if (file.exists(log_file)) file.remove(log_file)
+   
+   start_date <- "2010-01-01"
+   end_date   <- "2020-01-31"
+   
+   dt <- build_frame(base_geo_dir, start_date, end_date)
+   
+   dt.mw <- load_mw(base_mw_dir)
+   
+   dt <- assemble_statutory_mw(dt, dt.mw)
+   
+   dt.zip    <- collapse_datatable(copy(dt), key_vars = c("zipcode",    "year", "month"))
+   dt.county <- collapse_datatable(copy(dt), key_vars = c("countyfips", "year", "month"))
+   
+   save_data(dt.zip, key = c("zipcode", "year", "month"),
+             filename = file.path(outstub, "zip_statutory_mw.csv"),
+             logfile  = log_file)
+   save_data(dt.zip, key = c("zipcode", "year", "month"),
+             filename = file.path(outstub, "zip_statutory_mw.dta"),
+             nolog    = TRUE)
 
-  save_data(dt.county, key = c("countyfips", "year", "month"),
-            filename = file.path(outstub, "county_statutory_mw.csv"),
-            logfile  = log_file)
-  save_data(dt.county, key = c("countyfips", "year", "month"),
-            filename = file.path(outstub, "county_statutory_mw.dta"),
-            nolog    = TRUE)
+   save_data(dt.county, key = c("countyfips", "year", "month"),
+             filename = file.path(outstub, "county_statutory_mw.csv"),
+             logfile  = log_file)
+   save_data(dt.county, key = c("countyfips", "year", "month"),
+             filename = file.path(outstub, "county_statutory_mw.dta"),
+             nolog    = TRUE)
 
-  dt.cf <- compute_counterfactual(dt.zip)
-  
-  save_data(dt.cf, key = c("zipcode", "year", "month"),
-            filename = file.path(outstub, "zipcode_cfs.csv"),
-            logfile  = log_file)
-  save_data(dt.cf, key = c("zipcode", "year", "month"),
-            filename = file.path(outstub, "zipcode_cfs.dta"),
-            nolog    = TRUE)
-}
-
-load_crosswalk <- function(instub) {
-  
-  dt <- fread(file.path(instub, "census_block_master.csv"), 
-              colClasses = c("zipcode"    = "character"))
-  
-  dt_places <- fread("../../../drive/raw_data/census_crosswalks/census_block_master.csv"), 
-                     colClasses = c("zipcode"    = "character"))
+   dt.cf <- compute_counterfactual(dt.zip)
+   
+   save_data(dt.cf, key = c("zipcode", "year", "month"),
+             filename = file.path(outstub, "zipcode_cfs.csv"),
+             logfile  = log_file)
+   save_data(dt.cf, key = c("zipcode", "year", "month"),
+             filename = file.path(outstub, "zipcode_cfs.dta"),
+             nolog    = TRUE)
 }
 
 build_frame <- function(instub, start_date, end_date, freq = "month") {
    
-   dt <- fread(file.path(instub, "census_block_master.csv"), 
-               colClasses = c("zipcode"    = "character"))
+   dt <- fread(file.path(instub, "zip_county_place_usps_all.csv"), 
+               colClasses = c("zipcode"    = "character", "place_code" = "character", 
+                              "countyfips" = "character", "statefips"  = "character", 
+                              "cbsa10"     = "character"))
    
    setnames(dt, old = c('state_abb', 'place_name', 'county_name'), 
                 new = c('stateabb',  'placename',  'county'))
@@ -93,7 +82,6 @@ build_frame <- function(instub, start_date, end_date, freq = "month") {
    
    return(dt)
 }
-
 
 manual_corrections <- function(dt) {
   
