@@ -15,7 +15,7 @@ program main
     use "`in_data'/census_blocks_2010_centroids_coord.dta", clear
     rename _ID     cb_centroid_geo_id
     rename (_X _Y) (longitude latitude)
-	
+    
     merge m:1 cb_centroid_geo_id using "`in_data'/census_blocks_2010_centroids_db.dta", ///
         keep(1 3) nogen
     rename (statfps   cntyfps    cnss_tr      cnss_bl      nm_hs10    ) ///
@@ -28,14 +28,14 @@ program main
         keep(1 3) nogen keepusing(ZIP_CODE)
     rename ZIP_CODE zipcode
     drop usps_zip_poly_geo_id cb_centroid_geo_id
-	
-	geoinpoly latitude longitude ///
+    
+    geoinpoly latitude longitude ///
         using "`in_data'/us_places_2010_coord.dta"
     rename _ID us_place_poly_geo_id
     merge m:1 us_place_poly_geo_id using "`in_data'/us_places_2010_db.dta", ///
         keep(1 3) nogen keepusing(place_code place_name place_type)
-	drop us_place_poly_geo_id latitude longitude
-	
+    drop us_place_poly_geo_id latitude longitude
+    
     merge m:1 statefips countyfips census_tract using "`in_data'/tract_to_zcta.dta", ///
         keep(1 3) nogen
 
@@ -55,7 +55,7 @@ program clean_zcta_tract_xwalk
     drop neg_hupt
     
     keep state county zcta5 tract
-	replace county = state + county
+    replace county = state + county
     rename (state     county     zcta5 tract       ) ///
            (statefips countyfips zcta  census_tract)  
 end

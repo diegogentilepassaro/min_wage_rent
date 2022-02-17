@@ -12,9 +12,9 @@ program main
         coordinates("`outstub'/USPS_zipcodes_July2020_coord")        ///
         genid(usps_zip_poly_geo_id) replace
 		
-    shp2dta using "`in_places'/us_places_2010.shp",        ///
-        database("`outstub'/us_places_2010_db")              ///
-        coordinates("`outstub'/us_places_2010_coord")        ///
+    shp2dta using "`in_places'/us_places_2010.shp",                  ///
+        database("`outstub'/us_places_2010_db")                      ///
+        coordinates("`outstub'/us_places_2010_coord")                ///
         genid(us_place_poly_geo_id) replace
 		
     shp2dta using "`in_centroids'/census_blocks_2010_centroids.shp", ///
