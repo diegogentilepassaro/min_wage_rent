@@ -7,7 +7,7 @@ lapply(paquetes, require, character.only = TRUE)
 source("../../../lib/R/save_data.R")
 
 library(parallel)
-n_cores <- 10
+n_cores <- 12
 
 # Note: See README in source/raw/lodes for a few missing state-years
 
