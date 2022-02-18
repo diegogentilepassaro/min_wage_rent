@@ -8,7 +8,8 @@ source("../../../lib/R/save_data.R")
 setDTthreads(20)
 
 main <- function(){
-   base_geo_dir <- "../../../base/geo_master/output"
+   geocorr_dir  <- "../../../drive/raw_data/geocorr"
+   base_geo_dir <- "../../../drive/base_large/census_block_master"
    base_mw_dir  <- "../../../base/min_wage/output"
    outstub      <- "../../../drive/derived_large/min_wage"
    log_file     <- "../output/data_file_manifest.log"
@@ -18,14 +19,33 @@ main <- function(){
    start_date <- "2009-07-01"
    end_date   <- "2020-01-31"
    
-   dt <- build_frame(base_geo_dir, start_date, end_date)
+   county_names <- fread(file.path(geocorr_dir, "geocorr2018.csv"), 
+                      colClasses = c("county" = "character")) %>%
+     select(county, cntyname, stab, cbsaname10) %>%
+     rename(countyfips = county,
+            county_name = cntyname,
+            state_abb = stab,
+            cbsa10_name = cbsaname10)
+   county_names <- county_names[!duplicated(county_names), ]
+   
+   dt <- fread(file.path(base_geo_dir, "census_block_master.csv"), 
+               colClasses = c("census_block" = "character", "census_tract" = "character",
+                              "zipcode"    = "character", "place_code" = "character", 
+                              "countyfips" = "character", "statefips"  = "character", 
+                              "cbsa10"     = "character", "place_name" = "character")) %>%
+     select(-num_house10, -pop10, -rural, -place_type)
+   dt <- left_join(dt, county_names, by = "countyfips")
+
+   dt <- build_frame(dt, start_date, end_date)
    
    dt.mw <- load_mw(base_mw_dir)
    
    dt <- assemble_statutory_mw(dt, dt.mw)
    
-   dt.zip    <- collapse_datatable(copy(dt), key_vars = c("zipcode",    "year", "month"))
-   dt.county <- collapse_datatable(copy(dt), key_vars = c("countyfips", "year", "month"))
+   dt.zip    <- collapse_datatable(copy(dt), 
+                                   key_vars = c("zipcode",    "year", "month"))
+   dt.county <- collapse_datatable(copy(dt), 
+                                   key_vars = c("countyfips", "year", "month"))
    
    save_data(dt.zip, key = c("zipcode", "year", "month"),
              filename = file.path(outstub, "zip_statutory_mw.csv"),
@@ -41,7 +61,7 @@ main <- function(){
              filename = file.path(outstub, "county_statutory_mw.dta"),
              nolog    = TRUE)
 
-   dt.cf <- compute_counterfactual(dt.zip)
+   dt.cf <- compute_counterfstatutory_mw(dt.zip)
    
    save_data(dt.cf, key = c("zipcode", "year", "month"),
              filename = file.path(outstub, "zipcode_cfs.csv"),
@@ -51,27 +71,20 @@ main <- function(){
              nolog    = TRUE)
 }
 
-build_frame <- function(instub, start_date, end_date, freq = "month") {
+build_frame <- function(dt, start_date, end_date, freq = "month") {
    
-   dt <- fread(file.path(instub, "zip_county_place_usps_all.csv"), 
-               colClasses = c("zipcode"    = "character", "place_code" = "character", 
-                              "countyfips" = "character", "statefips"  = "character", 
-                              "cbsa10"     = "character"))
-   
-   setnames(dt, old = c('state_abb', 'place_name', 'county_name'), 
-                new = c('stateabb',  'placename',  'county'))
-   
-   dt[, county    := gsub("\\s*\\w*$", " County", dt$county)]
-   dt[, placename := gsub(",\\s*\\w*$", "", dt$placename)]     # Drop final state abb after comma, e.g. ", MA" 
-   dt[, placename := gsub("\\s*\\w*$", "",  dt$placename)]     # Drop final word "city"
+   dt[, county_name    := gsub("\\s*\\w*$", " County", dt$county_name)]
+   dt[, place_name := gsub(",\\s*\\w*$", "", dt$place_name)]     # Drop final state abb after comma, e.g. ", MA" 
+   dt[, place_name := gsub("\\s*\\w*$", "",  dt$place_name)]     # Drop final word "city"
    
    dt <- manual_corrections(dt)
    
    dt[, c('from', 'to') := list(as.Date(start_date), 
                                 as.Date(end_date))]
    
-   dt <- dt[, list(zcta, zipcode, place_code, placename, countyfips, county,
-                   statefips, stateabb, cbsa10, cbsa10_name, houses_zcta_place_county,
+   dt <- dt[, list(census_block, census_tract,
+                   zcta, zipcode, place_code, place_name, countyfips, county_name,
+                   statefips, state_abb, cbsa10, cbsa10_name,
                    daily_date = seq(from, to, by = freq)), 
               by = 1:nrow(dt)][, nrow := NULL]
    
@@ -85,11 +98,11 @@ build_frame <- function(instub, start_date, end_date, freq = "month") {
 
 manual_corrections <- function(dt) {
   
-   dt[placename == 'Louisville/Jefferson County metro government (balance)', 
-      placename := 'Lousville']
-   dt[placename == 'New York',  placename := 'New York City']
-   dt[placename == 'St. Paul',  placename := 'Saint Paul']
-   dt[placename == 'Daly city', placename := 'Daly City']
+   dt[place_name == 'Louisville/Jefferson County metro government (balance)', 
+      place_name := 'Lousville']
+   dt[place_name == 'New York',  place_name := 'New York City']
+   dt[place_name == 'St. Paul',  place_name := 'Saint Paul']
+   dt[place_name == 'Daly city', place_name := 'Daly City']
    
    return(dt)
 }
@@ -124,29 +137,33 @@ load_mw <- function(instub) {
    
    county_mw <- local_mw[iscounty == 1, ][, iscounty := NULL]
    setnames(county_mw, old = c("locality", mw_vars), 
-                       new = c("county",   county_mw_vars))
+                       new = c("county_name",   county_mw_vars))
    
    local_mw <- local_mw[iscounty == 0, ][, iscounty := NULL]
    setnames(local_mw, old = c("locality",  mw_vars),
-                      new = c("placename", local_mw_vars))
+                      new = c("place_name", local_mw_vars))
    
-   county_mw <- county_mw[, .(county,    statefips, county_mw,
+   county_mw <- county_mw[, .(county_name,    statefips, county_mw,
                               county_abovestate_mw, year, month)]
-   local_mw <- local_mw[,   .(placename, statefips, local_mw, 
+   local_mw <- local_mw[,   .(place_name, statefips, local_mw, 
                               local_abovestate_mw,  year, month)]
    
    return(list("state"  = state_mw, 
-               "county" = county_mw, "local" = local_mw))
+               "county" = county_mw, 
+               "local"  = local_mw))
 }
 
 assemble_statutory_mw <- function(dt, dt.mw) {
    
-   dt <- dt.mw$state[dt,  on = c(             "statefips", "year", "month")]
-   dt <- dt.mw$county[dt, on = c("county",    "statefips", "year", "month")]
-   dt <- dt.mw$local[dt,  on = c("placename", "statefips", "year", "month")]
+   dt <- dt.mw$state[dt,  
+                     on = c("statefips", "year", "month")]
+   dt <- dt.mw$county[dt, 
+                           on = c("county_name",    "statefips", "year", "month")]
+   dt <- dt.mw$local[dt,  
+                     on = c("place_name", "statefips", "year", "month")]
    
-   # Compute actual MW
-   dt[, actual_mw := pmax(local_mw, county_mw, state_mw, fed_mw, na.rm = T)]
+   # Compute statutory_mw MW
+   dt[, statutory_mw_mw := pmax(local_mw, county_mw, state_mw, fed_mw, na.rm = T)]
    dt[, binding_mw := fcase(
       pmax(local_mw, county_mw, state_mw, fed_mw, na.rm = T) == fed_mw,    1,  # Fed MW
       pmax(local_mw, county_mw, state_mw, fed_mw, na.rm = T) == state_mw,  2,  # State MW
@@ -155,7 +172,7 @@ assemble_statutory_mw <- function(dt, dt.mw) {
       default = NA
    )]
    
-   dt[, actual_mw_ignore_local := pmax(state_mw, fed_mw, na.rm = T)]
+   dt[, statutory_mw_mw_ignore_local := pmax(state_mw, fed_mw, na.rm = T)]
    dt[, binding_mw_ignore_local := fcase(
       pmax(state_mw, fed_mw, na.rm = T) == fed_mw,    1,  # Fed MW
       pmax(state_mw, fed_mw, na.rm = T) == state_mw,  2,  # State MW
@@ -167,15 +184,15 @@ assemble_statutory_mw <- function(dt, dt.mw) {
 
 collapse_datatable <- function(dt, key_vars = c("zipcode", "year", "month")) {
    
-   dt <- dt[, .(actual_mw                   = max(actual_mw),
-                actual_mw_ignore_local      = max(actual_mw_ignore_local),
-                actual_mw_mean              = mean(actual_mw),
-                actual_mw_ignore_local_mean = mean(actual_mw_ignore_local),
-                binding_mw                  = first(binding_mw),
-                binding_mw_ignore_local     = first(binding_mw_ignore_local),
-                local_mw                    = max(local_mw),
-                state_mw                    = max(state_mw),
-                fed_mw                      = max(fed_mw)),
+   dt <- dt[, .(statutory_mw_mw                   = max(statutory_mw_mw),
+                statutory_mw_mw_ignore_local      = max(statutory_mw_mw_ignore_local),
+                statutory_mw_mw_mean              = mean(statutory_mw_mw),
+                statutory_mw_mw_ignore_local_mean = mean(statutory_mw_mw_ignore_local),
+                binding_mw                        = first(binding_mw),
+                binding_mw_ignore_local           = first(binding_mw_ignore_local),
+                local_mw                          = max(local_mw),
+                state_mw                          = max(state_mw),
+                fed_mw                            = max(fed_mw)),
             by = key_vars]
    
    mw_vars <- names(dt)[grepl("mw", names(dt)) & !grepl("abovestate", names(dt))]
@@ -186,7 +203,7 @@ collapse_datatable <- function(dt, key_vars = c("zipcode", "year", "month")) {
    return(dt)
 }
 
-compute_counterfactual <- function(dt) {
+compute_counterfstatutory_mw <- function(dt) {
 
    dt.last <- dt[year == 2019 & month == 12]
    dt.cf   <- copy(dt.last)
@@ -198,12 +215,12 @@ compute_counterfactual <- function(dt) {
    dt[, fed_mw_cf_9usd  := 9]
    dt[, fed_mw_cf_15usd := 15]
 
-   dt[, actual_mw_cf_10pc  := fcase(year == 2019 & month == 12, actual_mw,
-                                    year == 2020 & month ==  1, pmax(actual_mw, fed_mw_cf_10pc))]
-   dt[, actual_mw_cf_9usd  := fcase(year == 2019 & month == 12, actual_mw,
-                                    year == 2020 & month ==  1, pmax(actual_mw, fed_mw_cf_9usd))]
-   dt[, actual_mw_cf_15usd := fcase(year == 2019 & month == 12, actual_mw,
-                                    year == 2020 & month ==  1, pmax(actual_mw, fed_mw_cf_15usd))]
+   dt[, statutory_mw_mw_cf_10pc  := fcase(year == 2019 & month == 12, statutory_mw_mw,
+                                    year == 2020 & month ==  1, pmax(statutory_mw_mw, fed_mw_cf_10pc))]
+   dt[, statutory_mw_mw_cf_9usd  := fcase(year == 2019 & month == 12, statutory_mw_mw,
+                                    year == 2020 & month ==  1, pmax(statutory_mw_mw, fed_mw_cf_9usd))]
+   dt[, statutory_mw_mw_cf_15usd := fcase(year == 2019 & month == 12, statutory_mw_mw,
+                                    year == 2020 & month ==  1, pmax(statutory_mw_mw, fed_mw_cf_15usd))]
 
    return(dt)
 }
