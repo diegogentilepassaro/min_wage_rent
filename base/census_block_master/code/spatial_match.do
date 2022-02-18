@@ -3,29 +3,40 @@ set more off
 adopath + ../../../lib/stata/min_wage/ado
 
 program main
-    local in_data   "../temp"
-    local in_xwalk  "../../../drive/raw_data/census_crosswalks/"
+    local in_shp    "../../../drive/base_large/shp_to_dta"
+    local in_xwalk  "../../../drive/raw_data/census_crosswalks"
+	local temp      "../temp"
     local outstub   "../../../drive/base_large/census_block_master"
     local logfile   "../output/data_file_manifest.log"
     
     clean_zcta_tract_xwalk, instub(`in_xwalk')
-    save_data "`in_data'/tract_to_zcta.dta", log(none) ///
+    save_data "`temp'/tract_to_zcta.dta", log(none) ///
         key(statefips countyfips census_tract) replace 
+		
+    clean_zcta_cbsa_xwalk, instub(`in_xwalk')
+    save_data "`temp'/zcta_to_cbsa.dta", log(none) ///
+        key(zcta) replace 
     
-    use "`in_data'/census_blocks_2010_centroids_coord.dta", clear
+    use "`in_shp'/census_blocks_2010_centroids_coord.dta", clear
     rename _ID     cb_centroid_geo_id
     rename (_X _Y) (longitude latitude)
     
-    merge m:1 cb_centroid_geo_id using "`in_data'/census_blocks_2010_centroids_db.dta", ///
+    merge m:1 cb_centroid_geo_id using "`in_shp'/census_blocks_2010_centroids_db.dta", ///
         keep(1 3) nogen
     rename (statfps   cntyfps    cnss_tr      cnss_bl      nm_hs10    ) ///
            (statefips countyfips census_tract census_block num_house10)
-    
-    map_to_usps_zipcode, instub(`in_data')    
-    map_to_place,        instub(`in_data')
+    replace countyfips = statefips + countyfips
+	
+    map_to_usps_zipcode, instub(`in_shp')    
+    map_to_place,        instub(`in_shp')
+    drop latitude longitude 
 
-    merge m:1 statefips countyfips census_tract using "`in_data'/tract_to_zcta.dta", ///
+    merge m:1 statefips countyfips census_tract using "`temp'/tract_to_zcta.dta", ///
         keep(1 3) nogen
+    merge m:1 zcta using "`temp'/zcta_to_cbsa.dta", ///
+        keep(1 3) nogen
+	
+	gen rural = (missing(place_code))
 
     save_data "`outstub'/census_block_master.dta", log(`logfile') ///
         key(census_block) replace
@@ -46,6 +57,21 @@ program clean_zcta_tract_xwalk
     replace county = state + county
     rename (state     county     zcta5 tract       ) ///
            (statefips countyfips zcta  census_tract)  
+end
+
+program clean_zcta_cbsa_xwalk
+    syntax, instub(str)
+    
+    import delimited "`instub'/zcta_cbsa_rel_10.txt", ///
+        clear stringcols(1 2)
+
+    gen  neg_hupt = -hupt
+    bysort zcta (neg_hupt): keep if _n == 1
+    drop neg_hupt
+    
+    keep zcta5 cbsa
+    rename (zcta5 cbsa) ///
+           (zcta  cbsa10)  
 end
 
 program map_to_usps_zipcode
@@ -72,7 +98,7 @@ program map_to_place
     merge m:1 us_place_poly_geo_id using "`instub'/us_places_2010_db.dta", ///
         keep(1 3) nogen keepusing(place_code place_name place_type)
 
-    drop us_place_poly_geo_id latitude longitude    
+    drop us_place_poly_geo_id
 end
 
 
