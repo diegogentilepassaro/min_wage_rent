@@ -171,7 +171,7 @@ build_frame <- function(dt_geo, month_range) {
 }
 
 
-assemble_statutory_mw <- function(dt, dt.mw) {
+assemble_statutory_mw <- function(dt, dt_mw) {
    
    dt <- dt_mw$state[dt,  on = c("statefips",                "year", "month")]
    dt <- dt_mw$county[dt, on = c("statefips", "county_name", "year", "month")]
