@@ -61,7 +61,7 @@ main <- function(){
              filename = file.path(outstub, "county_statutory_mw.dta"),
              nolog    = TRUE)
 
-   dt.cf <- compute_counterfstatutory_mw(dt.zip)
+   dt.cf <- compute_counterfactual(dt.zip)
    
    save_data(dt.cf, key = c("zipcode", "year", "month"),
              filename = file.path(outstub, "zipcode_cfs.csv"),
@@ -203,7 +203,7 @@ collapse_datatable <- function(dt, key_vars = c("zipcode", "year", "month")) {
    return(dt)
 }
 
-compute_counterfstatutory_mw <- function(dt) {
+compute_counterfactual <- function(dt) {
 
    dt.last <- dt[year == 2019 & month == 12]
    dt.cf   <- copy(dt.last)
