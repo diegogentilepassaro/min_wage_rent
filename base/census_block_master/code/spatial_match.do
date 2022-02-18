@@ -9,9 +9,9 @@ program main
     local logfile   "../output/data_file_manifest.log"
     
     clean_zcta_tract_xwalk, instub(`in_xwalk')
-    save_data "`in_data'/tract_to_zcta.dta", ///
+    save_data "`in_data'/tract_to_zcta.dta", log(none) ///
         key(statefips countyfips census_tract) replace 
-        
+    
     use "`in_data'/census_blocks_2010_centroids_coord.dta", clear
     rename _ID     cb_centroid_geo_id
     rename (_X _Y) (longitude latitude)
@@ -21,27 +21,15 @@ program main
     rename (statfps   cntyfps    cnss_tr      cnss_bl      nm_hs10    ) ///
            (statefips countyfips census_tract census_block num_house10)
     
-    geoinpoly latitude longitude ///
-        using "`in_data'/USPS_zipcodes_July2020_coord.dta"
-    rename _ID usps_zip_poly_geo_id
-    merge m:1 usps_zip_poly_geo_id using "`in_data'/USPS_zipcodes_July2020_db.dta", ///
-        keep(1 3) nogen keepusing(ZIP_CODE)
-    rename ZIP_CODE zipcode
-    drop usps_zip_poly_geo_id cb_centroid_geo_id
-    
-    geoinpoly latitude longitude ///
-        using "`in_data'/us_places_2010_coord.dta"
-    rename _ID us_place_poly_geo_id
-    merge m:1 us_place_poly_geo_id using "`in_data'/us_places_2010_db.dta", ///
-        keep(1 3) nogen keepusing(place_code place_name place_type)
-    drop us_place_poly_geo_id latitude longitude
-    
+    map_to_usps_zipcode, instub(`in_data')    
+    map_to_place,        instub(`in_data')
+
     merge m:1 statefips countyfips census_tract using "`in_data'/tract_to_zcta.dta", ///
         keep(1 3) nogen
 
-    save_data "`outstub'/census_block_master.dta", ///
-        key(census_block) log(`logfile') replace
-    export delimited "`outstub'/census_block_master.csv"
+    save_data "`outstub'/census_block_master.dta", log(`logfile') ///
+        key(census_block) replace
+    export delimited "`outstub'/census_block_master.csv", replace
 end
 
 program clean_zcta_tract_xwalk
@@ -58,6 +46,33 @@ program clean_zcta_tract_xwalk
     replace county = state + county
     rename (state     county     zcta5 tract       ) ///
            (statefips countyfips zcta  census_tract)  
+end
+
+program map_to_usps_zipcode
+    syntax, instub(str)
+
+    geoinpoly latitude longitude ///
+        using "`instub'/USPS_zipcodes_July2020_coord.dta"
+    rename _ID usps_zip_poly_geo_id
+
+    merge m:1 usps_zip_poly_geo_id using "`instub'/USPS_zipcodes_July2020_db.dta", ///
+        keep(1 3) nogen keepusing(ZIP_CODE)
+    rename ZIP_CODE zipcode
+
+    drop usps_zip_poly_geo_id cb_centroid_geo_id
+end
+
+program map_to_place
+    syntax, instub(str)
+
+    geoinpoly latitude longitude ///
+        using "`instub'/us_places_2010_coord.dta"
+    rename _ID us_place_poly_geo_id
+
+    merge m:1 us_place_poly_geo_id using "`instub'/us_places_2010_db.dta", ///
+        keep(1 3) nogen keepusing(place_code place_name place_type)
+
+    drop us_place_poly_geo_id latitude longitude    
 end
 
 
