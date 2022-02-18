@@ -5,14 +5,14 @@ adopath + ../../../lib/stata/min_wage/ado
 program main
     local in_shp    "../../../drive/base_large/shp_to_dta"
     local in_xwalk  "../../../drive/raw_data/census_crosswalks"
-	local temp      "../temp"
+    local temp      "../temp"
     local outstub   "../../../drive/base_large/census_block_master"
     local logfile   "../output/data_file_manifest.log"
     
     clean_zcta_tract_xwalk, instub(`in_xwalk')
     save_data "`temp'/tract_to_zcta.dta", log(none) ///
         key(statefips countyfips census_tract) replace 
-		
+    
     clean_zcta_cbsa_xwalk, instub(`in_xwalk')
     save_data "`temp'/zcta_to_cbsa.dta", log(none) ///
         key(zcta) replace 
@@ -26,7 +26,7 @@ program main
     rename (statfps   cntyfps    cnss_tr      cnss_bl      nm_hs10    ) ///
            (statefips countyfips census_tract census_block num_house10)
     replace countyfips = statefips + countyfips
-	
+    
     map_to_usps_zipcode, instub(`in_shp')    
     map_to_place,        instub(`in_shp')
     drop latitude longitude 
@@ -35,8 +35,8 @@ program main
         keep(1 3) nogen
     merge m:1 zcta using "`temp'/zcta_to_cbsa.dta", ///
         keep(1 3) nogen
-	
-	gen rural = (missing(place_code))
+    
+    gen rural = (missing(place_code))
 
     save_data "`outstub'/census_block_master.dta", log(`logfile') ///
         key(census_block) replace
@@ -62,7 +62,7 @@ end
 program clean_zcta_cbsa_xwalk
     syntax, instub(str)
     
-    import delimited "`instub'/zcta_cbsa_rel_10.txt", ///
+    import delimited "`instub'/zcta_cbsa.txt", ///
         clear stringcols(1 2)
 
     gen  neg_hupt = -hupt
