@@ -163,7 +163,7 @@ assemble_statutory_mw <- function(dt, dt.mw) {
                      on = c("place_name", "statefips", "year", "month")]
    
    # Compute statutory_mw MW
-   dt[, statutory_mw_mw := pmax(local_mw, county_mw, state_mw, fed_mw, na.rm = T)]
+   dt[, statutory_mw := pmax(local_mw, county_mw, state_mw, fed_mw, na.rm = T)]
    dt[, binding_mw := fcase(
       pmax(local_mw, county_mw, state_mw, fed_mw, na.rm = T) == fed_mw,    1,  # Fed MW
       pmax(local_mw, county_mw, state_mw, fed_mw, na.rm = T) == state_mw,  2,  # State MW
@@ -172,7 +172,7 @@ assemble_statutory_mw <- function(dt, dt.mw) {
       default = NA
    )]
    
-   dt[, statutory_mw_mw_ignore_local := pmax(state_mw, fed_mw, na.rm = T)]
+   dt[, statutory_mw_ignore_local := pmax(state_mw, fed_mw, na.rm = T)]
    dt[, binding_mw_ignore_local := fcase(
       pmax(state_mw, fed_mw, na.rm = T) == fed_mw,    1,  # Fed MW
       pmax(state_mw, fed_mw, na.rm = T) == state_mw,  2,  # State MW
@@ -215,11 +215,11 @@ compute_counterfstatutory_mw <- function(dt) {
    dt[, fed_mw_cf_9usd  := 9]
    dt[, fed_mw_cf_15usd := 15]
 
-   dt[, statutory_mw_mw_cf_10pc  := fcase(year == 2019 & month == 12, statutory_mw,
+   dt[, statutory_mw_cf_10pc  := fcase(year == 2019 & month == 12, statutory_mw,
                                     year == 2020 & month ==  1, pmax(statutory_mw, fed_mw_cf_10pc))]
-   dt[, statutory_mw_mw_cf_9usd  := fcase(year == 2019 & month == 12, statutory_mw,
+   dt[, statutory_mw_cf_9usd  := fcase(year == 2019 & month == 12, statutory_mw,
                                     year == 2020 & month ==  1, pmax(statutory_mw, fed_mw_cf_9usd))]
-   dt[, statutory_mw_mw_cf_15usd := fcase(year == 2019 & month == 12, statutory_mw,
+   dt[, statutory_mw_cf_15usd := fcase(year == 2019 & month == 12, statutory_mw,
                                     year == 2020 & month ==  1, pmax(statutory_mw, fed_mw_cf_15usd))]
 
    return(dt)
