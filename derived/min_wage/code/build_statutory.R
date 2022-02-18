@@ -184,15 +184,15 @@ assemble_statutory_mw <- function(dt, dt.mw) {
 
 collapse_datatable <- function(dt, key_vars = c("zipcode", "year", "month")) {
    
-   dt <- dt[, .(statutory_mw_mw                   = max(statutory_mw_mw),
-                statutory_mw_mw_ignore_local      = max(statutory_mw_mw_ignore_local),
-                statutory_mw_mw_mean              = mean(statutory_mw_mw),
-                statutory_mw_mw_ignore_local_mean = mean(statutory_mw_mw_ignore_local),
-                binding_mw                        = first(binding_mw),
-                binding_mw_ignore_local           = first(binding_mw_ignore_local),
-                local_mw                          = max(local_mw),
-                state_mw                          = max(state_mw),
-                fed_mw                            = max(fed_mw)),
+   dt <- dt[, .(statutory_mw                   = max(statutory_mw),
+                statutory_mw_ignore_local      = max(statutory_mw_ignore_local),
+                statutory_mw_mean              = mean(statutory_mw),
+                statutory_mw_ignore_local_mean = mean(statutory_mw_ignore_local),
+                binding_mw                     = first(binding_mw),
+                binding_mw_ignore_local        = first(binding_mw_ignore_local),
+                local_mw                       = max(local_mw),
+                state_mw                       = max(state_mw),
+                fed_mw                         = max(fed_mw)),
             by = key_vars]
    
    mw_vars <- names(dt)[grepl("mw", names(dt)) & !grepl("abovestate", names(dt))]
@@ -215,12 +215,12 @@ compute_counterfstatutory_mw <- function(dt) {
    dt[, fed_mw_cf_9usd  := 9]
    dt[, fed_mw_cf_15usd := 15]
 
-   dt[, statutory_mw_mw_cf_10pc  := fcase(year == 2019 & month == 12, statutory_mw_mw,
-                                    year == 2020 & month ==  1, pmax(statutory_mw_mw, fed_mw_cf_10pc))]
-   dt[, statutory_mw_mw_cf_9usd  := fcase(year == 2019 & month == 12, statutory_mw_mw,
-                                    year == 2020 & month ==  1, pmax(statutory_mw_mw, fed_mw_cf_9usd))]
-   dt[, statutory_mw_mw_cf_15usd := fcase(year == 2019 & month == 12, statutory_mw_mw,
-                                    year == 2020 & month ==  1, pmax(statutory_mw_mw, fed_mw_cf_15usd))]
+   dt[, statutory_mw_mw_cf_10pc  := fcase(year == 2019 & month == 12, statutory_mw,
+                                    year == 2020 & month ==  1, pmax(statutory_mw, fed_mw_cf_10pc))]
+   dt[, statutory_mw_mw_cf_9usd  := fcase(year == 2019 & month == 12, statutory_mw,
+                                    year == 2020 & month ==  1, pmax(statutory_mw, fed_mw_cf_9usd))]
+   dt[, statutory_mw_mw_cf_15usd := fcase(year == 2019 & month == 12, statutory_mw,
+                                    year == 2020 & month ==  1, pmax(statutory_mw, fed_mw_cf_15usd))]
 
    return(dt)
 }
