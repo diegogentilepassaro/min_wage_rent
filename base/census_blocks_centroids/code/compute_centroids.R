@@ -12,7 +12,7 @@ main <- function(){
 
   cb_centroids <- data.frame()
   for (file in files){
-    cb_file_centroids <- compute_centroids(in_stub, file)
+    cb_file_centroids <- compute_centroids(instub, file)
     cb_centroids      <- rbind(cb_centroids, cb_file_centroids)
   }
 

@@ -20,6 +20,7 @@ from gslab_make.dir_mod import *
 set_option(link_logs_dir = '../output/')
 clear_dirs('../temp/')
 delete_files('../output/*')
+delete_files('../../../drive/base_large/census_blocks_centroids/*')
 
 envir_vars = os.getenv('PATH')
 if envir_vars is None:
