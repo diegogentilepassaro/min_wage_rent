@@ -57,7 +57,7 @@ manual_fixes <- function(data, gg, year) {
       data[entities != "MO Missouri 186 Ste. Genevieve County 29186960200"]
   }
   
-  for (col in names(data)) data[get(col) == -1, c(col):=0]
+  for (col in names(data)) data[get(col) == -1, c(col) := NA]
   
   data[spending_per_month < -5, spending_per_month := NA]
   data[total_units       == -2, total_units        := NA]
