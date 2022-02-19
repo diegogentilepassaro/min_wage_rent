@@ -2,24 +2,33 @@ remove(list = ls())
 
 library(data.table)
 
-in_samples <- '../../../drive/derived_large/estimation_samples'
+in_statutory <- '../../../drive/derived_large/min_wage'
 outdir <- '../output'
 out_file <- '../output/event_counts.txt'
 
 main <- function() {
+  
   files_dir <-
     list.files(
-      '../../../drive/derived_large/min_wage',
+      in_statutory,
       pattern = "statutory_mw.csv",
       full.names = T
     )
-  if (file.exists(out_file)) file.remove(out_file)
   
-  geographies <- c("zipcode", "county", "state") # Add local later
+  if (file.exists(out_file)) {
+    file.remove(out_file)
+  }
+  
+  geographies <-
+    c("local", "zipcode", "county", "state") # Add local later
   
   for (gg in geographies) {
-    if (gg != "zipcode") data <- fread(files_dir[1])
-    else data <- fread(files_dir[2])
+    if (gg != "zipcode") {
+      data <-
+        fread(files_dir[1], colClasses = c(countyfips = 'character'))
+    } else {
+      data <- fread(files_dir[2])
+    }
     
     events <- get(paste0('count_', gg, '_events'))(data)
     
@@ -40,23 +49,18 @@ main <- function() {
 }
 
 count_state_events <- function(data) {
-  data[,
-       countyfips := fifelse(nchar(countyfips) == 4,
-                             paste0(0, countyfips),
-                             as.character(countyfips))][,
-                                                        state := substr(countyfips, 1, 2)]
+  data[, state := substr(countyfips, 1, 2)]
+  
+  data[, state_event := fifelse(state_mw > shift(state_mw), 1, 0), by =
+         countyfips]
   
   data_state <- data[,
-                     .(state_mw = unique(state_mw)),
+                     .(state_event = max(state_event)),
                      by = list(month, year, state)]
-  
-  data_state[, state_event := fifelse(state_mw > shift(state_mw), 1, 0), by =
-               state]
   
   n <- sum(data_state$state_event, na.rm = T)
   
   return(n)
-  remove(data_state)
 }
 
 count_zipcode_events <- function(data) {
@@ -80,7 +84,12 @@ count_county_events <- function(data) {
 }
 
 count_local_events <- function (data) {
+  data[, local_event := fifelse(local_mw > shift(local_mw), 1, 0), by =
+         countyfips]
   
+  n <- sum(data$local_event, na.rm = T)
+  
+  return(n)
 }
 
 # Execute
