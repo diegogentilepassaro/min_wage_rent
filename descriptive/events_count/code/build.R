@@ -15,15 +15,15 @@ main <- function() {
     )
   if (file.exists(out_file)) file.remove(out_file)
   
-  states <- c("zipcode", "county", "state") # Add local later
+  geographies <- c("zipcode", "county", "state") # Add local later
   
-  for (ss in states) {
-    if (ss != "zipcode") data <- fread(files_dir[1])
+  for (gg in geographies) {
+    if (gg != "zipcode") data <- fread(files_dir[1])
     else data <- fread(files_dir[2])
     
-    events <- get(paste0('count_', ss, '_events'))(data)
+    events <- get(paste0('count_', gg, '_events'))(data)
     
-    text <- paste('Number of', ss, 'MW events:',
+    text <- paste('Number of', gg, 'MW events:',
                   events)
     
     write.table(
