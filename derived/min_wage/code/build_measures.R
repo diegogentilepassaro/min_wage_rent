@@ -16,14 +16,17 @@ main <- function(paquetes, n_cores){
   
   for (geo in c("countyfips", "zipcode")) {
     
-    if (geo == "countyfips"){
-      dt <- fread(file.path(in_mw, "county_statutory_mw.csv"),
-                  colClasses = c(countyfips = "character"))
-    } else{
-      dt <- fread(file.path(in_mw, "zip_statutory_mw.csv"),
-                  colClasses = c(zipcode = "character"))
-    }
-    dt[, year_month := as.yearmon(paste0(year, "-", month))]
+    dt <- load_statutory(in_mw, geo)
+    
+    dt[, mw_res := log(statutory_mw)]
+    
+    keep_vars <- c(geo, "year", "month", "statutory_mw", "res_mw")
+    save_data(dt[, ..keep_vars], key = keep_vars[1:3],
+              filename = file.path(outstub, sprintf("%s_mw_res.csv", geo)),
+              logfile  = log_file)
+    save_data(t[, ..keep_vars], key = keep_vars[1:3],
+              filename = file.path(outstub, sprintf("%s_mw_res.dta", geo)),
+              nolog    = TRUE)
     
     periods <- unique(dt$year_month)
     
@@ -41,47 +44,48 @@ main <- function(paquetes, n_cores){
       clusterExport(cl, "paquetes")                                         # Load "paquetes" object in nodes
       clusterEvalQ(cl, lapply(paquetes, require, character.only = TRUE))    # Load packages in nodes
       clusterExport(cl, "load_od_matrix", env = .GlobalEnv)                 # Load global environment objects in nodes
-      clusterExport(cl, "assemble_expmw_state", env = .GlobalEnv)           # Load global environment objects in nodes
+      clusterExport(cl, "assemble_mw_wkp_state", env = .GlobalEnv)           # Load global environment objects in nodes
       clusterExport(cl, c("dt", "periods", "in_mw", "in_lodes", "outstub", "geo"), 
                     env = environment())                                    # Load local environment objects in nodes
       
-      # Build exp MW data
+      # Build wkp MW
       dt_mw <- parLapply(cl, od_files, function(ff) {
         
-        dt_st <- assemble_expmw_state(ff, yy, periods, "actual_mw", dt, in_lodes, geo)
+        dt_st <- assemble_mw_wkp_state(ff, yy, periods, "statutory_mw", dt, in_lodes, geo)
         return(dt_st)
       })
       
       dt_mw <- rbindlist(dt_mw)
-      exp_mw_vars <- names(dt_mw)[grepl("exp_ln_mw", names(dt_mw))]
-      
-      dt_mw_mean <- parLapply(cl, od_files, function(ff) {
-        
-        dt_st <- assemble_expmw_state(ff, yy, periods, "actual_mw_mean", dt, in_lodes, geo)
-        return(dt_st)
-      })
-      stopCluster(cl)
-      
-      dt_mw_mean <- rbindlist(dt_mw_mean)
-      exp_mw_vars <- names(dt_mw_mean)[grepl("exp_ln_mw", names(dt_mw_mean))]
-      setnames(dt_mw_mean, old = exp_mw_vars,
-                               new = paste0(exp_mw_vars, "_mean"))
-      
-      # Put data together and format
-      dt_mw <- merge(dt_mw, dt_mw_mean, by = c(geo, "year_month"))
+      dt_mw <- merge(dt_mw, dt[, .(zipcode, year_month, mw_res, statutory_mw)],
+                     all.x = T, by = c("zipcode", "year_month"))
       
       dt_mw[, month := as.numeric(format(dt_mw$year_month, "%m"))]
       dt_mw[, year  := as.numeric(format(dt_mw$year_month, "%Y"))]
+      dt_mw[, year_month := NULL]
       
       # Save data
       save_data(dt_mw, key = c(geo, "year", "month"),
-                filename = file.path(outstub, sprintf("%s_experienced_mw_%s.csv", geo, yy)),
+                filename = file.path(outstub, sprintf("%s_mw_wkp_%s.csv", geo, yy)),
                 logfile  = log_file)
       save_data(dt_mw, key = c(geo, "year", "month"),
-                filename = file.path(outstub, sprintf("%s_experienced_mw_%s.dta", geo, yy)),
+                filename = file.path(outstub, sprintf("%s_mw_wkp_%s.dta", geo, yy)),
                 nolog    = TRUE)
     }
   }
+}
+
+load_statutory <- function(instub, geo) {
+  
+  if (geo == "countyfips"){
+    dt <- fread(file.path(instub, "county_statutory_mw.csv"),
+                colClasses = c(countyfips = "character"))
+  } else {
+    dt <- fread(file.path(instub, "zip_statutory_mw.csv"),
+                colClasses = c(zipcode = "character"))
+  }
+  dt[, year_month := as.yearmon(paste0(year, "-", month))]
+  
+  return(dt)
 }
 
 add_missing_state_years <- function(od_files, instub, geo, yy) {
@@ -101,7 +105,7 @@ add_missing_state_years <- function(od_files, instub, geo, yy) {
   }
 }
 
-assemble_expmw_state <- function(ff, yy, periods, mw_var, dt, in_lodes, .geo) {
+assemble_mw_wkp_state <- function(ff, yy, periods, mw_var, dt, in_lodes, .geo) {
   
   if (.geo == "countyfips") {
     .w_var = "w_countyfips"
@@ -115,7 +119,7 @@ assemble_expmw_state <- function(ff, yy, periods, mw_var, dt, in_lodes, .geo) {
   dt_od     <- load_od_matrix(ff, .geo, .w_var, .r_var)
   jobs_vars <- names(dt_od)[grepl("jobs", names(dt_od))]
   
-  # Computes share of treated and experienced MW for every period
+  # Computes share of treated and workplace MW for every period
   dts.period <- lapply(periods, function(ym, od.st = dt_od, dt_geo = dt,
                                          geo = .geo, w_var = .w_var, h_var = .r_var) {
      
@@ -129,16 +133,16 @@ assemble_expmw_state <- function(ff, yy, periods, mw_var, dt, in_lodes, .geo) {
      dt_ym <- dt_ym[!is.na(year_month),]     # Drop missings (geo not showing up in mw data)
    
      dt_ym <- dt_ym[,
-         .(exp_ln_mw_tot             = sum(log(get(mw_var))*sh_tot,              na.rm = T),
-           exp_ln_mw_age_under29     = sum(log(get(mw_var))*sh_age_under29,      na.rm = T),
-           exp_ln_mw_age_30to54      = sum(log(get(mw_var))*sh_age_30to54,       na.rm = T),
-           exp_ln_mw_age_above55     = sum(log(get(mw_var))*sh_age_above55,      na.rm = T),
-           exp_ln_mw_earn_under1250  = sum(log(get(mw_var))*sh_earn_under1250,   na.rm = T),
-           exp_ln_mw_earn_1250_3333  = sum(log(get(mw_var))*sh_earn_1250_3333,   na.rm = T),
-           exp_ln_mw_earn_above3333  = sum(log(get(mw_var))*sh_earn_above3333,   na.rm = T),
-           exp_ln_mw_goods_prod      = sum(log(get(mw_var))*sh_goods_producing,  na.rm = T),
-           exp_ln_mw_trad_tran_util  = sum(log(get(mw_var))*sh_trade_transp_util, na.rm = T),
-           exp_ln_mw_other_serv_ind  = sum(log(get(mw_var))*sh_other_service_industry, na.rm = T)),
+         .(mw_wkp_tot            = sum(log(get(mw_var))*sh_tot,               na.rm = T),
+           mw_wkp_age_under29    = sum(log(get(mw_var))*sh_age_under29,       na.rm = T),
+           mw_wkp_age_30to54     = sum(log(get(mw_var))*sh_age_30to54,        na.rm = T),
+           mw_wkp_age_above55    = sum(log(get(mw_var))*sh_age_above55,       na.rm = T),
+           mw_wkp_earn_under1250 = sum(log(get(mw_var))*sh_earn_under1250,    na.rm = T),
+           mw_wkp_earn_1250_3333 = sum(log(get(mw_var))*sh_earn_1250_3333,    na.rm = T),
+           mw_wkp_earn_above3333 = sum(log(get(mw_var))*sh_earn_above3333,    na.rm = T),
+           mw_wkp_goods_prod     = sum(log(get(mw_var))*sh_goods_producing,   na.rm = T),
+           mw_wkp_trad_tran_util = sum(log(get(mw_var))*sh_trade_transp_util, na.rm = T),
+           mw_wkp_other_serv_ind = sum(log(get(mw_var))*sh_other_service_industry, na.rm = T)),
       .SDcols = jobs_vars,
       by = c(h_var, "year_month")
     ]
