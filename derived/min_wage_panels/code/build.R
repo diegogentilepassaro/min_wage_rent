@@ -16,8 +16,8 @@ main <- function(){
   
   if (file.exists(log_file)) file.remove(log_file)
   
-  start_date <- "2009-07-01"
-  end_date   <- "2020-01-31"
+  start_ym <- c(2009, 7)
+  end_ym   <- c(2020, 1)
   
   dt_geo <- load_geographies(in_master, in_counties)
   dt_mw  <- load_mw(in_mw_data)
@@ -25,11 +25,11 @@ main <- function(){
   ## MW Panels
   mw_panel_zip  <- data.table()
   mw_panel_cnty <- data.table()
-  for (yy in 2009:2020) {
+  for (yy in start_ym[1]:end_ym[1]) {
     
     month_range <- c(1, 12)
-    if (yy == 2009) month_range <- c(7, 12)
-    if (yy == 2020) month_range <- c(1, 7)
+    if (yy == start_ym[1]) month_range <- c(start_ym[2], 12)
+    if (yy == end_ym[1])   month_range <- c(1,    end_ym[2])
     
     dt <- build_frame(copy(dt_geo), month_range)
     dt[, year := yy]
