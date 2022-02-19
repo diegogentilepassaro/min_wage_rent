@@ -32,9 +32,7 @@ if "StataSE" in envir_vars:
 
 start_make_logging()
 
-run_rbatch(program = 'build_statutory.R')
-#run_rbatch(program = 'build_measures.R')
-#run_rbatch(program = 'build_measures_cf.R')
+run_rbatch(program = 'build.R')
 
 end_make_logging()
 

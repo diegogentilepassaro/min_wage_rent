@@ -9,9 +9,9 @@ library(parallel)
 n_cores <- 16
 
 main <- function(paquetes, n_cores){
-  in_mw    <- "../../../drive/derived_large/min_wage"
+  in_mw    <- "../../../drive/derived_large/min_wage_panels"
   in_lodes <- "../../../drive/base_large/lodes_od"
-  outstub  <- "../../../drive/derived_large/min_wage"
+  outstub  <- "../../../drive/derived_large/min_wage_measures"
   log_file <- "../output/data_file_manifest_cfs.log"
   
   od_yy = 2018

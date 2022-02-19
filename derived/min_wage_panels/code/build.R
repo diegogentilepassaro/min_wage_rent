@@ -11,7 +11,7 @@ main <- function(){
   in_master   <- "../../../drive/base_large/census_block_master"
   in_counties <- "../../../drive/raw_data/census_population/orig"
   in_mw_data  <- "../../../base/min_wage/output"
-  outstub     <- "../../../drive/derived_large/min_wage"
+  outstub     <- "../../../drive/derived_large/min_wage_panels"
   log_file    <- "../output/data_file_manifest.log"
   
   if (file.exists(log_file)) file.remove(log_file)
