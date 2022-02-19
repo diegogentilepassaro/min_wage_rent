@@ -1,12 +1,10 @@
 
- make.py started: 2022-02-18 14:52:59 C:\Users\shermo\Documents\GitHub\min_wage_rent\derived\min_wage\code 
+ make.py started: 2022-02-19 11:02:10 C:\Users\shermo\Documents\GitHub\min_wage_rent\derived\min_wage_panels\code 
 
 
 
 
-Execute:  R CMD BATCH --no-save "./build_statutory.R" build_statutory.Rout
-ERROR! Command R CMD BATCH --no-save "./build_statutory.R" build_statutory.Rout executed with errors 
-Command 'R CMD BATCH --no-save "./build_statutory.R" build_statutory.Rout' returned non-zero exit status 1
+Execute:  R CMD BATCH --no-save "./build.R" build.Rout
 
 R version 4.1.1 (2021-08-10) -- "Kick Things"
 Copyright (C) 2021 The R Foundation for Statistical Computing
@@ -67,13 +65,13 @@ The following objects are masked from 'package:base':
 +   in_master   <- "../../../drive/base_large/census_block_master"
 +   in_counties <- "../../../drive/raw_data/census_population/orig"
 +   in_mw_data  <- "../../../base/min_wage/output"
-+   outstub     <- "../../../drive/derived_large/min_wage"
++   outstub     <- "../../../drive/derived_large/min_wage_panels"
 +   log_file    <- "../output/data_file_manifest.log"
 +   
 +   if (file.exists(log_file)) file.remove(log_file)
 +   
-+   start_date <- "2009-07-01"
-+   end_date   <- "2020-01-31"
++   start_ym <- c(2019, 1)
++   end_ym   <- c(2020, 1)
 +   
 +   dt_geo <- load_geographies(in_master, in_counties)
 +   dt_mw  <- load_mw(in_mw_data)
@@ -81,11 +79,11 @@ The following objects are masked from 'package:base':
 +   ## MW Panels
 +   mw_panel_zip  <- data.table()
 +   mw_panel_cnty <- data.table()
-+   for (yy in 2009:2020) {
++   for (yy in start_ym[1]:end_ym[1]) {
 +     
 +     month_range <- c(1, 12)
-+     if (yy == 2009) month_range <- c(7, 12)
-+     if (yy == 2020) month_range <- c(1, 7)
++     if (yy == start_ym[1]) month_range <- c(start_ym[2], 12)
++     if (yy == end_ym[1])   month_range <- c(1,    end_ym[2])
 +     
 +     dt <- build_frame(copy(dt_geo), month_range)
 +     dt[, year := yy]
@@ -97,27 +95,27 @@ The following objects are masked from 'package:base':
 +           collapse_data(copy(dt), key_vars = c("zipcode",   "year", "month")))
 +     )
 +     mw_panel_cnty <- rbindlist(
-+      list(mw_panel_zip,
++      list(mw_panel_cnty,
 +           collapse_data(copy(dt), key_vars = c("countyfips", "year", "month")))
 +     )
 +   }
 +   rm(dt, dt_geo, dt_mw)
-+    
-+    
-+   save_data(mw_panel_zip,   key = c("zipcode", "year", "month"),
-+            filename = file.path(outstub, "zip_statutory_mw.csv"),
-+            logfile  = log_file)
-+   save_data(mw_panel_zip,  key = c("zipcode", "year", "month"),
-+            filename = file.path(outstub, "zip_statutory_mw.dta"),
-+            nolog    = TRUE)
-+   
-+   save_data(mw_panel_cnty,  key = c("countyfips", "year", "month"),
-+             filename = file.path(outstub, "county_statutory_mw.csv"),
++ 
++   keep_vars <- names(mw_panel_zip)[!grepl("sh_", names(mw_panel_zip))]   
++   save_data(mw_panel_zip[, ..keep_vars],   
++             key      = c("zipcode", "year", "month"),
++             filename = file.path(outstub, "zip_statutory_mw.dta"),
 +             logfile  = log_file)
-+   save_data(mw_panel_cnty,  key = c("countyfips", "year", "month"),
-+             filename = file.path(outstub, "county_statutory_mw.dta"),
-+             nolog    = TRUE)
++   fwrite(mw_panel_zip[, ..keep_vars],
++          file = file.path(outstub, "zip_statutory_mw.csv"))
 +   
++   keep_vars <- names(mw_panel_cnty)[!grepl("sh_", names(mw_panel_cnty))]  
++   save_data(mw_panel_cnty[, ..keep_vars],  
++             key      = c("countyfips", "year", "month"),
++             filename = file.path(outstub, "county_statutory_mw.dta"),
++             logfile  = log_file)
++   fwrite(mw_panel_cnty[, ..keep_vars],  
++          file = file.path(outstub, "county_statutory_mw.csv"))
 +   
 +   ## MW Counterfactuals
 +   dt_cf <- compute_counterfactual(mw_panel_zip)
@@ -250,7 +248,9 @@ The following objects are masked from 'package:base':
 +       default = NA
 +    )]
 +    
-+    dt[, binding_fed_mw := 1*(statutory_mw == fed_mw)]
++    dt[, binding_mw_less_10pc  := 1*(statutory_mw <= 1.1*fed_mw)]
++    dt[, binding_mw_less_9usd  := 1*(statutory_mw <  9)]
++    dt[, binding_mw_less_15usd := 1*(statutory_mw <  15)]
 +    
 +    return(dt)
 + }
@@ -268,7 +268,9 @@ The following objects are masked from 'package:base':
 +                 binding_mw_ignorelocal   = weighted.mean(binding_mw_ignorelocal,   num_house10),
 +                 binding_mw_max           = max(binding_mw),
 +                 binding_mw_min           = min(binding_mw),
-+                 sh_houses_w_fed_mw       = weighted.mean(binding_fed_mw,           num_house10)),
++                 sh_houses_w_less_10pc    = weighted.mean(binding_mw_less_10pc,     num_house10),
++                 sh_houses_w_less_9usd    = weighted.mean(binding_mw_less_9usd,     num_house10),
++                 sh_houses_w_less_15usd   = weighted.mean(binding_mw_less_15usd,    num_house10)),
 +             by = key_vars]
 +    
 +    return(dt)
@@ -283,45 +285,29 @@ The following objects are masked from 'package:base':
 +   dt_cf[, fed_mw_cf_9usd  := 9]
 +   dt_cf[, fed_mw_cf_15usd := 15]
 +   
-+   dt_cf[, statutory_mw_cf_10pc := statutory_mw]
-+   dt_cf[year == 2020 & month ==  1, statutory_mw_cf_10pc := fcase(
-+     binding_mw == 1, fed_mw_cf_10pc,
-+     sh_houses_w_fed_mw*fed_mw_cf_10pc + (1-sh_houses_w_fed_mw)*statutory_mw, fed_mw_cf_10pc
-+   )]
-+   
-+   dt_cf[, statutory_mw_cf_9usd := statutory_mw]
-+   dt_cf[year == 2020 & month ==  1, statutory_mw_cf_9usd := fcase(
-+     binding_mw == 1, fed_mw_cf_10pc,
-+     sh_houses_w_fed_mw*fed_mw_cf_9usd + (1-sh_houses_w_fed_mw)*statutory_mw, fed_mw_cf_9usd
-+   )]
-+   
-+   dt_cf[, statutory_mw_cf_15usd := statutory_mw]
-+   dt_cf[year == 2020 & month ==  1, statutory_mw_cf_15usd := fcase(
-+     binding_mw == 1, fed_mw_cf_10pc,
-+     sh_houses_w_fed_mw*fed_mw_cf_9usd + (1-sh_houses_w_fed_mw)*statutory_mw, fed_mw_cf_9usd
-+   )]
++   for (stub in c("_10pc", "_9usd", "_15usd")) {
++     cf_mw_var <- paste0("fed_mw_cf", stub)
++     new_var   <- paste0("statutory_mw_cf", stub)
++     share_var <- paste0("sh_houses_w_less", stub)
++ 
++     dt_cf[, c(new_var) := statutory_mw]
++     dt_cf[year == 2020 & month ==  1, 
++       c(new_var) :=       get(share_var)*get(cf_mw_var) 
++                   + (1 - get(share_var))*statutory_mw]
++   }
 +   
 +   return(dt_cf)
 + }
 > 
 > 
 > main()
-Column 1 ['countyfips'] of item 2 is missing in item 1. Use fill=TRUE to fill with NA (NULL for list columns), or use.names=FALSE to ignore column names. use.names='check' (default from v1.12.2) emits this message and proceeds as if use.names=FALSE for  backwards compatibility. See news item 5 in v1.12.2 for options to control this message.
-Column 1 ['countyfips'] of item 2 is missing in item 1. Use fill=TRUE to fill with NA (NULL for list columns), or use.names=FALSE to ignore column names. use.names='check' (default from v1.12.2) emits this message and proceeds as if use.names=FALSE for  backwards compatibility. See news item 5 in v1.12.2 for options to control this message.
-Column 1 ['countyfips'] of item 2 is missing in item 1. Use fill=TRUE to fill with NA (NULL for list columns), or use.names=FALSE to ignore column names. use.names='check' (default from v1.12.2) emits this message and proceeds as if use.names=FALSE for  backwards compatibility. See news item 5 in v1.12.2 for options to control this message.
-Column 1 ['countyfips'] of item 2 is missing in item 1. Use fill=TRUE to fill with NA (NULL for list columns), or use.names=FALSE to ignore column names. use.names='check' (default from v1.12.2) emits this message and proceeds as if use.names=FALSE for  backwards compatibility. See news item 5 in v1.12.2 for options to control this message.
-Column 1 ['countyfips'] of item 2 is missing in item 1. Use fill=TRUE to fill with NA (NULL for list columns), or use.names=FALSE to ignore column names. use.names='check' (default from v1.12.2) emits this message and proceeds as if use.names=FALSE for  backwards compatibility. See news item 5 in v1.12.2 for options to control this message.
-Column 1 ['countyfips'] of item 2 is missing in item 1. Use fill=TRUE to fill with NA (NULL for list columns), or use.names=FALSE to ignore column names. use.names='check' (default from v1.12.2) emits this message and proceeds as if use.names=FALSE for  backwards compatibility. See news item 5 in v1.12.2 for options to control this message.
-Column 1 ['countyfips'] of item 2 is missing in item 1. Use fill=TRUE to fill with NA (NULL for list columns), or use.names=FALSE to ignore column names. use.names='check' (default from v1.12.2) emits this message and proceeds as if use.names=FALSE for  backwards compatibility. See news item 5 in v1.12.2 for options to control this message.
-Column 1 ['countyfips'] of item 2 is missing in item 1. Use fill=TRUE to fill with NA (NULL for list columns), or use.names=FALSE to ignore column names. use.names='check' (default from v1.12.2) emits this message and proceeds as if use.names=FALSE for  backwards compatibility. See news item 5 in v1.12.2 for options to control this message.
-Column 1 ['countyfips'] of item 2 is missing in item 1. Use fill=TRUE to fill with NA (NULL for list columns), or use.names=FALSE to ignore column names. use.names='check' (default from v1.12.2) emits this message and proceeds as if use.names=FALSE for  backwards compatibility. See news item 5 in v1.12.2 for options to control this message.
-Column 1 ['countyfips'] of item 2 is missing in item 1. Use fill=TRUE to fill with NA (NULL for list columns), or use.names=FALSE to ignore column names. use.names='check' (default from v1.12.2) emits this message and proceeds as if use.names=FALSE for  backwards compatibility. See news item 5 in v1.12.2 for options to control this message.
-Column 1 ['countyfips'] of item 2 is missing in item 1. Use fill=TRUE to fill with NA (NULL for list columns), or use.names=FALSE to ignore column names. use.names='check' (default from v1.12.2) emits this message and proceeds as if use.names=FALSE for  backwards compatibility. See news item 5 in v1.12.2 for options to control this message.
-Column 1 ['countyfips'] of item 2 is missing in item 1. Use fill=TRUE to fill with NA (NULL for list columns), or use.names=FALSE to ignore column names. use.names='check' (default from v1.12.2) emits this message and proceeds as if use.names=FALSE for  backwards compatibility. See news item 5 in v1.12.2 for options to control this message.
-[1] "File '../../../drive/derived_large/min_wage/zip_statutory_mw.csv' saved successfully."
-[1] "File '../../../drive/derived_large/min_wage/zip_statutory_mw.dta' saved successfully."
-Error in `[.data.frame`(df, key) : undefined columns selected
-Calls: main ... save_data -> check_key -> nrow -> unique -> [ -> [.data.frame
-Execution halted
+[1] "File '../../../drive/derived_large/min_wage_panels/zip_statutory_mw.dta' saved successfully."
+[1] "File '../../../drive/derived_large/min_wage_panels/county_statutory_mw.dta' saved successfully."
+[1] "File '../../../drive/derived_large/min_wage_panels/zipcode_cfs.csv' saved successfully."
+[1] "File '../../../drive/derived_large/min_wage_panels/zipcode_cfs.dta' saved successfully."
+> 
+> proc.time()
+   user  system elapsed 
+ 629.40  177.39  636.14 
 
- make.py ended: 2022-02-18 16:53:37
+ make.py ended: 2022-02-19 11:12:57

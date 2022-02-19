@@ -16,7 +16,7 @@ main <- function(){
   
   if (file.exists(log_file)) file.remove(log_file)
   
-  start_ym <- c(2009, 7)
+  start_ym <- c(2019, 1)
   end_ym   <- c(2020, 1)
   
   dt_geo <- load_geographies(in_master, in_counties)
@@ -41,27 +41,27 @@ main <- function(){
           collapse_data(copy(dt), key_vars = c("zipcode",   "year", "month")))
     )
     mw_panel_cnty <- rbindlist(
-     list(mw_panel_zip,
+     list(mw_panel_cnty,
           collapse_data(copy(dt), key_vars = c("countyfips", "year", "month")))
     )
   }
   rm(dt, dt_geo, dt_mw)
-   
-   
-  save_data(mw_panel_zip,   key = c("zipcode", "year", "month"),
-           filename = file.path(outstub, "zip_statutory_mw.csv"),
-           logfile  = log_file)
-  save_data(mw_panel_zip,  key = c("zipcode", "year", "month"),
-           filename = file.path(outstub, "zip_statutory_mw.dta"),
-           nolog    = TRUE)
-  
-  save_data(mw_panel_cnty,  key = c("countyfips", "year", "month"),
-            filename = file.path(outstub, "county_statutory_mw.csv"),
+
+  keep_vars <- names(mw_panel_zip)[!grepl("sh_", names(mw_panel_zip))]   
+  save_data(mw_panel_zip[, ..keep_vars],   
+            key      = c("zipcode", "year", "month"),
+            filename = file.path(outstub, "zip_statutory_mw.dta"),
             logfile  = log_file)
-  save_data(mw_panel_cnty,  key = c("countyfips", "year", "month"),
-            filename = file.path(outstub, "county_statutory_mw.dta"),
-            nolog    = TRUE)
+  fwrite(mw_panel_zip[, ..keep_vars],
+         file = file.path(outstub, "zip_statutory_mw.csv"))
   
+  keep_vars <- names(mw_panel_cnty)[!grepl("sh_", names(mw_panel_cnty))]  
+  save_data(mw_panel_cnty[, ..keep_vars],  
+            key      = c("countyfips", "year", "month"),
+            filename = file.path(outstub, "county_statutory_mw.dta"),
+            logfile  = log_file)
+  fwrite(mw_panel_cnty[, ..keep_vars],  
+         file = file.path(outstub, "county_statutory_mw.csv"))
   
   ## MW Counterfactuals
   dt_cf <- compute_counterfactual(mw_panel_zip)
@@ -194,7 +194,9 @@ assemble_statutory_mw <- function(dt, dt_mw) {
       default = NA
    )]
    
-   dt[, binding_fed_mw := 1*(statutory_mw == fed_mw)]
+   dt[, binding_mw_less_10pc  := 1*(statutory_mw <= 1.1*fed_mw)]
+   dt[, binding_mw_less_9usd  := 1*(statutory_mw <  9)]
+   dt[, binding_mw_less_15usd := 1*(statutory_mw <  15)]
    
    return(dt)
 }
@@ -212,7 +214,9 @@ collapse_data <- function(dt, key_vars = c("zipcode", "year", "month")) {
                 binding_mw_ignorelocal   = weighted.mean(binding_mw_ignorelocal,   num_house10),
                 binding_mw_max           = max(binding_mw),
                 binding_mw_min           = min(binding_mw),
-                sh_houses_w_fed_mw       = weighted.mean(binding_fed_mw,           num_house10)),
+                sh_houses_w_less_10pc    = weighted.mean(binding_mw_less_10pc,     num_house10),
+                sh_houses_w_less_9usd    = weighted.mean(binding_mw_less_9usd,     num_house10),
+                sh_houses_w_less_15usd   = weighted.mean(binding_mw_less_15usd,    num_house10)),
             by = key_vars]
    
    return(dt)
@@ -227,23 +231,16 @@ compute_counterfactual <- function(dt) {
   dt_cf[, fed_mw_cf_9usd  := 9]
   dt_cf[, fed_mw_cf_15usd := 15]
   
-  dt_cf[, statutory_mw_cf_10pc := statutory_mw]
-  dt_cf[year == 2020 & month ==  1, statutory_mw_cf_10pc := fcase(
-    binding_mw == 1, fed_mw_cf_10pc,
-    sh_houses_w_fed_mw*fed_mw_cf_10pc + (1-sh_houses_w_fed_mw)*statutory_mw, fed_mw_cf_10pc
-  )]
-  
-  dt_cf[, statutory_mw_cf_9usd := statutory_mw]
-  dt_cf[year == 2020 & month ==  1, statutory_mw_cf_9usd := fcase(
-    binding_mw == 1, fed_mw_cf_10pc,
-    sh_houses_w_fed_mw*fed_mw_cf_9usd + (1-sh_houses_w_fed_mw)*statutory_mw, fed_mw_cf_9usd
-  )]
-  
-  dt_cf[, statutory_mw_cf_15usd := statutory_mw]
-  dt_cf[year == 2020 & month ==  1, statutory_mw_cf_15usd := fcase(
-    binding_mw == 1, fed_mw_cf_10pc,
-    sh_houses_w_fed_mw*fed_mw_cf_9usd + (1-sh_houses_w_fed_mw)*statutory_mw, fed_mw_cf_9usd
-  )]
+  for (stub in c("_10pc", "_9usd", "_15usd")) {
+    cf_mw_var <- paste0("fed_mw_cf", stub)
+    new_var   <- paste0("statutory_mw_cf", stub)
+    share_var <- paste0("sh_houses_w_less", stub)
+
+    dt_cf[, c(new_var) := statutory_mw]
+    dt_cf[year == 2020 & month ==  1, 
+      c(new_var) :=       get(share_var)*get(cf_mw_var) 
+                  + (1 - get(share_var))*statutory_mw]
+  }
   
   return(dt_cf)
 }
