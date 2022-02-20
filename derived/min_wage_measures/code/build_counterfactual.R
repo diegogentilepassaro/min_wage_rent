@@ -18,15 +18,15 @@ main <- function(paquetes, n_cores){
   geo = "zipcode"
 
   dt <- fread(file.path(in_mw, "zipcode_cfs.csv"),
-                  colClasses = c("zipcode" = "character"))
+                  colClasses = c(zipcode = "character"))
   dt[, year_month := as.yearmon(paste0(year, "-", month))]
     
   periods <- unique(dt$year_month)
   
   od_files <- list.files(file.path(in_lodes, od_yy), 
                          pattern = sprintf("odzip*"),
-                         full.names = T) |>
-                add_missing_state_years(in_lodes, geo, od_yy)
+                         full.names = T)
+  od_files <- add_missing_state_years(od_files, in_lodes, geo, od_yy)
   
   # Parallel set-up
   cl <- makeCluster(n_cores, type = "PSOCK")   # Create cluster. Use type = "FORK" in Mac
@@ -42,7 +42,7 @@ main <- function(paquetes, n_cores){
   dt.exp_mw_10pc <- rbindlist(
     parLapply(cl, od_files, function(ff) {
       
-      dt.st <- assemble_expmw_state(ff, yy, periods, "actual_mw_cf_10pc", dt, in_lodes, geo)
+      dt.st <- assemble_expmw_state(ff, yy, periods, "statutory_mw_cf_10pc", dt, in_lodes, geo)
       return(dt.st)
     })
   )
@@ -51,7 +51,7 @@ main <- function(paquetes, n_cores){
   dt.exp_mw_9usd <- rbindlist(
     parLapply(cl, od_files, function(ff) {
       
-      dt.st <- assemble_expmw_state(ff, yy, periods, "actual_mw_cf_9usd", dt, in_lodes, geo)
+      dt.st <- assemble_expmw_state(ff, yy, periods, "statutory_mw_cf_9usd", dt, in_lodes, geo)
       return(dt.st)
     })
   )
@@ -60,7 +60,7 @@ main <- function(paquetes, n_cores){
   dt.exp_mw_15usd <- rbindlist(
     parLapply(cl, od_files, function(ff) {
       
-      dt.st <- assemble_expmw_state(ff, yy, periods, "actual_mw_cf_15usd", dt, in_lodes, geo)
+      dt.st <- assemble_expmw_state(ff, yy, periods, "statutory_mw_cf_15usd", dt, in_lodes, geo)
       return(dt.st)
     })
   )
@@ -75,8 +75,8 @@ main <- function(paquetes, n_cores){
   dt.exp_mw[, year  := as.numeric(format(dt.exp_mw$year_month, "%Y"))]
   
   # Drop duplicate in zipcode 75501
-  dt.rogue  <- dt.exp_mw[zipcode == "75501" & exp_ln_mw_tot > 0]
-  dt.exp_mw <- rbindlist(list(dt.exp_mw[zipcode != "75501"], dt.rogue))
+  #dt.rogue  <- dt.exp_mw[zipcode == "75501" & exp_ln_mw_tot > 0]
+  #dt.exp_mw <- rbindlist(list(dt.exp_mw[zipcode != "75501"], dt.rogue))
   
   # Save data
   save_data(dt.exp_mw, key = c(geo, "year", "month", "counterfactual"),

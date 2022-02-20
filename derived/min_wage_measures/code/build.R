@@ -20,17 +20,18 @@ main <- function(paquetes, n_cores){
     
     dt[, mw_res := log(statutory_mw)]
     
-    keep_vars <- c(geo, "year", "month", "statutory_mw", "res_mw")
+    keep_vars <- c(geo, "year", "month", "statutory_mw", "mw_res")
     save_data(dt[, ..keep_vars], key = keep_vars[1:3],
-              filename = file.path(outstub, sprintf("%s_mw_res.csv", geo)),
-              logfile  = log_file)
-    save_data(t[, ..keep_vars], key = keep_vars[1:3],
               filename = file.path(outstub, sprintf("%s_mw_res.dta", geo)),
-              nolog    = TRUE)
+              logfile  = log_file)
+    fwrite(dt[, ..keep_vars], 
+           file = file.path(outstub, sprintf("%s_mw_res.csv", geo)))
+    
+    dt[, mw_res := NULL]
     
     periods <- unique(dt$year_month)
     
-    for (yy in 2009:2018) {
+    for (yy in c(2017)) { #2009:2018
       
       od_files <- list.files(file.path(in_lodes, yy), 
                              pattern = sprintf("od%s*", substr(geo, 1, 3)),
@@ -56,8 +57,6 @@ main <- function(paquetes, n_cores){
       })
       
       dt_mw <- rbindlist(dt_mw)
-      dt_mw <- merge(dt_mw, dt[, .(zipcode, year_month, mw_res, statutory_mw)],
-                     all.x = T, by = c("zipcode", "year_month"))
       
       dt_mw[, month := as.numeric(format(dt_mw$year_month, "%m"))]
       dt_mw[, year  := as.numeric(format(dt_mw$year_month, "%Y"))]
@@ -65,11 +64,10 @@ main <- function(paquetes, n_cores){
       
       # Save data
       save_data(dt_mw, key = c(geo, "year", "month"),
-                filename = file.path(outstub, sprintf("%s_mw_wkp_%s.csv", geo, yy)),
-                logfile  = log_file)
-      save_data(dt_mw, key = c(geo, "year", "month"),
                 filename = file.path(outstub, sprintf("%s_mw_wkp_%s.dta", geo, yy)),
-                nolog    = TRUE)
+                logfile  = log_file)
+      fwrite(dt_mw, 
+             file = file.path(outstub, sprintf("%s_mw_wkp_%s.csv", geo, yy)))
     }
   }
 }
