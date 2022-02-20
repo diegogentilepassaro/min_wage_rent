@@ -65,7 +65,7 @@ make_odmatrix_state <- function(file_, year, aux) {
                     "goods_producing", "trade_transp_util", "other_service_industry"))
   
   dt_main <- fread(file_, 
-                   select = c("w_geocode", "h_geocode", target_vars))
+                   select = c("h_geocode", "w_geocode", target_vars))
   
   # Add auxiliary to main
   st_fips <- as.numeric(substr(str_pad(dt_main$h_geocode[1], 15, pad = 0), 1, 2))
@@ -73,7 +73,7 @@ make_odmatrix_state <- function(file_, year, aux) {
                             aux[h_statefips == st_fips][, h_statefips := NULL]))
   rm(dt_main)
 
-  setnames(dt, old = c("w_geocode",   "h_geocode",   target_vars), 
+  setnames(dt, old = c("h_geocode",   "w_geocode",   target_vars), 
                new = c("r_blockfips", "w_blockfips", new_varnames))
     
   # Crosswalk not needed for these data
