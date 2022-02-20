@@ -63,18 +63,19 @@ make_odmatrix_state <- function(file_, year, aux) {
                     "age_under29",     "age_30to54",        "age_above55",
                     "earn_under1250",  "earn_1250_3333",    "earn_above3333",
                     "goods_producing", "trade_transp_util", "other_service_industry"))
-  
+  browser()
   dt_main <- fread(file_, 
-                   select = c("h_geocode", "w_geocode", target_vars))
+                   select = c("w_geocode", "h_geocode", target_vars))
   
   # Add auxiliary to main
   st_fips <- as.numeric(substr(str_pad(dt_main$h_geocode[1], 15, pad = 0), 1, 2))
   dt      <- rbindlist(list(dt_main, 
-                            aux[h_statefips == st_fips][, h_statefips := NULL]))
+                            aux[h_statefips == st_fips][, h_statefips := NULL]),
+                        use.names = T)
   rm(dt_main)
 
-  setnames(dt, old = c("h_geocode",   "w_geocode",   target_vars), 
-               new = c("r_blockfips", "w_blockfips", new_varnames))
+  setnames(dt, old = c("w_geocode",   "h_geocode",   target_vars), 
+               new = c("w_blockfips", "r_blockfips", new_varnames))
     
   # Crosswalk not needed for these data
   dt[, r_countyfips := substr(str_pad(r_blockfips, 15, pad = 0), 1, 5)]
