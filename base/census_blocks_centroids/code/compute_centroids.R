@@ -1,34 +1,50 @@
 remove(list = ls())
-library(sf)
-library(dplyr)
+
+paquetes <- c("sf", "dplyr")
+lapply(paquetes, require, character.only = TRUE)
+
+library(parallel)
+n_cores <- 4
 
 set.seed(42)
 
-main <- function(){
+main <- function(paquetes, n_cores) {
+
   instub  <- "../temp"
   outstub <- "../../../drive/base_large/census_blocks_centroids"
   
-  logfile <- file("../output/activity.txt")
-  
-  writeLines(c(sprintf("%s: Conversion started.", Sys.time())), logfile)
+  logfile <- "../output/activity.txt"
+
+  write(sprintf("%s: Conversion started.\n", Sys.time()), 
+        file = logfile)
   
   files <- list.files(path = instub, pattern = "*.shp$")
 
-  cb_centroids <- data.frame()
-  for (filename in files){
-    st_fips <- gsub("2010", "", gsub("[^0-9]", "", filename))
-    
-    writeLines(c(sprintf("%s: State %s begins", Sys.time(), st_fips)), logfile)
-    
-    cb_centroids <- compute_centroids(instub, filename)
-    
-    cb_centroids <- rbind(cb_centroids, cb_centroids)
-  }
+  # Parallel set-up
+  cl <- makeCluster(n_cores, type = "PSOCK")   # Create cluster. Use type = "FORK" in Mac
   
-  writeLines(c(sprintf("%s: Conversion ended", Sys.time())), logfile)
-  close(logfile)
+  clusterExport(cl, "paquetes")                                         # Load "paquetes" object in nodes
+  clusterEvalQ(cl, lapply(paquetes, require, character.only = TRUE))    # Load packages in nodes
+  clusterExport(cl, "compute_centroids",  env = .GlobalEnv)             # Load global environment objects in nodes
+  clusterExport(cl, c("instub", "files"), env = environment())          # Load local environment objects in nodes
   
-  st_write(cb_centroids,
+  write(sprintf("%s: Parallelization set, %s cores.\n", Sys.time(), n_cores), 
+        file = logfile, append = T)
+
+  centroids <- parLapply(cl, files, function(ff) {
+    st_fips <- gsub("2010", "", gsub("[^0-9]", "", ff))
+        
+    spf <- compute_centroids(instub, ff)
+    return(spf)
+  })
+  stopCluster(cl)
+  
+  centroids <- bind_rows(centroids)
+  
+  write(sprintf("%s: Conversion ended.\n", Sys.time()), 
+        file = logfile, append = T)
+
+  st_write(centroids,
            file.path(outstub, "census_blocks_2010_centroids.shp"))
 }
 
@@ -42,7 +58,8 @@ compute_centroids <- function(instub, filename){
            census_tract = TRACTCE10,
            census_block = BLOCKID10, 
            num_houses10 = HOUSING10,
-           pop10        = POP10)
+           pop10        = POP10) %>%
+    head(500)
   
   spf      <- spf[st_is_valid(spf),] ## Is this necessary? It takes some time to check
   spf_cent <- st_centroid(spf)
@@ -73,5 +90,5 @@ compute_centroids <- function(instub, filename){
   return(spf_cent)
 }
 
-
-main()
+# Execute
+main(paquetes, n_cores) 
