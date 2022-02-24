@@ -35,7 +35,7 @@ start_make_logging()
 path = '../../../drive/raw_data/shapefiles/census_blocks_2010'
 files = [f for f in os.listdir(path) if '.zip' in f]
 
-for file in files[:4]:
+for file in files:
     zf = ZipFile(os.path.join(path, file), 'r')
     zf.extractall('../temp/')
     zf.close()

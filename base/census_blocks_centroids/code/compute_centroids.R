@@ -4,7 +4,7 @@ paquetes <- c("sf", "dplyr")
 lapply(paquetes, require, character.only = TRUE)
 
 library(parallel)
-n_cores <- 4
+n_cores <- 12
 
 set.seed(42)
 
@@ -58,8 +58,7 @@ compute_centroids <- function(instub, filename){
            census_tract = TRACTCE10,
            census_block = BLOCKID10, 
            num_houses10 = HOUSING10,
-           pop10        = POP10) %>%
-    head(500)
+           pop10        = POP10)
   
   spf      <- spf[st_is_valid(spf),] ## Is this necessary? It takes some time to check
   spf_cent <- st_centroid(spf)
