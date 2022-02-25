@@ -98,7 +98,7 @@ main <- function(paquetes, n_cores){
   save_data(dt.wkp_mw, key = c(geo, "year", "month", "counterfactual"),
             filename = file.path(outstub, "zipcode_wkp_mw_cfs.dta"),
             logfile  = log_file)
-  fwrite(dt.wkp_mw, 
+  fwrite(dt.wkp_mw,
          file = file.path(outstub, "zipcode_wkp_mw_cfs.csv"))
 }
 

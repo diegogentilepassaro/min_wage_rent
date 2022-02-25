@@ -19,7 +19,6 @@ main <- function(paquetes, n_cores){
   for (geo in c("countyfips", "zipcode")) {
     
     dt <- load_statutory(in_mw, geo)
-    dt <- dt[year == 2020]
     
     dt[, mw_res := log(statutory_mw)]
     
@@ -34,7 +33,7 @@ main <- function(paquetes, n_cores){
     
     periods <- unique(dt$year_month)
     
-    for (yy in c(2017)){#2009:2018) {
+    for (yy in 2009:2018) {
       
       # Preliminaries
       mw_var = "statutory_mw"
