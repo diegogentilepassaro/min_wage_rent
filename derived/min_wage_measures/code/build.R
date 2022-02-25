@@ -32,7 +32,7 @@ main <- function(paquetes, n_cores){
     
     periods <- unique(dt$year_month)
     
-    for (yy in c(2017)) { #2009:2018
+    for (yy in 2009:2018) {
       
       # Preliminaries
       mw_var = "statutory_mw"
@@ -47,9 +47,7 @@ main <- function(paquetes, n_cores){
       od_files <- list.files(file.path(in_lodes, yy), 
                              pattern = sprintf("od%s*", substr(geo, 1, 3)),
                              full.names = T)
-      
       od_files <- add_missing_state_years(od_files, in_lodes, geo, yy)
-      
       
       # Load od matrix
       dt_od <- rbindlist(
@@ -112,8 +110,7 @@ main <- function(paquetes, n_cores){
                            mw_wkp_trad_tran_util = sum(log(get(mw_var))*sh_trade_transp_util, na.rm = T),
                            mw_wkp_other_serv_ind = sum(log(get(mw_var))*sh_other_service_industry, na.rm = T)),
                          .SDcols = jobs_vars,
-                         by = c(h_var, "year_month")
-          ]
+                         by = c(h_var, "year_month")]
           
           setnames(dt_ym, old = h_var, new = .geo)
           

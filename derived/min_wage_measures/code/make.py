@@ -19,7 +19,7 @@ from gslab_make.dir_mod import *
 set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
-delete_files('../../../drive/derived_large/min_wage/*')
+delete_files('../../../drive/derived_large/min_wage_measures/*')
 delete_files('../output/*')
 
 envir_vars = os.getenv('PATH')
