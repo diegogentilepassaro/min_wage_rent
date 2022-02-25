@@ -3,7 +3,7 @@ clear all
 adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
-    local in_geo        "../../../base/geo_master/output"
+    local in_frame      "../../../drive/derived_large/zipcode"
     local in_base_large "../../../drive/base_large"
     local in_der_large  "../../../drive/derived_large"
     local outstub       "../../../drive/derived_large/zipcode"
@@ -11,16 +11,18 @@ program main
 
     build_zillow_zipcode_stats, instub(`in_base_large')
 
-    use "`in_geo'/zip_county_place_usps_master.dta", clear
+    use `in_frame'/zipcode_frame.dta
 
     merge 1:1 zipcode using "../temp/zillow_zipcodes_with_rents.dta",         ///
         nogen assert(1 3)
-    merge 1:1 zipcode using "`in_base_large'/demographics/zip_demo_2010.dta", ///
-        nogen keep(1 3)
 
-    merge_lodes_shares, instub(`in_base_large')
-    merge_lodes_shares, instub(`in_base_large') yy(2017)
-    merge_od_shares,    instub(`in_der_large')
+    *merge 1:1 zipcode using "`in_base_large'/demographics/zip_demo_2010.dta", ///
+    *    nogen keep(1 3)
+    ** SHOULD WE DROP THE OLD base/demographics?
+
+    *merge_lodes_shares, instub(`in_base_large')
+    *merge_lodes_shares, instub(`in_base_large') yy(2017)
+    *merge_od_shares,    instub(`in_der_large')
 
     strcompress
     save_data "`outstub'/zipcode_cross.dta",                                  ///
