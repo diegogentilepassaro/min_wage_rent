@@ -1,25 +1,23 @@
 set more off
 clear all
 adopath + ../../../lib/stata/gslab_misc/ado
-adopath + ../../../lib/stata/mental_coupons/ado
 
 program main
-    local in_der_large  "../../../drive/derived_large"
-    local in_geo        "../../../base/geo_master/output"
-    local in_base_large "../../../drive/base_large"
-    local in_qcew       "../../../base/qcew/output"
-    local outstub       "../../../drive/derived_large/zipcode_month"
-    local logfile       "../output/data_file_manifest.log"
+    local in_geo      "../../../drive/derived_large/zipcode"
+    local in_mw_meas  "../../../drive/derived_large/min_wage_measures"
+    local in_zillow   "../../../drive/base_large/zillow"
+    local in_qcew     "../../../base/qcew/output"
+    local outstub     "../../../drive/derived_large/zipcode_month"
+    local logfile     "../output/data_file_manifest.log"
 
-    use zipcode place_code countyfips cbsa10 zcta statefips rural             ///
-        using "`in_geo'/zip_county_place_usps_master.dta", clear
+    use zipcode statefips countyfips cbsa10 using `in_geo'/zipcode_cross.dta, clear
 
-    merge 1:m zipcode using "`in_der_large'/min_wage/zip_statutory_mw.dta",   ///
-       nogen assert(1 3) keepusing(year month actual* binding*)
-    
-    merge_zillow, instub("`in_base_large'/zillow")
-    
-    merge_exp_mw, instub("`in_der_large'/min_wage")
+    merge 1:m zipcode using "`in_mw_meas'/zipcode_mw_res.dta",   ///
+       nogen assert(1 3)
+
+    merge_exp_mw, instub(`in_mw_meas')
+
+    merge_zillow, instub(`in_zillow')    
     
     make_date_variables
 
@@ -48,24 +46,29 @@ end
 program merge_exp_mw
     syntax, instub(str)
 
-    forvalues year = 10(1)18 {
-        merge 1:1 zipcode year month using "`instub'/zipcode_experienced_mw_20`year'.dta", ///
-            nogen keep(1 3) keepusing(exp*)
-        if `year' == 10 {
-            describe exp*, varlist
-            local vars = r(varlist)
-        }
-        foreach var of local vars {
-            rename `var' `var'_`year'
-        }
-        drop *mean_`year'
-    }
-    qui sum medrentpricepsqft_SFCC if !missing(medrentpricepsqft_SFCC)
-    local observations_with_rents = r(N)
+    local instub  "../../../drive/derived_large/min_wage_measures"
+    merge 1:1 zipcode year month using "`instub'/zipcode_mw_wkp_2009.dta", ///
+        nogen keep(1 3)
+    foreach var of varlist mw_wkp* {
+        local mw_vars "`mw_vars' `var'"
 
-    foreach year in 10 11 12 13 14 15 16 17 18 {
-        sum exp_ln_mw_tot_`year' if !missing(medrentpricepsqft_SFCC)
-        assert r(N) == `observations_with_rents'
+        rename `var' `var'_09
+    }
+    
+    forvalues yy = 10(1)18 {
+        merge 1:1 zipcode year month using "`instub'/zipcode_mw_wkp_20`yy'.dta", ///
+            nogen keep(1 3)
+
+        foreach var of local mw_vars {
+            rename `var' `var'_`yy'
+        }
+    }
+
+    foreach var of local mw_vars {
+        gen `var'_timevary = `var'_09 if year == 2009
+        forvalues yy = 10(1)18 {
+            replace `var'_timevary = `var'_`yy' if year == 2000 + `yy'
+        }
     }
 end
 
