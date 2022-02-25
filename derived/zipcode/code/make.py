@@ -20,6 +20,7 @@ set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
 delete_files('../output/*')
+delete_files('../../../drive/derived_large/zipcode/*')
 
 envir_vars = os.getenv('PATH')
 if envir_vars is None:
@@ -31,7 +32,8 @@ if "StataSE" in envir_vars:
 
 start_make_logging()
 
-run_stata(program = 'build.do', executable = stata)
+run_stata(program = 'make_frame.do', executable = stata)
+run_stata(program = 'make_cross.do', executable = stata)
 clear_dirs('../temp/')
 
 end_make_logging()

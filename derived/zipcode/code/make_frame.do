@@ -34,8 +34,7 @@ program make_baseline_frame
         gcollapse (mean) share_rural_wgt_houses = rural ///
                 [aweight = num_house10], by(zipcode)
 
-        tempfile share_rural
-        save    `share_rural'
+        save ../temp/share_rural.dta, replace
     restore
 
     gcollapse (max) n_census_blocks n_counties  ///
@@ -45,7 +44,10 @@ program make_baseline_frame
              (mean) sh_rural     = rural,       ///
         by(zipcode)
 
-    merge 1:1 zipcode using `share_rural', assert(1 3) nogen
+    replace n_places = 0 if missing(n_places)
+
+    merge 1:1 zipcode using ../temp/share_rural.dta, ///
+        assert(1 3) nogen
 end
 
 program assign_geography
@@ -53,9 +55,9 @@ program assign_geography
 
     preserve
         use `instub'/census_block_master.dta if !missing(zipcode), clear
-		if "`geo'"=="state_place_code" {
-			egen state_place_code = group(statefips place_code)
-		}
+        if "`geo'"=="state_place_code" {
+            egen state_place_code = group(statefips place_code)
+        }
 
         gcollapse (sum) num_houses   = num_house10  ///
                         population   = pop10,       ///

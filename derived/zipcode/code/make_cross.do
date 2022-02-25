@@ -11,7 +11,7 @@ program main
 
     build_zillow_zipcode_stats, instub(`in_base_large')
 
-    use `in_frame'/zipcode_frame.dta
+    use `in_frame'/zipcode_frame.dta, clear
 
     merge 1:1 zipcode using "../temp/zillow_zipcodes_with_rents.dta",         ///
         nogen assert(1 3)
