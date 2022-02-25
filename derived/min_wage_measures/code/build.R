@@ -1,6 +1,7 @@
 remove(list = ls())
 
 source("../../../lib/R/save_data.R")
+source("add_missing_state_years.R")
 
 paquetes <- c("data.table", "zoo")
 lapply(paquetes, require, character.only = TRUE)
@@ -18,6 +19,7 @@ main <- function(paquetes, n_cores){
   for (geo in c("countyfips", "zipcode")) {
     
     dt <- load_statutory(in_mw, geo)
+    dt <- dt[year == 2020]
     
     dt[, mw_res := log(statutory_mw)]
     
@@ -32,7 +34,7 @@ main <- function(paquetes, n_cores){
     
     periods <- unique(dt$year_month)
     
-    for (yy in 2009:2018) {
+    for (yy in c(2017)){#2009:2018) {
       
       # Preliminaries
       mw_var = "statutory_mw"
@@ -78,44 +80,18 @@ main <- function(paquetes, n_cores){
       # Parallel set-up
       cl <- makeCluster(n_cores, type = "PSOCK")   # Create cluster. Use type = "FORK" in Mac
       
-      clusterExport(cl, "paquetes")                                         # Load "paquetes" object in nodes
-      clusterEvalQ(cl, lapply(paquetes, require, character.only = TRUE))    # Load packages in nodes
-      clusterExport(cl, "load_od_matrix", env = .GlobalEnv)                 # Load global environment objects in nodes
+      clusterExport(cl, "paquetes")                                          # Load "paquetes" object in nodes
+      clusterEvalQ(cl, lapply(paquetes, require, character.only = TRUE))     # Load packages in nodes
+      clusterExport(cl, "compute_wkp_mw_ym", env = .GlobalEnv)               # Load global environment objects in nodes
       clusterExport(cl, c("dt", "periods", "in_mw", "in_lodes", "outstub", 
                           "geo", ".w_var", ".r_var", "dt_od", "mw_var", "jobs_vars"), 
-                    env = environment())                                    # Load local environment objects in nodes
+                    env = environment())                                     # Load local environment objects in nodes
       
       # Build wkp MW for each period
-      dt_mw <- parLapply(cl, periods, function(ym, odm = dt_od, dt_geo = dt,
-                                               .geo = geo, w_var = .w_var, h_var = .r_var) {
-          
-          dt_ym <- dt_geo[year_month == ym, ]            # Select given date
-          dt_ym[, c(w_var) := get(.geo)]                  # Create matching variable
-          
-          vars_to_keep <- c(w_var, mw_var, "year_month")
-          dt_ym <- dt_ym[, ..vars_to_keep]
-          
-          dt_ym <- dt_ym[odm, on = w_var]         # Paste MW to every residence(h)-workplace(w) combination in 'dt_od'
-          dt_ym <- dt_ym[!is.na(year_month),]     # Drop missings (geo not showing up in mw data)
-          
-          dt_ym <- dt_ym[,
-                         .(mw_wkp_tot            = sum(log(get(mw_var))*sh_tot,               na.rm = T),
-                           mw_wkp_age_under29    = sum(log(get(mw_var))*sh_age_under29,       na.rm = T),
-                           mw_wkp_age_30to54     = sum(log(get(mw_var))*sh_age_30to54,        na.rm = T),
-                           mw_wkp_age_above55    = sum(log(get(mw_var))*sh_age_above55,       na.rm = T),
-                           mw_wkp_earn_under1250 = sum(log(get(mw_var))*sh_earn_under1250,    na.rm = T),
-                           mw_wkp_earn_1250_3333 = sum(log(get(mw_var))*sh_earn_1250_3333,    na.rm = T),
-                           mw_wkp_earn_above3333 = sum(log(get(mw_var))*sh_earn_above3333,    na.rm = T),
-                           mw_wkp_goods_prod     = sum(log(get(mw_var))*sh_goods_producing,   na.rm = T),
-                           mw_wkp_trad_tran_util = sum(log(get(mw_var))*sh_trade_transp_util, na.rm = T),
-                           mw_wkp_other_serv_ind = sum(log(get(mw_var))*sh_other_service_industry, na.rm = T)),
-                         .SDcols = jobs_vars,
-                         by = c(h_var, "year_month")]
-          
-          setnames(dt_ym, old = h_var, new = .geo)
-          
-          return(dt_ym)
-        })
+      dt_mw <- parLapply(cl, periods, function(ym) {
+        compute_wkp_mw_ym(ym, odm = dt_od, dt_geo = dt,
+                         .geo = geo, w_var = .w_var, r_var = .r_var)
+      })
       stopCluster(cl)
       
       dt_mw <- rbindlist(dt_mw)
@@ -148,24 +124,6 @@ load_statutory <- function(instub, geo) {
   return(dt)
 }
 
-add_missing_state_years <- function(od_files, instub, geo, yy) {
-  
-  if (geo == "countyfips") geo <- "county"
-  else                     geo <- "zip"
-  
-  if (yy == 2009) {
-    return(c(od_files, sprintf("%s/2010/od%s_11.csv", instub, geo), 
-                       sprintf("%s/2011/od%s_25.csv", instub, geo)))
-  } else if (yy == 2010) {
-    return(c(od_files, sprintf("%s/2011/od%s_25.csv", instub, geo)))
-  } else if (yy %in% c(2017, 2018)) {
-    return(c(od_files, sprintf("%s/2016/od%s_02.csv", instub, geo)))
-  } else {
-    return(od_files)
-  }
-}
-
-
 load_od_matrix <- function(ff, geo, workplace_var, residence_var) {
   
   if (geo == "countyfips") {
@@ -179,6 +137,36 @@ load_od_matrix <- function(ff, geo, workplace_var, residence_var) {
   }
   
   return(od)
+}
+
+compute_wkp_mw_ym <- function(ym, odm, dt_geo, .geo, w_var, r_var) {
+          
+  dt_ym <- dt_geo[year_month == ym, ]             # Select given date
+  dt_ym[, c(w_var) := get(.geo)]                  # Create matching variable
+
+  vars_to_keep <- c(w_var, mw_var, "year_month")
+  dt_ym <- dt_ym[, ..vars_to_keep]
+
+  dt_ym <- dt_ym[odm, on = w_var]         # Paste MW to every residence(h)-workplace(w) combination in 'dt_od'
+  dt_ym <- dt_ym[!is.na(year_month),]     # Drop missings (geo not showing up in mw data)
+
+  dt_ym <- dt_ym[,
+                 .(mw_wkp_tot            = sum(log(get(mw_var))*sh_tot,               na.rm = T),
+                   mw_wkp_age_under29    = sum(log(get(mw_var))*sh_age_under29,       na.rm = T),
+                   mw_wkp_age_30to54     = sum(log(get(mw_var))*sh_age_30to54,        na.rm = T),
+                   mw_wkp_age_above55    = sum(log(get(mw_var))*sh_age_above55,       na.rm = T),
+                   mw_wkp_earn_under1250 = sum(log(get(mw_var))*sh_earn_under1250,    na.rm = T),
+                   mw_wkp_earn_1250_3333 = sum(log(get(mw_var))*sh_earn_1250_3333,    na.rm = T),
+                   mw_wkp_earn_above3333 = sum(log(get(mw_var))*sh_earn_above3333,    na.rm = T),
+                   mw_wkp_goods_prod     = sum(log(get(mw_var))*sh_goods_producing,   na.rm = T),
+                   mw_wkp_trad_tran_util = sum(log(get(mw_var))*sh_trade_transp_util, na.rm = T),
+                   mw_wkp_other_serv_ind = sum(log(get(mw_var))*sh_other_service_industry, na.rm = T)),
+                 .SDcols = jobs_vars,
+                 by = c(r_var, "year_month")]
+
+  setnames(dt_ym, old = r_var, new = .geo)
+
+  return(dt_ym)
 }
 
 
