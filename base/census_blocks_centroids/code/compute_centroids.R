@@ -32,8 +32,7 @@ main <- function(paquetes, n_cores) {
         file = logfile, append = T)
 
   centroids <- parLapply(cl, files, function(ff) {
-    st_fips <- gsub("2010", "", gsub("[^0-9]", "", ff))
-        
+    
     spf <- compute_centroids(instub, ff)
     return(spf)
   })
