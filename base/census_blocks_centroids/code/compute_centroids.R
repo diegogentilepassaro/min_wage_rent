@@ -60,7 +60,7 @@ compute_centroids <- function(instub, filename){
            num_houses10 = HOUSING10,
            pop10        = POP10)
   
-  spf      <- spf[st_is_valid(spf),] ## Is this necessary? It takes some time to check
+  spf      <- spf[st_is_valid(spf),]
   spf_cent <- st_centroid(spf)
   
   cent_own_poly <- 
