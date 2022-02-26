@@ -23,8 +23,8 @@ program main
     
     merge m:1 cb_centroid_geo_id using "`in_shp'/census_blocks_2010_centroids_db.dta", ///
         keep(1 3) nogen
-    rename (statfps   cntyfps    cnss_tr      cnss_bl      nm_hs10    ) ///
-           (statefips countyfips census_tract census_block num_house10)
+    rename (statfps   cntyfps    cnss_tr      cnss_bl      nm_hs10     cnt_wn_          ) ///
+           (statefips countyfips census_tract census_block num_house10 centroid_own_poly)
     replace countyfips = statefips + countyfips
     
     map_to_usps_zipcode, instub(`in_shp')    
