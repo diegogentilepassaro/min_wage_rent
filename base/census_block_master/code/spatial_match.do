@@ -5,6 +5,7 @@ adopath + ../../../lib/stata/min_wage/ado
 program main
     local in_shp    "../../../drive/base_large/shp_to_dta"
     local in_xwalk  "../../../drive/raw_data/census_crosswalks"
+	local in_hud    "../../../drive/raw_data/hud_crosswalks"
     local temp      "../temp"
     local outstub   "../../../drive/base_large/census_block_master"
     local logfile   "../output/data_file_manifest.log"
@@ -16,6 +17,10 @@ program main
     clean_zcta_cbsa_xwalk, instub(`in_xwalk')
     save_data "`temp'/zcta_to_cbsa.dta", log(none) ///
         key(zcta) replace 
+		
+    clean_tract_usps_zip_xwalk, instub(`in_hud')
+    save_data "`temp'/tract_to_usps_zip.dta", log(none) ///
+        key(statefips countyfips census_tract) replace 
     
     use "`in_shp'/census_blocks_2010_centroids_coord.dta", clear
     rename _ID     cb_centroid_geo_id
@@ -35,6 +40,11 @@ program main
         keep(1 3) nogen
     merge m:1 zcta using "`temp'/zcta_to_cbsa.dta", ///
         keep(1 3) nogen
+    merge m:1 statefips countyfips census_tract using "`temp'/tract_to_usps_zip.dta", ///
+        keep(1 3) nogen
+
+	gen missing_zipcode = (missing(zipcode))
+	replace zipcode = zipcode_hud if missing_zipcode == 1
     
     gen rural = (missing(place_code))
 
@@ -72,6 +82,24 @@ program clean_zcta_cbsa_xwalk
     keep zcta5 cbsa
     rename (zcta5 cbsa) ///
            (zcta  cbsa10)  
+end
+
+program clean_tract_usps_zip_xwalk
+    syntax, instub(str)
+    
+    import excel "`instub'/TRACT_ZIP_032010.xlsx", ///
+        firstrow clear
+    keep TRACT ZIP RES_RATIO
+    rename (TRACT ZIP RES_RATIO) ///
+	    (census_tract zipcode_hud res_ratio) 
+		   
+    gen neg_res_ratio = -res_ratio
+    bysort census_tract (neg_res_ratio): keep if _n == 1
+    drop neg_res_ratio res_ratio
+	
+	gen statefips = substr(census_tract, 1, 2) 
+	gen countyfips = substr(census_tract, 1, 5) 
+	replace census_tract = substr(census_tract, 6, .)
 end
 
 program map_to_usps_zipcode
