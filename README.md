@@ -9,6 +9,7 @@ housing market across metropolitan areas.
 
    - Make a local copy of the Google Drive folder.
    - Create a juncture link to the datastore in the root of the repo. In windows, run `mklink /J "<Root of repo>/drive/" "<Local Google Drive folder>"` from the command line.
+   - A python 2 compiler is required to run the code in this repo. We recommend to install [Anaconda](https://www.anaconda.com/products/individual) and create a python2 environment.
 
 
 ## Writing the paper
@@ -55,7 +56,8 @@ Note that none of these folders is compiled using `make` nor `SCons`.
 
   - Use [oxford comma](https://i.kym-cdn.com/photos/images/original/000/946/427/5a4.jpg).
 
-  - To cite a specific section, appendix, or figure use caps. E.g.,  `Section \ref{sec:sec_name}` or `Appendix Table \ref{tab:tab_name}`.
+  - To cite a specific section, appendix, table, or figure use caps. E.g.,  `Section \ref{sec:sec_name}` or `Appendix Table \ref{tab:tab_name}`.
+    - When the reference is not specific _do not_ use caps. E.g., `The following section shows that ..` or `.. according to the table ..`
 
   - To cite math or an equation do `\eqref{eq:eq_name}` or `equation \eqref{eq:eq_name}` when appropriate.
       - Equations are part of a paragraph
