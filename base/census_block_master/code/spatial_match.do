@@ -8,33 +8,27 @@ program main
     local temp      "../temp"
     local outstub   "../../../drive/base_large/census_block_master"
     local logfile   "../output/data_file_manifest.log"
+	
+	clean_tract_usps_zip_xwalk, instub(`in_hud')
+    save_data "`temp'/tract_to_usps_zip.dta", log(none) ///
+        key(statefips countyfips tract) replace
+		
+    clean_centroids, instub(`in_shp')
+    save_data "`temp'/centroids.dta", log(none) ///
+        key(block) replace 
 
 	import delimited "`temp'/cb_lodes_crosswalk.csv", ///
 	    stringcols(_all) clear
-    save_data "`temp'/cb_lodes_crosswalk.dta", log(none) ///
-        key(block) replace 
-		
-	clean_tract_usps_zip_xwalk, instub(`in_hud')
-    save_data "`temp'/tract_to_usps_zip.dta", log(none) ///
-        key(statefips countyfips tract) replace 
-    
-    use "`in_shp'/census_blocks_2010_centroids_coord.dta", clear
-    rename _ID     cb_centroid_geo_id
-    rename (_X _Y) (longitude latitude)
-    
-    merge m:1 cb_centroid_geo_id using "`in_shp'/census_blocks_2010_centroids_db.dta", ///
+	merge 1:1 block using "`temp'/centroids.dta", ///
         keep(1 3) nogen
-    rename (cnss_bl      nm_hs10     cnt_wn_) ///
-           (block num_house10 centroid_own_poly)
-    	
+
     map_to_usps_zipcode, instub(`in_shp')    
     drop latitude longitude
+		
+	gen rural = (place_code == "9999999") if !missing(place_code)
 
-	merge 1:1 block using "`temp'/cb_lodes_crosswalk.dta", ///
-        keep(1 3) nogen
     merge m:1 statefips countyfips tract using "`temp'/tract_to_usps_zip.dta", ///
         keep(1 3) nogen
-
 	gen missing_zipcode = (missing(zipcode))
 	replace zipcode = zipcode_hud if missing_zipcode == 1
 
@@ -58,6 +52,19 @@ program clean_tract_usps_zip_xwalk
 	
 	gen statefips = substr(tract, 1, 2) 
 	gen countyfips = substr(tract, 1, 5) 
+end
+
+program clean_centroids
+    syntax, instub(str)
+	
+    use "`instub'/census_blocks_2010_centroids_coord.dta", clear
+    rename _ID     cb_centroid_geo_id
+    rename (_X _Y) (longitude latitude)
+    
+    merge m:1 cb_centroid_geo_id using "`instub'/census_blocks_2010_centroids_db.dta", ///
+        keep(1 3) nogen
+    rename (cnss_bl      nm_hs10     cnt_wn_) ///
+           (block num_house10 centroid_own_poly)
 end
 
 program map_to_usps_zipcode

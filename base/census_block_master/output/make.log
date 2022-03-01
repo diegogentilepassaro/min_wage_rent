@@ -1,5 +1,5 @@
 
- make.py started: 2022-02-28 19:12:37 C:\Users\diegog\Desktop\Diego\min_wage_rent\base\census_block_master\code 
+ make.py started: 2022-03-01 08:24:57 C:\Users\diegog\Desktop\Diego\min_wage_rent\base\census_block_master\code 
 
 
 
@@ -58,7 +58,7 @@ Type 'q()' to quit R.
 > 
 > proc.time()
    user  system elapsed 
- 232.67   53.93  375.86 
+ 182.70   28.31  256.73 
 
 
 Execute:  StataMP-64 /e do "./spatial_match.do"
@@ -106,44 +106,35 @@ Notes:
   3.     local temp      "../temp"
   4.     local outstub   "../../../drive/base_large/census_block_master"
   5.     local logfile   "../output/data_file_manifest.log"
-  6. 
+  6.         
+.         clean_tract_usps_zip_xwalk, instub(`in_hud')
+  7.     save_data "`temp'/tract_to_usps_zip.dta", log(none) ///
+>         key(statefips countyfips tract) replace
+  8.                 
+.     clean_centroids, instub(`in_shp')
+  9.     save_data "`temp'/centroids.dta", log(none) ///
+>         key(block) replace 
+ 10. 
 .         import delimited "`temp'/cb_lodes_crosswalk.csv", ///
 >             stringcols(_all) clear
-  7.     save_data "`temp'/cb_lodes_crosswalk.dta", log(none) ///
->         key(block) replace 
-  8.                 
-.         clean_tract_usps_zip_xwalk, instub(`in_hud')
-  9.     save_data "`temp'/tract_to_usps_zip.dta", log(none) ///
->         key(statefips countyfips tract) replace 
- 10.     
-.     use "`in_shp'/census_blocks_2010_centroids_coord.dta", clear
- 11.     rename _ID     cb_centroid_geo_id
- 12.     rename (_X _Y) (longitude latitude)
- 13.     
-.     merge m:1 cb_centroid_geo_id using "`in_shp'/census_blocks_2010_centroids
-> _db.dta", ///
+ 11.         merge 1:1 block using "`temp'/centroids.dta", ///
 >         keep(1 3) nogen
- 14.     rename (cnss_bl      nm_hs10     cnt_wn_) ///
->            (block num_house10 centroid_own_poly)
- 15.         
+ 12. 
 .     map_to_usps_zipcode, instub(`in_shp')    
- 16.     drop latitude longitude
- 17. 
-.         merge 1:1 block using "`temp'/cb_lodes_crosswalk.dta", ///
+ 13.     drop latitude longitude
+ 14.                 
+.         gen rural = (place_code == "9999999") if !missing(place_code)
+ 15. 
+.     merge m:1 statefips countyfips tract using "`temp'/tract_to_usps_zip.dta"
+> , ///
 >         keep(1 3) nogen
- 18.     merge m:1 statefips countyfips tract using "`temp'/tract_to_usps_zip.d
-> ta", ///
->         keep(1 3) nogen
- 19. 
-.         gen missing_zipcode = (missing(zipcode))
- 20.         replace zipcode = zipcode_hud if missing_zipcode == 1
- 21.     
-.     gen rural = (missing(place_code))
- 22. 
+ 16.         gen missing_zipcode = (missing(zipcode))
+ 17.         replace zipcode = zipcode_hud if missing_zipcode == 1
+ 18. 
 .     save_data "`outstub'/census_block_master.dta", log(`logfile') ///
 >         key(block) replace
- 23.     export delimited "`outstub'/census_block_master.csv", replace
- 24. end
+ 19.     export delimited "`outstub'/census_block_master.csv", replace
+ 20. end
 
 . 
 . program clean_tract_usps_zip_xwalk
@@ -164,6 +155,21 @@ Notes:
  10. end
 
 . 
+. program clean_centroids
+  1.     syntax, instub(str)
+  2.         
+.     use "`instub'/census_blocks_2010_centroids_coord.dta", clear
+  3.     rename _ID     cb_centroid_geo_id
+  4.     rename (_X _Y) (longitude latitude)
+  5.     
+.     merge m:1 cb_centroid_geo_id using "`instub'/census_blocks_2010_centroids
+> _db.dta", ///
+>         keep(1 3) nogen
+  6.     rename (cnss_bl      nm_hs10     cnt_wn_) ///
+>            (block num_house10 centroid_own_poly)
+  7. end
+
+. 
 . program map_to_usps_zipcode
   1.     syntax, instub(str)
   2. 
@@ -181,33 +187,6 @@ Notes:
 
 . 
 . main
-(9 vars, 11,053,116 obs)
-(data now sorted by block)
-  (0 bytes saved)
-===============================================================================
-File: ../temp/cb_lodes_crosswalk.dta
-Key: block
-===============================================================================
-  11053116:9(53401):4053186202:2301627366
-
-    Variable |        Obs        Mean    Std. Dev.       Min        Max
--------------+---------------------------------------------------------
-       block |          0
-   statefips |          0
-  countyfips |          0
-       tract |          0
-  blockgroup |          0
--------------+---------------------------------------------------------
-        cbsa |          0
-        zcta |          0
-  place_code |          0
-  place_name |          0
-
-
-
-
-(note: file ../temp/cb_lodes_crosswalk.dta not found)
-file ../temp/cb_lodes_crosswalk.dta saved
 (79,874 observations deleted)
 (data now sorted by statefips countyfips tract)
   (0 bytes saved)
@@ -215,7 +194,7 @@ file ../temp/cb_lodes_crosswalk.dta saved
 File: ../temp/tract_to_usps_zip.dta
 Key: statefips countyfips tract
 ===============================================================================
-  65755:4(31657):2182296985:3034534830
+  65755:4(31657):811193625:994603246
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -235,65 +214,87 @@ file ../temp/tract_to_usps_zip.dta saved
     not matched                             0
     matched                        11,078,297  
     -----------------------------------------
+(data now sorted by block)
+  (0 bytes saved)
+===============================================================================
+File: ../temp/centroids.dta
+Key: block
+===============================================================================
+  11078297:7(38641):2278015697:3829343770
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+       block |          0
+cb_centroi~d | 11,078,297     5539149     3198029          1   1.11e+07
+   longitude | 11,078,297   -93.01002    14.71122    -179.13   179.7497
+    latitude | 11,078,297    38.10679    5.297984   18.91167   71.39945
+ num_house10 | 11,078,297    11.88854    33.80024          0       4022
+-------------+---------------------------------------------------------
+       pop10 | 11,078,297     27.8694    78.59192          0      19352
+centroid_o~y | 11,078,297    .9506572    .2165827          0          1
+
+
+
+
+(note: file ../temp/centroids.dta not found)
+file ../temp/centroids.dta saved
+(9 vars, 11,053,116 obs)
 
     Result                           # of obs.
     -----------------------------------------
-    not matched                        40,307
-        from master                    40,307  
-        from using                          0  
-
-    matched                        11,037,990  
-    -----------------------------------------
-
-    Result                           # of obs.
-    -----------------------------------------
-    not matched                        25,181
-        from master                    25,181  
-        from using                          0  
-
+    not matched                             0
     matched                        11,053,116  
     -----------------------------------------
 
     Result                           # of obs.
     -----------------------------------------
-    not matched                     3,458,853
-        from master                 3,458,853  
+    not matched                        39,913
+        from master                    39,913  
+        from using                          0  
+
+    matched                        11,013,203  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                     3,433,672
+        from master                 3,433,672  
         from using                          0  
 
     matched                         7,619,444  
     -----------------------------------------
 (22,819 real changes made)
 (data now sorted by block)
-  variable missing_zipcode was float now byte
   variable rural was float now byte
-  (66,469,782 bytes saved)
+  variable missing_zipcode was float now byte
+  (66,318,696 bytes saved)
 ===============================================================================
 File: ../../../drive/base_large/census_block_master/census_block_master.dta
 Key: block
 ===============================================================================
-  11078297:16(109404):4010366837:2488929612
+  11053116:16(81891):308593695:671619580
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
        block |          0
- num_house10 | 11,078,297    11.88854    33.80024          0       4022
-       pop10 | 11,078,297     27.8694    78.59192          0      19352
-centroid_o~y | 11,078,297    .9506572    .2165827          0          1
-     zipcode |          0
--------------+---------------------------------------------------------
    statefips |          0
   countyfips |          0
        tract |          0
   blockgroup |          0
-        cbsa |          0
 -------------+---------------------------------------------------------
+        cbsa |          0
         zcta |          0
   place_code |          0
   place_name |          0
- zipcode_hud |          0
-missing_zi~e | 11,078,297    .0036384    .0602091          0          1
+ num_house10 | 11,053,116     11.8737    33.80066          0       4022
 -------------+---------------------------------------------------------
-       rural | 11,078,297     .002273    .0476218          0          1
+       pop10 | 11,053,116    27.83767    78.59189          0      19352
+centroid_o~y | 11,053,116    .9506414    .2166156          0          1
+     zipcode |          0
+       rural | 11,053,116     .507261    .4999473          0          1
+ zipcode_hud |          0
+-------------+---------------------------------------------------------
+missing_zi~e | 11,053,116     .003611    .0599832          0          1
 
 
 
@@ -310,4 +311,4 @@ file ../../../drive/base_large/census_block_master/census_block_master.csv save
 . 
 end of do-file
 
- make.py ended: 2022-02-28 20:51:44
+ make.py ended: 2022-03-01 09:59:23
