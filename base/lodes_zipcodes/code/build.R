@@ -48,12 +48,10 @@ main <- function() {
 load_xwalk <- function(instub) {
 
   xwalk <- fread(file.path(instub, "census_block_master.csv"),
-                 select = c("census_block", "zipcode"),
+                 select = c("block", "zipcode"),
                  colClasses = c(zipcode = "character"))
-  
-  setnames(xwalk, old = c("census_block"), 
-                  new = c("blockfips"))
-  setkey(xwalk, "blockfips")
+
+  setkey(xwalk, "block")
 
   return(xwalk)
 }
@@ -83,9 +81,9 @@ format_lodes <- function(pov, year, instub, xwalk,
   dt <- rbindlist(lapply(files, fread, select = c(geo_name, target_vars)))
   
   setnames(dt, old = c(geo_name,    target_vars), 
-               new = c("blockfips", new_varnames))
+               new = c("block", new_varnames))
   
-  dtzip <- xwalk[dt, on = "blockfips"][, blockfips := NULL]
+  dtzip <- xwalk[dt, on = "block"][, block := NULL]
   dtzip <- dtzip[, lapply(.SD, sum, na.rm = T),
                   .SDcols = new_varnames,
                   by = c("zipcode")]

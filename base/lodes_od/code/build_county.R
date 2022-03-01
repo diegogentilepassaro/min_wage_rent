@@ -75,11 +75,11 @@ make_odmatrix_state <- function(file_, year, aux) {
   rm(dt_main)
 
   setnames(dt, old = c("w_geocode",   "h_geocode",   target_vars), 
-               new = c("w_blockfips", "r_blockfips", new_varnames))
+               new = c("w_block", "r_block", new_varnames))
     
   # Crosswalk not needed for these data
-  dt[, r_countyfips := substr(str_pad(r_blockfips, 15, pad = 0), 1, 5)]
-  dt[, w_countyfips := substr(str_pad(w_blockfips, 15, pad = 0), 1, 5)]
+  dt[, r_countyfips := substr(str_pad(r_block, 15, pad = 0), 1, 5)]
+  dt[, w_countyfips := substr(str_pad(w_block, 15, pad = 0), 1, 5)]
 
   dt <- dt[, lapply(.SD, function(x) sum(x, na.rm = T)),
                     .SDcols = new_varnames,

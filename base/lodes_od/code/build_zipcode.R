@@ -60,12 +60,10 @@ main <- function(paquetes, n_cores) {
 load_xwalk <- function(instub) {
 
   xwalk <- fread(file.path(instub, "census_block_master.csv"),
-                 select = c("census_block", "zipcode"),
+                 select = c("block", "zipcode"),
                  colClasses = c(zipcode = "character"))
-  
-  setnames(xwalk, old = c("census_block"), 
-                  new = c("blockfips"))
-  setkey(xwalk, "blockfips")
+
+  setkey(xwalk, "block")
 
   return(xwalk)
 }
@@ -92,13 +90,13 @@ make_odmatrix_state <- function(file_, year, aux, xwalk) {
   rm(dt_main)
 
   setnames(dt, old = c("w_geocode",   "h_geocode",   target_vars), 
-               new = c("w_blockfips", "r_blockfips", new_varnames))
+               new = c("w_block", "r_block", new_varnames))
     
   # Add crosswalk to main data
-  dt <- dt[xwalk, on = c("r_blockfips" = "blockfips"), nomatch = 0]    
+  dt <- dt[xwalk, on = c("r_block" = "block"), nomatch = 0]    
   setnames(dt, old = "zipcode", new = "r_zipcode")
 
-  dt <- dt[xwalk, on = c("w_blockfips" = "blockfips"), nomatch = 0]    
+  dt <- dt[xwalk, on = c("w_block" = "block"), nomatch = 0]    
   setnames(dt, old = "zipcode", new = "w_zipcode")
   
   dt <- dt[, lapply(.SD, function(x) sum(x, na.rm = T)),
