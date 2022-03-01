@@ -50,12 +50,8 @@ main <- function(paquetes, n_cores) {
 compute_centroids <- function(instub, filename){
 
   spf <- read_sf(file.path(instub, filename)) %>%
-    select(STATEFP10, COUNTYFP10, TRACTCE10,
-           BLOCKID10, HOUSING10, POP10) %>%
-    rename(statefips    = STATEFP10,
-           countyfips   = COUNTYFP10, 
-           census_tract = TRACTCE10,
-           census_block = BLOCKID10, 
+    select(BLOCKID10, HOUSING10, POP10) %>%
+    rename(census_block = BLOCKID10, 
            num_houses10 = HOUSING10,
            pop10        = POP10)
   
