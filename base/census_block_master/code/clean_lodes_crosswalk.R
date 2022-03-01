@@ -11,14 +11,17 @@ main <- function(){
   dt <- data.table()
   for (file in files) {
     dt_state <- fread(file.path(instub, file),
-                      select = list("character" = c("tabblk2010", "st", "cty", 
-                                                  "trct", "bgrp", "cbsa", 
-                                                  "zcta", "stplc", "stplcname")))
+                      select = list("character" = c("tabblk2010", "st", 
+                                                    "cty", "ctyname",
+                                                    "trct", "bgrp", "cbsa", 
+                                                    "zcta", "stplc", "stplcname")))
     
-    setnames(dt_state, old = c("tabblk2010", "st", "cty", 
-                         "trct", "bgrp", "cbsa", 
-                         "zcta", "stplc", "stplcname"), 
-                 new = c("block", "statefips", "countyfips", 
+    setnames(dt_state, old = c("tabblk2010", "st", 
+                               "cty", "ctyname",
+                               "trct", "bgrp", "cbsa", 
+                               "zcta", "stplc", "stplcname"), 
+                 new = c("block", "statefips", 
+                         "countyfips", "countyfips_name",
                          "tract", "blockgroup", "cbsa", 
                          "zcta", "place_code", "place_name"))
     
