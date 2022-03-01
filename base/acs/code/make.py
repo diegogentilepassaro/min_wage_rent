@@ -32,7 +32,9 @@ if "StataSE" in envir_vars:
 
 start_make_logging()
 
-run_rbatch(program = 'acs.R')
+run_rbatch(program = 'acs_zcta.R')
+run_rbatch(program = 'acs_cbg.R')
+run_rbatch(program = 'acs_cb.R')
 
 end_make_logging()
 
