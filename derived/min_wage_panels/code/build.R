@@ -9,7 +9,6 @@ setDTthreads(20)
 
 main <- function(){
   in_master   <- "../../../drive/base_large/census_block_master"
-  in_counties <- "../../../drive/raw_data/census_population/orig"
   in_mw_data  <- "../../../base/min_wage/output"
   outstub     <- "../../../drive/derived_large/min_wage_panels"
   log_file    <- "../output/data_file_manifest.log"
@@ -19,7 +18,7 @@ main <- function(){
   start_ym <- c(2009, 7)
   end_ym   <- c(2020, 1)
   
-  dt_geo <- load_geographies(in_master, in_counties)
+  dt_geo <- load_geographies(in_master)
   dt_mw  <- load_mw(in_mw_data)
   
   ## MW Panels
@@ -104,27 +103,17 @@ main <- function(){
            nolog    = TRUE)
 }
 
-load_geographies <- function(in_master, in_counties) {
+load_geographies <- function(instub) {
   
-  dt_cnty <- fread(file.path(in_counties, "co-est2020.csv"), 
-                   colClasses = "character",
-                   select = c("STATE", "COUNTY", "CTYNAME"))
-  setnames(dt_cnty, c("statefips", "countyfips", "county_name"))
-  
-  dt_cnty <- dt_cnty[countyfips != "000"]
-  dt_cnty[, countyfips := paste0(statefips, countyfips)][, statefips := NULL]
-  
-  dt_cnty[, county_name := gsub("\\s*\\w*$", " County", county_name)]
-  
-  dt <- fread(file.path(in_master, "census_block_master.csv"),
-              select = list(character = c("statefips",  "countyfips", "census_block",
+  dt <- fread(file.path(instub, "census_block_master.csv"),
+              select = list(character = c("statefips",  "countyfips", 
+                                          "countyfips_name", "block",
                                           "place_code", "place_name", "zipcode"), 
                             numeric   = "num_house10"))
   
-  dt <- dt[zipcode != ""]  # 0.366 % of census blocks do not have a zip code
-  
-  dt <- dt_cnty[dt, on = "countyfips"]
-  
+  dt[, countyfips_name := gsub("\\s*\\w*$", " County", countyfips_name)]
+  dt <- dt[zipcode != ""]  # small % of census blocks do not have a zip code
+    
   dt <- manual_corrections(dt)
   
   return(dt)
@@ -175,16 +164,16 @@ load_mw <- function(instub) {
   
   county_mw <- local_mw[iscounty == 1, ][, iscounty := NULL]
   setnames(county_mw, old = c("locality", mw_vars), 
-           new = c("county_name",   county_mw_vars))
+           new = c("countyfips_name",   county_mw_vars))
   
   local_mw <- local_mw[iscounty == 0, ][, iscounty := NULL]
   setnames(local_mw, old = c("locality",  mw_vars),
            new = c("place_name", local_mw_vars))
   
-  county_mw <- county_mw[, .(county_name, statefips, county_mw, year, month)]
+  county_mw <- county_mw[, .(countyfips_name, statefips, county_mw, year, month)]
   local_mw <- local_mw[,   .(place_name,  statefips, local_mw,  year, month)]
   
-  county_mw[, event := 1*(county_mw != shift(county_mw)), by = .(county_name, statefips)]
+  county_mw[, event := 1*(county_mw != shift(county_mw)), by = .(countyfips_name, statefips)]
   local_mw[,  event := 1*(local_mw  != shift(local_mw)),  by = .(place_name,  statefips)]
   
   return(list("state"  = state_mw, 
@@ -204,8 +193,8 @@ get_months_with_changes <- function(dt_mw, yy) {
 
 assemble_statutory_mw <- function(dt, dt_mw) {
   
-  dt <- dt_mw$state[dt,  on = c("statefips",                "year", "month")][, event := NULL]
-  dt <- dt_mw$county[dt, on = c("statefips", "county_name", "year", "month")][, event := NULL]
+  dt <- dt_mw$state[dt,  on = c("statefips", "year", "month")][, event := NULL]
+  dt <- dt_mw$county[dt, on = c("statefips", "countyfips_name", "year", "month")][, event := NULL]
   dt <- dt_mw$local[dt,  on = c("statefips", "place_name",  "year", "month")][, event := NULL]
   
   # Compute statutory MW
