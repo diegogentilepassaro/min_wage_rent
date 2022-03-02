@@ -107,7 +107,7 @@ program state_min_wage_change
     merge m:1 statefips using `temp'/crosswalk.dta, nogen assert(3)
 
     order statefips statename stateabb year month day date mw* ///
-	    source source_2 source_notes
+        source source_2 source_notes
     label var statefips "State FIPS Code"
     label var statename "State"
 
@@ -220,10 +220,10 @@ end
 program label_mw_vars
     syntax, time_level(str)
 
-	cap label var fed_mw  "`time_level' Federal MW"
-	cap label var mw      "`time_level' State MW"	
-	cap label var mw_healthinsurance "`time_level' State MW Health and Insurance"
-	cap label var mw_smallbusiness   "`time_level' State MW Small Business"
+    cap label var fed_mw  "`time_level' Federal MW"
+    cap label var mw      "`time_level' State MW"	
+    cap label var mw_healthinsurance "`time_level' State MW Health and Insurance"
+    cap label var mw_smallbusiness   "`time_level' State MW Small Business"
 end
 
 *EXECUTE
