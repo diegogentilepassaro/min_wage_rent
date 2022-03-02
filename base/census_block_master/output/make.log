@@ -1,5 +1,5 @@
 
- make.py started: 2022-03-01 12:57:35 C:\Users\diegog\Desktop\Diego\min_wage_rent\base\census_block_master\code 
+ make.py started: 2022-03-02 09:41:18 C:\Users\diegog\Desktop\Diego\min_wage_rent\base\census_block_master\code 
 
 
 
@@ -32,24 +32,21 @@ Type 'q()' to quit R.
 +   instub  <- "../../../drive/raw_data/lodes_crosswalks"
 +   outstub <- "../temp"
 +   
++   geos <- c("tabblk2010", "st", "cty", "ctyname",
++             "trct", "bgrp", "cbsa", "zcta", "stplc", "stplcname")
++ 
 +   files <- list.files(instub, pattern = ".gz$")
 +   
 +   dt <- data.table()
 +   for (file in files) {
 +     dt_state <- fread(file.path(instub, file),
-+                       select = list("character" = c("tabblk2010", "st", 
-+                                                     "cty", "ctyname",
-+                                                     "trct", "bgrp", "cbsa", 
-+                                                     "zcta", "stplc", "stplcname")))
++                       select = list("character" = geos))
 +     
-+     setnames(dt_state, old = c("tabblk2010", "st", 
-+                                "cty", "ctyname",
-+                                "trct", "bgrp", "cbsa", 
-+                                "zcta", "stplc", "stplcname"), 
-+                  new = c("block", "statefips", 
-+                          "countyfips", "countyfips_name",
-+                          "tract", "blockgroup", "cbsa", 
-+                          "zcta", "place_code", "place_name"))
++     setnames(dt_state, old = geos, 
++               new = c("block", "statefips", 
++                       "countyfips", "countyfips_name",
++                       "tract", "blockgroup", "cbsa", 
++                       "zcta", "place_code", "place_name"))
 +     
 +     dt <- rbindlist(list(dt, dt_state))
 +   }
@@ -61,7 +58,7 @@ Type 'q()' to quit R.
 > 
 > proc.time()
    user  system elapsed 
- 195.10   56.28  337.53 
+ 177.75   34.59  261.50 
 
 
 Execute:  StataMP-64 /e do "./spatial_match.do"
@@ -105,34 +102,34 @@ Notes:
 . 
 . program main
   1.     local in_shp    "../../../drive/base_large/shp_to_dta"
-  2.         local in_hud    "../../../drive/raw_data/hud_crosswalks"
+  2.     local in_hud    "../../../drive/raw_data/hud_crosswalks"
   3.     local temp      "../temp"
   4.     local outstub   "../../../drive/base_large/census_block_master"
   5.     local logfile   "../output/data_file_manifest.log"
-  6.         
-.         clean_tract_usps_zip_xwalk, instub(`in_hud')
+  6. 
+.     clean_tract_usps_zip_xwalk, instub(`in_hud')
   7.     save_data "`temp'/tract_to_usps_zip.dta", log(none) ///
 >         key(statefips countyfips tract) replace
-  8.                 
+  8.         
 .     clean_centroids, instub(`in_shp')
   9.     save_data "`temp'/centroids.dta", log(none) ///
 >         key(block) replace 
  10. 
-.         import delimited "`temp'/cb_lodes_crosswalk.csv", ///
->             stringcols(_all) clear
- 11.         merge 1:1 block using "`temp'/centroids.dta", ///
+.     import delimited "`temp'/cb_lodes_crosswalk.csv", ///
+>         stringcols(_all) clear
+ 11.     merge 1:1 block using "`temp'/centroids.dta", ///
 >         keep(1 3) nogen
  12. 
 .     map_to_usps_zipcode, instub(`in_shp')    
  13.     drop latitude longitude
- 14.                 
-.         gen rural = (place_code == "9999999") if !missing(place_code)
+ 14.         
+.     gen rural = (place_code == "9999999") if !missing(place_code)
  15. 
 .     merge m:1 statefips countyfips tract using "`temp'/tract_to_usps_zip.dta"
 > , ///
 >         keep(1 3) nogen
- 16.         gen missing_zipcode = (missing(zipcode))
- 17.         replace zipcode = zipcode_hud if missing_zipcode == 1
+ 16.     gen missing_zipcode = (missing(zipcode))
+ 17.     replace zipcode = zipcode_hud if missing_zipcode
  18. 
 .     save_data "`outstub'/census_block_master.dta", log(`logfile') ///
 >         key(block) replace
@@ -142,34 +139,34 @@ Notes:
 . 
 . program clean_tract_usps_zip_xwalk
   1.     syntax, instub(str)
-  2.     
+  2. 
 .     import excel "`instub'/TRACT_ZIP_032010.xlsx", ///
 >         firstrow clear
   3.     keep TRACT ZIP RES_RATIO
-  4.     rename (TRACT ZIP RES_RATIO) ///
->             (tract zipcode_hud res_ratio) 
-  5.                    
+  4.     rename (TRACT ZIP         RES_RATIO) ///
+>            (tract zipcode_hud res_ratio) 
+  5.             
 .     gen neg_res_ratio = -res_ratio
   6.     bysort tract (neg_res_ratio): keep if _n == 1
   7.     drop neg_res_ratio res_ratio
-  8.         
-.         gen statefips = substr(tract, 1, 2) 
-  9.         gen countyfips = substr(tract, 1, 5) 
+  8. 
+.     gen statefips = substr(tract, 1, 2) 
+  9.     gen countyfips = substr(tract, 1, 5) 
  10. end
 
 . 
 . program clean_centroids
   1.     syntax, instub(str)
-  2.         
+  2. 
 .     use "`instub'/census_blocks_2010_centroids_coord.dta", clear
   3.     rename _ID     cb_centroid_geo_id
   4.     rename (_X _Y) (longitude latitude)
-  5.     
+  5. 
 .     merge m:1 cb_centroid_geo_id using "`instub'/census_blocks_2010_centroids
 > _db.dta", ///
 >         keep(1 3) nogen
-  6.     rename (cnss_bl      nm_hs10     cnt_wn_) ///
->            (block num_house10 centroid_own_poly)
+  6.     rename (cnss_bl nm_hs10     cnt_wn_) ///
+>            (block   num_house10 centroid_own_poly)
   7. end
 
 . 
@@ -315,4 +312,4 @@ file ../../../drive/base_large/census_block_master/census_block_master.csv save
 . 
 end of do-file
 
- make.py ended: 2022-03-01 14:51:21
+ make.py ended: 2022-03-02 11:01:55
