@@ -162,6 +162,8 @@ program export_substate_monthly
 	label var monthly_date "Monthly Date"
 	label_mw_vars, time_level("Monthly")
 
+	fix_name_locality
+
 	save_data `outstub'/substate_monthly.csv, key(locality monthly_date) ///
         outsheet replace
 end 
@@ -178,6 +180,8 @@ program export_substate_quarterly
 
 	label var quarterly_date "Quarterly Date"
 	label_mw_vars, time_level("Quarterly")
+
+	fix_name_locality
 
 	save_data `outstub'/substate_quarterly.csv, key(locality quarterly_date) ///
         outsheet replace
@@ -196,6 +200,8 @@ program export_substate_yearly
 	label var year "Year"
 	label_mw_vars, time_level("Annual")
 
+	fix_name_locality
+
 	save_data `outstub'/substate_annual.csv, key(locality year) ///
         outsheet replace
 end
@@ -207,6 +213,20 @@ program label_mw_vars
 	cap label var abovestate_mw "Local > State min wage"	
 	cap label var mw_healthinsurance "`time_level' State MW Health and Insurance"
 	cap label var mw_smallbusiness   "`time_level' State MW Small Business"
+end
+
+program fix_name_locality
+	// Fixes to assure names of places match with LODES data
+
+	replace locality = "New York"         if locality == "New York City"
+	replace locality = "St. Paul"         if locality == "Saint Paul"
+	replace locality = "Daly City"        if locality == "Daly city"
+	replace locality = "Redwood City"     if locality == "Readwood City"
+	replace locality = locality + " city" if strpos(locality, "County") == 0
+	
+	replace locality = "Lexington-Fayette urban county" if locality == "Lexington city"
+
+	replace locality = locality + ", " + stateabb
 end
 
 * EXECUTE
