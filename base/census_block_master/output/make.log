@@ -1,0 +1,315 @@
+
+ make.py started: 2022-03-02 09:41:18 C:\Users\diegog\Desktop\Diego\min_wage_rent\base\census_block_master\code 
+
+
+
+
+Execute:  R CMD BATCH --no-save "./clean_lodes_crosswalk.R" clean_lodes_crosswalk.Rout
+
+R version 4.1.1 (2021-08-10) -- "Kick Things"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list = ls())
+> 
+> library(data.table)
+> 
+> main <- function(){
++   instub  <- "../../../drive/raw_data/lodes_crosswalks"
++   outstub <- "../temp"
++   
++   geos <- c("tabblk2010", "st", "cty", "ctyname",
++             "trct", "bgrp", "cbsa", "zcta", "stplc", "stplcname")
++ 
++   files <- list.files(instub, pattern = ".gz$")
++   
++   dt <- data.table()
++   for (file in files) {
++     dt_state <- fread(file.path(instub, file),
++                       select = list("character" = geos))
++     
++     setnames(dt_state, old = geos, 
++               new = c("block", "statefips", 
++                       "countyfips", "countyfips_name",
++                       "tract", "blockgroup", "cbsa", 
++                       "zcta", "place_code", "place_name"))
++     
++     dt <- rbindlist(list(dt, dt_state))
++   }
++   
++   fwrite(dt, file.path(outstub, "cb_lodes_crosswalk.csv"))
++ }
+> 
+> main()
+> 
+> proc.time()
+   user  system elapsed 
+ 177.75   34.59  261.50 
+
+
+Execute:  StataMP-64 /e do "./spatial_match.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./spatial_match.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/min_wage/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/min_wage/ado"
+
+. 
+. program main
+  1.     local in_shp    "../../../drive/base_large/shp_to_dta"
+  2.     local in_hud    "../../../drive/raw_data/hud_crosswalks"
+  3.     local temp      "../temp"
+  4.     local outstub   "../../../drive/base_large/census_block_master"
+  5.     local logfile   "../output/data_file_manifest.log"
+  6. 
+.     clean_tract_usps_zip_xwalk, instub(`in_hud')
+  7.     save_data "`temp'/tract_to_usps_zip.dta", log(none) ///
+>         key(statefips countyfips tract) replace
+  8.         
+.     clean_centroids, instub(`in_shp')
+  9.     save_data "`temp'/centroids.dta", log(none) ///
+>         key(block) replace 
+ 10. 
+.     import delimited "`temp'/cb_lodes_crosswalk.csv", ///
+>         stringcols(_all) clear
+ 11.     merge 1:1 block using "`temp'/centroids.dta", ///
+>         keep(1 3) nogen
+ 12. 
+.     map_to_usps_zipcode, instub(`in_shp')    
+ 13.     drop latitude longitude
+ 14.         
+.     gen rural = (place_code == "9999999") if !missing(place_code)
+ 15. 
+.     merge m:1 statefips countyfips tract using "`temp'/tract_to_usps_zip.dta"
+> , ///
+>         keep(1 3) nogen
+ 16.     gen missing_zipcode = (missing(zipcode))
+ 17.     replace zipcode = zipcode_hud if missing_zipcode
+ 18. 
+.     save_data "`outstub'/census_block_master.dta", log(`logfile') ///
+>         key(block) replace
+ 19.     export delimited "`outstub'/census_block_master.csv", replace
+ 20. end
+
+. 
+. program clean_tract_usps_zip_xwalk
+  1.     syntax, instub(str)
+  2. 
+.     import excel "`instub'/TRACT_ZIP_032010.xlsx", ///
+>         firstrow clear
+  3.     keep TRACT ZIP RES_RATIO
+  4.     rename (TRACT ZIP         RES_RATIO) ///
+>            (tract zipcode_hud res_ratio) 
+  5.             
+.     gen neg_res_ratio = -res_ratio
+  6.     bysort tract (neg_res_ratio): keep if _n == 1
+  7.     drop neg_res_ratio res_ratio
+  8. 
+.     gen statefips = substr(tract, 1, 2) 
+  9.     gen countyfips = substr(tract, 1, 5) 
+ 10. end
+
+. 
+. program clean_centroids
+  1.     syntax, instub(str)
+  2. 
+.     use "`instub'/census_blocks_2010_centroids_coord.dta", clear
+  3.     rename _ID     cb_centroid_geo_id
+  4.     rename (_X _Y) (longitude latitude)
+  5. 
+.     merge m:1 cb_centroid_geo_id using "`instub'/census_blocks_2010_centroids
+> _db.dta", ///
+>         keep(1 3) nogen
+  6.     rename (cnss_bl nm_hs10     cnt_wn_) ///
+>            (block   num_house10 centroid_own_poly)
+  7. end
+
+. 
+. program map_to_usps_zipcode
+  1.     syntax, instub(str)
+  2. 
+.     geoinpoly latitude longitude ///
+>         using "`instub'/USPS_zipcodes_July2020_coord.dta"
+  3.     rename _ID usps_zip_poly_geo_id
+  4. 
+.     merge m:1 usps_zip_poly_geo_id using "`instub'/USPS_zipcodes_July2020_db.
+> dta", ///
+>         keep(1 3) nogen keepusing(ZIP_CODE)
+  5.     rename ZIP_CODE zipcode
+  6. 
+.     drop usps_zip_poly_geo_id cb_centroid_geo_id
+  7. end
+
+. 
+. main
+(79,874 observations deleted)
+(data now sorted by statefips countyfips tract)
+  (0 bytes saved)
+===============================================================================
+File: ../temp/tract_to_usps_zip.dta
+Key: statefips countyfips tract
+===============================================================================
+  65755:4(31657):811193625:994603246
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+   statefips |          0
+  countyfips |          0
+       tract |          0
+ zipcode_hud |          0
+
+
+
+
+(note: file ../temp/tract_to_usps_zip.dta not found)
+file ../temp/tract_to_usps_zip.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                        11,078,297  
+    -----------------------------------------
+(data now sorted by block)
+  (0 bytes saved)
+===============================================================================
+File: ../temp/centroids.dta
+Key: block
+===============================================================================
+  11078297:7(38641):2278015697:3829343770
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+       block |          0
+cb_centroi~d | 11,078,297     5539149     3198029          1   1.11e+07
+   longitude | 11,078,297   -93.01002    14.71122    -179.13   179.7497
+    latitude | 11,078,297    38.10679    5.297984   18.91167   71.39945
+ num_house10 | 11,078,297    11.88854    33.80024          0       4022
+-------------+---------------------------------------------------------
+       pop10 | 11,078,297     27.8694    78.59192          0      19352
+centroid_o~y | 11,078,297    .9506572    .2165827          0          1
+
+
+
+
+(note: file ../temp/centroids.dta not found)
+file ../temp/centroids.dta saved
+(10 vars, 11,053,116 obs)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                        11,053,116  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                        39,913
+        from master                    39,913  
+        from using                          0  
+
+    matched                        11,013,203  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                     3,433,672
+        from master                 3,433,672  
+        from using                          0  
+
+    matched                         7,619,444  
+    -----------------------------------------
+(22,819 real changes made)
+(data now sorted by block)
+  variable rural was float now byte
+  variable missing_zipcode was float now byte
+  (66,318,696 bytes saved)
+===============================================================================
+File: ../../../drive/base_large/census_block_master/census_block_master.dta
+Key: block
+===============================================================================
+  11053116:17(74911):228066501:2998178586
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+       block |          0
+   statefips |          0
+  countyfips |          0
+countyfips~e |          0
+       tract |          0
+-------------+---------------------------------------------------------
+  blockgroup |          0
+        cbsa |          0
+        zcta |          0
+  place_code |          0
+  place_name |          0
+-------------+---------------------------------------------------------
+ num_house10 | 11,053,116     11.8737    33.80066          0       4022
+       pop10 | 11,053,116    27.83767    78.59189          0      19352
+centroid_o~y | 11,053,116    .9506414    .2166156          0          1
+     zipcode |          0
+       rural | 11,053,116     .507261    .4999473          0          1
+-------------+---------------------------------------------------------
+ zipcode_hud |          0
+missing_zi~e | 11,053,116     .003611    .0599832          0          1
+
+
+
+
+(note: file ../../../drive/base_large/census_block_master/census_block_master.d
+> ta not found)
+file ../../../drive/base_large/census_block_master/census_block_master.dta save
+> d
+(note: file ../../../drive/base_large/census_block_master/census_block_master.c
+> sv not found)
+file ../../../drive/base_large/census_block_master/census_block_master.csv save
+> d
+
+. 
+end of do-file
+
+ make.py ended: 2022-03-02 11:01:55
