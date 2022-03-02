@@ -30,15 +30,15 @@ main <- function(){
     if (yy == start_ym[1]) month_range <- seq(start_ym[2], 12)
     if (yy == end_ym[1])   month_range <- seq(1,    end_ym[2])
     
-    mm_w_changes <- get_months_with_changes(dt_mw, yy)
+    mm_mw_changes <- get_months_with_changes(dt_mw, yy)
     
     dt_year_zip  <- data.table()
     dt_year_cnty <- data.table()
     for (mm in month_range){
       
-      if ( (mm %in% mm_w_changes)                               # If there was a MW change
-         | (yy == start_ym[1] & mm %in% c(1, start_ym[2]))) {   # or this is the first month
-                                                                # then compute MW levels
+      if ( (mm %in% mm_mw_changes)                              # If there was a MW change
+         | (yy == start_ym[1] & mm %in% c(1, start_ym[2]))) {   #  or the first month of the year
+                                                                #  then compute MW levels
         
         dt <- copy(dt_geo)
         
@@ -112,9 +112,11 @@ load_geographies <- function(instub) {
                                           "place_code", "place_name", "zipcode"), 
                             numeric   = "num_house10"))
   
-  dt[, countyfips_name := gsub("\\s*\\w*$", " County", countyfips_name)]
+  # This fix should happen in the master
+  setnames(dt, old = "countyfips_name", new = "county_name")
+  
   dt <- dt[zipcode != ""]  # small % of census blocks do not have a zip code
-    
+  
   dt <- manual_corrections(dt)
   
   return(dt)
@@ -122,8 +124,6 @@ load_geographies <- function(instub) {
 
 manual_corrections <- function(dt) {
   
-  dt[place_name == "Louisville/Jefferson County metro government (balance)", 
-     place_name := "Lousville"]
   dt[place_name == "New York",  place_name := "New York City"]
   dt[place_name == "St. Paul",  place_name := "Saint Paul"]
   
@@ -164,17 +164,17 @@ load_mw <- function(instub) {
   local_mw_vars  <- paste0("local_",  mw_vars)
   
   county_mw <- local_mw[iscounty == 1, ][, iscounty := NULL]
-  setnames(county_mw, old = c("locality", mw_vars), 
-           new = c("countyfips_name",   county_mw_vars))
+  setnames(county_mw, old = c("locality",    mw_vars), 
+                      new = c("county_name", county_mw_vars))
   
   local_mw <- local_mw[iscounty == 0, ][, iscounty := NULL]
-  setnames(local_mw, old = c("locality",  mw_vars),
-           new = c("place_name", local_mw_vars))
+  setnames(local_mw, old = c("locality",   mw_vars),
+                     new = c("place_name", local_mw_vars))
   
-  county_mw <- county_mw[, .(countyfips_name, statefips, county_mw, year, month)]
+  county_mw <- county_mw[, .(county_name, statefips, county_mw, year, month)]
   local_mw <- local_mw[,   .(place_name,  statefips, local_mw,  year, month)]
   
-  county_mw[, event := 1*(county_mw != shift(county_mw)), by = .(countyfips_name, statefips)]
+  county_mw[, event := 1*(county_mw != shift(county_mw)), by = .(county_name, statefips)]
   local_mw[,  event := 1*(local_mw  != shift(local_mw)),  by = .(place_name,  statefips)]
   
   return(list("state"  = state_mw, 
@@ -194,8 +194,8 @@ get_months_with_changes <- function(dt_mw, yy) {
 
 assemble_statutory_mw <- function(dt, dt_mw) {
   
-  dt <- dt_mw$state[dt,  on = c("statefips", "year", "month")][, event := NULL]
-  dt <- dt_mw$county[dt, on = c("statefips", "countyfips_name", "year", "month")][, event := NULL]
+  dt <- dt_mw$state[dt,  on = c("statefips",                "year", "month")][, event := NULL]
+  dt <- dt_mw$county[dt, on = c("statefips", "county_name", "year", "month")][, event := NULL]
   dt <- dt_mw$local[dt,  on = c("statefips", "place_name",  "year", "month")][, event := NULL]
   
   # Compute statutory MW
