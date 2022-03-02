@@ -1,0 +1,228 @@
+
+ make.py started: 2022-03-02 11:15:46 C:\Users\diegog\Desktop\Diego\min_wage_rent\base\zipcode_master\code 
+
+
+
+
+Execute:  StataMP-64 /e do "./build.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./build.do 
+
+. set more off
+
+. clear all
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. 
+. program main
+  1.     local instub  "../../../drive/base_large/census_block_master"
+  2.     local outstub "../../../drive/base_large/zipcode_master"
+  3.     local logfile "../output/data_file_manifest.log"
+  4. 
+.     use `instub'/census_block_master.dta if !missing(zipcode), clear
+  5. 
+.     make_baseline_frame
+  6. 
+.     assign_geography, instub(`instub') geo(place_code)
+  7.     assign_geography, instub(`instub') geo(countyfips)
+  8.     assign_geography, instub(`instub') geo(statefips)
+  9.     assign_geography, instub(`instub') geo(cbsa)
+ 10. 
+.     strcompress
+ 11.     save_data "`outstub'/zipcode_master.dta",                  ///
+>         key(zipcode) log(`logfile') replace
+ 12.     export delimited "`outstub'/zipcode_master.csv", replace
+ 13. end
+
+. 
+. program make_baseline_frame
+  1. 
+.     bys zipcode: gen  n_census_blocks = _N
+  2.     bys zipcode: egen n_places        = nvals(place_code)   // Must instal
+> l egenmore
+  3.     bys zipcode: egen n_counties      = nvals(countyfips)
+  4.     bys zipcode: egen n_states        = nvals(statefips)
+  5. 
+.     preserve
+  6.         gcollapse (mean) share_rural_wgt_houses = rural ///
+>                 [aweight = num_house10], by(zipcode)
+  7. 
+.         save ../temp/share_rural.dta, replace
+  8.     restore
+  9. 
+.     gcollapse (max) n_census_blocks n_counties  ///
+>                     n_places        n_states    ///
+>               (sum) num_houses   = num_house10  ///
+>                     population   = pop10        ///
+>              (mean) sh_rural     = rural,       ///
+>         by(zipcode)
+ 10. 
+.     replace n_places = 0 if missing(n_places)
+ 11. 
+.     merge 1:1 zipcode using ../temp/share_rural.dta, ///
+>         assert(1 3) nogen
+ 12. end
+
+. 
+. program assign_geography
+  1.     syntax, instub(str) geo(str) [pop]
+  2. 
+.     preserve
+  3.         use `instub'/census_block_master.dta if !missing(zipcode), clear
+  4. 
+.         gcollapse (sum) num_houses   = num_house10  ///
+>                         population   = pop10,       ///
+>             by(zipcode `geo')
+  5. 
+.         if "`pop'"=="" {
+  6.             gsort zipcode -num_houses
+  7.         }
+  8.         else {
+  9.             gsort zipcode -population
+ 10.         }
+ 11. 
+.         bys zipcode: keep if _n == 1
+ 12. 
+.         tempfile data_geo
+ 13.         save    `data_geo', replace
+ 14.     restore
+ 15. 
+.     merge 1:1 zipcode using `data_geo', assert(3) nogen
+ 16. end
+
+. 
+. 
+. main
+(note: file ../temp/share_rural.dta not found)
+file ../temp/share_rural.dta saved
+(0 real changes made)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                           258
+        from master                       258  
+        from using                          0  
+
+    matched                            31,496  
+    -----------------------------------------
+(49,764 observations deleted)
+(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_637c_000002.tmp not found)
+file C:\Users\diegog\AppData\Local\Temp\2\ST_637c_000002.tmp saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            31,754  
+    -----------------------------------------
+(14,351 observations deleted)
+(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_637c_000002.tmp not found)
+file C:\Users\diegog\AppData\Local\Temp\2\ST_637c_000002.tmp saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            31,754  
+    -----------------------------------------
+(499 observations deleted)
+(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_637c_000002.tmp not found)
+file C:\Users\diegog\AppData\Local\Temp\2\ST_637c_000002.tmp saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            31,754  
+    -----------------------------------------
+(7,895 observations deleted)
+(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_637c_000002.tmp not found)
+file C:\Users\diegog\AppData\Local\Temp\2\ST_637c_000002.tmp saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            31,754  
+    -----------------------------------------
+  Converting str to strL: zipcode place_code countyfips statefips cbsa
+    strcompress grew data 467% so far, but I'm not done yet!
+  variable n_census_blocks was float now int
+  variable n_counties was float now byte
+  variable n_places was float now byte
+  variable n_states was float now byte
+  variable num_houses was double now long
+  variable population was double now long
+  variable zipcode was strL now str5
+  variable place_code was strL now str7
+  variable countyfips was strL now str5
+  variable statefips was strL now str2
+  variable cbsa was strL now str5
+  (12,327,867 bytes saved)
+       compress shrank data 88%
+    strcompress shrank data 30% overall
+(data already sorted by zipcode)
+  (0 bytes saved)
+===============================================================================
+File: ../../../drive/base_large/zipcode_master/zipcode_master.dta
+Key: zipcode
+===============================================================================
+  31754:13(83376):2299040363:281375069
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+n_census_b~s |     31,754    347.5475    355.8447          1       9067
+  n_counties |     31,754    1.451943    .7022054          1          7
+    n_places |     31,754    2.567173    1.694982          1         81
+    n_states |     31,754    1.015715    .1243708          1          2
+-------------+---------------------------------------------------------
+  num_houses |     31,754    4132.686    5588.503          0      48073
+  population |     31,754    9689.449    13768.12          0     115182
+    sh_rural |     31,754    .5669182    .3566124          0          1
+share_rura~s |     31,496    .4788689    .3638109          0          1
+  place_code |          0
+-------------+---------------------------------------------------------
+  countyfips |          0
+   statefips |          0
+        cbsa |          0
+
+
+
+
+(note: file ../../../drive/base_large/zipcode_master/zipcode_master.dta not fou
+> nd)
+file ../../../drive/base_large/zipcode_master/zipcode_master.dta saved
+(note: file ../../../drive/base_large/zipcode_master/zipcode_master.csv not fou
+> nd)
+file ../../../drive/base_large/zipcode_master/zipcode_master.csv saved
+
+. 
+end of do-file
+
+ make.py ended: 2022-03-02 11:24:24
