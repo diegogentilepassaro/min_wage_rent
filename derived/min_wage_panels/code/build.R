@@ -73,8 +73,9 @@ main <- function(){
   rm(dt, dt_geo, dt_mw)
 
   ## Assign federal MW to zipcodes under 00199
-  mw_panel_zip[as.numeric(zipcode) <= 199, 
-               c("state_mw", "fed_mw", "statutory_mw") := c(NA, 7.25, 7.25)]
+  mw_panel_zip[as.numeric(zipcode) <= 199, "state_mw"     := NA]
+  mw_panel_zip[as.numeric(zipcode) <= 199, "fed_mw"       := 7.25]
+  mw_panel_zip[as.numeric(zipcode) <= 199, "statutory_mw" := 7.25]
 
   keep_vars <- names(mw_panel_zip)[!grepl("sh_", names(mw_panel_zip))]   
   save_data(mw_panel_zip[, ..keep_vars],   

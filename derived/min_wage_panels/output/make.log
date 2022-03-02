@@ -1,5 +1,5 @@
 
- make.py started: 2022-02-24 10:22:28 C:\Users\shermo\Documents\GitHub\min_wage_rent\derived\min_wage_panels\code 
+ make.py started: 2022-03-01 19:54:30 C:\Users\shermo\Documents\GitHub\min_wage_rent\derived\min_wage_panels\code 
 
 
 
@@ -63,7 +63,6 @@ The following objects are masked from 'package:base':
 > 
 > main <- function(){
 +   in_master   <- "../../../drive/base_large/census_block_master"
-+   in_counties <- "../../../drive/raw_data/census_population/orig"
 +   in_mw_data  <- "../../../base/min_wage/output"
 +   outstub     <- "../../../drive/derived_large/min_wage_panels"
 +   log_file    <- "../output/data_file_manifest.log"
@@ -73,7 +72,7 @@ The following objects are masked from 'package:base':
 +   start_ym <- c(2009, 7)
 +   end_ym   <- c(2020, 1)
 +   
-+   dt_geo <- load_geographies(in_master, in_counties)
++   dt_geo <- load_geographies(in_master)
 +   dt_mw  <- load_mw(in_mw_data)
 +   
 +   ## MW Panels
@@ -127,6 +126,11 @@ The following objects are masked from 'package:base':
 +   }
 +   rm(dt, dt_geo, dt_mw)
 + 
++   ## Assign federal MW to zipcodes under 00199
++   mw_panel_zip[as.numeric(zipcode) <= 199, "state_mw"     := NA]
++   mw_panel_zip[as.numeric(zipcode) <= 199, "fed_mw"       := 7.25]
++   mw_panel_zip[as.numeric(zipcode) <= 199, "statutory_mw" := 7.25]
++ 
 +   keep_vars <- names(mw_panel_zip)[!grepl("sh_", names(mw_panel_zip))]   
 +   save_data(mw_panel_zip[, ..keep_vars],   
 +             key      = c("zipcode", "year", "month"),
@@ -154,27 +158,17 @@ The following objects are masked from 'package:base':
 +            nolog    = TRUE)
 + }
 > 
-> load_geographies <- function(in_master, in_counties) {
+> load_geographies <- function(instub) {
 +   
-+   dt_cnty <- fread(file.path(in_counties, "co-est2020.csv"), 
-+                    colClasses = "character",
-+                    select = c("STATE", "COUNTY", "CTYNAME"))
-+   setnames(dt_cnty, c("statefips", "countyfips", "county_name"))
-+   
-+   dt_cnty <- dt_cnty[countyfips != "000"]
-+   dt_cnty[, countyfips := paste0(statefips, countyfips)][, statefips := NULL]
-+   
-+   dt_cnty[, county_name := gsub("\\s*\\w*$", " County", county_name)]
-+   
-+   dt <- fread(file.path(in_master, "census_block_master.csv"),
-+               select = list(character = c("statefips",  "countyfips", "census_block",
++   dt <- fread(file.path(instub, "census_block_master.csv"),
++               select = list(character = c("statefips",  "countyfips", 
++                                           "countyfips_name", "block",
 +                                           "place_code", "place_name", "zipcode"), 
 +                             numeric   = "num_house10"))
 +   
-+   dt <- dt[zipcode != ""]  # 0.366 % of census blocks do not have a zip code
-+   
-+   dt <- dt_cnty[dt, on = "countyfips"]
-+   
++   dt[, countyfips_name := gsub("\\s*\\w*$", " County", countyfips_name)]
++   dt <- dt[zipcode != ""]  # small % of census blocks do not have a zip code
++     
 +   dt <- manual_corrections(dt)
 +   
 +   return(dt)
@@ -225,16 +219,16 @@ The following objects are masked from 'package:base':
 +   
 +   county_mw <- local_mw[iscounty == 1, ][, iscounty := NULL]
 +   setnames(county_mw, old = c("locality", mw_vars), 
-+            new = c("county_name",   county_mw_vars))
++            new = c("countyfips_name",   county_mw_vars))
 +   
 +   local_mw <- local_mw[iscounty == 0, ][, iscounty := NULL]
 +   setnames(local_mw, old = c("locality",  mw_vars),
 +            new = c("place_name", local_mw_vars))
 +   
-+   county_mw <- county_mw[, .(county_name, statefips, county_mw, year, month)]
++   county_mw <- county_mw[, .(countyfips_name, statefips, county_mw, year, month)]
 +   local_mw <- local_mw[,   .(place_name,  statefips, local_mw,  year, month)]
 +   
-+   county_mw[, event := 1*(county_mw != shift(county_mw)), by = .(county_name, statefips)]
++   county_mw[, event := 1*(county_mw != shift(county_mw)), by = .(countyfips_name, statefips)]
 +   local_mw[,  event := 1*(local_mw  != shift(local_mw)),  by = .(place_name,  statefips)]
 +   
 +   return(list("state"  = state_mw, 
@@ -254,8 +248,8 @@ The following objects are masked from 'package:base':
 > 
 > assemble_statutory_mw <- function(dt, dt_mw) {
 +   
-+   dt <- dt_mw$state[dt,  on = c("statefips",                "year", "month")][, event := NULL]
-+   dt <- dt_mw$county[dt, on = c("statefips", "county_name", "year", "month")][, event := NULL]
++   dt <- dt_mw$state[dt,  on = c("statefips", "year", "month")][, event := NULL]
++   dt <- dt_mw$county[dt, on = c("statefips", "countyfips_name", "year", "month")][, event := NULL]
 +   dt <- dt_mw$local[dt,  on = c("statefips", "place_name",  "year", "month")][, event := NULL]
 +   
 +   # Compute statutory MW
@@ -332,9 +326,10 @@ The following objects are masked from 'package:base':
 [1] "File '../../../drive/derived_large/min_wage_panels/county_statutory_mw.dta' saved successfully."
 [1] "File '../../../drive/derived_large/min_wage_panels/zipcode_cfs.csv' saved successfully."
 [1] "File '../../../drive/derived_large/min_wage_panels/zipcode_cfs.dta' saved successfully."
+There were 12 warnings (use warnings() to see them)
 > 
 > proc.time()
    user  system elapsed 
-1867.35  430.65 1922.18 
+2279.12  598.60 2622.39 
 
- make.py ended: 2022-02-24 10:54:32
+ make.py ended: 2022-03-01 20:38:15
