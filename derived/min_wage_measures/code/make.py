@@ -19,6 +19,7 @@ from gslab_make.dir_mod import *
 set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
+delete_files('../../../drive/derived_large/min_wage_measures/*')
 delete_files('../output/*')
 
 envir_vars = os.getenv('PATH')
@@ -31,9 +32,8 @@ if "StataSE" in envir_vars:
 
 start_make_logging()
 
-run_stata(program = 'state_mw.do', executable = stata)
-run_stata(program = 'substate_mw.do', executable = stata)
-clear_dirs('../temp/')
+run_rbatch(program = 'build.R')
+run_rbatch(program = 'build_counterfactual.R')
 
 end_make_logging()
 

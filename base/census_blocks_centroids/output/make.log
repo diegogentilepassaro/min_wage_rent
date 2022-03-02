@@ -1,5 +1,5 @@
 
- make.py started: 2022-02-17 20:56:09 C:\Users\diegog\Desktop\Diego\min_wage_rent\base\census_blocks_centroids\code 
+ make.py started: 2022-02-23 16:02:04 C:\Users\shermo\Documents\GitHub\min_wage_rent\base\census_blocks_centroids\code 
 
 
 
@@ -26,9 +26,11 @@ Type 'q()' to quit R.
 
 > remove(list = ls())
 > 
-> library(sf)
+> paquetes <- c("sf", "dplyr")
+> lapply(paquetes, require, character.only = TRUE)
+Loading required package: sf
 Linking to GEOS 3.9.1, GDAL 3.2.1, PROJ 7.2.1
-> library(dplyr)
+Loading required package: dplyr
 
 Attaching package: 'dplyr'
 
@@ -40,58 +42,112 @@ The following objects are masked from 'package:base':
 
     intersect, setdiff, setequal, union
 
-> library(data.table)
+[[1]]
+[1] TRUE
 
-Attaching package: 'data.table'
-
-The following objects are masked from 'package:dplyr':
-
-    between, first, last
+[[2]]
+[1] TRUE
 
 > 
-> main <- function(){
+> library(parallel)
+> n_cores <- 12
+> 
+> set.seed(42)
+> 
+> main <- function(paquetes, n_cores) {
++ 
 +   instub  <- "../temp"
 +   outstub <- "../../../drive/base_large/census_blocks_centroids"
 +   
++   logfile <- "../output/activity.txt"
++ 
++   write(sprintf("%s: Conversion started.\n", Sys.time()), 
++         file = logfile)
++   
 +   files <- list.files(path = instub, pattern = "*.shp$")
 + 
-+   cb_centroids <- data.frame()
-+   for (file in files){
-+     cb_file_centroids <- compute_centroids(instub, file)
-+     cb_centroids      <- rbind(cb_centroids, cb_file_centroids)
-+   }
++   # Parallel set-up
++   cl <- makeCluster(n_cores, type = "PSOCK")   # Create cluster. Use type = "FORK" in Mac
++   
++   clusterExport(cl, "paquetes")                                         # Load "paquetes" object in nodes
++   clusterEvalQ(cl, lapply(paquetes, require, character.only = TRUE))    # Load packages in nodes
++   clusterExport(cl, "compute_centroids",  env = .GlobalEnv)             # Load global environment objects in nodes
++   clusterExport(cl, c("instub", "files"), env = environment())          # Load local environment objects in nodes
++   
++   write(sprintf("%s: Parallelization set, %s cores.\n", Sys.time(), n_cores), 
++         file = logfile, append = T)
 + 
-+   st_write(cb_centroids, 
++   centroids <- parLapply(cl, files, function(ff) {
++     st_fips <- gsub("2010", "", gsub("[^0-9]", "", ff))
++         
++     spf <- compute_centroids(instub, ff)
++     return(spf)
++   })
++   stopCluster(cl)
++   
++   centroids <- bind_rows(centroids)
++   
++   write(sprintf("%s: Conversion ended.\n", Sys.time()), 
++         file = logfile, append = T)
++ 
++   st_write(centroids,
 +            file.path(outstub, "census_blocks_2010_centroids.shp"))
 + }
 > 
-> compute_centroids <- function(instub, file){
+> compute_centroids <- function(instub, filename){
 + 
-+   spf <- read_sf(file.path(instub, file)) %>%
++   spf <- read_sf(file.path(instub, filename)) %>%
 +     select(STATEFP10, COUNTYFP10, TRACTCE10,
 +            BLOCKID10, HOUSING10, POP10) %>%
-+     rename(statefips = STATEFP10,
-+            countyfips = COUNTYFP10, 
++     rename(statefips    = STATEFP10,
++            countyfips   = COUNTYFP10, 
 +            census_tract = TRACTCE10,
 +            census_block = BLOCKID10, 
 +            num_houses10 = HOUSING10,
-+            pop10 = POP10)
-+ 
-+   spf           <- spf[st_is_valid(spf),]
-+   spf_centroids <- st_centroid(spf)
-+ 
-+   return(spf_centroids)
++            pop10        = POP10)
++   
++   spf      <- spf[st_is_valid(spf),] ## Is this necessary? It takes some time to check
++   spf_cent <- st_centroid(spf)
++   
++   cent_own_poly <- 
++     sapply(1:dim(spf)[1], function(i) {
++       test <- st_intersects(spf_cent[i, ]$geometry, spf[i,]$geometry)[[1]]
++       
++       if (length(test) == 0) {  # When return is empty
++         return(0)
++       } else {
++         return(1)
++       }
++     })
++   
++   spf$cent_own_poly      <- cent_own_poly
++   spf_cent$cent_own_poly <- cent_own_poly
++   
++   if ( !(all(cent_own_poly == 1)) ) {
++     
++     spf_cent_new <- st_point_on_surface(spf %>% filter(cent_own_poly == 0))
++     
++     spf_cent <- bind_rows(spf_cent %>% filter(cent_own_poly == 1), 
++                           spf_cent_new)
++     
++   }
++   
++   return(spf_cent)
 + }
 > 
-> 
-> main()
+> # Execute
+> main(paquetes, n_cores) 
 Writing layer `census_blocks_2010_centroids' to data source 
   `../../../drive/base_large/census_blocks_centroids/census_blocks_2010_centroids.shp' using driver `ESRI Shapefile'
-Writing 11078297 features with 6 fields and geometry type Point.
-There were 50 or more warnings (use warnings() to see the first 50)
+Writing 11078297 features with 7 fields and geometry type Point.
+Warning messages:
+1: In abbreviate_shapefile_names(obj) :
+  Field names abbreviated for ESRI Shapefile driver
+2: In CPL_write_ogr(obj, dsn, layer, driver, as.character(dataset_options),  :
+  GDAL Message 1: 2GB file size limit reached for ../../../drive/base_large/census_blocks_centroids\census_blocks_2010_centroids.dbf. Going on, but might cause compatibility issues with third party software
 > 
 > proc.time()
     user   system  elapsed 
-15967.23  1213.82 19601.95 
+  495.03   588.23 37806.03 
 
- make.py ended: 2022-02-18 02:28:38
+ make.py ended: 2022-02-24 02:36:53
