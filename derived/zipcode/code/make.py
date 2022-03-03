@@ -32,7 +32,6 @@ if "StataSE" in envir_vars:
 
 start_make_logging()
 
-run_stata(program = 'make_frame.do', executable = stata)
 run_stata(program = 'make_cross.do', executable = stata)
 clear_dirs('../temp/')
 
