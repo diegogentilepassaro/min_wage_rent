@@ -10,7 +10,7 @@ census_api_key("b04b7f3197f8bf4bdc31956fcfb3f28364ccf6cb")
 
 main <- function(){
   pop_vars <- c("B00001_001E", "B00002_001E", "B25003_002E", 
-                "B25003_003E", "B01001B_001E", "B01001I_001E")
+                "B25003_003E", "B02001_002E", "B02001_003E", "")
   income_vars <- c("B19313_001E","B19051_001E", "B19051_002E", "B19051_003E", 
                    "B19052_001E", "B19052_002E", "B19052_003E")
   binned_income_vars <- c("B19001_002E", "B19001_003E", 
@@ -37,8 +37,8 @@ main <- function(){
              total_households = B00002_001,
              owner_occupied = B25003_002,
              renter_occupied = B25003_003,
-             black = B01001B_001,
-             hispanic = B01001I_001,
+             white = B02001_002,
+             black = B02001_003,
              agg_income_hhld = B19313_001,
              total_earnings_hhld = B19051_001,
              total_earnings_hhld_w_earnings = B19051_002,
