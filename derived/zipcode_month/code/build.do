@@ -3,21 +3,21 @@ clear all
 adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
-    local in_geo      "../../../drive/derived_large/zipcode"
+    local in_geo       "../../../drive/base_large/zipcode_master"
     local in_mw_meas  "../../../drive/derived_large/min_wage_measures"
     local in_zillow   "../../../drive/base_large/zillow"
     local in_qcew     "../../../base/qcew/output"
     local outstub     "../../../drive/derived_large/zipcode_month"
     local logfile     "../output/data_file_manifest.log"
 
-    use zipcode statefips countyfips cbsa10 using `in_geo'/zipcode_cross.dta, clear
+    use zipcode place_code countyfips statefips cbsa ///
+        using `in_geo'/zipcode_master.dta, clear
 
     merge 1:m zipcode using "`in_mw_meas'/zipcode_mw_res.dta",   ///
        nogen assert(1 3)
 
-    merge_exp_mw, instub(`in_mw_meas')
-
-    merge_zillow, instub(`in_zillow')    
+    merge_morkplace_mw, instub(`in_mw_meas')
+    merge_zillow_data,  instub(`in_zillow')    
     
     make_date_variables
 
@@ -32,18 +32,7 @@ program main
     export delimited "`outstub'/zipcode_month_panel.csv", replace
 end
 
-program merge_zillow
-    syntax, instub(str)
-    
-    merge 1:1 zipcode year month using "`instub'/zillow_zipcode_clean.dta"
-
-    qui sum medrentpricepsqft_SFCC if _merge == 2 & inrange(year, 2010, 2019)    
-    assert r(N) == 0
-    keep if inlist(_merge, 1, 3)
-    drop _merge
-end
-
-program merge_exp_mw
+program merge_morkplace_mw
     syntax, instub(str)
 
     local instub  "../../../drive/derived_large/min_wage_measures"
@@ -70,6 +59,17 @@ program merge_exp_mw
             replace `var'_timevary = `var'_`yy' if year == 2000 + `yy'
         }
     }
+end
+
+program merge_zillow_data
+    syntax, instub(str)
+    
+    merge 1:1 zipcode year month using "`instub'/zillow_zipcode_clean.dta"
+
+    sum medrentpricepsqft_SFCC if _merge == 2 & inrange(year, 2010, 2019)    
+    *assert r(N) == 0
+    keep if inlist(_merge, 1, 3)
+    drop _merge
 end
 
 program make_date_variables
