@@ -20,7 +20,7 @@ set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
 clear_dirs('../output/')
-clear_dirs('../../../drive/base_large/census_blockgroup_master')
+clear_dirs('../../../drive/base_large/tract_master')
 
 envir_vars = os.getenv('PATH')
 if envir_vars is None:
