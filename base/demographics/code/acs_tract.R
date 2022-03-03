@@ -88,7 +88,7 @@ main <- function(){
   }
   
   save_data(dt, key = "tract",
-            filename = file.path(outstub, "acs_tract_2013.csv"),
+            filename = file.path(outstub, "acs_tract_2011.csv"),
             logfile  = "../output/data_manifest.log")
 }
 
