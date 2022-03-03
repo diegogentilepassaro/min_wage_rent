@@ -3,9 +3,10 @@ clear all
 adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
-    local in_der_large "../../../drive/derived_large"
-    local outstub      "../../../drive/derived_large/estimation_samples"
-    local logfile      "../output/data_file_manifest.log"
+    local in_zipcode  "../../../drive/derived_large/zipcode_month"
+    local in_county   "../../../drive/derived_large/county_month"
+    local outstub     "../../../drive/derived_large/estimation_samples"
+    local logfile     "../output/data_file_manifest.log"
     
     local rent_var          "medrentpricepsqft_SFCC"
     local start_year_month  "2010m1"
@@ -14,67 +15,35 @@ program main
     local target_vars       "renthouse_share2010 black_share2010 med_hhinc20105 college_share20105"
     local targets           ".347 .124 62774 .386"
 
-    foreach geo in zipcode county {
-
-        create_full_panel, instub(`in_der_large') geo(`geo') ///
-            start_year_month(`start_year_month') end_year_month(`end_year_month')
-
+    foreach geo in zipcode { // county
+        
+        create_unbalanced_panel, instub(`in_`geo'')                     ///
+            geo(`geo') rent_var(`rent_var')                             ///
+            start_ym(`start_year_month') end_ym(`end_year_month')
+        
         gen_vars, rent_var(`rent_var')
-        add_weights, geo(`geo') target_vars(`target_vars') ///
-            targets(`targets') target_year_month(`target_year_month')
-
-        save_data "`outstub'/all_`geo'_months.dta", key(`geo' year_month) ///
+        
+        flag_samples, instub(`in_`geo'') geo(`geo') rent_var(`rent_var') ///
+                      target_ym(`target_year_month')
+        *add_weights,  geo(`geo') target_vars(`target_vars') ///
+        *              targets(`targets') target_ym(`target_year_month')
+        
+        save_data "`outstub'/`geo'_months.dta", key(`geo' year_month) ///
             replace log(`logfile')
-        export delimited "`outstub'/all_`geo'_months.csv", replace
-
-
-        create_baseline_panel, instub(`in_der_large') geo(`geo') ///
-            rent_var(`rent_var') target_year_month(`target_year_month') ///
-            start_year_month(`start_year_month') end_year_month(`end_year_month')
-
-        gen_vars, rent_var(`rent_var')
-        add_weights, geo(`geo') target_vars(`target_vars') ///
-            targets(`targets') target_year_month(`target_year_month')
-            
-        save_data "`outstub'/baseline_`geo'_months.dta", key(`geo' year_month) ///
-            replace log(`logfile')
-        export delimited "`outstub'/baseline_`geo'_months.csv", replace
-                
-
-        create_balanced_panel, instub(`in_der_large') geo(`geo') ///
-            target_year_month(`target_year_month')
-        add_weights, geo(`geo') target_vars(`target_vars') ///
-            targets(`targets') target_year_month(`target_year_month')
-
-        save_data "`outstub'/balanced_`geo'_months.dta", key(`geo' year_month) ///
-            replace log(`logfile')
-        export delimited "`outstub'/balanced_`geo'_months.csv", replace
+        export delimited "`outstub'/`geo'_months.csv", replace
     }
 end
 
-program create_baseline_panel
-    syntax, instub(str) geo(str) ///
-        rent_var(str) target_year_month(str) ///
-        start_year_month(str) end_year_month(str)
-
-    use year_month `geo' medrentpricepsqft_SFCC using ///
-        "`instub'/`geo'_month/`geo'_month_panel.dta", clear
-    keep if !missing(`rent_var')
-
-    gcollapse (min) min_year_month = year_month, by(`geo')
-    keep if min_year_month <= `=tm(`target_year_month')'
-
-    save_data "../temp/baseline_`geo's.dta", key(`geo') ///
-        replace log(none)
+program create_unbalanced_panel
+    syntax, instub(str) geo(str) rent_var(str)        ///
+            start_ym(str) end_ym(str)
+       
+    clear
+    use "`instub'/`geo'_month_panel.dta" ///
+        if !missing(`rent_var')
     
-    use "`instub'/`geo'_month/`geo'_month_panel.dta", clear
-    merge m:1 `geo' using "`instub'/`geo'/`geo'_cross.dta", ///
-        nogen assert(2 3) keep(3)
-    merge m:1 `geo' using "../temp/baseline_`geo's.dta", nogen ///
-        assert(1 3) keep(3)
-    
-    keep if inrange(year_month, `=tm(`start_year_month')', `=tm(`end_year_month')')
-    
+    keep if inrange(year_month, `=tm(`start_ym')', `=tm(`end_ym')')
+
     drop_vars
     destring_geographies
 
@@ -85,8 +54,6 @@ program gen_vars
     syntax, rent_var(str)
 
     gen ln_rents = log(`rent_var')
-    gen ln_mw    = log(actual_mw)
-    rename exp_ln_mw_tot* exp_ln_mw*
     
     foreach ctrl_type in emp estcount avgwwage {
         gen ln_`ctrl_type'_bizserv = log(`ctrl_type'_bizserv)
@@ -94,47 +61,73 @@ program gen_vars
         gen ln_`ctrl_type'_fin     = log(`ctrl_type'_fin)
     }
 end
-program add_weights
-    syntax, geo(str) target_vars(str) ///
-        targets(str) target_year_month(str)
-    * balancing procedure: add ,in the right order the target average values from analysis/descriptive/output/desc_stats.tex
-    
+
+program flag_samples
+    syntax, instub(str) geo(str) rent_var(str) target_ym(str)
+
     preserve
-        keep if year_month == `=tm(`target_year_month')'
-        ebalance `target_vars', manualtargets(`targets')
-        rename _webal wgt_cbsa100
-        keep `geo' wgt_cbsa100
-        tempfile cbsa_weights
-        save "`cbsa_weights'", replace 
-    restore
-    merge m:1 `geo' using `cbsa_weights', ///
-        nogen assert(1 3) keep(1 3)
-end 
-
-program create_full_panel
-    syntax, instub(str) geo(str) ///
-        start_year_month(str) end_year_month(str)
+        use year_month `geo' medrentpricepsqft_SFCC using  ///
+            "`instub'/`geo'_month_panel.dta"               ///
+            if !missing(`rent_var'), clear
         
-    use "`instub'/`geo'_month/`geo'_month_panel.dta", clear
-    merge m:1 `geo' using "`instub'/`geo'/`geo'_cross.dta", ///
-        nogen assert(2 3) keep(3)
-    keep if inrange(year_month, `=tm(`start_year_month')', `=tm(`end_year_month')')
+        gcollapse (min) min_year_month = year_month, by(`geo')
+        keep if min_year_month <= `=tm(`target_ym')'
+        
+        keep zipcode
+        gen baseline_sample = 1
+        
+        save_data "../temp/baseline_`geo'.dta", key(`geo') ///
+            replace log(none)
+    restore
     
-    drop_vars
-    destring_geographies
-
-    xtset `geo'_num year_month
+    merge m:1 `geo' using "../temp/baseline_`geo'.dta", ///
+        nogen assert(1 3) keep(1 3)
+    
+    replace baseline_sample = 0 if missing(baseline_sample)
+    
+    gen     fullbal_sample = baseline_sample
+    replace fullbal_sample = 0 if year_month <= `=tm(`target_ym')'
 end
 
-program create_balanced_panel
-    syntax, instub(str) geo(str) ///
-        target_year_month(str)
+program add_weights
+    syntax, geo(str) target_vars(str)               ///
+            targets(str) target_ym(str)
+    * balancing procedure: add ,in the right order the target 
+    * average values from analysis/descriptive/output/desc_stats.tex
+    
+    ebalance `target_vars' if year_month == `=tm(`target_ym')', manualtargets(`targets')
         
-    use "`instub'/estimation_samples/baseline_`geo'_months.dta", clear
-    drop wgt_cbsa100
-    merge m:1 `geo' using "`instub'/`geo'/`geo'_cross.dta", ///
-        nogen assert(2 3) keep(3)
-    keep if year_month >= `=tm(`target_year_month')'
+    rename _webal weights_unbal
+
+    preserve
+        keep if baseline_sample
+
+        ebalance `target_vars' if year_month == `=tm(`target_ym')', manualtargets(`targets')
+        
+        rename _webal weights_baseline
+        
+        keep `geo' weights_baseline
+
+        tempfile weights_baseline
+        save "`weights_baseline'", replace 
+    restore
+    merge m:1 `geo' using `weights_baseline', ///
+        nogen assert(1 3) keep(1 3)
+    
+    preserve
+        keep if fullbal_sample
+
+        ebalance `target_vars' if year_month == `=tm(`target_ym')', manualtargets(`targets')
+        
+        rename _webal weights_fullbal
+        
+        keep `geo' weights_fullbal
+
+        tempfile weights_fullbal
+        save "`weights_fullbal'", replace 
+    restore
+    merge m:1 `geo' using `weights_fullbal', ///
+        nogen assert(1 3) keep(1 3)
 end
 
 program drop_vars
@@ -154,11 +147,12 @@ end
 
 program destring_geographies
 
-    destring statefips, gen(statefips_num)
-    destring cbsa10, gen(cbsa10_num)
-    cap destring county, gen(county_num)
+    cap destring statefips,  gen(statefips_num)
+    cap destring cbsa,       gen(cbsa_num)
+    cap destring place_code, gen(place_code_num)
+    cap destring county,     gen(county_num)
     cap destring countyfips, gen(county_num)
-    cap destring zipcode, gen(zipcode_num)
+    cap destring zipcode,    gen(zipcode_num)
 end
 
 
