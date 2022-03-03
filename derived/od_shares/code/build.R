@@ -6,7 +6,7 @@ source("../../../lib/R/save_data.R")
 
 main <- function() {
   instub  <- "../../../drive/base_large/lodes_od"
-  outstub <- "../../../drive/derived_large/shares"
+  outstub <- "../../../drive/derived_large/od_shares"
   
   for (geo in c("zip", "county")) {
     
@@ -96,15 +96,15 @@ group_matrix_sum <- function(od, geo_name, h_geo, w_geo) {
 
 compute_shares <- function(dt) {
   
-  dt[, share_residents_young  := residents_young/residents]
-  dt[, share_residents_lowinc := residents_lowinc/residents]
+  dt[, sh_residents_young  := residents_young/residents]
+  dt[, sh_residents_lowinc := residents_lowinc/residents]
   
-  dt[, share_workers_young  := workers_young/workers]
-  dt[, share_workers_lowinc := workers_lowinc/workers]
+  dt[, sh_workers_young  := workers_young/workers]
+  dt[, sh_workers_lowinc := workers_lowinc/workers]
   
-  dt[, share_work_samegeo        := own_jobs/residents]
-  dt[, share_work_samegeo_young  := own_jobs_young/residents]
-  dt[, share_work_samegeo_lowinc := own_jobs_lowinc/residents]
+  dt[, sh_work_samegeo        := own_jobs/residents]
+  dt[, sh_work_samegeo_young  := own_jobs_young/residents]
+  dt[, sh_work_samegeo_lowinc := own_jobs_lowinc/residents]
   
   return(dt)
 }
