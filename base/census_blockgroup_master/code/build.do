@@ -14,7 +14,9 @@ program main
 
     assign_geography, instub(`instub') master_geo(blockgroup) geo_to_assign(tract)
     assign_geography, instub(`instub') master_geo(blockgroup) geo_to_assign(place_code)
+    assign_geography, instub(`instub') master_geo(blockgroup) geo_to_assign(place_name)
     assign_geography, instub(`instub') master_geo(blockgroup) geo_to_assign(countyfips)
+    assign_geography, instub(`instub') master_geo(blockgroup) geo_to_assign(countyfips_name)
     assign_geography, instub(`instub') master_geo(blockgroup) geo_to_assign(statefips)
     assign_geography, instub(`instub') master_geo(blockgroup) geo_to_assign(cbsa)
 
