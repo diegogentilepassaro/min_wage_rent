@@ -1,0 +1,452 @@
+
+ make.py started: 2022-03-03 13:12:14 C:\Users\diegog\Desktop\Diego\min_wage_rent\derived\tract_income_at_baseline\code 
+
+
+
+
+Execute:  R CMD BATCH --no-save "./assign_mw.R" assign_mw.Rout
+
+R version 4.1.1 (2021-08-10) -- "Kick Things"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list = ls())
+> 
+> library(data.table)
+> library(zoo)
+
+Attaching package: 'zoo'
+
+The following objects are masked from 'package:base':
+
+    as.Date, as.Date.numeric
+
+> library(stringr)
+> source("../../../lib/R/save_data.R")
+
+Please cite as: 
+
+ Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+ R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
+
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:data.table':
+
+    between, first, last
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+> 
+> setDTthreads(20)
+> 
+> main <- function(){
++   in_master   <- "../../../drive/base_large/tract_master"
++   in_mw_data  <- "../../../base/min_wage/output"
++   in_acs  <- "../../../drive/base_large/demographics"
++   outstub     <- "../temp"
++   log_file    <- "../output/data_file_manifest.log"
++   
++   if (file.exists(log_file)) file.remove(log_file)
++   
++   dt_geo <- load_geographies(in_master)
++   
++   dt_acs <- fread(file.path(in_acs, "acs_tract_2011.csv"),
++                   select = list(character = c("tract"),
++                                 numeric = c("population", "n_hhlds",
++                                             "med_hhld_inc", "n_workers", "n_workers_less_10k_inc",
++                                             "n_workers_10to15k_inc", "n_workers_15to25k_inc",
++                                             "n_workers_25to35k_inc", "n_workers_35to50k_inc",
++                                             "n_workers_50to65k_inc", "n_workers_65to75k_inc",
++                                             "n_workers_more_75k_inc")))
++   
++   dt_mw  <- load_mw(in_mw_data)
++   yy <- 2011
++   mm <- 1
++   
++   dt <- copy(dt_geo)
++   dt[, c("year", "month") := .(yy, mm)]
++   dt <- assemble_statutory_mw(dt, dt_mw)
++   dt <- dt[, c("tract", "place_code", "countyfips", 
++                "cbsa", "statefips", 
++                "fed_mw", "state_mw", "statutory_mw")]
++   dt <- merge(dt, dt_acs, all.x = TRUE)
++   
++   fwrite(dt, file.path(outstub, "tract_income_at_baseline.csv"))
++ }
+> 
+> load_geographies <- function(instub) {
++   dt <- fread(file.path(instub, "tract_master.csv"),
++               select = list(character = c("tract", "place_code", "place_name", 
++                                           "countyfips", "countyfips_name",
++                                           "cbsa", "statefips")))
++   
++   dt <- manual_corrections(dt)
++   
++   return(dt)
++ }
+> 
+> manual_corrections <- function(dt) {
++   
++   dt[place_name == "New York",  place_name := "New York City"]
++   dt[place_name == "St. Paul",  place_name := "Saint Paul"]
++   
++   # Test whether other fixes are necessary
++   
++   return(dt)
++ }
+> 
+> 
+> load_mw <- function(instub) {
++   
++   # State MW
++   state_mw <- fread(file.path(instub, "state_monthly.csv"))
++   
++   setnames(state_mw, old = "mw", new = "state_mw")
++   
++   state_mw[, c("year", "month") := .(as.numeric(substr(monthly_date, 1, 4)),
++                                      as.numeric(gsub("m", "", substr(monthly_date, 5, length(monthly_date)))))]
++   state_mw[, c("monthly_date", "statename") := NULL]
++   
++   state_mw[, statefips := str_pad(as.character(statefips), 2, pad = 0)]
++   state_mw[, stateabb  := NULL]
++   
++   state_mw[, event := 1*(state_mw != shift(state_mw)), by = .(statefips)]
++   
++   # Substate MW
++   local_mw <- fread(file.path(instub, "substate_monthly.csv"))
++   
++   local_mw[, c("year", "month") := .(as.numeric(substr(monthly_date, 1, 4)),
++                                      as.numeric(gsub("m", "", substr(monthly_date, 5, length(monthly_date)))))]
++   local_mw[, c("monthly_date", "statename") := NULL]
++   
++   local_mw[, statefips := str_pad(as.character(statefips), 2, pad = 0)]
++   local_mw[, iscounty  := 1*grepl("County", locality)]
++   
++   mw_vars        <- names(local_mw)[grepl("mw", names(local_mw))]
++   county_mw_vars <- paste0("county_", mw_vars)
++   local_mw_vars  <- paste0("local_",  mw_vars)
++   
++   county_mw <- local_mw[iscounty == 1, ][, iscounty := NULL]
++   setnames(county_mw, old = c("locality",    mw_vars), 
++                       new = c("countyfips_name", county_mw_vars))
++   
++   local_mw <- local_mw[iscounty == 0, ][, iscounty := NULL]
++   setnames(local_mw, old = c("locality",   mw_vars),
++                      new = c("place_name", local_mw_vars))
++   
++   county_mw <- county_mw[, .(countyfips_name, statefips, county_mw, year, month)]
++   local_mw <- local_mw[,   .(place_name,  statefips, local_mw,  year, month)]
++   
++   county_mw[, event := 1*(county_mw != shift(county_mw)), by = .(countyfips_name, statefips)]
++   local_mw[,  event := 1*(local_mw  != shift(local_mw)),  by = .(place_name,  statefips)]
++   
++   return(list("state"  = state_mw, 
++               "county" = county_mw, 
++               "local"  = local_mw))
++ }
+> 
+> 
+> assemble_statutory_mw <- function(dt, dt_mw) {
++   
++   dt <- dt_mw$state[dt,  on = c("statefips",                    "year", "month")][, event := NULL]
++   dt <- dt_mw$county[dt, on = c("statefips", "countyfips_name", "year", "month")][, event := NULL]
++   dt <- dt_mw$local[dt,  on = c("statefips", "place_name",      "year", "month")][, event := NULL]
++   
++   # Compute statutory MW
++   dt[, statutory_mw := pmax(local_mw, county_mw, state_mw, fed_mw, na.rm = T)]
++   
++   return(dt)
++ }
+> 
+> main()
+> 
+> proc.time()
+   user  system elapsed 
+   1.71    0.92    2.25 
+
+
+Execute:  StataMP-64 /e do "./build.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+
+running c:\ado\personal\profile.do ...
+
+. do ./build.do 
+
+. set more off
+
+. clear all
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. 
+. program main
+  1.     local instub        "../temp"
+  2.     local outstub       "../../../drive/derived_large/tract_income_at_base
+> line"
+  3.     local logfile       "../output/data_file_manifest.log"
+  4. 
+.     local n_mthly_hours_full_time_wrk = 130 /*https://www.irs.gov/affordable-
+> care-act/employers/identifying-full-time-employees*/
+  5.     local n_months_in_yr = 12
+  6. 
+.     import delimited "`instub'/tract_income_at_baseline.csv", ///
+>             stringcols(1) clear
+  7.         rename (n_workers_less_10k_inc n_workers_10to15k_inc ///
+>             n_workers_15to25k_inc n_workers_25to35k_inc n_workers_35to50k_inc
+>  ///
+>                 n_workers_50to65k_inc n_workers_65to75k_inc n_workers_more_75
+> k_inc) ///
+>                 (n_workers_bin1 n_workers_bin2 n_workers_bin3 n_workers_bin4 
+> ///
+>                 n_workers_bin5 n_workers_bin6 n_workers_bin7 n_workers_bin8)
+  8.         reshape long n_workers_bin, i(tract) j(bin)
+  9.         create_min_max_bins
+ 10.         bysort tract (bin): gen cumsum_n_workers = sum(n_workers_bin)
+ 11. 
+.     gen full_time_statutory_yrly_min = (statutory_mw*`n_mthly_hours_full_time
+> _wrk')*`n_months_in_yr'
+ 12.     gen full_time_state_yrly_min = (state_mw*`n_mthly_hours_full_time_wrk'
+> )*`n_months_in_yr'
+ 13.     gen full_time_fed_yrly_min = (fed_mw*`n_mthly_hours_full_time_wrk')*`n
+> _months_in_yr'
+ 14.     
+.         compute_mw_shares, full_time_yrly_var(full_time_statutory_yrly_min) s
+> tub(statutory)
+ 15.         compute_mw_shares, full_time_yrly_var(full_time_state_yrly_min) st
+> ub(state)
+ 16.         compute_mw_shares, full_time_yrly_var(full_time_fed_yrly_min) stub
+> (fed)
+ 17.         bysort tract: keep if _n == 1
+ 18.         drop n_workers_bin cumsum_n_workers bin min_bin max_bin
+ 19.         
+.     strcompress
+ 20.     save_data "`outstub'/tract_income_at_baseline.dta",                   
+>                ///
+>         key(tract) log(`logfile') replace
+ 21.     export delimited "`outstub'/tract_income_at_baseline.csv", replace
+ 22. end
+
+. 
+. program create_min_max_bins
+  1.     gen min_bin = 1 if bin == 1
+  2.         replace min_bin = 10000 if bin == 2
+  3.         replace min_bin = 15000 if bin == 3
+  4.         replace min_bin = 25000 if bin == 4
+  5.         replace min_bin = 35000 if bin == 5
+  6.         replace min_bin = 50000 if bin == 6
+  7.         replace min_bin = 65000 if bin == 7
+  8.         replace min_bin = 75000 if bin == 8
+  9.         
+.         gen max_bin = 9999 if bin == 1
+ 10.         replace max_bin = 14999 if bin == 2
+ 11.         replace max_bin = 24999 if bin == 3
+ 12.         replace max_bin = 34999 if bin == 4
+ 13.         replace max_bin = 49999 if bin == 5
+ 14.         replace max_bin = 64999 if bin == 6
+ 15.         replace max_bin = 74999 if bin == 7
+ 16.         replace max_bin = 999999999 if bin == 8
+ 17. end
+
+. 
+. program compute_mw_shares
+  1.     syntax, full_time_yrly_var(str) stub(str)
+  2.                 
+.         preserve
+  3.             gen which_bin = (inrange(`full_time_yrly_var', min_bin, max_bi
+> n))
+  4.         keep if which_bin == 1
+  5.             gen share_of_bin = (`full_time_yrly_var' - min_bin)/(max_bin -
+>  min_bin)
+  6.         
+.             gen n_mw_workers_`stub' = floor(cumsum_n_workers - (1-share_of_bi
+> n)*n_workers_bin)
+  7.             gen share_mw_wkrs_`stub' = n_mw_workers_`stub'/n_workers
+  8.             gen share_mw_wkrs_over_pop_`stub' = n_mw_workers_`stub'/popula
+> tion
+  9.                 
+.                 keep tract n_mw_workers_`stub' share_mw_wkrs_`stub' share_mw_
+> wkrs_over_pop_`stub'
+ 10.                 save "../temp/mw_workers_`stub'.dta", replace
+ 11.         restore
+ 12.     
+.         merge m:1 tract using "../temp/mw_workers_`stub'.dta", nogen
+ 13. end
+
+. 
+. main
+(20 vars, 72,814 obs)
+(note: j = 1 2 3 4 5 6 7 8)
+
+Data                               wide   ->   long
+-----------------------------------------------------------------------------
+Number of obs.                    72814   ->  582512
+Number of variables                  20   ->      14
+j variable (8 values)                     ->   bin
+xij variables:
+n_workers_bin1 n_workers_bin2 ... n_workers_bin8->n_workers_bin
+-----------------------------------------------------------------------------
+(509,698 missing values generated)
+(72,814 real changes made)
+(72,814 real changes made)
+(72,814 real changes made)
+(72,814 real changes made)
+(72,814 real changes made)
+(72,814 real changes made)
+(72,814 real changes made)
+(509,698 missing values generated)
+(72,814 real changes made)
+(72,814 real changes made)
+(72,814 real changes made)
+(72,814 real changes made)
+(72,814 real changes made)
+(72,814 real changes made)
+(72,814 real changes made)
+(509,698 observations deleted)
+(71,633 missing values generated)
+(71,636 missing values generated)
+(71,636 missing values generated)
+(note: file ../temp/mw_workers_statutory.dta not found)
+file ../temp/mw_workers_statutory.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           582,512  
+    -----------------------------------------
+(509,698 observations deleted)
+(71,633 missing values generated)
+(71,636 missing values generated)
+(71,636 missing values generated)
+(note: file ../temp/mw_workers_state.dta not found)
+file ../temp/mw_workers_state.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           582,512  
+    -----------------------------------------
+(509,698 observations deleted)
+(71,633 missing values generated)
+(71,636 missing values generated)
+(71,636 missing values generated)
+(note: file ../temp/mw_workers_fed.dta not found)
+file ../temp/mw_workers_fed.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           582,512  
+    -----------------------------------------
+(509,698 observations deleted)
+  Converting str to strL: tract
+    strcompress grew data 95% so far, but I'm not done yet!
+  variable full_time_fed_yrly_min was float now int
+  variable n_mw_workers_statutory was float now int
+  variable n_mw_workers_state was float now int
+  variable n_mw_workers_fed was float now int
+  variable tract was strL now str11
+  (7,062,958 bytes saved)
+       compress shrank data 53%
+    strcompress shrank data  9% overall
+(data already sorted by tract)
+  (0 bytes saved)
+===============================================================================
+File: ../../../drive/derived_large/tract_income_at_baseline/tract_income_at_bas
+> eline.dta
+Key: tract
+===============================================================================
+  72814:24(88588):945949167:47779838
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+       tract |          0
+  place_code |     72,814     4646098     3499303     100124    9999999
+  countyfips |     72,814    27771.98    15808.76       1001      56045
+        cbsa |     72,814    35588.67    21018.48      10100      99999
+   statefips |     72,814    27.68577     15.7839          1         56
+-------------+---------------------------------------------------------
+      fed_mw |     72,814        7.25           0       7.25       7.25
+    state_mw |     72,814    7.479785    .3885205       7.25       8.67
+statutory_mw |     72,814    7.486041    .4116537       7.25      12.81
+  population |      1,181    4019.834    1954.256          0      12721
+     n_hhlds |      1,181    1550.609    730.7826          0       4757
+-------------+---------------------------------------------------------
+med_hhld_inc |      1,174    43282.17    19871.99       6559     162955
+   n_workers |      1,181    1689.677    957.6587          0       6818
+f~y_yrly_min |     72,814    11678.22    642.1797      11310    19983.6
+f~e_yrly_min |     72,814    11668.47    606.0919      11310    13525.2
+f~d_yrly_min |     72,814       11310           0      11310      11310
+-------------+---------------------------------------------------------
+n_mw_worke~y |      1,181    283.8713    170.9872          0       1382
+share_mw_w.. |      1,178    .1794072    .0860199          0   .8871287
+~p_statutory |      1,178    .0713182    .0307556          0   .3081683
+n_mw_worke~e |      1,181    283.8713    170.9872          0       1382
+shar~s_state |      1,178    .1794072    .0860199          0   .8871287
+-------------+---------------------------------------------------------
+shar~p_state |      1,178    .0713182    .0307556          0   .3081683
+n_mw_worke~d |      1,181    283.8713    170.9872          0       1382
+share_~s_fed |      1,178    .1794072    .0860199          0   .8871287
+share_~p_fed |      1,178    .0713182    .0307556          0   .3081683
+
+
+
+
+file ../../../drive/derived_large/tract_income_at_baseline/tract_income_at_base
+> line.dta saved
+file ../../../drive/derived_large/tract_income_at_baseline/tract_income_at_base
+> line.csv saved
+
+. 
+end of do-file
+
+ make.py ended: 2022-03-03 13:12:33

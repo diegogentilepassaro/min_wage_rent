@@ -13,7 +13,7 @@ main <- function(){
 
   demo_vars <- c("B01001_002E", "B25003_001E", "B25003_002E", "B25003_003E", 
                 "B02001_001E", "B02001_002E", "B02001_003E")
-  inc_vars <- c("B25120_001E")
+  inc_vars <- c("B19019_001E")
   binned_income_hhld_vars <- c("B19001_002E", "B19001_003E", 
                                "B19001_004E", "B19001_005E", "B19001_006E",
                                "B19001_007E", "B19001_008E", "B19001_009E", 
@@ -25,7 +25,7 @@ main <- function(){
                                  "B08119_007E", "B08119_008E", "B08119_009E")
   
   dt <- data.table()
-  for (st in state.abb) {
+  for (st in 1) {
     dt_state <- get_acs(geography = "tract", 
                         variables = c(demo_vars, inc_vars, 
                                       binned_income_hhld_vars, binned_income_worker_vars), 
@@ -43,7 +43,7 @@ main <- function(){
              n_white = B02001_002,
              n_black = B02001_003,
              n_hhlds = B25003_001,
-             agg_hhld_inc = B25120_001,
+             med_hhld_inc = B19019_001,
              n_hhlds_owner_occupied = B25003_002,
              n_hhlds_renter_occupied = B25003_003,
              n_hhlds_less_10k_inc = B19001_002,
@@ -73,7 +73,7 @@ main <- function(){
              n_workers_more_75k_inc = B08119_009) %>%
       select(tract, population, 
              n_male, n_white, n_black,
-             n_hhlds, agg_hhld_inc, n_hhlds_owner_occupied, n_hhlds_renter_occupied,
+             n_hhlds, med_hhld_inc, n_hhlds_owner_occupied, n_hhlds_renter_occupied,
              n_hhlds_less_10k_inc, n_hhlds_10to15k_inc, n_hhlds_15to20k_inc, 
              n_hhlds_20to25k_inc,  n_hhlds_25to30k_inc, n_hhlds_30to35k_inc,
              n_hhlds_35to40k_inc, n_hhlds_40to45k_inc, n_hhlds_45to50k_inc, 
