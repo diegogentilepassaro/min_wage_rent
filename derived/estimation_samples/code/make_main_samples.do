@@ -59,6 +59,7 @@ program gen_vars
         gen ln_`ctrl_type'_bizserv = log(`ctrl_type'_bizserv)
         gen ln_`ctrl_type'_info    = log(`ctrl_type'_info)
         gen ln_`ctrl_type'_fin     = log(`ctrl_type'_fin)
+        drop `ctrl_type'_*
     }
 end
 
