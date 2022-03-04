@@ -12,7 +12,7 @@ program main
     local mthly_hours_ft = 130 
     local months_in_yr   = 12
 
-    import delimited "`instub'/tract_demo_baseline.csv", ///
+    import delimited "`instub'/tract.csv", ///
         stringcols(1) clear
     create_min_max_bins
 
@@ -30,9 +30,9 @@ program main
     drop n_workers_bin cumsum_n_workers bin min_bin max_bin
     
     strcompress
-    save_data "`outstub'/tract_demo_baseline.dta",                 ///
-        key(tract) log(`logfile') replace
-    export delimited "`outstub'/tract_demo_baseline.csv", replace
+    save_data "`outstub'/tract.dta", key(tract)          ///
+        log(`logfile') replace
+    export delimited "`outstub'/tract.csv", replace
 end
 
 program create_min_max_bins

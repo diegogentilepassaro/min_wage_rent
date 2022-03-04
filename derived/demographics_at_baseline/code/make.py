@@ -33,7 +33,7 @@ if "StataSE" in envir_vars:
 start_make_logging()
 
 run_rbatch(program = 'build_block_demo.R')
-run_rbatch(program = 'build_tract_mw_acs.R')
+run_rbatch(program = 'build_tract_acs.R')
 run_stata(program  = 'build_tract_mw_shares.do', executable = stata)
 run_rbatch(program = 'build_zip_demo.R')
 clear_dirs('../temp/')

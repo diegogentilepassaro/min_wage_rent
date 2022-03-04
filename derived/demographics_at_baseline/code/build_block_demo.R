@@ -28,12 +28,11 @@ main <- function(){
                "n_black", "share_black", "urban_population", "share_urban", 
                "n_hhlds_renter_occupied", "share_renter_hhlds")]
   
-  save_data(dt,
-            key      = c("block"),
-            filename = file.path(outstub, "block_demo_baseline.dta"),
+  save_data(dt, key  = c("block"),
+            filename = file.path(outstub, "block.dta"),
             logfile  = log_file)
   fwrite(dt,
-         file = file.path(outstub, "block_demo_baseline.csv"))
+         file = file.path(outstub, "block.csv"))
 }
 
 main()

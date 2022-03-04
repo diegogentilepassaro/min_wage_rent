@@ -13,7 +13,6 @@ main <- function(){
   in_mw_data <- "../../../base/min_wage/output"
   in_acs     <- "../../../drive/base_large/demographics"
   outstub    <- "../temp"
-  log_file   <- "../output/data_file_manifest.log"
 
   yy <- 2011
   mm <- 1
@@ -41,7 +40,7 @@ main <- function(){
                                             "n_workers_more_75k_inc")))  
   dt <- merge(dt, dt_acs, all.x = TRUE)
   
-  fwrite(dt, file.path(outstub, "tract_demo_baseline.csv"))
+  fwrite(dt, file.path(outstub, "tract.csv"))
 }
 
 load_geographies <- function(instub) {
