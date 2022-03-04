@@ -20,8 +20,7 @@ set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
 clear_dirs('../output/')
-clear_dirs('../../../drive/derived_large/block_demo_at_baseline')
-
+clear_dirs('../../../drive/derived_large/demographics_at_baseline/')
 
 envir_vars = os.getenv('PATH')
 if envir_vars is None:
@@ -33,7 +32,10 @@ if "StataSE" in envir_vars:
 
 start_make_logging()
 
-run_rbatch(program = 'build.R')
+run_rbatch(program = 'build_block_demo.R')
+run_rbatch(program = 'assign_mw_to_tract.R')
+run_stata(program = 'build_tract_demo.do', executable = stata)
+run_stata(program = 'build_zip_demo.do', executable = stata)
 
 end_make_logging()
 

@@ -1,0 +1,756 @@
+
+ make.py started: 2022-03-04 09:52:11 C:\Users\diegog\Desktop\Diego\min_wage_rent\derived\demographics_at_baseline\code 
+
+
+
+
+Execute:  R CMD BATCH --no-save "./build_block_demo.R" build_block_demo.Rout
+
+R version 4.1.1 (2021-08-10) -- "Kick Things"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list = ls())
+> 
+> library(data.table)
+> source("../../../lib/R/save_data.R")
+
+Please cite as: 
+
+ Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+ R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
+
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:data.table':
+
+    between, first, last
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+> 
+> setDTthreads(20)
+> 
+> main <- function(){
++   in_master <- "../../../drive/base_large/census_block_master"
++   in_census <- "../../../drive/base_large/demographics"
++   outstub   <- "../../../drive/derived_large/demographics_at_baseline"
++   log_file  <- "../output/data_file_manifest.log"
++ 
++   dt <- fread(file.path(in_master, "census_block_master.csv"),
++               select = list(character = c("block")))
++   dt_census <- fread(file.path(in_census, "census_cb_2010.csv"),
++                   colClasses =  c("block" = "character"))
++   dt <- merge(dt, dt_census, all.x = TRUE)
++   
++   dt <- dt[, "share_male"         := n_male/population]
++   dt <- dt[, "share_white"        := n_white/population]
++   dt <- dt[, "share_black"        := n_black/population]
++   dt <- dt[, "share_urban"        := urban_population/population]
++   dt <- dt[, "share_renter_hhlds" := n_hhlds_renter_occupied/n_hhlds]
++   
++   dt <- dt[, c("block", "population", "n_hhlds", 
++                "n_male", "share_male", "n_white", "share_white",
++                "n_black", "share_black", "urban_population", "share_urban", 
++                "n_hhlds_renter_occupied", "share_renter_hhlds")]
++   
++   save_data(dt,
++             key      = c("block"),
++             filename = file.path(outstub, "block_demo_baseline.dta"),
++             logfile  = log_file)
++   fwrite(dt,
++          file = file.path(outstub, "block_demo_baseline.csv"))
++ }
+> 
+> main()
+[1] "File '../../../drive/derived_large/demographics_at_baseline/block_demo_baseline.dta' saved successfully."
+> 
+> proc.time()
+   user  system elapsed 
+ 213.26   92.39  235.43 
+
+
+Execute:  R CMD BATCH --no-save "./assign_mw_to_tract.R" assign_mw_to_tract.Rout
+
+R version 4.1.1 (2021-08-10) -- "Kick Things"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list = ls())
+> 
+> library(data.table)
+> library(zoo)
+
+Attaching package: 'zoo'
+
+The following objects are masked from 'package:base':
+
+    as.Date, as.Date.numeric
+
+> library(stringr)
+> source("../../../lib/R/save_data.R")
+
+Please cite as: 
+
+ Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+ R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
+
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:data.table':
+
+    between, first, last
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+> source("../../../lib/R/load_mw.R")
+> 
+> setDTthreads(20)
+> 
+> main <- function(){
++   in_master  <- "../../../drive/base_large/census_block_master"
++   in_mw_data <- "../../../base/min_wage/output"
++   in_acs     <- "../../../drive/base_large/demographics"
++   outstub    <- "../temp"
++   log_file   <- "../output/data_file_manifest.log"
++ 
++   yy <- 2011
++   mm <- 1
++ 
++   dt_geo <- load_geographies(in_master)
++   
++   dt_mw  <- load_mw(in_mw_data)
++   
++   dt <- copy(dt_geo)
++   dt[, c("year", "month") := .(yy, mm)]
++ 
++   dt <- assemble_statutory_mw(dt, dt_mw)
++   dt <- dt[, c("block", "tract", 
++                "fed_mw", "state_mw", "county_mw", "local_mw", "statutory_mw",
++                "num_house10")]
++   dt <- collapse_data(dt, key_vars = c("tract"))
++ 
++   dt_acs <- fread(file.path(in_acs, "acs_tract_2011.csv"),
++                   select = list(character = c("tract"),
++                                 numeric = c("population", "n_hhlds",
++                                             "med_hhld_inc", "n_workers", "n_workers_less_10k_inc",
++                                             "n_workers_10to15k_inc", "n_workers_15to25k_inc",
++                                             "n_workers_25to35k_inc", "n_workers_35to50k_inc",
++                                             "n_workers_50to65k_inc", "n_workers_65to75k_inc",
++                                             "n_workers_more_75k_inc")))  
++   dt <- merge(dt, dt_acs, all.x = TRUE)
++   
++   fwrite(dt, file.path(outstub, "tract_demo_baseline.csv"))
++ }
+> 
+> load_geographies <- function(instub) {
++   dt <- fread(file.path(instub, "census_block_master.csv"),
++               select = list(character = c("block", "tract", "place_code", "place_name", 
++                                           "countyfips", "countyfips_name",
++                                           "cbsa", "statefips"),
++                             numeric = c("num_house10")))
++     
++   return(dt)
++ }
+> 
+> assemble_statutory_mw <- function(dt, dt_mw) {
++   
++   dt <- dt_mw$state[dt,  on = c("statefips",                    "year", "month")][, event := NULL]
++   dt <- dt_mw$county[dt, on = c("statefips", "countyfips_name", "year", "month")][, event := NULL]
++   dt <- dt_mw$local[dt,  on = c("statefips", "place_name",      "year", "month")][, event := NULL]
++   
++   # Compute statutory MW
++   dt[, statutory_mw := pmax(local_mw, county_mw, state_mw, fed_mw, na.rm = T)]
++   
++   return(dt)
++ }
+> 
+> collapse_data <- function(dt, key_vars) {
++   
++   dt <- dt[, .(statutory_mw             = weighted.mean(statutory_mw,             num_house10),
++                local_mw                 = weighted.mean(local_mw,                 num_house10),
++                county_mw                = weighted.mean(county_mw,                num_house10),
++                state_mw                 = weighted.mean(state_mw,                 num_house10),
++                fed_mw                   = weighted.mean(fed_mw,                   num_house10)),
++            keyby = key_vars]
++   
++   return(dt)
++ }
+> 
+> main()
+> 
+> proc.time()
+   user  system elapsed 
+  60.90   16.96   61.87 
+
+
+Execute:  StataMP-64 /e do "./build_tract_demo.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+
+running c:\ado\personal\profile.do ...
+
+. do ./build_tract_demo.do 
+
+. set more off
+
+. clear all
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. 
+. program main
+  1.     local instub        "../temp"
+  2.     local outstub       "../../../drive/derived_large/demographics_at_base
+> line"
+  3.     local logfile       "../output/data_file_manifest.log"
+  4. 
+.     * Monthly hours done in a full time job (ft) are obtained from
+.     * https://www.irs.gov/affordable-care-act/employers/identifying-full-time
+> -employees
+.     local mthly_hours_ft = 130 
+  5.     local months_in_yr   = 12
+  6. 
+.     import delimited "`instub'/tract_demo_baseline.csv", ///
+>         stringcols(1) clear
+  7.     create_min_max_bins
+  8. 
+.     bysort tract (bin): gen cumsum_n_workers = sum(n_workers_bin)
+  9. 
+.     gen ft_statutory_yrly_min = (statutory_mw*`mthly_hours_ft')*`months_in_yr
+> '
+ 10.     gen ft_state_yrly_min     = (state_mw    *`mthly_hours_ft')*`months_in
+> _yr'
+ 11.     gen ft_fed_yrly_min       = (fed_mw      *`mthly_hours_ft')*`months_in
+> _yr'
+ 12.     
+.     compute_mw_shares, ft_yrly_var(ft_statutory_yrly_min) stub(statutory)
+ 13.     compute_mw_shares, ft_yrly_var(ft_state_yrly_min)     stub(state)
+ 14.     compute_mw_shares, ft_yrly_var(ft_fed_yrly_min)       stub(fed)
+ 15.     
+.     bysort tract: keep if _n == 1
+ 16.     drop n_workers_bin cumsum_n_workers bin min_bin max_bin
+ 17.     
+.     strcompress
+ 18.     save_data "`outstub'/tract_demo_baseline.dta",                        
+> ///
+>         key(tract) log(`logfile') replace
+ 19.     export delimited "`outstub'/tract_demo_baseline.csv", replace
+ 20. end
+
+. 
+. program create_min_max_bins
+  1. 
+.     rename (n_workers_less_10k_inc n_workers_10to15k_inc n_workers_15to25k_in
+> c  ///
+>             n_workers_25to35k_inc  n_workers_35to50k_inc n_workers_50to65k_in
+> c  ///
+>             n_workers_65to75k_inc  n_workers_more_75k_inc                    
+>  ) ///
+>            (n_workers_bin1         n_workers_bin2        n_workers_bin3      
+>    ///
+>                 n_workers_bin4         n_workers_bin5        n_workers_bin6  
+>        ///
+>                 n_workers_bin7         n_workers_bin8                        
+>      )
+  2. 
+.     reshape long n_workers_bin, i(tract) j(bin)
+  3. 
+.     gen     min_bin = 1     if bin == 1
+  4.     replace min_bin = 10000 if bin == 2
+  5.     replace min_bin = 15000 if bin == 3
+  6.     replace min_bin = 25000 if bin == 4
+  7.     replace min_bin = 35000 if bin == 5
+  8.     replace min_bin = 50000 if bin == 6
+  9.     replace min_bin = 65000 if bin == 7
+ 10.     replace min_bin = 75000 if bin == 8
+ 11.     
+.     gen     max_bin = 9999  if bin == 1
+ 12.     replace max_bin = 14999 if bin == 2
+ 13.     replace max_bin = 24999 if bin == 3
+ 14.     replace max_bin = 34999 if bin == 4
+ 15.     replace max_bin = 49999 if bin == 5
+ 16.     replace max_bin = 64999 if bin == 6
+ 17.     replace max_bin = 74999 if bin == 7
+ 18.     replace max_bin = 999999999 if bin == 8
+ 19. end
+
+. 
+. program compute_mw_shares
+  1.     syntax, ft_yrly_var(str) stub(str)
+  2.         
+.     preserve
+  3.         gen which_bin = (inrange(`ft_yrly_var', min_bin, max_bin))
+  4.         keep if which_bin == 1
+  5.         gen sh_bin = (`ft_yrly_var' - min_bin)/(max_bin - min_bin)
+  6.     
+.         gen n_mw_workers_`stub'           = floor(cumsum_n_workers - (1-sh_bi
+> n)*n_workers_bin)
+  7.         gen share_mw_wkrs_`stub'          = n_mw_workers_`stub'/n_workers
+  8.         gen share_mw_wkrs_over_pop_`stub' = n_mw_workers_`stub'/population
+  9.         
+.         keep tract n_mw_workers_`stub' share_mw_wkrs_`stub' share_mw_wkrs_ove
+> r_pop_`stub'
+ 10.         save "../temp/mw_workers_`stub'.dta", replace
+ 11.     restore
+ 12.     
+.     merge m:1 tract using "../temp/mw_workers_`stub'.dta", nogen
+ 13. end
+
+. 
+. main
+(18 vars, 72,814 obs)
+(note: j = 1 2 3 4 5 6 7 8)
+
+Data                               wide   ->   long
+-----------------------------------------------------------------------------
+Number of obs.                    72814   ->  582512
+Number of variables                  18   ->      12
+j variable (8 values)                     ->   bin
+xij variables:
+n_workers_bin1 n_workers_bin2 ... n_workers_bin8->n_workers_bin
+-----------------------------------------------------------------------------
+(509,698 missing values generated)
+(72,814 real changes made)
+(72,814 real changes made)
+(72,814 real changes made)
+(72,814 real changes made)
+(72,814 real changes made)
+(72,814 real changes made)
+(72,814 real changes made)
+(509,698 missing values generated)
+(72,814 real changes made)
+(72,814 real changes made)
+(72,814 real changes made)
+(72,814 real changes made)
+(72,814 real changes made)
+(72,814 real changes made)
+(72,814 real changes made)
+(4,832 missing values generated)
+(4,832 missing values generated)
+(4,832 missing values generated)
+(510,302 observations deleted)
+(192 missing values generated)
+(368 missing values generated)
+(321 missing values generated)
+(note: file ../temp/mw_workers_statutory.dta not found)
+file ../temp/mw_workers_statutory.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                         4,832
+        from master                     4,832  
+        from using                          0  
+
+    matched                           577,680  
+    -----------------------------------------
+(510,302 observations deleted)
+(192 missing values generated)
+(368 missing values generated)
+(321 missing values generated)
+(note: file ../temp/mw_workers_state.dta not found)
+file ../temp/mw_workers_state.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                         4,832
+        from master                     4,832  
+        from using                          0  
+
+    matched                           577,680  
+    -----------------------------------------
+(510,302 observations deleted)
+(192 missing values generated)
+(368 missing values generated)
+(321 missing values generated)
+(note: file ../temp/mw_workers_fed.dta not found)
+file ../temp/mw_workers_fed.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                         4,832
+        from master                     4,832  
+        from using                          0  
+
+    matched                           577,680  
+    -----------------------------------------
+(509,698 observations deleted)
+  Converting str to strL: tract
+    strcompress grew data 98% so far, but I'm not done yet!
+  variable ft_fed_yrly_min was float now int
+  variable n_mw_workers_statutory was float now int
+  variable n_mw_workers_state was float now int
+  variable n_mw_workers_fed was float now int
+  variable tract was strL now str11
+  (7,062,958 bytes saved)
+       compress shrank data 54%
+    strcompress shrank data  9% overall
+(data already sorted by tract)
+  (0 bytes saved)
+===============================================================================
+File: ../../../drive/derived_large/demographics_at_baseline/tract_demo_baseline
+> .dta
+Key: tract
+===============================================================================
+  72814:22(99881):1057962579:3435218629
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+       tract |          0
+statutory_mw |     72,210    7.486416     .411802       7.25      12.81
+    local_mw |      6,284     7.80021    .5988604       7.25      12.81
+   county_mw |      5,127    7.857519    .3817858       7.25       8.25
+    state_mw |     72,210    7.480163    .3887476       7.25       8.67
+-------------+---------------------------------------------------------
+      fed_mw |     72,210        7.25           0       7.25       7.25
+  population |     72,622    4198.526    1958.903          0      36880
+     n_hhlds |     72,622      1570.8    717.0813          0      12308
+med_hhld_inc |     71,717    56490.38    27778.35       2499     250001
+   n_workers |     72,622    1909.194    981.9886          0      21714
+-------------+---------------------------------------------------------
+ft_statuto~n |     72,210    11678.81    642.4112      11310    19983.6
+ft_state_y~n |     72,210    11669.05    606.4463      11310    13525.2
+ft_fed_yrl~n |     72,210       11310           0      11310      11310
+n_mw_worke~y |     72,018    316.8567     197.748          0       4477
+share_mw_w.. |     71,842    .1726318     .082686          0          1
+-------------+---------------------------------------------------------
+~p_statutory |     71,889     .075445     .033176          0   .5371179
+n_mw_worke~e |     72,018    316.5955    197.6302          0       4477
+shar~s_state |     71,842     .172502    .0826538          0          1
+shar~p_state |     71,889    .0753779    .0331408          0   .5371179
+n_mw_worke~d |     72,018    305.8466    192.3486          0       4477
+-------------+---------------------------------------------------------
+share_~s_fed |     71,842    .1668546    .0813096          0          1
+share_~p_fed |     71,889    .0728969    .0325492          0   .5238096
+
+
+
+
+(note: file ../../../drive/derived_large/demographics_at_baseline/tract_demo_ba
+> seline.dta not found)
+file ../../../drive/derived_large/demographics_at_baseline/tract_demo_baseline.
+> dta saved
+(note: file ../../../drive/derived_large/demographics_at_baseline/tract_demo_ba
+> seline.csv not found)
+file ../../../drive/derived_large/demographics_at_baseline/tract_demo_baseline.
+> csv saved
+
+. 
+end of do-file
+
+
+Execute:  StataMP-64 /e do "./build_zip_demo.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+
+running c:\ado\personal\profile.do ...
+
+. do ./build_zip_demo.do 
+
+. set more off
+
+. clear all
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. 
+. program main
+  1.     local in_zip         "../../../drive/base_large/zipcode_master"
+  2.     local in_tract       "../../../drive/base_large/tract_master"
+  3.     local in_block       "../../../drive/base_large/census_block_master"
+  4.     local in_demo        "../../../drive/derived_large/demographics_at_bas
+> eline"
+  5.     local outstub        "../../../drive/derived_large/demographics_at_bas
+> eline"
+  6.     local logfile        "../output/data_file_manifest.log"
+  7. 
+.     assign_block_demo_to_zip, in_block(`in_block') in_demo(`in_demo')
+  8.         save "../temp/census_block_to_zip_demo.dta", replace
+  9.         
+.     assign_tract_demo_to_zip, in_tract(`in_tract') in_demo(`in_demo')
+ 10.         save "../temp/tract_to_zip_demo.dta", replace
+ 11. 
+.         use "`in_zip'/zipcode_master.dta", clear
+ 12.         merge 1:1 zipcode using "../temp/census_block_to_zip_demo.dta", //
+> /
+>             nogen assert(3)
+ 13.         merge 1:1 zipcode using "../temp/tract_to_zip_demo.dta", ///
+>             nogen assert(1 3)
+ 14.         save_data "`outstub'/zip_demo_at_baseline.dta", ///
+>             key(zipcode) replace log(`logfile')
+ 15. end
+
+. 
+. program assign_block_demo_to_zip
+  1.     syntax, in_block(str) in_demo(str)
+  2.         
+.     use "`in_block'/census_block_master.dta", clear
+  3.         merge 1:1 block using "`in_demo'/block_demo_baseline.dta", nogen a
+> ssert(3) ///
+>             keepusing(n_male n_white n_black urban_population n_hhlds_renter_
+> occupied)
+  4.         keep if !missing(zipcode)
+  5.         gcollapse (sum) n_male_census2010 = n_male n_white_census2010 = n_
+> white ///
+>             n_black_census_2010 = n_black urb_pop_census_2010 = urban_populat
+> ion ///
+>                 n_hhlds_renter_occ_census_2010 = n_hhlds_renter_occupied, ///
+>             by(zipcode)
+  6. end
+
+. 
+. program assign_tract_demo_to_zip
+  1.     syntax, in_tract(str) in_demo(str)
+  2.         
+.         use tract num_houses zipcode ///
+>             using "`in_tract'/tract_master.dta", clear  
+  3.     merge 1:1 tract using "`in_demo'/tract_demo_baseline.dta", nogen asser
+> t(3) ///
+>             keepusing(population med_hhld_inc n_workers n_mw_workers_statutor
+> y ///
+>                 n_mw_workers_state n_mw_workers_fed)
+  4.         keep if !missing(zipcode)
+  5.         preserve
+  6.         gcollapse (mean) med_hhld_inc_acs2011 = med_hhld_inc [aw = num_hou
+> ses], ///
+>                     by(zipcode)
+  7.                 save "../temp/tract_to_zip_med_hhld_inc.dta", replace
+  8.         restore 
+  9.         gcollapse (sum) population_acs2011 = population n_workers_acs2011 
+> = n_workers ///
+>             n_mw_wkrs_statutory = n_mw_workers_statutory ///
+>             n_mw_wkrs_state = n_mw_workers_state ///
+>             n_mw_wkrs_fed = n_mw_workers_fed, by(zipcode)
+ 10.         merge 1:1 zipcode using "../temp/tract_to_zip_med_hhld_inc.dta", n
+> ogen ///
+>             assert(1 3)
+ 11.         foreach stub in statutory state fed {
+ 12.             gen share_mw_wkrs_`stub'          = n_mw_wkrs_`stub'/n_workers
+> _acs2011
+ 13.             gen share_mw_wkrs_over_pop_`stub' = n_mw_wkrs_`stub'/populatio
+> n_acs2011     
+ 14.         }
+ 15. end
+
+. 
+. main
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                        11,053,116  
+    -----------------------------------------
+(17,094 observations deleted)
+(note: file ../temp/census_block_to_zip_demo.dta not found)
+file ../temp/census_block_to_zip_demo.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            72,814  
+    -----------------------------------------
+(284 observations deleted)
+(note: file ../temp/tract_to_zip_med_hhld_inc.dta not found)
+file ../temp/tract_to_zip_med_hhld_inc.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            39
+        from master                        39  
+        from using                          0  
+
+    matched                            20,021  
+    -----------------------------------------
+(65 missing values generated)
+(61 missing values generated)
+(65 missing values generated)
+(61 missing values generated)
+(65 missing values generated)
+(61 missing values generated)
+(note: file ../temp/tract_to_zip_demo.dta not found)
+file ../temp/tract_to_zip_demo.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            31,754  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                        11,694
+        from master                    11,694  
+        from using                          0  
+
+    matched                            20,060  
+    -----------------------------------------
+(data already sorted by zipcode)
+  variable n_male_census2010 was double now long
+  variable n_white_census2010 was double now long
+  variable n_black_census_2010 was double now long
+  variable urb_pop_census_2010 was double now long
+  variable n_hhlds_renter_occ_census_2010 was double now long
+  variable population_acs2011 was double now long
+  variable n_workers_acs2011 was double now long
+  variable n_mw_wkrs_statutory was double now int
+  variable n_mw_wkrs_state was double now int
+  variable n_mw_wkrs_fed was double now int
+  (1,460,684 bytes saved)
+===============================================================================
+File: ../../../drive/derived_large/demographics_at_baseline/zip_demo_at_baselin
+> e.dta
+Key: zipcode
+===============================================================================
+  31754:34(98392):831068528:108559658
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+n_census_b~s |     31,754    347.5475    355.8447          1       9067
+n_blockgro~s |     31,754    10.52548    11.06104          1        101
+    n_tracts |     31,754    5.116584    4.594125          1         47
+    n_places |     31,754    2.567173    1.694982          1         81
+-------------+---------------------------------------------------------
+  n_counties |     31,754    1.451943    .7022054          1          7
+      n_cbsa |     31,754     1.24863    .5041342          1          5
+    n_states |     31,754    1.015715    .1243708          1          2
+  num_houses |     31,754    4132.686    5588.503          0      48073
+  population |     31,754    9689.449    13768.12          0     115182
+-------------+---------------------------------------------------------
+    sh_rural |     31,754    .5669182    .3566124          0          1
+sh_rural_w~s |     31,496    .4788689    .3638109          0          1
+       tract |          0
+  place_code |          0
+  countyfips |          0
+-------------+---------------------------------------------------------
+   statefips |          0
+        cbsa |          0
+n_male_~2010 |     31,754    4754.675    6726.825          0      57965
+n_white~2010 |     31,754    7005.537    9522.777          0      91407
+n_black~2010 |     31,754    1214.418    3814.809          0      79984
+-------------+---------------------------------------------------------
+urb_pop~2010 |     31,754     7800.09    13652.59          0     115182
+n_hhlds~2010 |     31,754    1272.652    2373.331          0      33601
+populat~2011 |     20,060    15199.56    14916.58          0     117058
+n_worke~2011 |     20,060    6911.713    6970.112          0      51551
+n_mw_wkrs_~y |     20,060    1137.554    1192.768          0      11845
+-------------+---------------------------------------------------------
+n_mw_wkrs_~e |     20,060    1136.616    1190.855          0      11845
+n_mw_wkrs_~d |     20,060    1098.027    1136.552          0      11142
+med_hhl~2011 |     19,971    54686.92    22665.47       2499   245224.4
+share_mw_w.. |     19,995    .1735971    .0609454          0          1
+~p_statutory |     19,999     .075935    .0247059          0   .5076452
+-------------+---------------------------------------------------------
+shar~s_state |     19,995    .1735424     .060949          0          1
+shar~p_state |     19,999     .075906    .0246952          0   .5076452
+share_~s_fed |     19,995    .1688402    .0598889          0          1
+share_~p_fed |     19,999    .0738386    .0242491          0   .5076452
+
+
+
+
+(note: file ../../../drive/derived_large/demographics_at_baseline/zip_demo_at_b
+> aseline.dta not found)
+file ../../../drive/derived_large/demographics_at_baseline/zip_demo_at_baseline
+> .dta saved
+
+. 
+end of do-file
+
+ make.py ended: 2022-03-04 09:58:28

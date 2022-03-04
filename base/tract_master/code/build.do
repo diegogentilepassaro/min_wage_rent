@@ -12,6 +12,7 @@ program main
 
     make_baseline_frame, master_geo(tract)
 
+    assign_geography, instub(`instub') master_geo(tract) geo_to_assign(zipcode)
     assign_geography, instub(`instub') master_geo(tract) geo_to_assign(place_code)
     assign_geography, instub(`instub') master_geo(tract) geo_to_assign(place_name)
     assign_geography, instub(`instub') master_geo(tract) geo_to_assign(countyfips)

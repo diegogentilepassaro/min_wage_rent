@@ -4,7 +4,7 @@ adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
     local instub        "../temp"
-    local outstub       "../../../drive/derived_large/tract_income_at_baseline"
+    local outstub       "../../../drive/derived_large/demographics_at_baseline"
     local logfile       "../output/data_file_manifest.log"
 
     * Monthly hours done in a full time job (ft) are obtained from
@@ -12,9 +12,8 @@ program main
     local mthly_hours_ft = 130 
     local months_in_yr   = 12
 
-    import delimited "`instub'/tract_income_at_baseline.csv", ///
+    import delimited "`instub'/tract_demo_baseline.csv", ///
         stringcols(1) clear
-
     create_min_max_bins
 
     bysort tract (bin): gen cumsum_n_workers = sum(n_workers_bin)
@@ -31,9 +30,9 @@ program main
     drop n_workers_bin cumsum_n_workers bin min_bin max_bin
     
     strcompress
-    save_data "`outstub'/tract_income_at_baseline.dta",                        ///
+    save_data "`outstub'/tract_demo_baseline.dta",                        ///
         key(tract) log(`logfile') replace
-    export delimited "`outstub'/tract_income_at_baseline.csv", replace
+    export delimited "`outstub'/tract_demo_baseline.csv", replace
 end
 
 program create_min_max_bins
