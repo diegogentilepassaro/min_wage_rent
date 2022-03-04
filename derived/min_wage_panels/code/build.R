@@ -109,7 +109,7 @@ load_geographies <- function(instub) {
   
   dt <- fread(file.path(instub, "census_block_master.csv"),
               select = list(character = c("statefips",  "countyfips", 
-                                          "countyfips_name", "block",
+                                          "county_name", "block",
                                           "place_code", "place_name", "zipcode"), 
                             numeric   = "num_house10"))
   
@@ -130,9 +130,9 @@ get_months_with_changes <- function(dt_mw, yy) {
 
 assemble_statutory_mw <- function(dt, dt_mw) {
   
-  dt <- dt_mw$state[dt,  on = c("statefips",                    "year", "month")][, event := NULL]
-  dt <- dt_mw$county[dt, on = c("statefips", "countyfips_name", "year", "month")][, event := NULL]
-  dt <- dt_mw$local[dt,  on = c("statefips", "place_name",      "year", "month")][, event := NULL]
+  dt <- dt_mw$state[dt,  on = c("statefips",                "year", "month")][, event := NULL]
+  dt <- dt_mw$county[dt, on = c("statefips", "county_name", "year", "month")][, event := NULL]
+  dt <- dt_mw$local[dt,  on = c("statefips", "place_name",  "year", "month")][, event := NULL]
   
   # Compute statutory MW
   dt[, statutory_mw := pmax(local_mw, county_mw, state_mw, fed_mw, na.rm = T)]

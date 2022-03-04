@@ -30,16 +30,16 @@ load_mw <- function(instub) {
   
   county_mw <- local_mw[iscounty == 1, ][, iscounty := NULL]
   setnames(county_mw, old = c("locality",    mw_vars), 
-           new = c("countyfips_name", county_mw_vars))
+           new = c("county_name", county_mw_vars))
   
   local_mw <- local_mw[iscounty == 0, ][, iscounty := NULL]
   setnames(local_mw, old = c("locality",   mw_vars),
            new = c("place_name", local_mw_vars))
   
-  county_mw <- county_mw[, .(countyfips_name, statefips, county_mw, year, month)]
+  county_mw <- county_mw[, .(county_name, statefips, county_mw, year, month)]
   local_mw <- local_mw[,   .(place_name,  statefips, local_mw,  year, month)]
   
-  county_mw[, event := 1*(county_mw != shift(county_mw)), by = .(countyfips_name, statefips)]
+  county_mw[, event := 1*(county_mw != shift(county_mw)), by = .(county_name, statefips)]
   local_mw[,  event := 1*(local_mw  != shift(local_mw)),  by = .(place_name,  statefips)]
   
   return(list("state"  = state_mw, 
