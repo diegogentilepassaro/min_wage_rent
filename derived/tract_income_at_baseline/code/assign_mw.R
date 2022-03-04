@@ -51,9 +51,7 @@ load_geographies <- function(instub) {
               select = list(character = c("tract", "place_code", "place_name", 
                                           "countyfips", "countyfips_name",
                                           "cbsa", "statefips")))
-  
-  dt <- manual_corrections(dt)
-  
+    
   return(dt)
 }
 

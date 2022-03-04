@@ -117,9 +117,7 @@ load_geographies <- function(instub) {
   setnames(dt, old = "countyfips_name", new = "county_name")
   
   dt <- dt[zipcode != ""]  # small % of census blocks do not have a zip code
-  
-  dt <- manual_corrections(dt)
-  
+    
   return(dt)
 }
 
