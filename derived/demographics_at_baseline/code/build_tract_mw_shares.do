@@ -3,11 +3,11 @@ clear all
 adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
-    local instub        "../temp"
-    local outstub       "../../../drive/derived_large/demographics_at_baseline"
-    local logfile       "../output/data_file_manifest.log"
+    local instub  "../temp"
+    local outstub "../../../drive/derived_large/demographics_at_baseline"
+    local logfile "../output/data_file_manifest.log"
 
-    * Monthly hours done in a full time job (ft) are obtained from
+    * Monthly hours completed in a full time job (ft) are obtained from
     * https://www.irs.gov/affordable-care-act/employers/identifying-full-time-employees
     local mthly_hours_ft = 130 
     local months_in_yr   = 12
@@ -30,7 +30,7 @@ program main
     drop n_workers_bin cumsum_n_workers bin min_bin max_bin
     
     strcompress
-    save_data "`outstub'/tract_demo_baseline.dta",                        ///
+    save_data "`outstub'/tract_demo_baseline.dta",                 ///
         key(tract) log(`logfile') replace
     export delimited "`outstub'/tract_demo_baseline.csv", replace
 end
@@ -83,5 +83,6 @@ program compute_mw_shares
     
     merge m:1 tract using "../temp/mw_workers_`stub'.dta", nogen
 end
+
 
 main

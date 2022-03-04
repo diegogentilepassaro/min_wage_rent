@@ -47,7 +47,7 @@ main <- function(){
 load_geographies <- function(instub) {
   dt <- fread(file.path(instub, "census_block_master.csv"),
               select = list(character = c("block", "tract", "place_code", "place_name", 
-                                          "countyfips", "countyfips_name",
+                                          "countyfips", "county_name",
                                           "cbsa", "statefips"),
                             numeric = c("num_house10")))
     
@@ -56,9 +56,9 @@ load_geographies <- function(instub) {
 
 assemble_statutory_mw <- function(dt, dt_mw) {
   
-  dt <- dt_mw$state[dt,  on = c("statefips",                    "year", "month")][, event := NULL]
-  dt <- dt_mw$county[dt, on = c("statefips", "countyfips_name", "year", "month")][, event := NULL]
-  dt <- dt_mw$local[dt,  on = c("statefips", "place_name",      "year", "month")][, event := NULL]
+  dt <- dt_mw$state[dt,  on = c("statefips",                "year", "month")][, event := NULL]
+  dt <- dt_mw$county[dt, on = c("statefips", "county_name", "year", "month")][, event := NULL]
+  dt <- dt_mw$local[dt,  on = c("statefips", "place_name",  "year", "month")][, event := NULL]
   
   # Compute statutory MW
   dt[, statutory_mw := pmax(local_mw, county_mw, state_mw, fed_mw, na.rm = T)]
@@ -68,11 +68,11 @@ assemble_statutory_mw <- function(dt, dt_mw) {
 
 collapse_data <- function(dt, key_vars) {
   
-  dt <- dt[, .(statutory_mw             = weighted.mean(statutory_mw,             num_house10),
-               local_mw                 = weighted.mean(local_mw,                 num_house10),
-               county_mw                = weighted.mean(county_mw,                num_house10),
-               state_mw                 = weighted.mean(state_mw,                 num_house10),
-               fed_mw                   = weighted.mean(fed_mw,                   num_house10)),
+  dt <- dt[, .(statutory_mw = weighted.mean(statutory_mw, num_house10),
+               local_mw     = weighted.mean(local_mw,     num_house10),
+               county_mw    = weighted.mean(county_mw,    num_house10),
+               state_mw     = weighted.mean(state_mw,     num_house10),
+               fed_mw       = weighted.mean(fed_mw,       num_house10)),
            keyby = key_vars]
   
   return(dt)

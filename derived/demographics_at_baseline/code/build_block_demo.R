@@ -17,11 +17,11 @@ main <- function(){
                   colClasses =  c("block" = "character"))
   dt <- merge(dt, dt_census, all.x = TRUE)
   
-  dt <- dt[, "share_male"         := n_male/population]
-  dt <- dt[, "share_white"        := n_white/population]
-  dt <- dt[, "share_black"        := n_black/population]
-  dt <- dt[, "share_urban"        := urban_population/population]
-  dt <- dt[, "share_renter_hhlds" := n_hhlds_renter_occupied/n_hhlds]
+  dt <- dt[, share_male         := n_male/population]
+  dt <- dt[, share_white        := n_white/population]
+  dt <- dt[, share_black        := n_black/population]
+  dt <- dt[, share_urban        := urban_population/population]
+  dt <- dt[, share_renter_hhlds := n_hhlds_renter_occupied/n_hhlds]
   
   dt <- dt[, c("block", "population", "n_hhlds", 
                "n_male", "share_male", "n_white", "share_white",
