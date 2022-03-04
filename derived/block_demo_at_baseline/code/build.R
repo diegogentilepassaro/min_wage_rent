@@ -6,10 +6,10 @@ source("../../../lib/R/save_data.R")
 setDTthreads(20)
 
 main <- function(){
-  in_master   <- "../../../drive/base_large/census_block_master"
-  in_census  <- "../../../drive/base_large/demographics"
-  outstub     <- "../../../drive/derived_large/block_demo_at_baseline"
-  log_file    <- "../output/data_file_manifest.log"
+  in_master <- "../../../drive/base_large/census_block_master"
+  in_census <- "../../../drive/base_large/demographics"
+  outstub   <- "../../../drive/derived_large/block_demo_at_baseline"
+  log_file  <- "../output/data_file_manifest.log"
   
   if (file.exists(log_file)) file.remove(log_file)
   

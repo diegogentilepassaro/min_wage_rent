@@ -28,14 +28,14 @@ main <- function(){
                   values_from = value)
 
     dt_state <- dt_state %>%
-      rename(n_hhlds = H001001,
-             n_hhlds_urban = H002002,
+      rename(n_hhlds                 = H001001,
+             n_hhlds_urban           = H002002,
              n_hhlds_renter_occupied = H004004,
-             population = P001001,
-             urban_population = P002002,
-             n_white = P003002,
-             n_black = P003003,
-             n_male = P012002) %>%
+             population              = P001001,
+             urban_population        = P002002,
+             n_white                 = P003002,
+             n_black                 = P003003,
+             n_male                  = P012002) %>%
       select(block, n_hhlds, n_hhlds_urban,
              n_hhlds_renter_occupied, population,
              urban_population, n_white,

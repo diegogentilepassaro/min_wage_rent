@@ -8,14 +8,17 @@ source("../../../lib/R/save_data.R")
 setDTthreads(20)
 
 main <- function(){
-  in_master   <- "../../../drive/base_large/tract_master"
-  in_mw_data  <- "../../../base/min_wage/output"
-  in_acs  <- "../../../drive/base_large/demographics"
-  outstub     <- "../temp"
-  log_file    <- "../output/data_file_manifest.log"
+  in_master  <- "../../../drive/base_large/tract_master"
+  in_mw_data <- "../../../base/min_wage/output"
+  in_acs     <- "../../../drive/base_large/demographics"
+  outstub    <- "../temp"
+  log_file   <- "../output/data_file_manifest.log"
   
   if (file.exists(log_file)) file.remove(log_file)
   
+  yy <- 2011
+  mm <- 1
+
   dt_geo <- load_geographies(in_master)
   
   dt_acs <- fread(file.path(in_acs, "acs_tract_2011.csv"),
@@ -28,15 +31,15 @@ main <- function(){
                                             "n_workers_more_75k_inc")))
   
   dt_mw  <- load_mw(in_mw_data)
-  yy <- 2011
-  mm <- 1
   
   dt <- copy(dt_geo)
   dt[, c("year", "month") := .(yy, mm)]
+
   dt <- assemble_statutory_mw(dt, dt_mw)
   dt <- dt[, c("tract", "place_code", "countyfips", 
                "cbsa", "statefips", 
                "fed_mw", "state_mw", "statutory_mw")]
+  
   dt <- merge(dt, dt_acs, all.x = TRUE)
   
   fwrite(dt, file.path(outstub, "tract_income_at_baseline.csv"))
