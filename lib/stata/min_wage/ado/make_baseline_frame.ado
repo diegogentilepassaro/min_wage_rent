@@ -10,7 +10,7 @@ program make_baseline_frame
     bys `master_geo': egen n_states        = nvals(statefips)
 
     preserve
-        gcollapse (mean) share_rural_wgt_houses = rural ///
+        gcollapse (mean) sh_rural_wgt_houses = rural ///
                 [aweight = num_house10], by(`master_geo')
 
         save ../temp/share_rural.dta, replace
