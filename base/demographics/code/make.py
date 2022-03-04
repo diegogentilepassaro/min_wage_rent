@@ -33,7 +33,7 @@ if "StataSE" in envir_vars:
 start_make_logging()
 
 run_rbatch(program = 'acs_tract.R')
-run_rbatch(program = 'census_cb.R')
+run_rbatch(program = 'census_block.R')
 
 end_make_logging()
 

@@ -35,11 +35,7 @@ main <- function(){
              urban_population        = P002002,
              n_white                 = P003002,
              n_black                 = P003003,
-             n_male                  = P012002) %>%
-      select(block, n_hhlds, n_hhlds_urban,
-             n_hhlds_renter_occupied, population,
-             urban_population, n_white,
-             n_black, n_male)
+             n_male                  = P012002)
 
     dt <- rbindlist(list(dt, dt_state))
   }
