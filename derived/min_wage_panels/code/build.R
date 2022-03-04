@@ -113,9 +113,6 @@ load_geographies <- function(instub) {
                                           "place_code", "place_name", "zipcode"), 
                             numeric   = "num_house10"))
   
-  # This fix should happen in the master
-  setnames(dt, old = "countyfips_name", new = "county_name")
-  
   dt <- dt[zipcode != ""]  # small % of census blocks do not have a zip code
     
   return(dt)
@@ -133,9 +130,9 @@ get_months_with_changes <- function(dt_mw, yy) {
 
 assemble_statutory_mw <- function(dt, dt_mw) {
   
-  dt <- dt_mw$state[dt,  on = c("statefips",                "year", "month")][, event := NULL]
-  dt <- dt_mw$county[dt, on = c("statefips", "county_name", "year", "month")][, event := NULL]
-  dt <- dt_mw$local[dt,  on = c("statefips", "place_name",  "year", "month")][, event := NULL]
+  dt <- dt_mw$state[dt,  on = c("statefips",                    "year", "month")][, event := NULL]
+  dt <- dt_mw$county[dt, on = c("statefips", "countyfips_name", "year", "month")][, event := NULL]
+  dt <- dt_mw$local[dt,  on = c("statefips", "place_name",      "year", "month")][, event := NULL]
   
   # Compute statutory MW
   dt[, statutory_mw := pmax(local_mw, county_mw, state_mw, fed_mw, na.rm = T)]
