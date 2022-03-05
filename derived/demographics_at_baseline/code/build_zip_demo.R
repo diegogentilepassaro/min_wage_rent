@@ -43,7 +43,7 @@ block_to_zip <- function(instub, dt_geo) {
                n_black_cens2010             = sum(n_black,                 na.rm = T),
                urb_pop_cens2010             = sum(urban_population,        na.rm = T),
                n_hhlds_cens2010             = sum(n_hhlds,                 na.rm = T),
-               n_hhlds_urban_cens2010       = sum(n_hhlds_urban,                 na.rm = T),
+               n_hhlds_urban_cens2010       = sum(n_hhlds_urban,           na.rm = T),
                n_hhlds_renteroccup_cens2010 = sum(n_hhlds_renter_occupied, na.rm = T)),
            by = .(zipcode)]
 
