@@ -3,7 +3,7 @@ remove(list = ls())
 library(data.table)
 source("../../../lib/R/save_data.R")
 
-setDTthreads(20)
+setDTthreads(18)
 
 main <- function(){
   in_master <- "../../../drive/base_large/census_block_master"
@@ -12,10 +12,11 @@ main <- function(){
   log_file  <- "../output/zip_data_manifest.log"
 
   dt_geo <- fread(file.path(in_master, "census_block_master.csv"),
-                  select = list(character = c("block", "tract", "zipcode")))
+                  select = list(character = c("block", "tract", "zipcode"),
+                                numeric   = c("num_house10")))
 
-  dt_zip_demo  <- block_to_zip(instub, copy(dt_geo))
-  dt_zip_mwers <- tract_to_zip(instub, copy(dt_geo))
+  dt_zip_demo  <- block_to_zip(in_demo, copy(dt_geo))
+  dt_zip_mwers <- tract_to_zip(in_demo, copy(dt_geo))
   rm(dt_geo)
 
   dt <- merge(dt_zip_demo, dt_zip_mwers, by = c("zipcode"), all = T)
@@ -31,11 +32,12 @@ main <- function(){
 
 block_to_zip <- function(instub, dt_geo) {
   
-  dt <- fread(file.path(instub, "block.csv"))
+  dt <- fread(file.path(instub, "block.csv"),
+              colClasses = c(block   = "character"))
 
   dt <- dt_geo[dt,  on = c("block")]
 
-  dt <- dt[!is.na(zipcode)]
+  dt <- dt[zipcode != ""]
 
   dt <- dt[, .(population_cens2010          = sum(population,              na.rm = T),
                n_male_cens2010              = sum(n_male,                  na.rm = T),
@@ -60,14 +62,15 @@ tract_to_zip <- function(instub, dt_geo) {
   vars = c("population", "n_workers", 
            "n_mw_workers_statutory", "n_mw_workers_state", "n_mw_workers_fed")
 
-  dt <- fread(file.path(instub, "tract.csv"))
+  dt <- fread(file.path(instub, "tract.csv"),
+              colClasses = c(tract = "character"))
 
   dt <- dt_geo[dt,  on = c("tract")]
-  dt <- dt[!is.na(zipcode)]
+  dt <- dt[zipcode != ""]
   
   # Assign var to each zip code
-  dt_geo[, share_in_zip := num_house10/sum(num_house10),
-         by = .(tract)]
+  dt[, share_in_zip := num_house10/sum(num_house10),
+      by = .(tract)]
   for (var in vars) {
     dt[, c(var) := round(share_in_zip*get(var))]
   }
@@ -91,7 +94,7 @@ compute_shares <- function(dt) {
   }
   for (var in paste0(c("n_hhlds_urban", "n_hhlds_renteroccup"), "_cens2010")) {
     newvar <- gsub("^n_", "sh_", var)
-    dt[, c(newvar) := get(var)/n_hhlds]
+    dt[, c(newvar) := get(var)/n_hhlds_cens2010]
   }
   
   # ACS 2011
@@ -99,6 +102,8 @@ compute_shares <- function(dt) {
     newvar <- gsub("^n_", "sh_", var)
     dt[, c(newvar) := get(var)/n_workers_acs2011]
   }
+  
+  return(dt)
 }
 
 

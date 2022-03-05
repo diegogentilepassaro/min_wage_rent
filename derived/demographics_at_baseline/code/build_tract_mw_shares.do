@@ -46,7 +46,7 @@ program create_min_max_bins
 
     reshape long n_workers_bin, i(tract) j(bin)
 
-    gen     min_bin = 1     if bin == 1
+    gen     min_bin = 0     if bin == 1
     replace min_bin = 10000 if bin == 2
     replace min_bin = 15000 if bin == 3
     replace min_bin = 25000 if bin == 4
@@ -55,13 +55,13 @@ program create_min_max_bins
     replace min_bin = 65000 if bin == 7
     replace min_bin = 75000 if bin == 8
     
-    gen     max_bin = 9999  if bin == 1
-    replace max_bin = 14999 if bin == 2
-    replace max_bin = 24999 if bin == 3
-    replace max_bin = 34999 if bin == 4
-    replace max_bin = 49999 if bin == 5
-    replace max_bin = 64999 if bin == 6
-    replace max_bin = 74999 if bin == 7
+    gen     max_bin = 9999.99   if bin == 1
+    replace max_bin = 14999.99  if bin == 2
+    replace max_bin = 24999.99  if bin == 3
+    replace max_bin = 34999.99  if bin == 4
+    replace max_bin = 49999.99  if bin == 5
+    replace max_bin = 64999.99  if bin == 6
+    replace max_bin = 74999.99  if bin == 7
     replace max_bin = 999999999 if bin == 8
 end
 

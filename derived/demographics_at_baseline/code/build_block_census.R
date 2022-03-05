@@ -22,11 +22,12 @@ main <- function(){
   dt <- dt[, share_black        := n_black/population]
   dt <- dt[, share_urban        := urban_population/population]
   dt <- dt[, share_renter_hhlds := n_hhlds_renter_occupied/n_hhlds]
+  dt <- dt[, share_urban_hhlds  := n_hhlds_urban/n_hhlds]
   
-  dt <- dt[, c("block", "population", "n_hhlds", 
+  dt <- dt[, c("block", "population", "n_hhlds", "n_hhlds_urban",
                "n_male", "share_male", "n_white", "share_white",
                "n_black", "share_black", "urban_population", "share_urban", 
-               "n_hhlds_renter_occupied", "share_renter_hhlds")]
+               "n_hhlds_renter_occupied", "share_renter_hhlds", "share_urban_hhlds")]
   
   save_data(dt, key  = c("block"),
             filename = file.path(outstub, "block.dta"),

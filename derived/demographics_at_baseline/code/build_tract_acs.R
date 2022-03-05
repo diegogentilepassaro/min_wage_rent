@@ -28,16 +28,15 @@ main <- function(){
   dt <- dt[, c("block", "tract", 
                "fed_mw", "state_mw", "county_mw", "local_mw", "statutory_mw",
                "num_house10")]
-  dt <- collapse_data(dt, key_vars = c("tract"))
+  dt <- collapse_data(dt)
 
+  numeric_vars <- c("population", "n_hhlds", "med_hhld_inc", "n_workers",
+                    paste0("n_workers_", c("less_10k_inc", "10to15k_inc", "15to25k_inc",
+                                           "25to35k_inc",  "35to50k_inc", "50to65k_inc", 
+                                           "65to75k_inc",  "more_75k_inc")))
   dt_acs <- fread(file.path(in_acs, "acs_tract_2011.csv"),
                   select = list(character = c("tract"),
-                                numeric = c("population", "n_hhlds",
-                                            "med_hhld_inc", "n_workers", "n_workers_less_10k_inc",
-                                            "n_workers_10to15k_inc", "n_workers_15to25k_inc",
-                                            "n_workers_25to35k_inc", "n_workers_35to50k_inc",
-                                            "n_workers_50to65k_inc", "n_workers_65to75k_inc",
-                                            "n_workers_more_75k_inc")))  
+                                numeric   = numeric_vars)  )
   dt <- merge(dt, dt_acs, all.x = TRUE)
   
   fwrite(dt, file.path(outstub, "tract.csv"))
@@ -65,14 +64,14 @@ assemble_statutory_mw <- function(dt, dt_mw) {
   return(dt)
 }
 
-collapse_data <- function(dt, key_vars) {
+collapse_data <- function(dt) {
   
   dt <- dt[, .(statutory_mw = weighted.mean(statutory_mw, num_house10),
                local_mw     = weighted.mean(local_mw,     num_house10),
                county_mw    = weighted.mean(county_mw,    num_house10),
                state_mw     = weighted.mean(state_mw,     num_house10),
                fed_mw       = weighted.mean(fed_mw,       num_house10)),
-           keyby = key_vars]
+           keyby = .(tract)]
   
   return(dt)
 }
