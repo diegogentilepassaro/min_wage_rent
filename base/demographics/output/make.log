@@ -1,13 +1,13 @@
 
- make.py started: 2021-05-29 17:10:13 C:\Users\diegog\Desktop\Diego\min_wage_rent\base\demographics\code 
+ make.py started: 2022-03-04 05:40:34 C:\Users\diegog\Desktop\Diego\min_wage_rent\base\demographics\code 
 
 
 
 
-Execute:  R CMD BATCH --no-save "./make_demographics_ziplevel.R" make_demographics_ziplevel.Rout
+Execute:  R CMD BATCH --no-save "./acs_tract.R" acs_tract.Rout
 
-R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
-Copyright (C) 2020 The R Foundation for Statistical Computing
+R version 4.1.1 (2021-08-10) -- "Kick Things"
+Copyright (C) 2021 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64 (64-bit)
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
@@ -25,7 +25,18 @@ Type 'demo()' for some demos, 'help()' for on-line help, or
 Type 'q()' to quit R.
 
 > remove(list = ls())
-> source("../../../lib/R/load_packages.R")
+> 
+> library(tidycensus)
+> library(tidyverse)
+-- Attaching packages --------------------------------------- tidyverse 1.3.1 --
+v ggplot2 3.3.5     v purrr   0.3.4
+v tibble  3.1.4     v dplyr   1.0.7
+v tidyr   1.1.3     v stringr 1.4.0
+v readr   2.0.1     v forcats 0.5.1
+-- Conflicts ------------------------------------------ tidyverse_conflicts() --
+x dplyr::filter() masks stats::filter()
+x dplyr::lag()    masks stats::lag()
+> 
 > source("../../../lib/R/save_data.R")
 
 Please cite as: 
@@ -34,702 +45,156 @@ Please cite as:
  R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
 
 
-Attaching package: 'dplyr'
-
-The following objects are masked from 'package:stats':
-
-    filter, lag
-
-The following objects are masked from 'package:base':
-
-    intersect, setdiff, setequal, union
-
-
 Attaching package: 'data.table'
 
 The following objects are masked from 'package:dplyr':
 
     between, first, last
 
-> 
-> load_packages(c('tidyverse', 'data.table', 'tidycensus', 'bit64', 'readxl'))
--- Attaching packages --------------------------------------- tidyverse 1.3.0 --
-v ggplot2 3.3.2     v purrr   0.3.4
-v tibble  3.0.4     v stringr 1.4.0
-v tidyr   1.1.2     v forcats 0.5.0
-v readr   1.4.0     
--- Conflicts ------------------------------------------ tidyverse_conflicts() --
-x data.table::between() masks dplyr::between()
-x dplyr::filter()       masks stats::filter()
-x data.table::first()   masks dplyr::first()
-x dplyr::lag()          masks stats::lag()
-x data.table::last()    masks dplyr::last()
-x purrr::transpose()    masks data.table::transpose()
-Loading required package: bit
+The following object is masked from 'package:purrr':
 
-Attaching package: 'bit'
-
-The following object is masked from 'package:data.table':
-
-    setattr
-
-The following object is masked from 'package:base':
-
-    xor
-
-Attaching package bit64
-package:bit64 (c) 2011-2017 Jens Oehlschlaegel
-creators: integer64 runif64 seq :
-coercion: as.integer64 as.vector as.logical as.integer as.double as.character as.bitstring
-logical operator: ! & | xor != == < <= >= >
-arithmetic operator: + - * / %/% %% ^
-math: sign abs sqrt log log2 log10
-math: floor ceiling trunc round
-querying: is.integer64 is.vector [is.atomic} [length] format print str
-values: is.na is.nan is.finite is.infinite
-aggregation: any all min max range sum prod
-cumulation: diff cummin cummax cumsum cumprod
-access: length<- [ [<- [[ [[<-
-combine: c rep cbind rbind as.data.frame
-WARNING don't use as subscripts
-WARNING semantics differ from integer
-for more help type ?bit64
-
-Attaching package: 'bit64'
-
-The following objects are masked from 'package:base':
-
-    %in%, :, is.double, match, order, rank
+    transpose
 
 > 
-> main <- function() {
-+    
-+    data_version <- "0052"
-+    
-+    datadir <- paste0("../../../drive/raw_data/census/tract/nhgis", data_version, "_csv/")
-+    xwalkdir <- "../../geo_master/output/" 
-+    outdir <- "../../../drive/base_large/demographics/"
-+    tempdir <- "../temp"
-+    log_file <- "../output/data_file_manifest.log"
-+          
-+    table_list <- list.files(datadir, 
-+                             pattern = "*.csv", 
-+                             full.names = T)
-+    
-+    table_clean <- lapply(table_list, format_tables)
-+    
-+    table_final <- Reduce(function(x,y) merge(x, y, all = T, 
-+                                              by = c('tract_fips', 'countyfips')), 
-+                          table_clean)
-+    
-+    xwalk <- fread(paste0(xwalkdir, "tract_zip_master.csv"), 
-+                   colClasses = c("tract_fips" = "character", "zipcode" = "character"))
+> # In case the key ceases working see https://www.census.gov/content/dam/Census/library/publications/2020/acs/acs_api_handbook_2020_ch02.pdf
+> census_api_key("b04b7f3197f8bf4bdc31956fcfb3f28364ccf6cb")
+To install your API key for use in future sessions, run this function with `install = TRUE`.
+> 
+> main <- function(){
++   outstub <- "../../../drive/base_large/demographics"
 + 
-+    table_final <- table_final[xwalk, on = 'tract_fips']
-+    table_final[, res_ratio_denom := sum(res_ratio, na.rm = T), by = zipcode]
-+    table_final[, rel_wgt := res_ratio / res_ratio_denom]
-+    
-+    start_geo <- 'tract_fips'
-+    target_geo <- 'zipcode'
-+    wgt <- 'res_ratio'
-+    med_demovars <- colnames(table_final)[str_detect(colnames(table_final), "^med")]
-+    share_demovars <- setdiff(colnames(table_final), 
-+                              c(start_geo, target_geo, wgt, 'countyfips', med_demovars))
-+    
-+    table_final_zipshare <- table_final[, lapply(.SD, function(x, w) sum(x*w, na.rm = T), 
-+                                                 w=res_ratio), 
-+                                        by = target_geo, .SDcols = share_demovars]
-+    
-+    
-+    table_final_zipshare[, c('urb_share2010', 
-+                    'white_share2010', 'black_share2010', 'hisp_share2010', 
-+                    'asian_share2010', 'natam_share2010', 
-+                    'child_share2010', 'teen_share2010', 'youngadult_share2010', 
-+                    'adult_share2010', 'elder_share2010', 
-+                    'hh_couple_share2010', 'hh_couple_child_share2010',
-+                    'renthouse_share2010',
-+                    'work_county_share20105', 'worktravel_10_share20105', 
-+                    'worktravel_10_60_share20105', 'worktravel_60_share20105', 
-+                    'college_share20105', 'poor_share20105', 
-+                    'lo_hhinc_share20105', 'hi_hhinc_share20105', 
-+                    'unemp_share20105', 'employee_share20105', 
-+                    'worker_food_share20105') := list(
-+                       (urb_share2010 / urb_share2010D), 
-+                       (white_share2010 / race_share2010D),
-+                       (black_share2010 / race_share2010D),
-+                       (hisp_share2010 / race_share2010D),
-+                       (asian_share2010 / race_share2010D),
-+                       (natam_share2010 / race_share2010D),
-+                       (child_share2010 / age_share2010D),
-+                       (teen_share2010 / age_share2010D),
-+                       (youngadult_share2010 / age_share2010D),
-+                       (adult_share2010 / age_share2010D),
-+                       (elder_share2010 / age_share2010D),
-+                       (hh_couple_share2010 / hh_couple_share2010D), 
-+                       (hh_couple_child_share2010 / hh_couple_child_share2010D),
-+                       (renthouse_share2010 / renthouse_share2010D), 
-+                       (work_county_share20105 / work_county_share20105D), 
-+                       (worktravel_10_share20105 / worktravel_share_20105D),
-+                       (worktravel_10_60_share20105 / worktravel_share_20105D),
-+                       (worktravel_60_share20105 / worktravel_share_20105D),
-+                       (college_share20105 / college_share20105D),
-+                       (poor_share20105 / poor_share20105D), 
-+                       (lo_hhinc_share20105 / hhinc_share20105D),
-+                       (hi_hhinc_share20105 / hhinc_share20105D), 
-+                       (unemp_share20105 / unemp_share20105D), 
-+                       (employee_share20105 / employee_share20105D), 
-+                       (worker_foodservice20105/worker_foodservice20105D))]
-+    
-+    denom_cols <- colnames(table_final_zipshare)[str_detect(colnames(table_final_zipshare), "D$")]
-+    
-+    table_final_zipshare[, (denom_cols):= NULL]
-+    
-+    table_final_med <- table_final[, lapply(.SD, function(x, w) weighted.mean(x,w, na.rm = T), 
-+                                            w=rel_wgt), 
-+                                  by = target_geo, .SDcols = med_demovars]
-+    
-+    table_final_all <- table_final_zipshare[table_final_med, on = 'zipcode']
-+    
-+    save_data(table_final_all, key = c('zipcode'),
-+              filename = paste0(outdir, 'zip_demo_2010.csv'),
-+              logfile = log_file)
-+    save_data(table_final_all, key = c('zipcode'),
-+              filename = paste0(outdir, 'zip_demo_2010.dta'),
-+              logfile = log_file)
-+ }
-> 
-> format_tables <- function(x) {
-+    data <- fread(x, colClasses = c("STATEA"  = "character",
-+                                    "COUNTYA" = "character",
-+                                    "TRACTA"  = "character"))
-+ 
-+    data[, countyfips := paste0(STATEA, COUNTYA)]
-+    data[, tract_fips := paste0(countyfips, TRACTA)]
-+    setnames(data, old = c("CBSAA", "YEAR"), 
-+             new = c("cbsa", "year"))
-+ 
-+    if (grepl("ds172_2010_tract.csv", x)) {
-+       
-+       data[ , 'pop2010' := H7V001]
-+       
-+       data[ , c('urb_share2010', 'urb_share2010D') := list(H7W002, H7W001)]
-+       
-+       data[, c('white_share2010', 
-+                'black_share2010', 
-+                'hisp_share2010', 
-+                'asian_share2010', 
-+                'natam_share2010', 
-+                'race_share2010D') := 
-+               list(H7Z003, 
-+                    H7Z004, 
-+                    H7Z010, 
-+                    H7Z006, 
-+                    H7Z007, 
-+                    H7Z001)]
-+       
-+       data[, c('child_share2010',      #0-14
-+                'teen_share2010',       #15-24
-+                'youngadult_share2010', #25-34
-+                'adult_share2010',      #35-64
-+                'elder_share2010', 
-+                'age_share2010D') :=   #65-
-+               list((H76003 + H76004 + H76005 + H76027 + H76028 + H76029), 
-+                    (H76006 + H76007 + H76008 + H76009 + H76010  + H76030 + 
-+                        H76031 + H76032 + H76033 + H76034), 
-+                    (H76011 + H76012 + H76035 + H76036), 
-+                    (H76013 + H76014 + H76015 + H76016 + H76017 + H76018 + 
-+                        H76019 + H76037 + H76038 + H76039 + H76040 + 
-+                        H76041 + H76042 + H76043),
-+                    (H76020 + H76021 + H76022 + H76023 + H76024 + H76025 + 
-+                        H76044 + H76045 + H76046 + H76047 + H76048 + H76049), 
-+                    H76001)]
-+       
-+       data[, 'housing_units2010':= IFC001]
-+       
-+       target_vars <- c('tract_fips', 'countyfips', 
-+                        'pop2010', 'urb_share2010', 'urb_share2010D',
-+                        'white_share2010', 'black_share2010', 
-+                        'hisp_share2010', 'asian_share2010', 
-+                        'natam_share2010', 'race_share2010D',
-+                        'child_share2010', 'teen_share2010', 
-+                        'youngadult_share2010', 'adult_share2010', 
-+                        'elder_share2010', 'age_share2010D', 
-+                        'housing_units2010')
-+    } 
-+    else if (grepl("ds173_2010_tract.csv", x)) {
-+       data[, c('hh_couple_share2010', 'hh_couple_share2010D', #share of couples (married or partners) out of household population
-+                'hh_couple_child_share2010', 'hh_couple_child_share2010D') := #share of couples with children under 18 out of couple household population
-+               list((IC6002 + IC6013), IC6001, 
-+                    (IC6004 + IC6009 + IC6015 + IC6020 + 
-+                        IC6025 + IC6030), (IC6002 + IC6013))]
-+     
-+       target_vars <- c('tract_fips', 'countyfips', 
-+                        'hh_couple_share2010', 'hh_couple_share2010D', 
-+                        'hh_couple_child_share2010', 'hh_couple_child_share2010D')
-+       
-+    } 
-+    else if (grepl("ds181_2010_tract.csv", x)) {
-+       data[, c('renthouse_share2010', 'renthouse_share2010D') :=  #share of housing units that are renter-occupied 
-+               list(LHT004,LHT001)]
-+       
-+       target_vars <- c('tract_fips', 'countyfips', 
-+                        'renthouse_share2010', 'renthouse_share2010D')
-+       
-+    } 
-+    else if (grepl("ds191_20125_2012_tract.csv", x)) {
-+       data[, 'workers20105' := QS6E001]
-+ 
-+       data[, 'workers_prsal20105' := QX5E004 + QX5E005 + 
-+               QX5E006 + QX5E014 + QX5E015 + QX5E016]
-+       
-+       data[, c('work_county_share20105', 'work_county_share20105D'):= 
-+               list(QS6E003, QS6E001)]
-+       
-+       data[, c('worktravel_10_share20105', #travel time to work less than 10 minutes (share of workers not at home)
-+                'worktravel_10_60_share20105', #travel time to work between 10 and 60 minutes
-+                'worktravel_60_share20105', 
-+                'worktravel_share_20105D') := #travel time to work equal or above 60 minutes
-+               list((QTHE002 + QTHE003), 
-+                    (QTHE004 + QTHE005 + QTHE006 + QTHE007 + 
-+                        QTHE008 + QTHE009 + QTHE010 + QTHE011), 
-+                    (QTHE012 + QTHE013), QTHE001)]
-+       
-+       data[, c('college_share20105', 'college_share20105D') := 
-+               list((QUSE021 + QUSE022 + QUSE023+ 
-+                        QUSE024 + QUSE025), QUSE001)]
-+       
-+       data[, c('poor_share20105', 'poor_share20105D') := 
-+               list((QUVE002 + QUVE003), QUVE001)]
-+       
-+       data[, c('lo_hhinc_share20105',       #share of households with income lower than 45k
-+                'hi_hhinc_share20105', 
-+                'hhinc_share20105D') :=   #share of households with income higher or equal than 100k
-+               list((QU0E002 + QU0E003 + QU0E004 + QU0E005 + 
-+                        QU0E006 + QU0E007 + QU0E008 + QU0E009), 
-+                    (QU0E014 + QU0E015 + QU0E016 + QU0E017), QU0E001)]
-+       
-+       data[, 'med_hhinc20105' := QU1E001]
-+       data[, 'med_pinc20105' := QXFE001]
-+       data[, c('unemp_share20105', 'unemp_share20105D') := 
-+               list(QXSE005, QXSE002)]
-+       data[, c('employee_share20105', 'employee_share20105D') := 
-+               list((QX5E004 + QX5E014 + QX5E006 + QX5E016 + QX5E007 + 
-+                        QX5E008 + QX5E009 + QX5E017 + QX5E018 + 
-+                        QX5E019),QX5E001)]
-+       data[, c('worker_foodservice20105', 'worker_foodservice20105D') := 
-+               list((QXTE024 + QXTE060), QXTE001)]
-+       data[, c('tot_pinc20105', 'tot_pinc_ft20105') := 
-+               list(QXGE001, (QXGE003 + QXGE006))]
-+       
-+       target_vars <- c('tract_fips', 'countyfips',
-+                        'workers20105', 'workers_prsal20105',
-+                        'work_county_share20105', 
-+                        'worktravel_10_share20105', 'worktravel_10_60_share20105', 
-+                        'worktravel_60_share20105', 
-+                        'college_share20105', 
-+                        'poor_share20105', 
-+                        'lo_hhinc_share20105', 'hi_hhinc_share20105',
-+                        'med_hhinc20105', 'med_pinc20105',
-+                        'unemp_share20105', 
-+                        'employee_share20105', 
-+                        'work_county_share20105D', 'worktravel_share_20105D', 
-+                        'college_share20105D', 'poor_share20105D', 
-+                        'hhinc_share20105D', 'unemp_share20105D', 'employee_share20105D', 
-+                        'worker_foodservice20105', 'worker_foodservice20105D', 
-+                        'tot_pinc20105', 'tot_pinc_ft20105')      
-+    } 
-+    else if (grepl("ds192_20125_2012_tract.csv", x)) {
-+       data[, c('med_earn_healthsup_20105', #median earnings (USD 2012) for healthcare support occup.
-+                'med_earn_protectserv_20105', #median earnings (USD 2012) for protective services (police, etc)
-+                'med_earn_foodserv_20105', #median earnings (USD 2012) for food prod and serving occ.
-+                'med_earn_cleaning_20105', #median earnings (USD 2012) for cleaning and maintenance occup. 
-+                'med_earn_perscare_20105', #median earnings (USD 2012) for personal care and service occup.
-+                'med_earn_prodtransp_20105') :=  #median earnings (USD 2012) for production, transport and moving occup.
-+               list(REPE019, 
-+                    REPE020, 
-+                    REPE023, 
-+                    REPE024, 
-+                    REPE025, 
-+                    REPE033)]
-+       
-+       target_vars <- c('tract_fips', 'countyfips', 
-+                        paste0('med_earn_', c('healthsup_20105', 
-+                                              'protectserv_20105', 
-+                                              'foodserv_20105', 
-+                                              'cleaning_20105', 
-+                                              'perscare_20105', 
-+                                              'prodtransp_20105')))
-+    }
-+    data <- data[, ..target_vars]
-+    
-+ 
-+    return(data)
-+ }
-> 
-> main()
-[1] "File '../../../drive/base_large/demographics/zip_demo_2010.csv' saved successfully."
-[1] "File '../../../drive/base_large/demographics/zip_demo_2010.dta' saved successfully."
-[1] "Log file generated successfully."
-> 
-> proc.time()
-   user  system elapsed 
-  21.98    4.46   21.06 
-
-
-Execute:  R CMD BATCH --no-save "./make_demographics_countylevel.R" make_demographics_countylevel.Rout
-
-R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
-Copyright (C) 2020 The R Foundation for Statistical Computing
-Platform: x86_64-w64-mingw32/x64 (64-bit)
-
-R is free software and comes with ABSOLUTELY NO WARRANTY.
-You are welcome to redistribute it under certain conditions.
-Type 'license()' or 'licence()' for distribution details.
-
-  Natural language support but running in an English locale
-
-R is a collaborative project with many contributors.
-Type 'contributors()' for more information and
-'citation()' on how to cite R or R packages in publications.
-
-Type 'demo()' for some demos, 'help()' for on-line help, or
-'help.start()' for an HTML browser interface to help.
-Type 'q()' to quit R.
-
-> remove(list = ls())
-> source("../../../lib/R/load_packages.R")
-> source("../../../lib/R/save_data.R")
-
-Please cite as: 
-
- Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
- R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
-
-
-Attaching package: 'dplyr'
-
-The following objects are masked from 'package:stats':
-
-    filter, lag
-
-The following objects are masked from 'package:base':
-
-    intersect, setdiff, setequal, union
-
-
-Attaching package: 'data.table'
-
-The following objects are masked from 'package:dplyr':
-
-    between, first, last
-
-> 
-> load_packages(c('tidyverse', 'data.table', 'tidycensus', 'bit64', 'readxl'))
--- Attaching packages --------------------------------------- tidyverse 1.3.0 --
-v ggplot2 3.3.2     v purrr   0.3.4
-v tibble  3.0.4     v stringr 1.4.0
-v tidyr   1.1.2     v forcats 0.5.0
-v readr   1.4.0     
--- Conflicts ------------------------------------------ tidyverse_conflicts() --
-x data.table::between() masks dplyr::between()
-x dplyr::filter()       masks stats::filter()
-x data.table::first()   masks dplyr::first()
-x dplyr::lag()          masks stats::lag()
-x data.table::last()    masks dplyr::last()
-x purrr::transpose()    masks data.table::transpose()
-Loading required package: bit
-
-Attaching package: 'bit'
-
-The following object is masked from 'package:data.table':
-
-    setattr
-
-The following object is masked from 'package:base':
-
-    xor
-
-Attaching package bit64
-package:bit64 (c) 2011-2017 Jens Oehlschlaegel
-creators: integer64 runif64 seq :
-coercion: as.integer64 as.vector as.logical as.integer as.double as.character as.bitstring
-logical operator: ! & | xor != == < <= >= >
-arithmetic operator: + - * / %/% %% ^
-math: sign abs sqrt log log2 log10
-math: floor ceiling trunc round
-querying: is.integer64 is.vector [is.atomic} [length] format print str
-values: is.na is.nan is.finite is.infinite
-aggregation: any all min max range sum prod
-cumulation: diff cummin cummax cumsum cumprod
-access: length<- [ [<- [[ [[<-
-combine: c rep cbind rbind as.data.frame
-WARNING don't use as subscripts
-WARNING semantics differ from integer
-for more help type ?bit64
-
-Attaching package: 'bit64'
-
-The following objects are masked from 'package:base':
-
-    %in%, :, is.double, match, order, rank
-
-> 
-> main <- function() {
++   demo_vars <- c("B01001_002E", "B25003_001E", "B25003_002E", "B25003_003E", 
++                 "B02001_001E", "B02001_002E", "B02001_003E")
++   inc_vars <- c("B19019_001E")
++   binned_income_hhld_vars <- c("B19001_002E", "B19001_003E", 
++                                "B19001_004E", "B19001_005E", "B19001_006E",
++                                "B19001_007E", "B19001_008E", "B19001_009E", 
++                                "B19001_010E", "B19001_011E", "B19001_012E",
++                                "B19001_013E", "B19001_014E", "B19001_015E", 
++                                "B19001_016E", "B19001_017E")
++   binned_income_worker_vars <- c("B08119_001E", "B08119_002E", "B08119_003E", 
++                                  "B08119_004E", "B08119_005E", "B08119_006E",
++                                  "B08119_007E", "B08119_008E", "B08119_009E")
 +   
-+   data_version <- "0056"
-+   
-+   datadir <- paste0("../../../drive/raw_data/census/county/nhgis", data_version, "_csv/")
-+   outdir <- "../../../drive/base_large/demographics/"
-+   tempdir <- "../temp"
-+   log_file <- "../output/data_file_manifest.log"
-+   
-+   table_list <- list.files(datadir, 
-+                            pattern = "*.csv")
-+   
-+   table_list <- str_remove_all(table_list, paste0("nhgis", data_version, "_"))
-+   
-+   table_clean <- lapply(table_list, format_tables, 
-+                         datadir = datadir, data_version = data_version)
-+   
-+   table_final <- Reduce(function(x,y) merge(x,y, all = T, 
-+                                             by = 'countyfips'), table_clean)
-+   
-+   table_final[, c('urb_share2010','white_share2010', 'black_share2010', 
-+                   'hisp_share2010', 'asian_share2010', 'natam_share2010', 
-+                   'child_share2010', 'teen_share2010', 
-+                   'youngadult_share2010', 'adult_share2010', 'elder_share2010', 
-+                   'hh_couple_share2010', 'hh_couple_child_share2010',
-+                   'renthouse_share2010',
-+                   'work_county_share20105', 'worktravel_10_share20105', 
-+                   'worktravel_10_60_share20105', 'worktravel_60_share20105', 
-+                   'college_share20105', 'poor_share20105', 
-+                   'lo_hhinc_share20105', 'hi_hhinc_share20105', 
-+                   'unemp_share20105', 'employee_share20105', 
-+                   'worker_food_share20105') := list(
-+                              (urb_share2010 / urb_share2010D), 
-+                              (white_share2010 / race_share2010D),
-+                              (black_share2010 / race_share2010D),
-+                              (hisp_share2010 / race_share2010D),
-+                              (asian_share2010 / race_share2010D),
-+                              (natam_share2010 / race_share2010D),
-+                              (child_share2010 / age_share2010D),
-+                              (teen_share2010 / age_share2010D),
-+                              (youngadult_share2010 / age_share2010D),
-+                              (adult_share2010 / age_share2010D),
-+                              (elder_share2010 / age_share2010D),
-+                              (hh_couple_share2010 / hh_couple_share2010D), 
-+                              (hh_couple_child_share2010 / hh_couple_child_share2010D),
-+                              (renthouse_share2010 / renthouse_share2010D), 
-+                              (work_county_share20105 / work_county_share20105D), 
-+                              (worktravel_10_share20105 / worktravel_share_20105D),
-+                              (worktravel_10_60_share20105 / worktravel_share_20105D),
-+                              (worktravel_60_share20105 / worktravel_share_20105D),
-+                              (college_share20105 / college_share20105D),
-+                              (poor_share20105 / poor_share20105D), 
-+                              (lo_hhinc_share20105 / hhinc_share20105D),
-+                              (hi_hhinc_share20105 / hhinc_share20105D), 
-+                              (unemp_share20105 / unemp_share20105D), 
-+                              (employee_share20105 / employee_share20105D), 
-+                              (worker_foodservice20105/worker_foodservice20105D))]
-+   
-+   denom_cols <- colnames(table_final)[str_detect(colnames(table_final), "D$")]
-+   
-+   table_final[, (denom_cols):= NULL]
-+   
-+   save_data(table_final, key = c('countyfips'),
-+             filename = paste0(outdir, 'county_demo_2010.csv'),
-+             logfile = log_file)
-+   save_data(table_final, key = c('countyfips'),
-+             filename = paste0(outdir, 'county_demo_2010.dta'),
-+             logfile = log_file)
-+ }
-> 
-> format_tables <- function(x, datadir, data_version) {
-+   data <- fread(paste0(datadir, "nhgis", data_version, "_", x))
-+   
-+   make_geo <-  function(y) {
-+     if (class(y)[1] != "data.table") y <- setDT(y)
++   dt <- data.table()
++   for (st in state.abb) {
++     dt_state <- get_acs(geography = "tract", 
++                         variables = c(demo_vars, inc_vars, 
++                                       binned_income_hhld_vars, binned_income_worker_vars), 
++                         year = 2011, state = st) %>%
++       select(-NAME, -moe) %>%
++       rename(tract = GEOID)
 +     
-+     y[, c('countyfips') := list(paste0(str_pad(STATEA, 2, pad = "0"),
-+                         str_pad(COUNTYA, 3, pad = "0")))]
-+     setnames(y, old = "CBSAA", new = "cbsa")
++     dt_state <- dt_state %>%
++       pivot_wider(names_from = variable,
++                   values_from = estimate)
 +     
-+     return(y)
-+   }
-+   data <- make_geo(data)
-+   
-+   if (x == "ds172_2010_county.csv") {
++     dt_state <- dt_state %>%
++       rename(population = B02001_001,
++              n_male = B01001_002,
++              n_white = B02001_002,
++              n_black = B02001_003,
++              n_hhlds = B25003_001,
++              med_hhld_inc = B19019_001,
++              n_hhlds_owner_occupied = B25003_002,
++              n_hhlds_renter_occupied = B25003_003,
++              n_hhlds_less_10k_inc = B19001_002,
++              n_hhlds_10to15k_inc =  B19001_003, 
++              n_hhlds_15to20k_inc = B19001_004, 
++              n_hhlds_20to25k_inc = B19001_005, 
++              n_hhlds_25to30k_inc = B19001_006, 
++              n_hhlds_30to35k_inc = B19001_007,
++              n_hhlds_35to40k_inc = B19001_008, 
++              n_hhlds_40to45k_inc = B19001_009, 
++              n_hhlds_45to50k_inc = B19001_010, 
++              n_hhlds_50to60k_inc = B19001_011, 
++              n_hhlds_60to75k_inc = B19001_012, 
++              n_hhlds_75to100k_inc = B19001_013,
++              n_hhlds_100to125k_inc = B19001_014, 
++              n_hhlds_125to150k_inc = B19001_015, 
++              n_hhlds_150to200k_inc = B19001_016, 
++              n_hhlds_more_200k_inc = B19001_017,
++              n_workers = B08119_001,
++              n_workers_less_10k_inc = B08119_002,
++              n_workers_10to15k_inc =  B08119_003, 
++              n_workers_15to25k_inc = B08119_004, 
++              n_workers_25to35k_inc = B08119_005, 
++              n_workers_35to50k_inc = B08119_006, 
++              n_workers_50to65k_inc = B08119_007,
++              n_workers_65to75k_inc = B08119_008, 
++              n_workers_more_75k_inc = B08119_009)
 +     
-+     data[ , 'pop2010' := H7V001]
-+     data[ , c('urb_share2010', 'urb_share2010D') := 
-+             list(H7W002, H7W001)]
-+     data[, c('white_share2010', 
-+              'black_share2010', 
-+              'hisp_share2010', 
-+              'asian_share2010', 
-+              'natam_share2010', 
-+              'race_share2010D') := 
-+            list(H7Z003, 
-+                 H7Z004, 
-+                 H7Z010, 
-+                 H7Z006, 
-+                 H7Z007, 
-+                 H7Z001)]
-+     data[, c('child_share2010',      #0-14
-+              'teen_share2010',       #15-24
-+              'youngadult_share2010', #25-34
-+              'adult_share2010',      #35-64
-+              'elder_share2010', 
-+              'age_share2010D') :=   #65-
-+            list((H76003 + H76004 + H76005 + 
-+                    H76027 + H76028 + H76029), 
-+                 (H76006 + H76007 + H76008 + H76009 + H76010  +
-+                    H76030 + H76031 + H76032 + H76033 + H76034), 
-+                 (H76011 + H76012 + H76035 + H76036), 
-+                 (H76013 + H76014 + H76015 + H76016 + H76017 +
-+                    H76018 + H76019 + H76037 + H76038 + H76039 + 
-+                    H76040 + H76041 + H76042 + H76043),
-+                 (H76020 + H76021 + H76022 + H76023 + H76024 + H76025 + 
-+                    H76044 + H76045 + H76046 + H76047 + H76048 + H76049), 
-+                 H76001)]
-+     
-+     data[, 'housing_units2010':= IFC001]
-+     
-+     target_vars <- c('countyfips', 
-+                      'pop2010', 
-+                      'urb_share2010', 'urb_share2010D',
-+                      'white_share2010', 'black_share2010', 
-+                      'hisp_share2010', 'asian_share2010', 
-+                      'natam_share2010', 'race_share2010D',
-+                      'child_share2010', 'teen_share2010', 
-+                      'youngadult_share2010', 'adult_share2010', 
-+                      'elder_share2010', 'age_share2010D', 
-+                      'housing_units2010')
-+   } 
-+   else if (x == 'ds173_2010_county.csv') {
-+     
-+     data[, c('hh_couple_share2010', 'hh_couple_share2010D', #share of couples (married or partners) out of household population
-+              'hh_couple_child_share2010', 'hh_couple_child_share2010D') := #share of couples with children under 18 out of couple household population
-+            list((IC6002 + IC6013), IC6001, 
-+                 (IC6004 + IC6009 + IC6015 + IC6020 + 
-+                    IC6025 + IC6030), (IC6002 + IC6013))]
-+     
-+     target_vars <- c('countyfips', 
-+                      'hh_couple_share2010', 'hh_couple_share2010D', 
-+                      'hh_couple_child_share2010', 'hh_couple_child_share2010D')
-+   } 
-+   else if (x == 'ds181_2010_county.csv') {
-+     data[, c('renthouse_share2010', 'renthouse_share2010D') :=  #share of housing units that are renter-occupied 
-+            list(LHT004,LHT001)]
-+     
-+     target_vars <- c('countyfips', 
-+                      'renthouse_share2010', 'renthouse_share2010D')
-+     
-+   } 
-+   else if (x == 'ds191_20125_2012_county.csv') {
-+     
-+     data[, 'workers20105' := QS6E001]
-+     
-+     data[, 'workers_prsal20105' := QX5E004 + QX5E005 + QX5E006 + 
-+            QX5E014 + QX5E015 + QX5E016]
-+     
-+     data[, c('work_county_share20105', 'work_county_share20105D'):= list(QS6E003, QS6E001)]
-+     
-+     data[, c('worktravel_10_share20105',      #travel time to work less than 10 minutes (share of workers not at home)
-+              'worktravel_10_60_share20105',   #travel time to work between 10 and 60 minutes
-+              'worktravel_60_share20105', 
-+              'worktravel_share_20105D') :=   #travel time to work equal or above 60 minutes
-+            list((QTHE002 + QTHE003), 
-+                 (QTHE004 + QTHE005 + QTHE006 + QTHE007 + 
-+                    QTHE008 + QTHE009 + QTHE010 + QTHE011), 
-+                 (QTHE012 + QTHE013), QTHE001)]
-+     
-+     data[, c('college_share20105', 'college_share20105D') := 
-+            list((QUSE021 + QUSE022 + QUSE023+ QUSE024 + QUSE025), QUSE001)]
-+     
-+     data[, c('poor_share20105', 'poor_share20105D') := 
-+            list((QUVE002 + QUVE003), QUVE001)]
-+     
-+     data[, c('lo_hhinc_share20105',       #share of households with income lower than 45k
-+              'hi_hhinc_share20105', 
-+              'hhinc_share20105D') :=   #share of households with income higher or equal than 100k
-+            list((QU0E002 + QU0E003 + QU0E004 + QU0E005 + 
-+                    QU0E006 + QU0E007 + QU0E008 + QU0E009), 
-+                 (QU0E014 + QU0E015 + QU0E016 + QU0E017), QU0E001)]
-+     
-+     data[, 'med_hhinc20105' := QU1E001]
-+     
-+     data[, 'med_pinc20105' := QXFE001]
-+     
-+     data[, c('unemp_share20105', 'unemp_share20105D') := 
-+            list(QXSE005, QXSE002)]
-+     
-+     data[, c('employee_share20105', 'employee_share20105D') := 
-+            list((QX5E004 + QX5E014 + QX5E006 + QX5E016 + QX5E007 + QX5E008 + QX5E009 + QX5E017 + QX5E018 + QX5E019),QX5E001)]
-+     
-+     data[, c('worker_foodservice20105', 'worker_foodservice20105D') := 
-+            list((QXTE024 + QXTE060), QXTE001)]
-+     
-+     data[, c('tot_pinc20105', 'tot_pinc_ft20105') := 
-+            list(QXGE001, (QXGE003 + QXGE006))]
-+     
-+     target_vars <- c('countyfips',
-+                      'workers20105', 'workers_prsal20105',
-+                      'work_county_share20105', 
-+                      'worktravel_10_share20105', 'worktravel_10_60_share20105', 
-+                      'worktravel_60_share20105', 
-+                      'college_share20105', 
-+                      'poor_share20105', 
-+                      'lo_hhinc_share20105', 'hi_hhinc_share20105',
-+                      'med_hhinc20105', 'med_pinc20105',
-+                      'unemp_share20105', 
-+                      'employee_share20105', 
-+                      'work_county_share20105D', 'worktravel_share_20105D', 
-+                      'college_share20105D', 'poor_share20105D', 
-+                      'hhinc_share20105D', 'unemp_share20105D', 'employee_share20105D', 
-+                      'worker_foodservice20105', 'worker_foodservice20105D', 
-+                      'tot_pinc20105', 'tot_pinc_ft20105')      
-+   } 
-+   else if (x == 'ds192_20125_2012_county.csv') {
-+     
-+     data[, c('med_earn_healthsup_20105',       #median earnings (USD 2012) for healthcare support occup.
-+              'med_earn_protectserv_20105',     #median earnings (USD 2012) for protective services (police, etc)
-+              'med_earn_foodserv_20105',        #median earnings (USD 2012) for food prod and serving occ.
-+              'med_earn_cleaning_20105',        #median earnings (USD 2012) for cleaning and maintenance occup. 
-+              'med_earn_perscare_20105',        #median earnings (USD 2012) for personal care and service occup.
-+              'med_earn_prodtransp_20105') :=   #median earnings (USD 2012) for production, transport and moving occup.
-+            list(REPE019, 
-+                 REPE020, 
-+                 REPE023, 
-+                 REPE024, 
-+                 REPE025, 
-+                 REPE033)]
-+     
-+     target_vars <- c('countyfips', 
-+                      paste0('med_earn_', c('healthsup_20105', 'protectserv_20105', 'foodserv_20105', 
-+                                            'cleaning_20105', 'perscare_20105', 'prodtransp_20105')))
++     dt <- rbindlist(list(dt, dt_state))
 +   }
 +   
-+   data <- data[, ..target_vars]
-+   
-+   
-+   return(data)
++   save_data(dt, key = "tract",
++             filename = file.path(outstub, "acs_tract_2011.csv"),
++             logfile  = "../output/data_manifest.log")
 + }
 > 
 > main()
-[1] "File '../../../drive/base_large/demographics/county_demo_2010.csv' saved successfully."
-[1] "File '../../../drive/base_large/demographics/county_demo_2010.dta' saved successfully."
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+Getting data from the 2007-2011 5-year ACS
+[1] "File '../../../drive/base_large/demographics/acs_tract_2011.csv' saved successfully."
 [1] "Log file generated successfully."
 > 
 > proc.time()
    user  system elapsed 
-   5.56    1.06    8.39 
+  48.43    2.48  132.51 
 
 
-Execute:  R CMD BATCH --no-save "./make_zippop_year.R" make_zippop_year.Rout
+Execute:  R CMD BATCH --no-save "./census_block.R" census_block.Rout
 
-R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
-Copyright (C) 2020 The R Foundation for Statistical Computing
+R version 4.1.1 (2021-08-10) -- "Kick Things"
+Copyright (C) 2021 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64 (64-bit)
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
@@ -747,7 +212,18 @@ Type 'demo()' for some demos, 'help()' for on-line help, or
 Type 'q()' to quit R.
 
 > remove(list = ls())
-> source("../../../lib/R/load_packages.R")
+> 
+> library(tidycensus)
+> library(tidyverse)
+-- Attaching packages --------------------------------------- tidyverse 1.3.1 --
+v ggplot2 3.3.5     v purrr   0.3.4
+v tibble  3.1.4     v dplyr   1.0.7
+v tidyr   1.1.3     v stringr 1.4.0
+v readr   2.0.1     v forcats 0.5.1
+-- Conflicts ------------------------------------------ tidyverse_conflicts() --
+x dplyr::filter() masks stats::filter()
+x dplyr::lag()    masks stats::lag()
+> 
 > source("../../../lib/R/save_data.R")
 
 Please cite as: 
@@ -756,149 +232,164 @@ Please cite as:
  R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
 
 
-Attaching package: 'dplyr'
-
-The following objects are masked from 'package:stats':
-
-    filter, lag
-
-The following objects are masked from 'package:base':
-
-    intersect, setdiff, setequal, union
-
-
 Attaching package: 'data.table'
 
 The following objects are masked from 'package:dplyr':
 
     between, first, last
 
+The following object is masked from 'package:purrr':
+
+    transpose
+
 > 
-> load_packages(c('tidyverse', 'data.table', 'tidycensus', 'bit64', 'readxl'))
--- Attaching packages --------------------------------------- tidyverse 1.3.0 --
-v ggplot2 3.3.2     v purrr   0.3.4
-v tibble  3.0.4     v stringr 1.4.0
-v tidyr   1.1.2     v forcats 0.5.0
-v readr   1.4.0     
--- Conflicts ------------------------------------------ tidyverse_conflicts() --
-x data.table::between() masks dplyr::between()
-x dplyr::filter()       masks stats::filter()
-x data.table::first()   masks dplyr::first()
-x dplyr::lag()          masks stats::lag()
-x data.table::last()    masks dplyr::last()
-x purrr::transpose()    masks data.table::transpose()
-Loading required package: bit
-
-Attaching package: 'bit'
-
-The following object is masked from 'package:data.table':
-
-    setattr
-
-The following object is masked from 'package:base':
-
-    xor
-
-Attaching package bit64
-package:bit64 (c) 2011-2017 Jens Oehlschlaegel
-creators: integer64 runif64 seq :
-coercion: as.integer64 as.vector as.logical as.integer as.double as.character as.bitstring
-logical operator: ! & | xor != == < <= >= >
-arithmetic operator: + - * / %/% %% ^
-math: sign abs sqrt log log2 log10
-math: floor ceiling trunc round
-querying: is.integer64 is.vector [is.atomic} [length] format print str
-values: is.na is.nan is.finite is.infinite
-aggregation: any all min max range sum prod
-cumulation: diff cummin cummax cumsum cumprod
-access: length<- [ [<- [[ [[<-
-combine: c rep cbind rbind as.data.frame
-WARNING don't use as subscripts
-WARNING semantics differ from integer
-for more help type ?bit64
-
-Attaching package: 'bit64'
-
-The following objects are masked from 'package:base':
-
-    %in%, :, is.double, match, order, rank
-
-> options(scipen=999)
+> # In case the key ceases working see https://www.census.gov/content/dam/Census/library/publications/2020/acs/acs_api_handbook_2020_ch02.pdf
+> census_api_key("b04b7f3197f8bf4bdc31956fcfb3f28364ccf6cb")
+To install your API key for use in future sessions, run this function with `install = TRUE`.
 > 
-> main <- function() {
-+   data_version <- '0055'
-+   
-+   datadir  <- paste0("../../../drive/raw_data/census/tract/nhgis", data_version, "_csv/")
-+   xwalkdir <- "../../geo_master/output/" 
-+   outdir   <- "../../../drive/base_large/demographics/"
-+   tempdir  <- "../temp"
-+   log_file <- "../output/data_file_manifest.log"
-+   
-+   xwalk <- fread(paste0(xwalkdir, "tract_zip_master.csv"),
-+                  colClasses = c("tract_fips" = "character", "zipcode" = "character"))
-+   
-+   table_list <- list.files(datadir, 
-+                            pattern = "*.csv", 
-+                            full.names = T)
-+   
-+   table_clean <- lapply(table_list, format_tables, xwalk = xwalk)
-+   
-+   table_clean <- rbindlist(table_clean, use.names = TRUE)
-+   setorderv(table_clean, cols = c('zipcode', 'year'))
-+   table_clean <- table_clean[!is.na(year)]
+> main <- function(){
++   outstub <- "../../../drive/base_large/demographics"
 + 
-+   save_data(table_clean, 
-+             filename = paste0(outdir, 'acs_population_zipyear.csv'), 
-+             logfile = log_file, 
-+             key = c('zipcode', 'year'))
-+   save_data(table_clean, 
-+             filename = paste0(outdir, 'acs_population_zipyear.dta'), 
-+             logfile = log_file, 
-+             key = c('zipcode', 'year'))
-+ }
-> 
-> format_tables <- function(x, xwalk) {
-+   data <- fread(x, colClasses = c("STATEA"  = "character",
-+                                   "COUNTYA" = "character",
-+                                   "TRACTA"  = "character"))
-+   
-+   data[, countyfips := paste0(STATEA, COUNTYA)]
-+   data[, tract_fips := paste0(countyfips, TRACTA)]
-+   setnames(data, old = c("CBSAA", "YEAR"), 
-+                  new = c("cbsa", "year"))
-+   data[, year := as.numeric(substring(year, nchar(year)-4 + 1))]
-+   
-+   #The population variable has a different name in each ACS
-+   varname_list <- c('JMAE001', 'MNTE001', 'QSPE001', 
-+                     'UEPE001', 'ABA1E001', 'ADKWE001', 
-+                     'AF2LE001', 'AHY1E001', 'AJWME001', 'ALUBE001')
-+   target_pop <- intersect(varname_list, names(data))
-+   setnames(data, old = target_pop, new = 'acs_pop')
-+   target_vars <- c('tract_fips', 'countyfips', 'year', 'acs_pop')
-+   
-+   data <- data[, ..target_vars]  
-+   
-+   data <- crosswalk_table_tractzip(data, xwalk = xwalk)
++   pop_vars <- c("H001001", "H002002", "P001001", "P002002",
++                 "P003002", "P003003", "P012002")
++   tenure_vars <- c("H004004")
 + 
-+   return(data)
-+ }
-> 
-> crosswalk_table_tractzip <- function(data, xwalk) {
-+   data <- data[xwalk, on = 'tract_fips']
++   dt <- data.table()
++   for (st in state.abb) {
++     dt_state <- get_decennial(geography = "block", 
++                               variables = c(pop_vars, tenure_vars), 
++                               year = 2010, state = st) %>%
++                 select(-NAME) %>%
++                 rename(block = GEOID)
 + 
-+   data <- data[, .(acs_pop = sum(acs_pop*res_ratio, na.rm = T)),
-+                by = c('zipcode', 'year')]
-+   
-+   return(data)
++     dt_state <- dt_state %>%
++       pivot_wider(names_from = variable,
++                   values_from = value)
++ 
++     dt_state <- dt_state %>%
++       rename(n_hhlds                 = H001001,
++              n_hhlds_urban           = H002002,
++              n_hhlds_renter_occupied = H004004,
++              population              = P001001,
++              urban_population        = P002002,
++              n_white                 = P003002,
++              n_black                 = P003003,
++              n_male                  = P012002)
++ 
++     dt <- rbindlist(list(dt, dt_state))
++   }
++ 
++   save_data(dt, key = "block",
++             filename = file.path(outstub, "census_cb_2010.csv"),
++             logfile  = "../output/data_manifest.log")
 + }
 > 
 > main()
-[1] "File '../../../drive/base_large/demographics/acs_population_zipyear.csv' saved successfully."
-[1] "File '../../../drive/base_large/demographics/acs_population_zipyear.dta' saved successfully."
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+Getting data from the 2010 decennial Census
+Using Census Summary File 1
+[1] "File '../../../drive/base_large/demographics/census_cb_2010.csv' saved successfully."
 [1] "Log file generated successfully."
 > 
 > proc.time()
    user  system elapsed 
-  14.51    3.65   15.39 
+1011.10   47.95 1452.59 
 
- make.py ended: 2021-05-29 17:10:59
+ make.py ended: 2022-03-04 06:13:39
