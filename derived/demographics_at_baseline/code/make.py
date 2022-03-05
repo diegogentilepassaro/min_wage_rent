@@ -19,8 +19,8 @@ from gslab_make.dir_mod import *
 set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
-delete_files('../output/*')
-
+clear_dirs('../output/')
+clear_dirs('../../../drive/derived_large/demographics_at_baseline/')
 
 envir_vars = os.getenv('PATH')
 if envir_vars is None:
@@ -32,10 +32,13 @@ if "StataSE" in envir_vars:
 
 start_make_logging()
 
-run_rbatch(program = 'acs.R')
+run_rbatch(program = 'build_block_census.R')
+run_rbatch(program = 'build_tract_acs.R')
+run_stata(program  = 'build_tract_mw_shares.do', executable = stata)
+run_rbatch(program = 'build_zip_demo.R')
+clear_dirs('../temp/')
 
 end_make_logging()
 
 shutil.rmtree('gslab_make')
 input('\n Press <Enter> to exit.')
-

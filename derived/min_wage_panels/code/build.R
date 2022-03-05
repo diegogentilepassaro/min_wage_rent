@@ -4,6 +4,7 @@ library(data.table)
 library(zoo)
 library(stringr)
 source("../../../lib/R/save_data.R")
+source("../../../lib/R/load_mw.R")
 
 setDTthreads(20)
 
@@ -108,78 +109,13 @@ load_geographies <- function(instub) {
   
   dt <- fread(file.path(instub, "census_block_master.csv"),
               select = list(character = c("statefips",  "countyfips", 
-                                          "countyfips_name", "block",
+                                          "county_name", "block",
                                           "place_code", "place_name", "zipcode"), 
                             numeric   = "num_house10"))
   
-  # This fix should happen in the master
-  setnames(dt, old = "countyfips_name", new = "county_name")
-  
   dt <- dt[zipcode != ""]  # small % of census blocks do not have a zip code
-  
-  dt <- manual_corrections(dt)
-  
+    
   return(dt)
-}
-
-manual_corrections <- function(dt) {
-  
-  dt[place_name == "New York",  place_name := "New York City"]
-  dt[place_name == "St. Paul",  place_name := "Saint Paul"]
-  
-  # Test whether other fixes are necessary
-  
-  return(dt)
-}
-
-
-load_mw <- function(instub) {
-  
-  # State MW
-  state_mw <- fread(file.path(instub, "state_monthly.csv"))
-  
-  setnames(state_mw, old = "mw", new = "state_mw")
-  
-  state_mw[, c("year", "month") := .(as.numeric(substr(monthly_date, 1, 4)),
-                                     as.numeric(gsub("m", "", substr(monthly_date, 5, length(monthly_date)))))]
-  state_mw[, c("monthly_date", "statename") := NULL]
-  
-  state_mw[, statefips := str_pad(as.character(statefips), 2, pad = 0)]
-  state_mw[, stateabb  := NULL]
-  
-  state_mw[, event := 1*(state_mw != shift(state_mw)), by = .(statefips)]
-  
-  # Substate MW
-  local_mw <- fread(file.path(instub, "substate_monthly.csv"))
-  
-  local_mw[, c("year", "month") := .(as.numeric(substr(monthly_date, 1, 4)),
-                                     as.numeric(gsub("m", "", substr(monthly_date, 5, length(monthly_date)))))]
-  local_mw[, c("monthly_date", "statename") := NULL]
-  
-  local_mw[, statefips := str_pad(as.character(statefips), 2, pad = 0)]
-  local_mw[, iscounty  := 1*grepl("County", locality)]
-  
-  mw_vars        <- names(local_mw)[grepl("mw", names(local_mw))]
-  county_mw_vars <- paste0("county_", mw_vars)
-  local_mw_vars  <- paste0("local_",  mw_vars)
-  
-  county_mw <- local_mw[iscounty == 1, ][, iscounty := NULL]
-  setnames(county_mw, old = c("locality",    mw_vars), 
-                      new = c("county_name", county_mw_vars))
-  
-  local_mw <- local_mw[iscounty == 0, ][, iscounty := NULL]
-  setnames(local_mw, old = c("locality",   mw_vars),
-                     new = c("place_name", local_mw_vars))
-  
-  county_mw <- county_mw[, .(county_name, statefips, county_mw, year, month)]
-  local_mw <- local_mw[,   .(place_name,  statefips, local_mw,  year, month)]
-  
-  county_mw[, event := 1*(county_mw != shift(county_mw)), by = .(county_name, statefips)]
-  local_mw[,  event := 1*(local_mw  != shift(local_mw)),  by = .(place_name,  statefips)]
-  
-  return(list("state"  = state_mw, 
-              "county" = county_mw, 
-              "local"  = local_mw))
 }
 
 get_months_with_changes <- function(dt_mw, yy) {
