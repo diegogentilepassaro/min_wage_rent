@@ -14,9 +14,9 @@ program main
     use zipcode place_code countyfips statefips cbsa ///
         using `in_geo'/zipcode_master.dta, clear
 
-    merge 1:m zipcode using "`in_mw_pans'/zipcode_mw_res.dta",   ///
+    merge 1:m zipcode using "`in_mw_meas'/zipcode_mw_res.dta",   ///
        nogen assert(1 3)
-    merge 1:m zipcode using "`in_mw_meas'/zip_statutory_mw.dta",   ///
+    merge 1:1 zipcode year month using "`in_mw_pans'/zip_statutory_mw.dta",   ///
        nogen assert(1 3) keepusing(statutory_mw binding_mw*)
 
     merge_morkplace_mw, instub(`in_mw_meas')
