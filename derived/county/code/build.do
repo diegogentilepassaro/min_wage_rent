@@ -12,8 +12,6 @@ program main
     build_zillow_county_stats, instub(`in_base_large')
 
     use countyfips statefips cbsa using "`in_geo'/county_master.dta", clear
-    duplicates drop
-    isid countyfips
 
     merge 1:1 countyfips using "../temp/zillow_counties_with_rents.dta", ///
 	    nogen keep(1 3)
