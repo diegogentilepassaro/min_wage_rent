@@ -19,9 +19,8 @@ program main
         nogen keep(1 3)
 
     strcompress
-    rename countyfips county
     save_data "`outstub'/county_cross.dta", replace ///
-        key(county) log(`logfile')
+        key(countyfips) log(`logfile')
 end
 
 program build_zillow_county_stats

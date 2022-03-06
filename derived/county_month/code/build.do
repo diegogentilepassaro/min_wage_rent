@@ -4,60 +4,67 @@ adopath + ../../../lib/stata/gslab_misc/ado
 adopath + ../../../lib/stata/mental_coupons/ado
 
 program main
-    local in_derived_large  "../../../drive/derived_large"
-    local in_geo            "../../../base/geo_master/output"
-    local in_base_large     "../../../drive/base_large"
-    local in_qcew           "../../../base/qcew/output"
-    local outstub           "../../../drive/derived_large/county_month"
-    local logfile           "../output/data_file_manifest.log"
+    local in_county   "../../../drive/derived_large/county"
+    local in_mw_pans  "../../../drive/derived_large/min_wage_panels"
+    local in_mw_meas  "../../../drive/derived_large/min_wage_measures"
+    local in_zillow   "../../../drive/base_large/zillow"
+    local in_qcew     "../../../base/qcew/output"
+    local outstub     "../../../drive/derived_large/county_month"
+    local logfile     "../output/data_file_manifest.log"
 
-    use countyfips statefips cbsa10 using "`in_geo'/zip_county_place_usps_all.dta", clear
-    duplicates drop
-    isid countyfips
+    use "`in_county'/county_cross.dta", clear
    
-    merge 1:m countyfips using "`in_derived_large'/min_wage/county_statutory_mw.dta", ///
-       nogen assert(3) keepusing(year month actual_mw* binding_mw*)
-    
-    merge_exp_mw, instub(`in_derived_large') yy("10")
-    merge_exp_mw, instub(`in_derived_large') yy("14")
-    merge_exp_mw, instub(`in_derived_large') yy("17")
-    merge_exp_mw, instub(`in_derived_large') yy("18")
-    merge_zillow, instub(`in_base_large')
+    merge 1:m countyfips using "`in_mw_meas'/countyfips_mw_res.dta", ///
+	    nogen assert(3)
+    merge 1:m countyfips year month using "`in_mw_pans'/county_statutory_mw.dta", ///
+       nogen assert(1 3) keepusing(statutory_mw binding_mw*)
 
-    /* Should we build ACS population by county-year? Probably we should! */
+    merge_morkplace_mw, instub(`in_mw_meas')	  
+    merge_zillow, instub(`in_zillow')
 
     make_date_variables
     merge_qcew, instub(`in_qcew')
 
     strcompress
-    rename countyfips county
     save_data "`outstub'/county_month_panel.dta", replace ///
-        key(county year month) log(`logfile')
+        key(countyfips year month) log(`logfile')
 end
 
-program merge_exp_mw
-    syntax, instub(str) yy(str)
+program merge_morkplace_mw
+    syntax, instub(str)
 
-    preserve
-        use "`instub'/min_wage/countyfips_experienced_mw_20`yy'.dta", clear
+    merge 1:1 countyfips year month using "`instub'/countyfips_mw_wkp_2009.dta", ///
+        nogen keep(1 3)
+    foreach var of varlist mw_wkp* {
+        local mw_vars "`mw_vars' `var'"
 
-        drop *mean
-        rename exp_ln_* exp_ln_*_`yy'
+        rename `var' `var'_09
+    }
+    
+    forvalues yy = 10(1)18 {
+        merge 1:1 countyfips year month using "`instub'/countyfips_mw_wkp_20`yy'.dta", ///
+            nogen keep(1 3)
 
-        tempfile exp_mw
-        save    `exp_mw'
-    restore
-    merge 1:1 countyfips year month using `exp_mw', ///
-        assert(1 2 3) keep(1 3) nogen keepusing(exp*)
+        foreach var of local mw_vars {
+            rename `var' `var'_`yy'
+        }
+    }
+
+    foreach var of local mw_vars {
+        gen `var'_timevary = `var'_09 if year == 2009
+        forvalues yy = 10(1)18 {
+            replace `var'_timevary = `var'_`yy' if year == 2000 + `yy'
+        }
+    }
 end
 
 program merge_zillow
     syntax, instub(str)
     
-    merge 1:1 countyfips year month using "`instub'/zillow/zillow_county_clean.dta"
+    merge 1:1 countyfips year month using "`instub'/zillow_county_clean.dta"
     
     qui sum medrentpricepsqft_SFCC if _merge == 2 & inrange(year, 2010, 2019)    
-    assert r(N) == 0
+    *assert r(N) == 0
     keep if inlist(_merge, 1, 3)
     drop _merge
 end
