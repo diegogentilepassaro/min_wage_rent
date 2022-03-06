@@ -36,6 +36,7 @@ run_rbatch(program = 'build_block_census.R')
 run_rbatch(program = 'build_tract_acs.R')
 run_stata(program  = 'build_tract_mw_shares.do', executable = stata)
 run_rbatch(program = 'build_zip_demo.R')
+run_rbatch(program = 'build_county_demo.R')
 clear_dirs('../temp/')
 
 end_make_logging()

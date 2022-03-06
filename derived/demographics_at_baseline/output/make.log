@@ -1,5 +1,5 @@
 
- make.py started: 2022-03-05 12:12:08 C:\Users\shermo\Documents\GitHub\min_wage_rent\derived\demographics_at_baseline\code 
+ make.py started: 2022-03-06 12:12:03 C:\Users\diegog\Desktop\Diego\min_wage_rent\derived\demographics_at_baseline\code 
 
 
 
@@ -88,7 +88,7 @@ The following objects are masked from 'package:base':
 > 
 > proc.time()
    user  system elapsed 
- 236.95   87.28  256.90 
+ 330.62   94.07  405.07 
 
 
 Execute:  R CMD BATCH --no-save "./build_tract_acs.R" build_tract_acs.Rout
@@ -221,7 +221,7 @@ The following objects are masked from 'package:base':
 > 
 > proc.time()
    user  system elapsed 
-  63.14   16.03   62.73 
+ 102.35   19.42  114.60 
 
 
 Execute:  StataMP-64 /e do "./build_tract_mw_shares.do"
@@ -657,6 +657,119 @@ The following objects are masked from 'package:base':
 > 
 > proc.time()
    user  system elapsed 
-  76.12   73.73   64.98 
+ 137.78   60.57  138.98 
 
- make.py ended: 2022-03-05 12:19:15
+
+Execute:  R CMD BATCH --no-save "./build_county_demo.R" build_county_demo.Rout
+
+R version 4.1.1 (2021-08-10) -- "Kick Things"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list = ls())
+> 
+> library(data.table)
+> source("../../../lib/R/save_data.R")
+
+Please cite as: 
+
+ Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+ R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
+
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:data.table':
+
+    between, first, last
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+> 
+> setDTthreads(18)
+> 
+> main <- function(){
++   in_master <- "../../../drive/base_large/census_block_master"
++   in_demo   <- "../../../drive/derived_large/demographics_at_baseline"
++   outstub   <- "../../../drive/derived_large/demographics_at_baseline"
++   log_file  <- "../output/zip_data_manifest.log"
++   
++   dt_geo <- fread(file.path(in_master, "census_block_master.csv"),
++                   select = list(character = c("block", "countyfips"),
++                                 numeric   = c("num_house10")))
++   
++   dt_county_demo  <- block_to_county(in_demo, copy(dt_geo))
++   rm(dt_geo)
++   dt <- compute_shares(dt_county_demo)
++   
++   save_data(dt, key  = c("countyfips"),
++             filename = file.path(outstub, "county.dta"),
++             logfile  = log_file)
++   fwrite(dt,
++          file = file.path(outstub, "county.csv"))
++ }
+> 
+> block_to_county <- function(instub, dt_geo) {
++   
++   dt <- fread(file.path(instub, "block.csv"),
++               colClasses = c(block   = "character"))
++   
++   dt <- dt_geo[dt,  on = c("block")]
++ 
++   dt <- dt[, .(population_cens2010          = sum(population,              na.rm = T),
++                n_male_cens2010              = sum(n_male,                  na.rm = T),
++                n_white_cens2010             = sum(n_white,                 na.rm = T),
++                n_black_cens2010             = sum(n_black,                 na.rm = T),
++                urb_pop_cens2010             = sum(urban_population,        na.rm = T),
++                n_hhlds_cens2010             = sum(n_hhlds,                 na.rm = T),
++                n_hhlds_urban_cens2010       = sum(n_hhlds_urban,           na.rm = T),
++                n_hhlds_renteroccup_cens2010 = sum(n_hhlds_renter_occupied, na.rm = T)),
++            by = .(countyfips)]
++   
++   return(dt)
++ }
+> 
+> compute_shares <- function(dt) {
++   
++   # Census 2010
++   for (var in paste0(c("n_white", "n_black", "n_male", "urb_pop"), "_cens2010")) {
++     newvar <- gsub("^n_", "sh_", var)
++     dt[, c(newvar) := get(var)/population_cens2010]
++   }
++   for (var in paste0(c("n_hhlds_urban", "n_hhlds_renteroccup"), "_cens2010")) {
++     newvar <- gsub("^n_", "sh_", var)
++     dt[, c(newvar) := get(var)/n_hhlds_cens2010]
++   }
++   
++   return(dt)
++ }
+> 
+> 
+> main()
+[1] "File '../../../drive/derived_large/demographics_at_baseline/county.dta' saved successfully."
+> 
+> proc.time()
+   user  system elapsed 
+ 104.07   47.09   98.26 
+
+ make.py ended: 2022-03-06 12:25:19
