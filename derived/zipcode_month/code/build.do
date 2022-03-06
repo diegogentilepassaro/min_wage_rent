@@ -38,7 +38,6 @@ end
 program merge_morkplace_mw
     syntax, instub(str)
 
-    local instub  "../../../drive/derived_large/min_wage_measures"
     merge 1:1 zipcode year month using "`instub'/zipcode_mw_wkp_2009.dta", ///
         nogen keep(1 3)
     foreach var of varlist mw_wkp* {
