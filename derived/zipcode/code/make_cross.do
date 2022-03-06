@@ -3,10 +3,11 @@ clear all
 adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
-    local in_geo       "../../../drive/base_large/zipcode_master"
-    local in_zillow    "../../../drive/base_large/zillow"
-    local in_lodes_zip "../../../drive/base_large/lodes_zipcodes"
-    local in_shares_od "../../../drive/derived_large/od_shares"
+    local in_geo        "../../../drive/base_large/zipcode_master"
+    local in_zillow     "../../../drive/base_large/zillow"
+    local in_lodes_zip  "../../../drive/base_large/lodes_zipcodes"
+    local in_demo       "../../../drive/derived_large/demographics_at_baseline"
+    local in_shares_od  "../../../drive/derived_large/od_shares"
     local outstub       "../../../drive/derived_large/zipcode"
     local logfile       "../output/data_file_manifest.log"
 
@@ -14,15 +15,12 @@ program main
 
     use `in_geo'/zipcode_master.dta, clear
 
-    merge 1:1 zipcode using "../temp/zillow_zipcodes_with_rents.dta",         ///
-        assert(1 2 3)  // 6 observations from using
-    drop if _merge == 2
+    merge 1:1 zipcode using "../temp/zillow_zipcodes_with_rents.dta"
+    drop if _merge == 2 // 6 observations from using
     drop _merge
 
-    *merge 1:1 zipcode using "`in_base_large'/demographics/zip_demo_2010.dta", ///
-    *    nogen keep(1 3)
-    ** SHOULD WE DROP THE OLD base/demographics?
-    ** SHOULD WE ADD NEW ACS-based DATA?
+    merge 1:1 zipcode using "`in_demo'/zipcode.dta", ///
+        nogen keep(1 3)
 
     merge_lodes_shares, instub(`in_lodes_zip')
     merge_lodes_shares, instub(`in_lodes_zip') yy(2017)
