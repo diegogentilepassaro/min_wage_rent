@@ -3,32 +3,28 @@ clear all
 adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
-    local in_base_large "../../../drive/base_large"
-    local in_der_large  "../../../drive/derived_large"
+    local in_zip_mth    "../../../drive/derived_large/zipcode_month"
+    local in_irs        "../../../drive/base_large/irs_soi"
+    local in_lodes_zip  "../../../drive/base_large/lodes_zipcodes"
     local in_qcew       "../../../base/qcew/output"
     local outstub       "../../../drive/derived_large/zipcode_year"
     local logfile       "../output/data_file_manifest.log"
 
-    use zipcode statefips countyfips cbsa10 year month zcta            ///
-        actual_mw exp_ln_mw* medrent* medlisting* Sale_Counts Monthly* ///
-        using  "`in_der_large'/zipcode_month/zipcode_month_panel.dta"
+    use zipcode statefips countyfips cbsa year month    ///
+        statutory_mw mw_res mw_wkp* medrent* medlisting* Sale_Counts Monthly* ///
+        using  "`in_zip_mth'/zipcode_month_panel.dta"
 
     make_yearly_data
 
-    clean_irs_data,    instub(`in_base_large')
-    clean_area_shares, instub(`in_base_large')
-    clean_od_shares,   instub(`in_der_large')
+    clean_irs_data,    instub(`in_irs')
+    clean_area_shares, instub(`in_lodes_zip')
     clean_qcew,        instub(`in_qcew')
-    
-    clear
-    use "../temp/mw_rents_data.dta"
+
+    use "../temp/mw_rents_data.dta", clear
     merge 1:1 zipcode    year using "../temp/irs_data.dta",         nogen keep(1 3)
     merge 1:1 zipcode    year using "../temp/workplace_shares.dta", nogen keep(1 3)
     merge 1:1 zipcode    year using "../temp/residence_shares.dta", nogen keep(1 3)
-    merge 1:1 zipcode    year using "../temp/od_shares.dta",        nogen keep(1 3)
     merge m:1 countyfips year using "../temp/qcew_data.dta",        nogen keep(1 3)
-
-    merge_acs_pop, instub(`in_base_large')
 
     destring_geographies
 
@@ -38,25 +34,20 @@ end
 
 program make_yearly_data
 
-    gen ln_mw           = log(actual_mw)
     gen ln_rents        = log(medrentprice_SFCC)
     gen ln_price        = log(medlistingpricepsqft_SFCC)
     gen ln_sale_counts  = log(Sale_Counts)
     gen ln_monthly_listings = log(Monthlylistings_NSA_SFCC)
 
-    gen exp_ln_mw_tot = cond(year == 2010, exp_ln_mw_tot_10, cond(year == 2011, exp_ln_mw_tot_11, ///
-                        cond(year == 2012, exp_ln_mw_tot_12, cond(year == 2013, exp_ln_mw_tot_13, ///
-                        cond(year == 2014, exp_ln_mw_tot_14, cond(year == 2015, exp_ln_mw_tot_15, ///
-                        cond(year == 2016, exp_ln_mw_tot_16, cond(year == 2017, exp_ln_mw_tot_17, ///
-                        cond(year == 2018, exp_ln_mw_tot_18, .)))))))))
+    rename *timevary* *timvar* 
+    qui describe mw_wkp*, varlist
+    local mw_wkp_vars = r(varlist)
 
-    qui describe exp*, varlist
-    local exp_mw_vars = r(varlist)
+    local vars statutory_mw mw_res ln_rents ln_price ///
+	    `mw_wkp_vars' ln_sale_counts ln_monthly_listings
 
-    local vars ln_mw ln_rents ln_price `exp_mw_vars' ln_sale_counts ln_monthly_listings
-
-    keep zipcode year zcta countyfips cbsa10 statefips month `vars'
-
+    keep zipcode year countyfips cbsa statefips month `vars'
+	
     foreach var of local vars {
         bys zipcode year: egen `var'_avg = mean(`var')
     }
@@ -70,7 +61,7 @@ end
 program clean_irs_data
     syntax, instub(str)
     
-    use "`instub'/irs_soi/irs_zip.dta", clear
+    use "`instub'/irs_zip.dta", clear
     
     gen ln_wagebill     = log(total_wage)
     gen ln_bizinc       = log(total_bizinc)
@@ -90,7 +81,7 @@ end
 program clean_area_shares
     syntax, instub(str)
 
-    use "`instub'/lodes_zipcodes/jobs.dta", clear
+    use "`instub'/jobs.dta", clear
     preserve
         keep if jobs_by == "residence"
         
@@ -116,21 +107,6 @@ program clean_area_shares
     restore
 end
 
-program clean_od_shares
-    syntax, instub(str)
-
-    clear
-    import delimited "`instub'/shares/zipcode_shares.csv", stringcols(1)
-
-    keep zipcode year share_*
-    rename share_workers_*      sh_workers_od_*
-    rename share_residents_*    sh_residents_od_*
-    rename share_work_samegeo   sh_work_samegeo_od
-    rename share_work_samegeo_* sh_work_samegeo_od_*
-
-    save "../temp/od_shares.dta"
-end
-
 program clean_qcew
     syntax, instub(str)
     
@@ -148,26 +124,12 @@ program clean_qcew
     save "../temp/qcew_data.dta"
 end
 
-program merge_acs_pop
-    syntax, instub(str)
-
-    merge m:1 zipcode year using "`instub'/demographics/acs_population_zipyear.dta", ///
-        nogen keep(1 3)
-
-    qui sum ln_rents if !missing(ln_rents)
-    local observations_with_rents = r(N)
-
-    qui sum acs_pop if !missing(ln_rents)
-    assert r(N) == `observations_with_rents'
-end
-
 program destring_geographies
 
     destring statefips, gen(statefips_num)
-    destring cbsa10, gen(cbsa10_num)
-    cap destring county, gen(county_num)
-    cap destring countyfips, gen(county_num)
-    cap destring zipcode, gen(zipcode_num)
+    destring cbsa, gen(cbsa_num)
+    destring countyfips, gen(county_num)
+    destring zipcode, gen(zipcode_num)
 end
 
 

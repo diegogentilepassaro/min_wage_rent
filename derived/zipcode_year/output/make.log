@@ -1,5 +1,5 @@
 
- make.py started: 2021-10-30 14:30:23 C:\Users\diegog\Desktop\Diego\min_wage_rent\derived\zipcode_year\code 
+ make.py started: 2022-03-07 06:43:29 C:\Users\diegog\Desktop\Diego\min_wage_rent\derived\zipcode_year\code 
 
 
 
@@ -27,6 +27,9 @@ Notes:
       3.  More than 2 billion observations are allowed; see help obs_advice.
       4.  Maximum number of variables is set to 5000; see help set_maxvar.
 
+
+running c:\ado\personal\profile.do ...
+
 . do ./build.do 
 
 . set more off
@@ -44,86 +47,72 @@ Notes:
 
 . 
 . program main
-  1.     local in_base_large "../../../drive/base_large"
-  2.     local in_der_large  "../../../drive/derived_large"
-  3.     local in_qcew       "../../../base/qcew/output"
-  4.     local outstub       "../../../drive/derived_large/zipcode_year"
-  5.     local logfile       "../output/data_file_manifest.log"
-  6. 
-.     use zipcode statefips countyfips cbsa10 year month zcta            ///
->         actual_mw exp_ln_mw* medrent* medlisting* Sale_Counts Monthly* ///
->         using  "`in_der_large'/zipcode_month/zipcode_month_panel.dta"
+  1.     local in_zip_mth    "../../../drive/derived_large/zipcode_month"
+  2.     local in_irs        "../../../drive/base_large/irs_soi"
+  3.     local in_lodes_zip  "../../../drive/base_large/lodes_zipcodes"
+  4.     local in_qcew       "../../../base/qcew/output"
+  5.     local outstub       "../../../drive/derived_large/zipcode_year"
+  6.     local logfile       "../output/data_file_manifest.log"
   7. 
-.     make_yearly_data
+.     use zipcode statefips countyfips cbsa year month    ///
+>         statutory_mw mw_res mw_wkp* medrent* medlisting* Sale_Counts Monthly*
+>  ///
+>         using  "`in_zip_mth'/zipcode_month_panel.dta"
   8. 
-.     clean_irs_data,    instub(`in_base_large')
-  9.     clean_area_shares, instub(`in_base_large')
- 10.     clean_od_shares,   instub(`in_der_large')
+.     make_yearly_data
+  9. 
+.     clean_irs_data,    instub(`in_irs')
+ 10.     clean_area_shares, instub(`in_lodes_zip')
  11.     clean_qcew,        instub(`in_qcew')
- 12.     
-.     clear
- 13.     use "../temp/mw_rents_data.dta"
- 14.     merge 1:1 zipcode    year using "../temp/irs_data.dta",         nogen 
+ 12. 
+.     use "../temp/mw_rents_data.dta", clear
+ 13.     merge 1:1 zipcode    year using "../temp/irs_data.dta",         nogen 
 > keep(1 3)
- 15.     merge 1:1 zipcode    year using "../temp/workplace_shares.dta", nogen 
+ 14.     merge 1:1 zipcode    year using "../temp/workplace_shares.dta", nogen 
 > keep(1 3)
- 16.     merge 1:1 zipcode    year using "../temp/residence_shares.dta", nogen 
+ 15.     merge 1:1 zipcode    year using "../temp/residence_shares.dta", nogen 
 > keep(1 3)
- 17.     merge 1:1 zipcode    year using "../temp/od_shares.dta",        nogen 
+ 16.     merge m:1 countyfips year using "../temp/qcew_data.dta",        nogen 
 > keep(1 3)
- 18.     merge m:1 countyfips year using "../temp/qcew_data.dta",        nogen 
-> keep(1 3)
- 19. 
-.     merge_acs_pop, instub(`in_base_large')
- 20. 
+ 17. 
 .     destring_geographies
- 21. 
+ 18. 
 .     save_data "`outstub'/zipcode_year.dta", key(zipcode year) ///
 >         log(`logfile') replace
- 22. end
+ 19. end
 
 . 
 . program make_yearly_data
   1. 
-.     gen ln_mw           = log(actual_mw)
-  2.     gen ln_rents        = log(medrentprice_SFCC)
-  3.     gen ln_price        = log(medlistingpricepsqft_SFCC)
-  4.     gen ln_sale_counts  = log(Sale_Counts)
-  5.     gen ln_monthly_listings = log(Monthlylistings_NSA_SFCC)
-  6. 
-.     gen exp_ln_mw_tot = cond(year == 2010, exp_ln_mw_tot_10, cond(year == 201
-> 1, exp_ln_mw_tot_11, ///
->                         cond(year == 2012, exp_ln_mw_tot_12, cond(year == 201
-> 3, exp_ln_mw_tot_13, ///
->                         cond(year == 2014, exp_ln_mw_tot_14, cond(year == 201
-> 5, exp_ln_mw_tot_15, ///
->                         cond(year == 2016, exp_ln_mw_tot_16, cond(year == 201
-> 7, exp_ln_mw_tot_17, ///
->                         cond(year == 2018, exp_ln_mw_tot_18, .)))))))))
-  7. 
-.     qui describe exp*, varlist
-  8.     local exp_mw_vars = r(varlist)
+.     gen ln_rents        = log(medrentprice_SFCC)
+  2.     gen ln_price        = log(medlistingpricepsqft_SFCC)
+  3.     gen ln_sale_counts  = log(Sale_Counts)
+  4.     gen ln_monthly_listings = log(Monthlylistings_NSA_SFCC)
+  5. 
+.     rename *timevary* *timvar* 
+  6.     qui describe mw_wkp*, varlist
+  7.     local mw_wkp_vars = r(varlist)
+  8. 
+.     local vars statutory_mw mw_res ln_rents ln_price ///
+>             `mw_wkp_vars' ln_sale_counts ln_monthly_listings
   9. 
-.     local vars ln_mw ln_rents ln_price `exp_mw_vars' ln_sale_counts ln_monthl
-> y_listings
- 10. 
-.     keep zipcode year zcta countyfips cbsa10 statefips month `vars'
- 11. 
+.     keep zipcode year countyfips cbsa statefips month `vars'
+ 10.         
 .     foreach var of local vars {
- 12.         bys zipcode year: egen `var'_avg = mean(`var')
- 13.     }
- 14. 
+ 11.         bys zipcode year: egen `var'_avg = mean(`var')
+ 12.     }
+ 13. 
 .     bysort zipcode year (month): keep if _n == 1
- 15.     drop month
- 16.     
+ 14.     drop month
+ 15.     
 .     save "../temp/mw_rents_data.dta", replace
- 17. end
+ 16. end
 
 . 
 . program clean_irs_data
   1.     syntax, instub(str)
   2.     
-.     use "`instub'/irs_soi/irs_zip.dta", clear
+.     use "`instub'/irs_zip.dta", clear
   3.     
 .     gen ln_wagebill     = log(total_wage)
   4.     gen ln_bizinc       = log(total_bizinc)
@@ -146,7 +135,7 @@ Notes:
 . program clean_area_shares
   1.     syntax, instub(str)
   2. 
-.     use "`instub'/lodes_zipcodes/jobs.dta", clear
+.     use "`instub'/jobs.dta", clear
   3.     preserve
   4.         keep if jobs_by == "residence"
   5.         
@@ -173,22 +162,6 @@ Notes:
  21. end
 
 . 
-. program clean_od_shares
-  1.     syntax, instub(str)
-  2. 
-.     clear
-  3.     import delimited "`instub'/shares/zipcode_shares.csv", stringcols(1)
-  4. 
-.     keep zipcode year share_*
-  5.     rename share_workers_*      sh_workers_od_*
-  6.     rename share_residents_*    sh_residents_od_*
-  7.     rename share_work_samegeo   sh_work_samegeo_od
-  8.     rename share_work_samegeo_* sh_work_samegeo_od_*
-  9. 
-.     save "../temp/od_shares.dta"
- 10. end
-
-. 
 . program clean_qcew
   1.     syntax, instub(str)
   2.     
@@ -207,108 +180,153 @@ Notes:
  10. end
 
 . 
-. program merge_acs_pop
-  1.     syntax, instub(str)
-  2. 
-.     merge m:1 zipcode year using "`instub'/demographics/acs_population_zipyea
-> r.dta", ///
->         nogen keep(1 3)
-  3. 
-.     qui sum ln_rents if !missing(ln_rents)
-  4.     local observations_with_rents = r(N)
-  5. 
-.     qui sum acs_pop if !missing(ln_rents)
-  6.     assert r(N) == `observations_with_rents'
-  7. end
-
-. 
 . program destring_geographies
   1. 
 .     destring statefips, gen(statefips_num)
-  2.     destring cbsa10, gen(cbsa10_num)
-  3.     cap destring county, gen(county_num)
-  4.     cap destring countyfips, gen(county_num)
-  5.     cap destring zipcode, gen(zipcode_num)
-  6. end
+  2.     destring cbsa, gen(cbsa_num)
+  3.     destring countyfips, gen(county_num)
+  4.     destring zipcode, gen(zipcode_num)
+  5. end
 
 . 
 . 
 . main
-(40,487 missing values generated)
-(4,705,995 missing values generated)
-(3,815,114 missing values generated)
-(2,408,975 missing values generated)
-(3,940,165 missing values generated)
-(711,730 missing values generated)
-(40487 missing values generated)
-(4691951 missing values generated)
-(3800999 missing values generated)
-(208350 missing values generated)
-(208350 missing values generated)
-(208350 missing values generated)
-(208350 missing values generated)
-(208350 missing values generated)
-(208350 missing values generated)
-(208350 missing values generated)
-(208350 missing values generated)
-(208350 missing values generated)
-(208350 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(207624 missing values generated)
-(711719 missing values generated)
-(1557223 missing values generated)
-(3935034 missing values generated)
-(4,453,570 observations deleted)
+(3,840,029 missing values generated)
+(2,953,507 missing values generated)
+(1,446,174 missing values generated)
+(3,078,144 missing values generated)
+(29464 missing values generated)
+(29464 missing values generated)
+(3826046 missing values generated)
+(2939438 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(25527 missing values generated)
+(25527 missing values generated)
+(25527 missing values generated)
+(25527 missing values generated)
+(25527 missing values generated)
+(25527 missing values generated)
+(25527 missing values generated)
+(25527 missing values generated)
+(25527 missing values generated)
+(25527 missing values generated)
+(28194 missing values generated)
+(28194 missing values generated)
+(28194 missing values generated)
+(28194 missing values generated)
+(28194 missing values generated)
+(28194 missing values generated)
+(28194 missing values generated)
+(28194 missing values generated)
+(28194 missing values generated)
+(28194 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(29083 missing values generated)
+(29083 missing values generated)
+(29083 missing values generated)
+(29083 missing values generated)
+(29083 missing values generated)
+(29083 missing values generated)
+(29083 missing values generated)
+(29083 missing values generated)
+(29083 missing values generated)
+(29083 missing values generated)
+(28956 missing values generated)
+(28956 missing values generated)
+(28956 missing values generated)
+(28956 missing values generated)
+(28956 missing values generated)
+(28956 missing values generated)
+(28956 missing values generated)
+(28956 missing values generated)
+(28956 missing values generated)
+(28956 missing values generated)
+(28702 missing values generated)
+(28702 missing values generated)
+(28702 missing values generated)
+(28702 missing values generated)
+(28702 missing values generated)
+(28702 missing values generated)
+(28702 missing values generated)
+(28702 missing values generated)
+(28702 missing values generated)
+(28702 missing values generated)
+(28702 missing values generated)
+(28702 missing values generated)
+(28702 missing values generated)
+(28702 missing values generated)
+(28702 missing values generated)
+(28702 missing values generated)
+(28702 missing values generated)
+(28702 missing values generated)
+(28702 missing values generated)
+(28702 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(27813 missing values generated)
+(28067 missing values generated)
+(28067 missing values generated)
+(28067 missing values generated)
+(28067 missing values generated)
+(28067 missing values generated)
+(28067 missing values generated)
+(28067 missing values generated)
+(28067 missing values generated)
+(28067 missing values generated)
+(28067 missing values generated)
+(438008 missing values generated)
+(438008 missing values generated)
+(438008 missing values generated)
+(438008 missing values generated)
+(438008 missing values generated)
+(438008 missing values generated)
+(438008 missing values generated)
+(438008 missing values generated)
+(438008 missing values generated)
+(438008 missing values generated)
+(628901 missing values generated)
+(3073033 missing values generated)
+(3,651,710 observations deleted)
 (note: file ../temp/mw_rents_data.dta not found)
 file ../temp/mw_rents_data.dta saved
 (2 missing values generated)
-(12,558 missing values generated)
-(15,992 missing values generated)
+(14,181 missing values generated)
+(17,892 missing values generated)
 (2 missing values generated)
-(918 observations deleted)
+(1,020 observations deleted)
 (note: file ../temp/irs_data.dta not found)
 file ../temp/irs_data.dta saved
-(388,171 observations deleted)
+(306,112 observations deleted)
 (note: file ../temp/residence_shares.dta not found)
 file ../temp/residence_shares.dta saved
-(388,172 observations deleted)
+(313,550 observations deleted)
 (note: file ../temp/workplace_shares.dta not found)
 file ../temp/workplace_shares.dta saved
-(18 vars, 391,349 obs)
-file ../temp/od_shares.dta saved
 (1,026 missing values generated)
 (1,413 missing values generated)
 (1,914 missing values generated)
@@ -349,299 +367,428 @@ file ../temp/qcew_data.dta saved
 
     Result                           # of obs.
     -----------------------------------------
-    not matched                       196,364
-        from master                   196,364  
+    not matched                        78,211
+        from master                    78,211  
         from using                          0  
 
-    matched                           248,993  
+    matched                           302,837  
     -----------------------------------------
 (note: variable year was int, now long to accommodate using data's values)
 
     Result                           # of obs.
     -----------------------------------------
-    not matched                        98,634
-        from master                    98,634  
+    not matched                        74,946
+        from master                    74,946  
         from using                          0  
 
-    matched                           346,723  
+    matched                           306,102  
     -----------------------------------------
 
     Result                           # of obs.
     -----------------------------------------
-    not matched                        99,504
-        from master                    99,504  
+    not matched                        67,508
+        from master                    67,508  
         from using                          0  
 
-    matched                           345,853  
+    matched                           313,540  
     -----------------------------------------
 
     Result                           # of obs.
     -----------------------------------------
-    not matched                       122,418
-        from master                   122,418  
+    not matched                        63,578
+        from master                    63,578  
         from using                          0  
 
-    matched                           322,939  
-    -----------------------------------------
-
-    Result                           # of obs.
-    -----------------------------------------
-    not matched                        40,557
-        from master                    40,557  
-        from using                          0  
-
-    matched                           404,800  
-    -----------------------------------------
-(note: variable year was long, now double to accommodate using data's values)
-
-    Result                           # of obs.
-    -----------------------------------------
-    not matched                        57,806
-        from master                    57,806  
-        from using                          0  
-
-    matched                           387,551  
+    matched                           317,470  
     -----------------------------------------
 statefips: all characters numeric; statefips_num generated as byte
-cbsa10: all characters numeric; cbsa10_num generated as long
+cbsa: all characters numeric; cbsa_num generated as long
+countyfips: all characters numeric; county_num generated as long
+zipcode: all characters numeric; zipcode_num generated as long
 (data now sorted by zipcode year)
-  variable year was double now int
-  (2,672,142 bytes saved)
+  variable year was long now int
+  (762,096 bytes saved)
 ===============================================================================
 File: ../../../drive/derived_large/zipcode_year/zipcode_year.dta
 Key: zipcode year
 ===============================================================================
-  445357:190(40092):2450388775:922341300
+  381048:311(36374):2161822513:989447815
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
      zipcode |          0
-        year |    445,357        2015    3.162281       2010       2020
- zipcode_num |    445,357    49845.73    27783.92        501      99950
+        year |    381,048      2014.5    3.452057       2009       2020
+ zipcode_num |    381,048    49929.27    27413.93          1      99950
   countyfips |          0
-  county_num |    445,357     29386.5    15537.09       1001      56045
+  county_num |    381,048    29611.55    15252.88       1001      56045
 -------------+---------------------------------------------------------
-      cbsa10 |          0
-  cbsa10_num |    445,357    46885.05    31210.05      10020      99999
-        zcta |          0
    statefips |          0
-statefips_~m |    445,357    29.30197    15.52261          1         56
+statefips_~m |    381,048    29.52677    15.24133          1         56
+        cbsa |          0
+    cbsa_num |    381,048    48557.66    32226.13      10100      99999
+statutory_mw |    378,264    7.934416    1.204436       7.25      16.39
 -------------+---------------------------------------------------------
-exp_ln_~t_10 |    426,416    1.845141    .6529331          0   2.742882
-exp_ln_~9_10 |    426,416    1.845228    .6528701          0   2.740342
-exp_ln_~4_10 |    426,416    1.845061    .6529567          0   2.743511
-exp_ln_~5_10 |    426,416    1.845237     .653039          0    2.75524
-exp_ln_~0_10 |    426,416    1.845508    .6529594          0   2.751147
+      mw_res |    378,264    2.061664     .132112   1.981001   2.796671
+mw_wkp_to~09 |    378,420    2.056949    .1313948   1.237222   2.727809
+mw_wkp_~9_09 |    378,420    2.048988    .1902481          0   2.725064
+mw_wkp_~4_09 |    378,420    2.053624    .1534047          0    2.73386
+mw_wkp_~5_09 |    378,420    2.043685    .2059458          0   2.735946
 -------------+---------------------------------------------------------
-exp~_3333_10 |    426,416    1.845042    .6528067          0    2.74814
-exp~e3333_10 |    426,416    1.844876    .6530013          0   2.739075
-exp_ln~od_10 |    426,416     1.84541    .6528178          0   2.726512
-exp_ln_~l_10 |    426,416    1.844055     .652438          0   2.737219
-exp_ln~nd_10 |    426,416    1.845255     .653161          0   2.746967
+mw_wkp_~0_09 |    378,420    2.051472    .1777547          0   2.796671
+mw_~_3333_09 |    378,420    2.052283    .1684184          0   2.767662
+mw_~e3333_09 |    378,420    2.044993    .1926778          0   2.728637
+mw_wkp_go~09 |    378,420    2.044143    .2259929          0   2.729854
+mw_wkp_tr~09 |    378,420    2.046424    .2046767          0   2.738653
 -------------+---------------------------------------------------------
-exp_ln_~t_14 |    426,482    1.845545    .6531843          0    2.73948
-exp_ln_~9_14 |    426,482    1.845579    .6529939          0   2.745119
-exp_ln_~4_14 |    426,482     1.84552    .6532347          0   2.739504
-exp_ln_~5_14 |    426,482    1.845527    .6532408          0   2.749136
-exp_ln_~0_14 |    426,482    1.845773    .6531583          0    2.74259
+mw_wkp_ot~09 |    378,420    2.053175    .1489553          0    2.73323
+mw_wkp_to~10 |    378,636     2.05638    .1325105   .9905007   2.735776
+mw_wkp_~9_10 |    378,636    2.050218    .1831041          0   2.792661
+mw_wkp_~4_10 |    378,636    2.053801    .1495023          0    2.74663
+mw_wkp_~5_10 |    378,636    2.046568     .188812          0   2.796671
 -------------+---------------------------------------------------------
-exp~_3333_14 |    426,482    1.845429    .6530365          0   2.744955
-exp~e3333_14 |    426,482    1.845412    .6532779          0   2.741674
-exp_ln~od_14 |    426,482    1.845762    .6528314          0   2.717283
-exp_ln_~l_14 |    426,482    1.844537    .6525599          0   2.759219
-exp_ln~nd_14 |    426,482    1.845718    .6534474          0   2.744452
+mw_wkp_~0_10 |    378,636     2.05216    .1727153          0   2.793997
+mw_~_3333_10 |    378,636    2.053085    .1606016          0   2.738837
+mw_~e3333_10 |    378,636     2.04704    .1793659          0    2.74663
+mw_wkp_go~10 |    378,636    2.047522    .2092838          0   2.796671
+mw_wkp_tr~10 |    378,636    2.047871    .1934133          0   2.728806
 -------------+---------------------------------------------------------
-exp_ln_~t_17 |    426,482    1.845743     .653245          0   2.746004
-exp_ln_~9_17 |    426,482    1.845702     .653045          0   2.752397
-exp_ln_~4_17 |    426,482    1.845749    .6533132          0   2.746649
-exp_ln_~5_17 |    426,482    1.845753    .6532807          0   2.751747
-exp_ln_~0_17 |    426,482    1.845766    .6530839          0   2.749526
+mw_wkp_ot~10 |    378,636    2.053313    .1459594          0   2.740978
+mw_wkp_to~11 |    378,384    2.056802    .1319708   1.377093   2.735159
+mw_wkp_~9_11 |    378,384    2.049792    .1864979          0   2.737408
+mw_wkp_~4_11 |    378,384    2.054401    .1475858          0   2.734207
+mw_wkp_~5_11 |    378,384    2.047845    .1834363          0   2.796671
 -------------+---------------------------------------------------------
-exp~_3333_17 |    426,482    1.845611    .6530715          0   2.742419
-exp~e3333_17 |    426,482    1.845747    .6534083          0   2.750123
-exp_ln~od_17 |    426,482    1.846252    .6530288          0   2.720812
-exp_ln_~l_17 |    426,482    1.845003    .6527646          0   2.772347
-exp_ln~nd_17 |    426,482    1.845795    .6534371          0   2.747787
+mw_wkp_~0_11 |    378,384    2.052812    .1691389          0   2.747024
+mw_~_3333_11 |    378,384    2.053536    .1599623          0   2.796671
+mw_~e3333_11 |    378,384    2.048969    .1710963          0   2.736334
+mw_wkp_go~11 |    378,384    2.050724    .1948982          0   2.796671
+mw_wkp_tr~11 |    378,384    2.047026    .1983877          0   2.712175
 -------------+---------------------------------------------------------
-exp_ln_~t_18 |    426,482    1.845797    .6532613          0   2.748027
-exp_ln_~9_18 |    426,482    1.845674    .6530243          0   2.756266
-exp_ln_~4_18 |    426,482    1.845832    .6533468          0   2.747525
-exp_ln_~5_18 |    426,482      1.8458    .6532868          0    2.75128
-exp_ln_~0_18 |    426,482    1.845745     .653064          0   2.748993
+mw_wkp_ot~11 |    378,384    2.053561    .1461572          0   2.742849
+mw_wkp_to~12 |    378,420    2.058467    .1315075   1.246498   2.775709
+mw_wkp_~9_12 |    378,420    2.051653     .183209          0   2.739929
+mw_wkp_~4_12 |    378,420    2.056296    .1463206          0   2.775709
+mw_wkp_~5_12 |    378,420    2.051233    .1744794          0   2.744737
 -------------+---------------------------------------------------------
-exp~_3333_18 |    426,482    1.845649     .653075          0   2.748132
-exp~e3333_18 |    426,482    1.845866    .6534441          0   2.752265
-exp_ln~od_18 |    426,482     1.84618    .6529742          0   2.718764
-exp_ln_~l_18 |    426,482    1.845045    .6528101          0   2.775898
-exp_ln~nd_18 |    426,482    1.845881    .6534589          0   2.745376
+mw_wkp_~0_12 |    378,420    2.054628    .1664234          0   2.753796
+mw_~_3333_12 |    378,420    2.055505    .1565899          0   2.741212
+mw_~e3333_12 |    378,420    2.052092     .165497          0   2.775709
+mw_wkp_go~12 |    378,420    2.051417    .1915901          0   2.718876
+mw_wkp_tr~12 |    378,420    2.048772    .1946151          0   2.709508
 -------------+---------------------------------------------------------
-exp_ln_mw~11 |    426,482    1.845328    .6532036          0   2.747021
-exp_ln_mw~12 |    426,482    1.845464    .6532199          0   2.749497
-exp_ln_mw~13 |    426,482    1.845548    .6532315          0   2.750332
-exp_ln_mw~15 |    426,482    1.845575    .6532105          0   2.742535
-exp_ln_mw~16 |    426,482    1.845579    .6532169          0   2.744543
+mw_wkp_ot~12 |    378,420    2.056069    .1441919          0   2.775709
+mw_wkp_to~13 |    378,300    2.058454    .1315907   1.144983   2.738618
+mw_wkp_~9_13 |    378,300    2.051191    .1857384          0   2.796671
+mw_wkp_~4_13 |    378,300    2.056191    .1471942          0   2.741474
+mw_wkp_~5_13 |    378,300    2.051375    .1741461          0   2.746237
 -------------+---------------------------------------------------------
-       ln_mw |    404,870    2.060389    .1232126   1.981001   2.778198
-    ln_rents |     14,729    7.349454    .4108726   6.263398   10.81978
-    ln_price |     88,450    4.908315    .5460695    2.48311   7.935789
-ln_sale_co~s |    212,080    1.829763    1.290728          0   5.288267
-ln_monthly~s |     90,353    4.406917    .8211931   2.397895    7.82963
+mw_wkp_~0_13 |    378,300     2.05472    .1650602          0   2.748648
+mw_~_3333_13 |    378,300    2.055476    .1572458          0   2.742544
+mw_~e3333_13 |    378,300    2.051514    .1692495          0   2.736853
+mw_wkp_go~13 |    378,300    2.050191     .197603          0    2.72548
+mw_wkp_tr~13 |    378,300    2.050226    .1869526          0   2.720431
 -------------+---------------------------------------------------------
-exp_ln_mw_~t |    348,934    1.827085    .6416785          0   2.666046
-   ln_mw_avg |    404,870    2.062515    .1256798   1.981001   2.778198
-ln_rents_avg |     17,248    7.368673    .4158336   6.214608   10.81978
-ln_price_avg |     91,494    4.929045    .5496695   2.476853   7.892458
-exp~t_10_avg |    426,416    1.846912    .6538557          0   2.742882
+mw_wkp_ot~13 |    378,300    2.055992    .1448429          0   2.746759
+mw_wkp_to~14 |    378,312    2.058135    .1310677   1.197187   2.730445
+mw_wkp_~9_14 |    378,312    2.050518     .186988          0   2.740678
+mw_wkp_~4_14 |    378,312    2.056145    .1453961          0   2.796671
+mw_wkp_~5_14 |    378,312    2.051642     .170531          0    2.72963
 -------------+---------------------------------------------------------
-exp~9_10_avg |    426,416    1.846979    .6537764          0   2.740342
-exp~4_10_avg |    426,416    1.846836    .6538825          0   2.743511
-exp~5_10_avg |    426,416    1.847023     .653971          0    2.75524
-exp~0_10_avg |    426,416    1.847248    .6538647          0   2.751147
-exp_ln_mw_.. |    426,416    1.846783    .6537105          0    2.74814
+mw_wkp_~0_14 |    378,312    2.052738    .1736113          0   2.738352
+mw_~_3333_14 |    378,312    2.055808    .1535206          0    2.73374
+mw_~e3333_14 |    378,312    2.051993    .1647831          0   2.730299
+mw_wkp_go~14 |    378,312    2.052752    .1856527          0    2.72083
+mw_wkp_tr~14 |    378,312    2.048977    .1927308          0   2.733063
 -------------+---------------------------------------------------------
-exp_ln_mw_.. |    426,416    1.846688    .6539477          0   2.739075
-ex~od_10_avg |    426,416    1.847097    .6536809          0   2.726512
-exp~l_10_avg |    426,416    1.845813    .6533503          0   2.737219
-ex~nd_10_avg |    426,416    1.847047    .6540973          0   2.746967
-exp~t_14_avg |    426,482    1.847314    .6541018          0    2.73948
+mw_wkp_ot~14 |    378,312    2.055555    .1438315          0    2.73917
+mw_wkp_to~15 |    378,336    2.058184    .1308106   1.208356   2.796671
+mw_wkp_~9_15 |    378,336    2.051229     .182509          0   2.796671
+mw_wkp_~4_15 |    378,336    2.055902    .1470622          0   2.736115
+mw_wkp_~5_15 |    378,336    2.051555    .1706706          0   2.774547
 -------------+---------------------------------------------------------
-exp~9_14_avg |    426,482    1.847319    .6538924          0   2.745119
-exp~4_14_avg |    426,482    1.847295    .6541563          0   2.739504
-exp~5_14_avg |    426,482    1.847309    .6541659          0   2.749136
-exp~0_14_avg |    426,482     1.84752     .654064          0    2.74259
-exp_ln_mw_.. |    426,482    1.847166    .6539336          0   2.744955
+mw_wkp_~0_15 |    378,336    2.053311    .1690894          0   2.730307
+mw_~_3333_15 |    378,336    2.055923    .1533324          0   2.796671
+mw_~e3333_15 |    378,336    2.052617    .1605369          0    2.74663
+mw_wkp_go~15 |    378,336    2.053263    .1821182          0   2.796671
+mw_wkp_tr~15 |    378,336    2.051283     .180405          0   2.755574
 -------------+---------------------------------------------------------
-exp_ln_mw_.. |    426,482    1.847214    .6542141          0   2.741673
-ex~od_14_avg |    426,482    1.847429    .6536774          0   2.717283
-exp~l_14_avg |    426,482    1.846284    .6534615          0   2.759219
-ex~nd_14_avg |    426,482    1.847516    .6543836          0   2.744452
-exp~t_17_avg |    426,482    1.847511    .6541614          0   2.746004
+mw_wkp_ot~15 |    378,336    2.054969    .1478752          0   2.774547
+mw_wkp_to~16 |    378,336     2.05773    .1310709    1.21278   2.735795
+mw_wkp_~9_16 |    378,336    2.051372    .1789674          0   2.747081
+mw_wkp_~4_16 |    378,336    2.056018     .144051          0   2.734304
+mw_wkp_~5_16 |    378,336    2.051332    .1687718          0   2.728678
 -------------+---------------------------------------------------------
-exp~9_17_avg |    426,482    1.847444    .6539437          0   2.752397
-exp~4_17_avg |    426,482    1.847524    .6542342          0   2.746649
-exp~5_17_avg |    426,482    1.847532    .6542028          0   2.751747
-exp~0_17_avg |    426,482    1.847504    .6539829          0   2.749526
-exp_ln_mw_.. |    426,482    1.847347    .6539662          0   2.742419
+mw_wkp_~0_16 |    378,336     2.05304    .1679363          0   2.739262
+mw_~_3333_16 |    378,336    2.055591    .1512023          0   2.733458
+mw_~e3333_16 |    378,336    2.052297    .1618229          0    2.73879
+mw_wkp_go~16 |    378,336    2.051704    .1911841          0   2.723927
+mw_wkp_tr~16 |    378,336     2.05012    .1814771          0   2.752267
 -------------+---------------------------------------------------------
-exp_ln_mw_.. |    426,482     1.84755     .654345          0   2.750123
-ex~od_17_avg |    426,482    1.847925    .6538749          0   2.720812
-exp~l_17_avg |    426,482    1.846754      .65367          0   2.772347
-ex~nd_17_avg |    426,482     1.84759    .6543705          0   2.747787
-exp~t_18_avg |    426,482    1.847566     .654178          0   2.748027
+mw_wkp_ot~16 |    378,336    2.055346    .1428226          0   2.741705
+mw_wkp_to~17 |    378,420    2.058027    .1308914    1.21096   2.736873
+mw_wkp_~9_17 |    378,420    2.051336    .1799055          0    2.74889
+mw_wkp_~4_17 |    378,420    2.055975    .1463169          0   2.734828
+mw_wkp_~5_17 |    378,420     2.05166    .1692608          0   2.738653
 -------------+---------------------------------------------------------
-exp~9_18_avg |    426,482    1.847414    .6539216          0   2.756266
-exp~4_18_avg |    426,482    1.847608    .6542687          0   2.747525
-exp~5_18_avg |    426,482    1.847579    .6542087          0    2.75128
-exp~0_18_avg |    426,482    1.847483    .6539633          0   2.748993
-exp_ln_mw_.. |    426,482    1.847385      .65397          0   2.748132
+mw_wkp_~0_17 |    378,420    2.053013    .1679466          0   2.727975
+mw_~_3333_17 |    378,420     2.05557    .1547932          0   2.731298
+mw_~e3333_17 |    378,420    2.052617    .1613415          0   2.740856
+mw_wkp_go~17 |    378,420    2.050831    .1967942          0   2.727628
+mw_wkp_tr~17 |    378,420    2.049892    .1838489          0     2.7567
 -------------+---------------------------------------------------------
-exp_ln_mw_.. |    426,482    1.847667    .6543798          0   2.752265
-ex~od_18_avg |    426,482    1.847847    .6538174          0   2.718764
-exp~l_18_avg |    426,482    1.846801    .6537194          0   2.775898
-ex~nd_18_avg |    426,482    1.847676    .6543922          0   2.745376
-exp_ln~1_avg |    426,482    1.847095    .6541232          0   2.747021
+mw_wkp_ot~17 |    378,420    2.055456    .1443224          0   2.740548
+mw_wkp_to~18 |    378,396    2.057898     .130804   1.039721   2.739696
+mw_wkp_~9_18 |    378,396    2.052206    .1746976          0   2.796671
+mw_wkp_~4_18 |    378,396     2.05646     .142412          0   2.738896
+mw_wkp_~5_18 |    378,396    2.052056    .1648653          0   2.729386
 -------------+---------------------------------------------------------
-exp_ln~2_avg |    426,482    1.847231    .6541383          0   2.749497
-exp_ln~3_avg |    426,482    1.847316    .6541496          0   2.750332
-exp_ln~5_avg |    426,482    1.847338    .6541261          0   2.742535
-exp_ln~6_avg |    426,482    1.847346     .654134          0   2.744544
-exp_ln~t_avg |    348,934    1.828899    .6426213          0   2.666164
+mw_wkp_~0_18 |    378,396    2.053138    .1685503          0   2.730078
+mw_~_3333_18 |    378,396    2.055506    .1556167          0   2.796671
+mw_~e3333_18 |    378,396    2.053225    .1553376          0   2.744033
+mw_wkp_go~18 |    378,396    2.050945     .195728          0   2.710361
+mw_wkp_tr~18 |    378,396    2.049554    .1817234          0    2.76179
 -------------+---------------------------------------------------------
-ln_sale_co~g |    292,416    1.572258    1.371746          0    5.52852
-ln_monthly~g |     91,296    4.477453    .8131439   2.397895   7.811974
- ln_wagebill |    248,991    11.17142    1.694219   6.376727   15.67136
-   ln_bizinc |    237,302    7.982153    2.017538  -8.517193   13.15968
-ln_dividends |    234,084    6.918854    2.358568  -8.111728   15.00997
+mw_wkp_ot~18 |    378,396    2.056094    .1402773          0   2.796671
+mw_wkp_tot~r |    315,330    2.038233    .1008296   .9905007   2.656392
+mw_~9_timvar |    315,330    2.031569    .1620193          0   2.737609
+mw_~4_timvar |    315,330    2.036011    .1200749          0   2.653169
+mw_~5_timvar |    315,330    2.030554    .1554858          0    2.64451
 -------------+---------------------------------------------------------
-  ln_pop_irs |    248,993    8.247066    1.517501   3.912023   11.81887
-  ln_n_hhdls |    248,993    7.566161    1.524532   3.688879   10.90614
-ln_n_wage_~s |    248,991    7.363554    1.547372   2.995732   10.77415
-sh_worker~29 |    309,871    .2196293    .0517446          0          1
-sh_worker~54 |    309,871    .5394071    .0459666          0          1
+mw_~0_timvar |    315,330    2.033814    .1469199          0   2.643606
+mw_wkp_ear.. |    315,330    2.035567     .132456          0   2.737609
+mw_wkp_ear.. |    315,330    2.031184    .1452035          0   2.662402
+mw_wkp_goo~r |    315,330    2.031298     .178111          0      2.609
+mw_wkp_tra~r |    315,330    2.029824    .1694463          0   2.692643
 -------------+---------------------------------------------------------
-sh_worker~55 |    309,871    .2409636    .0482738          0          1
-sh_work~1250 |    309,871    .2779976    .0859848          0          1
-sh_wor~_3333 |    309,871    .3769984    .0814567          0          1
-sh_wor~e3333 |    309,871     .345004    .1253248          0          1
-sh_workers~S |    309,871    .0976417    .0384569          0   .5307692
+mw_wkp_oth~r |    315,330    2.035418    .1175123          0   2.737609
+    ln_rents |     14,714    7.349128    .4109373   6.263398   10.81978
+    ln_price |     88,078     4.90691    .5461274    2.48311   7.935789
+ln_sale_co~s |    230,183    1.841671    1.294381          0   5.459586
+ln_monthly~s |     89,963    4.407531    .8217028   2.397895    7.82963
 -------------+---------------------------------------------------------
-sh_wor~oColl |    309,871    .2475335    .0525809          0          1
-sh_wor~eColl |    309,871     .251964    .0300275          0          1
-sh_worker~ge |    309,871    .1832316    .0592572          0          1
-sh_workers~f |    309,871    .1069654    .1318441          0          1
-sh_worker~il |    309,871    .1109964    .0784876          0          1
+statutory_~g |    378,264    7.949346    1.219936       7.25      16.39
+  mw_res_avg |    378,264    2.063285     .133581   1.981001   2.796671
+ln_rents_avg |     17,226      7.3683    .4159496   6.214608   10.81978
+ln_price_avg |     91,110    4.927649    .5497477   2.476853   7.892458
+mw_~t_09_avg |    378,420    2.058693    .1328366   1.237222   2.727808
 -------------+---------------------------------------------------------
-sh_worker~ce |    309,871    .0279889    .0388233          0          1
-sh_workers~d |    309,871    .0849297    .0799711          0          1
-sh_reside~29 |    308,969    .2238105    .0359692          0        .75
-sh_reside~54 |    308,969    .5417825    .0371383          0          1
-sh_reside~55 |    308,969     .234407    .0440453          0   .6666667
+mw_~9_09_avg |    378,420    2.050712    .1913272          0   2.725064
+mw_~4_09_avg |    378,420    2.055368    .1546768          0    2.73386
+mw_~5_09_avg |    378,420    2.045424    .2069777          0   2.735946
+mw_~0_09_avg |    378,420    2.053191     .178884          0   2.796671
+mw_wkp_ear.. |    378,420    2.054007    .1696065          0   2.767662
 -------------+---------------------------------------------------------
-sh_resi~1250 |    308,969     .257523    .0467682          0          1
-sh_res~_3333 |    308,969    .3662749    .0735869          0        .75
-sh_res~e3333 |    308,969    .3762021    .1057183          0   .8846357
-sh_residen~S |    308,969    .0895308    .0340195          0   .4779973
-sh_res~oColl |    308,969    .2326025     .042526          0         .5
+mw_wkp_ear.. |    378,420    2.046764    .1937605          0   2.728637
+mw~od_09_avg |    378,420     2.04582     .226922          0   2.729854
+mw_~l_09_avg |    378,420    2.048168    .2057307          0   2.738652
+mw~nd_09_avg |    378,420    2.054932    .1502669          0    2.73323
+mw_~t_10_avg |    378,636    2.058142    .1339722   .9905007   2.735776
 -------------+---------------------------------------------------------
-sh_res~eColl |    308,969    .2539624    .0239727          0          1
-sh_reside~ge |    308,969    .2000938     .060721          0         .6
-sh_residen~f |    308,969    .1054343    .0634577          0    .567534
-sh_reside~il |    308,969     .116212    .0211744          0       .375
-sh_reside~ce |    308,969     .036239    .0185537          0   .3274606
+mw_~9_10_avg |    378,636    2.051956    .1842203          0    2.79266
+mw_~4_10_avg |    378,636    2.055564    .1508319          0    2.74663
+mw_~5_10_avg |    378,636    2.048337    .1899355          0   2.796671
+mw_~0_10_avg |    378,636    2.053885    .1738689          0   2.793998
+mw_wkp_ear.. |    378,636    2.054813    .1618405          0   2.738837
 -------------+---------------------------------------------------------
-sh_residen~d |    308,969    .0870541    .0333404          0   .6644487
-sh_residen~g |    288,260    .2247901    .0353537    .007371   .6107226
-sh_residen~c |    288,260    .2589577    .0463407   .0467537   .7173913
-sh_workers~g |    288,262    .2200673     .052014          0          1
-sh_workers~c |    288,262    .2780894    .0859177          0          1
+mw_wkp_ear.. |    378,636     2.04884    .1805476          0    2.74663
+mw~od_10_avg |    378,636    2.049199    .2102608          0   2.796671
+mw_~l_10_avg |    378,636    2.049609    .1945037          0   2.728806
+mw~nd_10_avg |    378,636    2.055095    .1473299          0   2.740978
+mw_~t_11_avg |    378,384     2.05855    .1334142   1.377093   2.735159
 -------------+---------------------------------------------------------
-sh_work_sa~d |    288,064    .0753358     .102791          0          1
-sh_work_sa~g |    288,064    .0158755    .0226747          0   .2724021
-sh_work_sa~c |    288,064    .0234295    .0313906          0   .6072607
-ln_es~rv_avg |    404,625    5.925609     2.19806          0   10.93169
-ln_est~t_avg |    404,628    5.538046    1.816456          0   9.726059
+mw_~9_11_avg |    378,384     2.05151    .1875795          0   2.737408
+mw_~4_11_avg |    378,384    2.056149     .148905          0   2.734207
+mw_~5_11_avg |    378,384    2.049596    .1845629          0   2.796671
+mw_~0_11_avg |    378,384    2.054523    .1702839          0   2.747024
+mw_wkp_ear.. |    378,384    2.055254    .1611935          0   2.796671
 -------------+---------------------------------------------------------
-ln_est~e_avg |    404,451    5.822917    2.107684          0   12.40821
-ln_estcoun.. |    404,786    3.403867    1.044152          0   6.117542
-ln_est~n_avg |    404,584    5.478768    1.999207          0   10.31258
-ln_est~o_avg |    401,347    3.662292    1.961657          0   9.482695
-ln_es~is_avg |    404,646    5.571813    1.906671          0   10.57256
+mw_wkp_ear.. |    378,384    2.050745    .1722934          0   2.736335
+mw~od_11_avg |    378,384    2.052399    .1959215          0   2.796671
+mw_~l_11_avg |    378,384    2.048738    .1994305          0   2.712175
+mw~nd_11_avg |    378,384    2.055327    .1475044          0   2.742849
+mw_~t_12_avg |    378,420    2.060219    .1329625   1.246499   2.775709
 -------------+---------------------------------------------------------
-ln_estcoun.. |    404,800    4.262704    1.227939          0   8.330255
-ln_est~u_avg |    403,071    4.696155    1.850853          0   9.502823
-ln_es~es_avg |    402,561    3.723097    1.218406          0   7.521037
-~t_stgov_avg |    399,242    3.169031    1.256782          0   8.687128
-ln_est~p_avg |    404,795    6.417162    1.797177          0    10.9836
+mw_~9_12_avg |    378,420    2.053373    .1843127          0   2.739929
+mw_~4_12_avg |    378,420    2.058049    .1476548          0   2.775709
+mw_~5_12_avg |    378,420    2.052988    .1756531          0   2.744736
+mw_~0_12_avg |    378,420    2.056347    .1675955          0   2.753796
+mw_wkp_ear.. |    378,420    2.057225     .157844          0   2.741212
 -------------+---------------------------------------------------------
-ln_av~rv_avg |    399,728    6.794389     .374194   4.248495   8.894258
-ln_avg~t_avg |    393,436    6.815248    .2692618    4.85203   7.907791
-ln_avg~e_avg |    401,347    6.619278    .2708105   3.711262   7.787508
-ln_avgwwag.. |    404,780    7.052524     .238083   4.507414   8.019931
-ln_avg~n_avg |    399,626    6.900777    .3734444   5.158989   8.521435
+mw_wkp_ear.. |    378,420    2.053874    .1667334          0   2.775709
+mw~od_12_avg |    378,420    2.053088    .1926173          0   2.718875
+mw_~l_12_avg |    378,420     2.05049    .1956789          0   2.709508
+mw~nd_12_avg |    378,420    2.057843    .1455622          0   2.775709
+mw_~t_13_avg |    378,300    2.060205    .1330409   1.144982   2.738618
 -------------+---------------------------------------------------------
-ln_avg~o_avg |    373,273    6.882897    .4354372   4.733621   8.899477
-ln_av~is_avg |    403,164    5.753061    .3197747   4.207117   7.142036
-ln_avgwwag.. |    382,412    6.664261    .2529977   5.723585   7.581707
-ln_avg~u_avg |    389,823        6.91    .3202132   4.979464   8.696846
-ln_av~es_avg |    390,888    6.707688    .4153262   5.010438   8.384871
+mw_~9_13_avg |    378,300    2.052909    .1868264          0   2.796671
+mw_~4_13_avg |    378,300    2.057946    .1485215          0   2.741474
+mw_~5_13_avg |    378,300    2.053132    .1753194          0   2.746237
+mw_~0_13_avg |    378,300    2.056438    .1662331          0   2.748648
+mw_wkp_ear.. |    378,300    2.057196    .1584921          0   2.742544
 -------------+---------------------------------------------------------
-~e_stgov_avg |    377,515    6.816172    .2626064   5.686915   8.216347
-ln_avg~p_avg |    404,717     6.54291    .2364954   5.148474   7.986041
-ln_emp_biz~g |    399,728    8.089391    2.563134   .8958797   13.36607
-ln_emp_con~g |    393,436    7.514428    2.051284   1.059351   12.04349
-ln_emp_edu~g |    401,347    8.652041    2.166872   .5972531   13.63009
+mw_wkp_ear.. |    378,300    2.053295    .1704624          0   2.736853
+mw~od_13_avg |    378,300    2.051853    .1985942          0    2.72548
+mw_~l_13_avg |    378,300    2.051945     .188045          0   2.720431
+mw~nd_13_avg |    378,300    2.057768    .1462094          0   2.746759
+mw_~t_14_avg |    378,312    2.059887    .1325132   1.197187   2.730445
 -------------+---------------------------------------------------------
-ln_emp_fed~g |    404,780    6.328563    2.214122          0   12.26577
-ln_emp_fin~g |    399,626    7.439964    2.259639   1.098612   12.87215
-ln_emp_inf~g |    373,273    6.399131    2.315952   .5972531   12.33563
-ln_emp_lei~g |    403,164    8.284151    2.172222   .8283022   13.20877
-ln_emp_loc~g |    382,412    8.586195    1.697608   3.377829   13.01713
+mw_~9_14_avg |    378,312    2.052235    .1880714          0   2.740678
+mw_~4_14_avg |    378,312    2.057902    .1467319          0   2.796671
+mw_~5_14_avg |    378,312    2.053398    .1716993          0    2.72963
+mw_~0_14_avg |    378,312    2.054459     .174729          0   2.738352
+mw_wkp_ear.. |    378,312    2.057531    .1547917          0    2.73374
 -------------+---------------------------------------------------------
-ln_emp_man~g |    389,823    8.204084    1.988168   1.181679   12.83062
-ln_emp_nat~g |    390,888    6.032792    1.541164   .9241962   11.45914
-ln_emp_stg~g |    377,515    6.919332    2.215775   1.031035   11.63277
-ln_emp_tra~g |    404,717    8.934351    2.027451   1.078982   13.64407
-     acs_pop |    387,551    8108.285    13091.99          0   117602.2
+mw_wkp_ear.. |    378,312    2.053773    .1660086          0   2.730299
+mw~od_14_avg |    378,312    2.054409    .1866734          0    2.72083
+mw_~l_14_avg |    378,312    2.050694    .1937918          0   2.733063
+mw~nd_14_avg |    378,312    2.057335    .1451975          0    2.73917
+mw_~t_15_avg |    378,336    2.059944    .1322654   1.208356   2.796671
+-------------+---------------------------------------------------------
+mw_~9_15_avg |    378,336    2.052955    .1836129          0   2.796671
+mw_~4_15_avg |    378,336    2.057665    .1483887          0   2.736115
+mw_~5_15_avg |    378,336    2.053319    .1718495          0   2.774547
+mw_~0_15_avg |    378,336    2.055028    .1702246          0   2.730307
+mw_wkp_ear.. |    378,336    2.057652     .154598          0   2.796671
+-------------+---------------------------------------------------------
+mw_wkp_ear.. |    378,336    2.054411    .1618004          0    2.74663
+mw~od_15_avg |    378,336     2.05493    .1831574          0   2.796671
+mw_~l_15_avg |    378,336    2.053021    .1815398          0   2.755574
+mw~nd_15_avg |    378,336    2.056753    .1492111          0   2.774547
+mw_~t_16_avg |    378,336    2.059494    .1325225    1.21279   2.735795
+-------------+---------------------------------------------------------
+mw_~9_16_avg |    378,336    2.053105    .1800851          0   2.747081
+mw_~4_16_avg |    378,336    2.057785    .1454027          0   2.734304
+mw_~5_16_avg |    378,336      2.0531    .1699613          0   2.728678
+mw_~0_16_avg |    378,336    2.054764    .1690677          0   2.739262
+mw_wkp_ear.. |    378,336     2.05732    .1524834          0   2.733458
+-------------+---------------------------------------------------------
+mw_wkp_ear.. |    378,336    2.054094    .1630838          0    2.73879
+mw~od_16_avg |    378,336    2.053375    .1921908          0   2.723927
+mw_~l_16_avg |    378,336     2.05186    .1826071          0   2.752267
+mw~nd_16_avg |    378,336    2.057134    .1441981          0   2.741705
+mw_~t_17_avg |    378,420    2.059793    .1323472    1.21096   2.736873
+-------------+---------------------------------------------------------
+mw_~9_17_avg |    378,420    2.053069    .1810111          0    2.74889
+mw_~4_17_avg |    378,420    2.057746    .1476544          0   2.734828
+mw_~5_17_avg |    378,420    2.053431    .1704546          0   2.738652
+mw_~0_17_avg |    378,420     2.05474    .1690881          0   2.727974
+mw_wkp_ear.. |    378,420    2.057303    .1560456          0   2.731298
+-------------+---------------------------------------------------------
+mw_wkp_ear.. |    378,420    2.054417    .1626052          0   2.740856
+mw~od_17_avg |    378,420      2.0525    .1977756          0   2.727628
+mw_~l_17_avg |    378,420    2.051637    .1849791          0     2.7567
+mw~nd_17_avg |    378,420    2.057247    .1456848          0   2.740548
+mw_~t_18_avg |    378,396    2.059661    .1322487   1.039721   2.739696
+-------------+---------------------------------------------------------
+mw_~9_18_avg |    378,396    2.053941    .1758334          0   2.796671
+mw_~4_18_avg |    378,396     2.05823    .1437744          0   2.738896
+mw_~5_18_avg |    378,396    2.053822    .1660623          0   2.729386
+mw_~0_18_avg |    378,396    2.054866    .1696828          0   2.730078
+mw_wkp_ear.. |    378,396    2.057235    .1568616          0   2.796671
+-------------+---------------------------------------------------------
+mw_wkp_ear.. |    378,396    2.055019     .156631          0   2.744033
+mw~od_18_avg |    378,396    2.052602    .1967041          0   2.710361
+mw_~l_18_avg |    378,396    2.051301    .1828666          0    2.76179
+mw~nd_18_avg |    378,396    2.057885    .1416612          0   2.796671
+mw_wkp_tot.. |    315,330    2.040017    .1026634   .9905007   2.656511
+-------------+---------------------------------------------------------
+mw_wkp_age.. |    315,330     2.03332    .1632342          0   2.737609
+mw_wkp_age.. |    315,330    2.037801    .1216595          0   2.653266
+mw_wkp_age.. |    315,330    2.032338    .1567571          0   2.644633
+mw_wkp_ear.. |    315,330    2.035556    .1481896          0   2.643606
+mw_wkp_ear.. |    315,330    2.037312    .1338962          0   2.737609
+-------------+---------------------------------------------------------
+mw_wkp_ear.. |    315,330    2.033006    .1465856          0   2.662458
+mw_wkp_goo.. |    315,330    2.032972    .1791537          0   2.609152
+mw_wkp_tra.. |    315,330    2.031574    .1706435          0   2.692669
+mw_wkp_oth.. |    315,330    2.037231    .1191496          0   2.737609
+ln_sale_co~g |    309,998    1.597846    1.363871          0    5.52852
+-------------+---------------------------------------------------------
+ln_monthly~g |     90,901    4.477868    .8135676   2.397895   7.811974
+ ln_wagebill |    302,835    11.18413    1.690951   6.376727   15.67136
+   ln_bizinc |    289,209    7.993935    1.981043  -8.517193   13.15968
+ln_dividends |    285,598    6.942559    2.310057  -8.111728   15.00997
+  ln_pop_irs |    302,837    8.255667    1.512926   3.912023   11.81887
+-------------+---------------------------------------------------------
+  ln_n_hhdls |    302,837    7.575244     1.52042   3.688879   10.98529
+ln_n_wage_~s |    302,835    7.373081    1.543025   3.401197   10.84934
+sh_worker~29 |    306,102    .2158814    .0882921          0          1
+sh_worker~54 |    306,102    .5378941    .0958269          0          1
+sh_worker~55 |    306,102    .2462244    .0970555          0          1
+-------------+---------------------------------------------------------
+sh_work~1250 |    306,102    .3011102    .1434467          0          1
+sh_wor~_3333 |    306,102    .3800886    .1250104          0          1
+sh_wor~e3333 |    306,102    .3188012    .1605311          0          1
+sh_workers~S |    306,102    .0987991     .061825          0          1
+sh_wor~oColl |    306,102    .2555285      .09134          0          1
+-------------+---------------------------------------------------------
+sh_wor~eColl |    306,102    .2521091    .0747468          0          1
+sh_worker~ge |    306,102    .1776818    .0845131          0          1
+sh_workers~f |    306,102     .097463    .1535171          0          1
+sh_worker~il |    306,102    .1102405    .1195576          0          1
+sh_worker~ce |    306,102    .0266602    .0573686          0          1
+-------------+---------------------------------------------------------
+sh_workers~d |    306,102     .083715    .1172931          0          1
+sh_reside~29 |    313,540    .2222229    .0481021          0          1
+sh_reside~54 |    313,540    .5441883    .0554477          0          1
+sh_reside~55 |    313,540    .2335888    .0566938          0          1
+sh_resi~1250 |    313,540    .2606474    .0599591          0          1
+-------------+---------------------------------------------------------
+sh_res~_3333 |    313,540    .3700049    .0830876          0          1
+sh_res~e3333 |    313,540    .3693477    .1106319          0          1
+sh_residen~S |    313,540    .0872882    .0402349          0          1
+sh_res~oColl |    313,540    .2366131    .0551869          0          1
+sh_res~eColl |    313,540    .2557682    .0429107          0          1
+-------------+---------------------------------------------------------
+sh_reside~ge |    313,540    .1981077    .0680392          0          1
+sh_residen~f |    313,540    .1086415    .0691299          0          1
+sh_reside~il |    313,540    .1163475    .0345513          0          1
+sh_reside~ce |    313,540    .0356469    .0222073          0          1
+sh_residen~d |    313,540    .0845825    .0397707          0          1
+-------------+---------------------------------------------------------
+ln_es~rv_avg |    317,314    5.659252    2.152608          0   10.93169
+ln_est~t_avg |    317,319    5.344153    1.799932          0   9.726059
+ln_est~e_avg |    317,160    5.584382    2.070403          0   12.40821
+ln_estcoun.. |    317,456    3.288991    1.007287          0   6.117542
+ln_est~n_avg |    317,285    5.243858    1.958488          0   10.31258
+-------------+---------------------------------------------------------
+ln_est~o_avg |    314,424    3.431791    1.893055          0   9.482695
+ln_es~is_avg |    317,362    5.352279    1.872797          0   10.57256
+ln_estcoun.. |    317,470    4.172314    1.200039          0   8.330255
+ln_est~u_avg |    315,945    4.501914    1.829752          0   9.502823
+ln_es~es_avg |    316,757    3.649712    1.187902          0   7.521037
+-------------+---------------------------------------------------------
+~t_stgov_avg |    312,413    3.043991    1.208682          0   8.687128
+ln_est~p_avg |    317,466    6.211127    1.763303          0    10.9836
+ln_av~rv_avg |    312,832    6.761158    .3656572   4.248495   8.894258
+ln_avg~t_avg |    307,685      6.7957    .2696148    4.85203   7.907791
+ln_avg~e_avg |    314,286    6.594546    .2725515   3.711262   7.787508
+-------------+---------------------------------------------------------
+ln_avgwwag.. |    317,450    7.026664    .2340432   4.507414   8.019931
+ln_avg~n_avg |    312,959    6.863325    .3542194   5.158989   8.521435
+ln_avg~o_avg |    289,292    6.839692    .4267967   4.733621   8.899477
+ln_av~is_avg |    316,043     5.72104     .313356   4.207117   7.142036
+ln_avgwwag.. |    297,966    6.638208    .2460901   5.723585   7.581707
+-------------+---------------------------------------------------------
+ln_avg~u_avg |    304,320    6.883435    .3174922   4.979464   8.696846
+ln_av~es_avg |    307,246    6.688451    .3976172   5.010438   8.384871
+~e_stgov_avg |    293,534    6.801584    .2594667   5.686915   8.216347
+ln_avg~p_avg |    317,398    6.524455    .2325066   5.148474   7.986041
+ln_emp_biz~g |    312,832    7.774981    2.519297   .8958797   13.36607
+-------------+---------------------------------------------------------
+ln_emp_con~g |    307,685    7.277949    2.027701   1.059351   12.04349
+ln_emp_edu~g |    314,286    8.400651     2.13897   .5972531   13.63009
+ln_emp_fed~g |    317,450    6.051635     2.12183          0   12.26577
+ln_emp_fin~g |    312,959    7.167846    2.202005   1.098612   12.87215
+ln_emp_inf~g |    289,292    6.128058    2.248488   .5972531   12.33563
+-------------+---------------------------------------------------------
+ln_emp_lei~g |    316,043    8.025133    2.144578   .8283022   13.20877
+ln_emp_loc~g |    297,966    8.398776    1.666714   3.377829   13.01713
+ln_emp_man~g |    304,320     8.02337    1.984855   1.181679   12.83062
+ln_emp_nat~g |    307,246    5.930693    1.503607   .9241962   11.45914
+ln_emp_stg~g |    293,534    6.646647    2.184474   1.031035   11.63277
+-------------+---------------------------------------------------------
+ln_emp_tra~g |    317,398    8.702372     2.00291   1.078982   13.64407
 
 
 
@@ -653,4 +800,4 @@ file ../../../drive/derived_large/zipcode_year/zipcode_year.dta saved
 . 
 end of do-file
 
- make.py ended: 2021-10-30 14:33:25
+ make.py ended: 2022-03-07 06:48:47
