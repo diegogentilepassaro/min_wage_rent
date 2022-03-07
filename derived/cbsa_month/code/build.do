@@ -3,7 +3,7 @@ clear all
 adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
-    local instub  "../../../drive/derived_large/estimation_samples"
+    local instub  "../../../drive/derived_large/zipcode_month"
     local outstub "../../../drive/derived_large/cbsa_month"
     local logfile "../output/data_file_manifest.log"
 
@@ -18,7 +18,7 @@ program main
              (mean)  avg_statutory_mw       = statutory_mw    ///
                      avg_d_mw_res           = d_mw_res        ///
                      avg_d_mw_wkp_tot_17    = mw_wkp_tot_17,  ///
-            by(cbsa year year_month)
+            by(cbsa year_month year)
 
     gen all_zip_changed = (n_zipcodes == n_zipcodes_with_change)
     
@@ -34,12 +34,12 @@ end
 program load_data
     syntax, instub(str)
 
-    clear
-    use zipcode zipcode_num year_month year statefips cbsa                   ///
-          medrentpricepsqft_SFCC ln_rents mw_res mw_wkp_tot_17 statutory_mw  ///
-        if cbsa != "99999"                                                   ///
-        using  "`instub'/zipcode_months.dta"
-
+    use zipcode year_month year statefips cbsa                   ///
+        medrentpricepsqft_SFCC mw_res mw_wkp_tot_17 statutory_mw  ///
+        using  "`instub'/zipcode_month_panel.dta", clear
+	keep if cbsa != "99999"
+	destring zipcode, gen(zipcode_num)
+	
     xtset zipcode_num year_month
 
     gen d_mw_res        = D.mw_res
@@ -55,9 +55,8 @@ program make_cbsa_event_data
     keep if change_within_cbsa == 1
 
     rename year_month event_year_month
-    rename year       event_year
-
     format event_year_month %tm
+    rename year event_year
 
     bys cbsa (event_year_month): gen mw_change_id = sum(change_within_cbsa)
     egen event_id = group(mw_change_id cbsa)
@@ -65,7 +64,8 @@ program make_cbsa_event_data
     bys cbsa (event_year_month): ///
         gen time_since_treated = event_year_month[_n] - event_year_month[_n - 1]
 
-    keep cbsa event_id event_year event_year_month all_zip_changed time_since_treated
+    keep cbsa event_id event_year event_year_month ///
+	    all_zip_changed time_since_treated
 end
 
 
