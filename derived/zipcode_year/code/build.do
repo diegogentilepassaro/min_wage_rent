@@ -4,6 +4,7 @@ adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
     local in_zip_mth    "../../../drive/derived_large/zipcode_month"
+    local in_safmr      "../../../base/safmr/output"
     local in_irs        "../../../drive/base_large/irs_soi"
     local in_lodes_zip  "../../../drive/base_large/lodes_zipcodes"
     local in_qcew       "../../../base/qcew/output"
@@ -16,11 +17,16 @@ program main
 
     make_yearly_data
 
+	clean_safmr_data,  instub(`in_safmr')
     clean_irs_data,    instub(`in_irs')
     clean_area_shares, instub(`in_lodes_zip')
     clean_qcew,        instub(`in_qcew')
 
     use "../temp/mw_rents_data.dta", clear
+    merge 1:1 zipcode countyfips cbsa year ///
+	    using "../temp/safmr_2012_2016.dta", nogen keep(1 3)
+    merge 1:1 zipcode cbsa year ///
+	    using "../temp/safmr_2017_2019.dta", nogen keep(1 3)
     merge 1:1 zipcode    year using "../temp/irs_data.dta",         nogen keep(1 3)
     merge 1:1 zipcode    year using "../temp/workplace_shares.dta", nogen keep(1 3)
     merge 1:1 zipcode    year using "../temp/residence_shares.dta", nogen keep(1 3)
@@ -56,6 +62,26 @@ program make_yearly_data
     drop month
     
     save "../temp/mw_rents_data.dta", replace
+end
+
+program clean_safmr_data
+    syntax, instub(str)
+    
+    use "`instub'/safmr_2012_2016_by_zipcode_county_cbsa.dta", clear
+	qui describe safmr*, varlist
+    local safmr_vars = r(varlist)
+    foreach var of local safmr_vars {
+        gen ln_`var' = log(`var')
+	}
+    save "../temp/safmr_2012_2016.dta", replace
+	
+    use "`instub'/safmr_2017_2019_by_zipcode_cbsa.dta", clear
+	qui describe safmr*, varlist
+    local safmr_vars = r(varlist)
+    foreach var of local safmr_vars {
+        gen ln_`var' = log(`var')
+	}
+    save "../temp/safmr_2017_2019.dta", replace
 end
 
 program clean_irs_data
@@ -121,7 +147,7 @@ program clean_qcew
     collapse (mean) ln_*, by(countyfips year)
 	rename ln_* ln_*_avg
 
-    save "../temp/qcew_data.dta"
+    save "../temp/qcew_data.dta", replace
 end
 
 program destring_geographies

@@ -1,5 +1,5 @@
 
- make.py started: 2022-03-07 06:43:29 C:\Users\diegog\Desktop\Diego\min_wage_rent\derived\zipcode_year\code 
+ make.py started: 2022-03-07 07:53:00 C:\Users\diegog\Desktop\Diego\min_wage_rent\derived\zipcode_year\code 
 
 
 
@@ -48,38 +48,44 @@ running c:\ado\personal\profile.do ...
 . 
 . program main
   1.     local in_zip_mth    "../../../drive/derived_large/zipcode_month"
-  2.     local in_irs        "../../../drive/base_large/irs_soi"
-  3.     local in_lodes_zip  "../../../drive/base_large/lodes_zipcodes"
-  4.     local in_qcew       "../../../base/qcew/output"
-  5.     local outstub       "../../../drive/derived_large/zipcode_year"
-  6.     local logfile       "../output/data_file_manifest.log"
-  7. 
+  2.     local in_safmr      "../../../base/safmr/output"
+  3.     local in_irs        "../../../drive/base_large/irs_soi"
+  4.     local in_lodes_zip  "../../../drive/base_large/lodes_zipcodes"
+  5.     local in_qcew       "../../../base/qcew/output"
+  6.     local outstub       "../../../drive/derived_large/zipcode_year"
+  7.     local logfile       "../output/data_file_manifest.log"
+  8. 
 .     use zipcode statefips countyfips cbsa year month    ///
 >         statutory_mw mw_res mw_wkp* medrent* medlisting* Sale_Counts Monthly*
 >  ///
 >         using  "`in_zip_mth'/zipcode_month_panel.dta"
-  8. 
-.     make_yearly_data
   9. 
-.     clean_irs_data,    instub(`in_irs')
- 10.     clean_area_shares, instub(`in_lodes_zip')
- 11.     clean_qcew,        instub(`in_qcew')
- 12. 
+.     make_yearly_data
+ 10. 
+.         clean_safmr_data,  instub(`in_safmr')
+ 11.     clean_irs_data,    instub(`in_irs')
+ 12.     clean_area_shares, instub(`in_lodes_zip')
+ 13.     clean_qcew,        instub(`in_qcew')
+ 14. 
 .     use "../temp/mw_rents_data.dta", clear
- 13.     merge 1:1 zipcode    year using "../temp/irs_data.dta",         nogen 
+ 15.     merge 1:1 zipcode countyfips cbsa year ///
+>             using "../temp/safmr_2012_2016.dta", nogen keep(1 3)
+ 16.     merge 1:1 zipcode cbsa year ///
+>             using "../temp/safmr_2017_2019.dta", nogen keep(1 3)
+ 17.     merge 1:1 zipcode    year using "../temp/irs_data.dta",         nogen 
 > keep(1 3)
- 14.     merge 1:1 zipcode    year using "../temp/workplace_shares.dta", nogen 
+ 18.     merge 1:1 zipcode    year using "../temp/workplace_shares.dta", nogen 
 > keep(1 3)
- 15.     merge 1:1 zipcode    year using "../temp/residence_shares.dta", nogen 
+ 19.     merge 1:1 zipcode    year using "../temp/residence_shares.dta", nogen 
 > keep(1 3)
- 16.     merge m:1 countyfips year using "../temp/qcew_data.dta",        nogen 
+ 20.     merge m:1 countyfips year using "../temp/qcew_data.dta",        nogen 
 > keep(1 3)
- 17. 
+ 21. 
 .     destring_geographies
- 18. 
+ 22. 
 .     save_data "`outstub'/zipcode_year.dta", key(zipcode year) ///
 >         log(`logfile') replace
- 19. end
+ 23. end
 
 . 
 . program make_yearly_data
@@ -106,6 +112,27 @@ running c:\ado\personal\profile.do ...
  14.     drop month
  15.     
 .     save "../temp/mw_rents_data.dta", replace
+ 16. end
+
+. 
+. program clean_safmr_data
+  1.     syntax, instub(str)
+  2.     
+.     use "`instub'/safmr_2012_2016_by_zipcode_county_cbsa.dta", clear
+  3.         qui describe safmr*, varlist
+  4.     local safmr_vars = r(varlist)
+  5.     foreach var of local safmr_vars {
+  6.         gen ln_`var' = log(`var')
+  7.         }
+  8.     save "../temp/safmr_2012_2016.dta", replace
+  9.         
+.     use "`instub'/safmr_2017_2019_by_zipcode_cbsa.dta", clear
+ 10.         qui describe safmr*, varlist
+ 11.     local safmr_vars = r(varlist)
+ 12.     foreach var of local safmr_vars {
+ 13.         gen ln_`var' = log(`var')
+ 14.         }
+ 15.     save "../temp/safmr_2017_2019.dta", replace
  16. end
 
 . 
@@ -176,7 +203,7 @@ running c:\ado\personal\profile.do ...
 .     collapse (mean) ln_*, by(countyfips year)
   8.         rename ln_* ln_*_avg
   9. 
-.     save "../temp/qcew_data.dta"
+.     save "../temp/qcew_data.dta", replace
  10. end
 
 . 
@@ -314,6 +341,10 @@ running c:\ado\personal\profile.do ...
 (3,651,710 observations deleted)
 (note: file ../temp/mw_rents_data.dta not found)
 file ../temp/mw_rents_data.dta saved
+(note: file ../temp/safmr_2012_2016.dta not found)
+file ../temp/safmr_2012_2016.dta saved
+(note: file ../temp/safmr_2017_2019.dta not found)
+file ../temp/safmr_2017_2019.dta saved
 (2 missing values generated)
 (14,181 missing values generated)
 (17,892 missing values generated)
@@ -363,7 +394,26 @@ file ../temp/workplace_shares.dta saved
 (39,701 missing values generated)
 (48,867 missing values generated)
 (1,455 missing values generated)
+(note: file ../temp/qcew_data.dta not found)
 file ../temp/qcew_data.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       301,214
+        from master                   301,214  
+        from using                          0  
+
+    matched                            79,834  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       328,957
+        from master                   328,957  
+        from using                          0  
+
+    matched                            52,091  
+    -----------------------------------------
 
     Result                           # of obs.
     -----------------------------------------
@@ -412,7 +462,7 @@ zipcode: all characters numeric; zipcode_num generated as long
 File: ../../../drive/derived_large/zipcode_year/zipcode_year.dta
 Key: zipcode year
 ===============================================================================
-  381048:311(36374):2161822513:989447815
+  381048:321(27814):4110266976:3039935992
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -705,6 +755,18 @@ mw_wkp_oth.. |    315,330    2.037231    .1191496          0   2.737609
 ln_sale_co~g |    309,998    1.597846    1.363871          0    5.52852
 -------------+---------------------------------------------------------
 ln_monthly~g |     90,901    4.477868    .8135676   2.397895   7.811974
+    safmr0br |     79,834    666.8508    259.3607        330       2020
+    safmr1br |     79,834    763.8156    278.9161        370       2370
+    safmr2br |     79,834    942.4362     328.609        490       2960
+    safmr3br |     79,834    1256.683    438.4092        620       4090
+-------------+---------------------------------------------------------
+    safmr4br |     79,834    1452.907     537.306        650       4600
+ ln_safmr0br |     79,834    6.441193    .3356766   5.799093   7.610853
+ ln_safmr1br |     79,834    6.582744    .3210758   5.913503   7.770645
+ ln_safmr2br |     79,834     6.79736    .3083847   6.194406   7.992945
+ ln_safmr3br |     79,834    7.084619    .3107114   6.429719     8.3163
+-------------+---------------------------------------------------------
+ ln_safmr4br |     79,834    7.222901    .3314785   6.476973   8.433811
  ln_wagebill |    302,835    11.18413    1.690951   6.376727   15.67136
    ln_bizinc |    289,209    7.993935    1.981043  -8.517193   13.15968
 ln_dividends |    285,598    6.942559    2.310057  -8.111728   15.00997
@@ -800,4 +862,4 @@ file ../../../drive/derived_large/zipcode_year/zipcode_year.dta saved
 . 
 end of do-file
 
- make.py ended: 2022-03-07 06:48:47
+ make.py ended: 2022-03-07 07:58:44

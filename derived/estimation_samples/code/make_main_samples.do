@@ -3,44 +3,48 @@ clear all
 adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
-    local in_zipcode  "../../../drive/derived_large/zipcode_month"
-    local in_county   "../../../drive/derived_large/county_month"
-    local outstub     "../../../drive/derived_large/estimation_samples"
-    local logfile     "../output/data_file_manifest.log"
+    local in_zip_mth   "../../../drive/derived_large/zipcode_month"
+    local in_cty_mth   "../../../drive/derived_large/county_month"
+    local in_zipcode   "../../../drive/derived_large/zipcode"
+    local outstub      "../../../drive/derived_large/estimation_samples"
+    local logfile      "../output/data_file_manifest.log"
     
     local rent_var          "medrentpricepsqft_SFCC"
     local start_year_month  "2010m1"
     local end_year_month    "2019m12"
     local target_year_month "2015m1"
-    local target_vars       "renthouse_share2010 black_share2010 med_hhinc20105 college_share20105"
-    local targets           ".347 .124 62774 .386"
-
-    foreach geo in zipcode { // county
+    local target_vars       "sh_white_cens2010 sh_black_cens2010 sh_hhlds_renteroccup_cens2010 med_hhld_inc_acs2011" // n_workers_acs2011 
         
-        create_unbalanced_panel, instub(`in_`geo'')                     ///
-            geo(`geo') rent_var(`rent_var')                             ///
-            start_ym(`start_year_month') end_ym(`end_year_month')
-        
-        gen_vars, rent_var(`rent_var')
-        
-        flag_samples, instub(`in_`geo'') geo(`geo') rent_var(`rent_var') ///
-                      target_ym(`target_year_month')
-        *add_weights,  geo(`geo') target_vars(`target_vars') ///
-        *              targets(`targets') target_ym(`target_year_month')
-        
-        save_data "`outstub'/`geo'_months.dta", key(`geo' year_month) ///
-            replace log(`logfile')
-        export delimited "`outstub'/`geo'_months.csv", replace
-    }
+	create_unbalanced_panel, instub(`in_zip_mth')                     ///
+		geo(zipcode) rent_var(`rent_var')                             ///
+		start_ym(`start_year_month') end_ym(`end_year_month')
+	gen_vars, rent_var(`rent_var')
+	flag_samples, instub(`in_zip_mth') geo(zipcode) geo_name(zipcode) ///
+	    rent_var(`rent_var') target_ym(`target_year_month')
+    add_weights, instub(`in_zipcode') target_vars(`target_vars')
+    merge m:1 zipcode using "../temp/weights.dta", ///
+	   nogen assert(2 3) keep(3)
+	save_data "`outstub'/zipcode_months.dta", key(zipcode year_month) ///
+		replace log(`logfile')
+	export delimited "`outstub'/zipcode_months.csv", replace
+	
+	create_unbalanced_panel, instub(`in_cty_mth')                     ///
+		geo(county) rent_var(`rent_var')                             ///
+		start_ym(`start_year_month') end_ym(`end_year_month')
+	gen_vars, rent_var(`rent_var')
+	flag_samples, instub(`in_cty_mth') geo(county) geo_name(countyfips) ///
+	    rent_var(`rent_var') target_ym(`target_year_month')
+	save_data "`outstub'/county_months.dta", key(countyfips year_month) ///
+		replace log(`logfile')
+	export delimited "`outstub'/countye_months.csv", replace
 end
 
 program create_unbalanced_panel
     syntax, instub(str) geo(str) rent_var(str)        ///
             start_ym(str) end_ym(str)
        
-    clear
     use "`instub'/`geo'_month_panel.dta" ///
-        if !missing(`rent_var')
+        if !missing(`rent_var'), clear
     
     keep if inrange(year_month, `=tm(`start_ym')', `=tm(`end_ym')')
 
@@ -64,24 +68,25 @@ program gen_vars
 end
 
 program flag_samples
-    syntax, instub(str) geo(str) rent_var(str) target_ym(str)
+    syntax, instub(str) geo(str) geo_name(str) ///
+	    rent_var(str) target_ym(str)
 
     preserve
-        use year_month `geo' medrentpricepsqft_SFCC using  ///
+        use year_month `geo_name' medrentpricepsqft_SFCC using  ///
             "`instub'/`geo'_month_panel.dta"               ///
             if !missing(`rent_var'), clear
         
-        gcollapse (min) min_year_month = year_month, by(`geo')
+        gcollapse (min) min_year_month = year_month, by(`geo_name')
         keep if min_year_month <= `=tm(`target_ym')'
         
-        keep zipcode
+        keep `geo_name'
         gen baseline_sample = 1
         
-        save_data "../temp/baseline_`geo'.dta", key(`geo') ///
+        save_data "../temp/baseline_`geo'.dta", key(`geo_name') ///
             replace log(none)
     restore
     
-    merge m:1 `geo' using "../temp/baseline_`geo'.dta", ///
+    merge m:1 `geo_name' using "../temp/baseline_`geo'.dta", ///
         nogen assert(1 3) keep(1 3)
     
     replace baseline_sample = 0 if missing(baseline_sample)
@@ -91,44 +96,34 @@ program flag_samples
 end
 
 program add_weights
-    syntax, geo(str) target_vars(str)               ///
-            targets(str) target_ym(str)
-    * balancing procedure: add ,in the right order the target 
-    * average values from analysis/descriptive/output/desc_stats.tex
+    syntax, instub(str) target_vars(str)
     
-    ebalance `target_vars' if year_month == `=tm(`target_ym')', manualtargets(`targets')
-        
-    rename _webal weights_unbal
-
-    preserve
-        keep if baseline_sample
-
-        ebalance `target_vars' if year_month == `=tm(`target_ym')', manualtargets(`targets')
-        
-        rename _webal weights_baseline
-        
-        keep `geo' weights_baseline
-
-        tempfile weights_baseline
-        save "`weights_baseline'", replace 
-    restore
-    merge m:1 `geo' using `weights_baseline', ///
-        nogen assert(1 3) keep(1 3)
-    
-    preserve
-        keep if fullbal_sample
-
-        ebalance `target_vars' if year_month == `=tm(`target_ym')', manualtargets(`targets')
-        
-        rename _webal weights_fullbal
-        
-        keep `geo' weights_fullbal
-
-        tempfile weights_fullbal
-        save "`weights_fullbal'", replace 
-    restore
-    merge m:1 `geo' using `weights_fullbal', ///
-        nogen assert(1 3) keep(1 3)
+    preserve 
+	    keep zipcode baseline_sample fullbal_sample
+		gcollapse (max) baseline_sample fullbal_sample, by(zipcode)
+		
+		merge 1:1 zipcode using "`instub'/zipcode_cross.dta", ///
+			assert(2 3) keep(2 3) keepusing(`target_vars')
+		foreach var of local target_vars {
+		    qui sum `var'
+			local mean = r(mean)
+			local target_means "`target_means' `mean'"
+		}
+				
+		keep if _merge == 3
+		
+		ebalance `target_vars', manualtargets(`target_means')
+		rename _webal weights_unbal
+		
+		ebalance `target_vars' if baseline_sample, manualtargets(`target_means')
+		rename _webal weights_baseline
+		
+		ebalance `target_vars' if fullbal_sample, manualtargets(`target_means')
+		rename _webal weights_fullbal
+		
+		keep zipcode weights_unbal weights_baseline weights_fullbal
+		save "../temp/weights.dta", replace
+	restore
 end
 
 program drop_vars

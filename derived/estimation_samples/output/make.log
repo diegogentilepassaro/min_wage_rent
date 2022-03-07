@@ -1,5 +1,5 @@
 
- make.py started: 2022-03-04 12:53:19 C:\Users\shermo\Documents\GitHub\min_wage_rent\derived\estimation_samples\code 
+ make.py started: 2022-03-07 11:43:18 C:\Users\diegog\Desktop\Diego\min_wage_rent\derived\estimation_samples\code 
 
 
 
@@ -47,54 +47,64 @@ running c:\ado\personal\profile.do ...
 
 . 
 . program main
-  1.     local in_zipcode  "../../../drive/derived_large/zipcode_month"
-  2.     local in_county   "../../../drive/derived_large/county_month"
-  3.     local outstub     "../../../drive/derived_large/estimation_samples"
-  4.     local logfile     "../output/data_file_manifest.log"
-  5.     
+  1.     local in_zip_mth   "../../../drive/derived_large/zipcode_month"
+  2.     local in_cty_mth   "../../../drive/derived_large/county_month"
+  3.     local in_zipcode   "../../../drive/derived_large/zipcode"
+  4.     local outstub      "../../../drive/derived_large/estimation_samples"
+  5.     local logfile      "../output/data_file_manifest.log"
+  6.     
 .     local rent_var          "medrentpricepsqft_SFCC"
-  6.     local start_year_month  "2010m1"
-  7.     local end_year_month    "2019m12"
-  8.     local target_year_month "2015m1"
-  9.     local target_vars       "renthouse_share2010 black_share2010 med_hhinc
-> 20105 college_share20105"
- 10.     local targets           ".347 .124 62774 .386"
- 11. 
-.     foreach geo in zipcode { // county
- 12.         
-.         create_unbalanced_panel, instub(`in_`geo'')                     ///
->             geo(`geo') rent_var(`rent_var')                             ///
->             start_ym(`start_year_month') end_ym(`end_year_month')
- 13.         
-.         gen_vars, rent_var(`rent_var')
- 14.         
-.         flag_samples, instub(`in_`geo'') geo(`geo') rent_var(`rent_var') ///
->                       target_ym(`target_year_month')
- 15.         *add_weights,  geo(`geo') target_vars(`target_vars') ///
->         *              targets(`targets') target_ym(`target_year_month')
-.         
-.         save_data "`outstub'/`geo'_months.dta", key(`geo' year_month) ///
->             replace log(`logfile')
- 16.         export delimited "`outstub'/`geo'_months.csv", replace
- 17.     }
- 18. end
+  7.     local start_year_month  "2010m1"
+  8.     local end_year_month    "2019m12"
+  9.     local target_year_month "2015m1"
+ 10.     local target_vars       "sh_white_cens2010 sh_black_cens2010 sh_hhlds_
+> renteroccup_cens2010 med_hhld_inc_acs2011" // n_workers_acs2011 
+ 11.         
+.         create_unbalanced_panel, instub(`in_zip_mth')                     ///
+>                 geo(zipcode) rent_var(`rent_var')                            
+>  ///
+>                 start_ym(`start_year_month') end_ym(`end_year_month')
+ 12.         gen_vars, rent_var(`rent_var')
+ 13.         flag_samples, instub(`in_zip_mth') geo(zipcode) geo_name(zipcode) 
+> ///
+>             rent_var(`rent_var') target_ym(`target_year_month')
+ 14.     add_weights, instub(`in_zipcode') target_vars(`target_vars')
+ 15.     merge m:1 zipcode using "../temp/weights.dta", ///
+>            nogen assert(2 3) keep(3)
+ 16.         save_data "`outstub'/zipcode_months.dta", key(zipcode year_month) 
+> ///
+>                 replace log(`logfile')
+ 17.         export delimited "`outstub'/zipcode_months.csv", replace
+ 18.         
+.         create_unbalanced_panel, instub(`in_cty_mth')                     ///
+>                 geo(county) rent_var(`rent_var')                             
+> ///
+>                 start_ym(`start_year_month') end_ym(`end_year_month')
+ 19.         gen_vars, rent_var(`rent_var')
+ 20.         flag_samples, instub(`in_cty_mth') geo(county) geo_name(countyfips
+> ) ///
+>             rent_var(`rent_var') target_ym(`target_year_month')
+ 21.         save_data "`outstub'/county_months.dta", key(countyfips year_month
+> ) ///
+>                 replace log(`logfile')
+ 22.         export delimited "`outstub'/countye_months.csv", replace
+ 23. end
 
 . 
 . program create_unbalanced_panel
   1.     syntax, instub(str) geo(str) rent_var(str)        ///
 >             start_ym(str) end_ym(str)
   2.        
-.     clear
-  3.     use "`instub'/`geo'_month_panel.dta" ///
->         if !missing(`rent_var')
-  4.     
+.     use "`instub'/`geo'_month_panel.dta" ///
+>         if !missing(`rent_var'), clear
+  3.     
 .     keep if inrange(year_month, `=tm(`start_ym')', `=tm(`end_ym')')
-  5. 
+  4. 
 .     drop_vars
-  6.     destring_geographies
-  7. 
+  5.     destring_geographies
+  6. 
 .     xtset `geo'_num year_month
-  8. end
+  7. end
 
 . 
 . program gen_vars
@@ -112,24 +122,25 @@ running c:\ado\personal\profile.do ...
 
 . 
 . program flag_samples
-  1.     syntax, instub(str) geo(str) rent_var(str) target_ym(str)
+  1.     syntax, instub(str) geo(str) geo_name(str) ///
+>             rent_var(str) target_ym(str)
   2. 
 .     preserve
-  3.         use year_month `geo' medrentpricepsqft_SFCC using  ///
+  3.         use year_month `geo_name' medrentpricepsqft_SFCC using  ///
 >             "`instub'/`geo'_month_panel.dta"               ///
 >             if !missing(`rent_var'), clear
   4.         
-.         gcollapse (min) min_year_month = year_month, by(`geo')
+.         gcollapse (min) min_year_month = year_month, by(`geo_name')
   5.         keep if min_year_month <= `=tm(`target_ym')'
   6.         
-.         keep zipcode
+.         keep `geo_name'
   7.         gen baseline_sample = 1
   8.         
-.         save_data "../temp/baseline_`geo'.dta", key(`geo') ///
+.         save_data "../temp/baseline_`geo'.dta", key(`geo_name') ///
 >             replace log(none)
   9.     restore
  10.     
-.     merge m:1 `geo' using "../temp/baseline_`geo'.dta", ///
+.     merge m:1 `geo_name' using "../temp/baseline_`geo'.dta", ///
 >         nogen assert(1 3) keep(1 3)
  11.     
 .     replace baseline_sample = 0 if missing(baseline_sample)
@@ -140,48 +151,38 @@ running c:\ado\personal\profile.do ...
 
 . 
 . program add_weights
-  1.     syntax, geo(str) target_vars(str)               ///
->             targets(str) target_ym(str)
-  2.     * balancing procedure: add ,in the right order the target 
-.     * average values from analysis/descriptive/output/desc_stats.tex
-.     
-.     ebalance `target_vars' if year_month == `=tm(`target_ym')', manualtargets
-> (`targets')
-  3.         
-.     rename _webal weights_unbal
-  4. 
-.     preserve
-  5.         keep if baseline_sample
-  6. 
-.         ebalance `target_vars' if year_month == `=tm(`target_ym')', manualtar
-> gets(`targets')
-  7.         
-.         rename _webal weights_baseline
-  8.         
-.         keep `geo' weights_baseline
-  9. 
-.         tempfile weights_baseline
- 10.         save "`weights_baseline'", replace 
- 11.     restore
- 12.     merge m:1 `geo' using `weights_baseline', ///
->         nogen assert(1 3) keep(1 3)
- 13.     
-.     preserve
- 14.         keep if fullbal_sample
- 15. 
-.         ebalance `target_vars' if year_month == `=tm(`target_ym')', manualtar
-> gets(`targets')
- 16.         
-.         rename _webal weights_fullbal
- 17.         
-.         keep `geo' weights_fullbal
- 18. 
-.         tempfile weights_fullbal
- 19.         save "`weights_fullbal'", replace 
- 20.     restore
- 21.     merge m:1 `geo' using `weights_fullbal', ///
->         nogen assert(1 3) keep(1 3)
- 22. end
+  1.     syntax, instub(str) target_vars(str)
+  2.     
+.     preserve 
+  3.             keep zipcode baseline_sample fullbal_sample
+  4.                 gcollapse (max) baseline_sample fullbal_sample, by(zipcode
+> )
+  5.                 
+.                 merge 1:1 zipcode using "`instub'/zipcode_cross.dta", ///
+>                         assert(2 3) keep(2 3) keepusing(`target_vars')
+  6.                 foreach var of local target_vars {
+  7.                     qui sum `var'
+  8.                         local mean = r(mean)
+  9.                         local target_means "`target_means' `mean'"
+ 10.                 }
+ 11.                                 
+.                 keep if _merge == 3
+ 12.                 
+.                 ebalance `target_vars', manualtargets(`target_means')
+ 13.                 rename _webal weights_unbal
+ 14.                 
+.                 ebalance `target_vars' if baseline_sample, manualtargets(`tar
+> get_means')
+ 15.                 rename _webal weights_baseline
+ 16.                 
+.                 ebalance `target_vars' if fullbal_sample, manualtargets(`targ
+> et_means')
+ 17.                 rename _webal weights_fullbal
+ 18.                 
+.                 keep zipcode weights_unbal weights_baseline weights_fullbal
+ 19.                 save "../temp/weights.dta", replace
+ 20.         restore
+ 21. end
 
 . 
 . program drop_vars
@@ -255,6 +256,159 @@ file ../temp/baseline_zipcode.dta saved
     -----------------------------------------
 (64,239 real changes made)
 (54,226 real changes made)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                        28,444
+        from master                         0  (_merge==1)
+        from using                     28,444  (_merge==2)
+
+    matched                             3,310  (_merge==3)
+    -----------------------------------------
+(28,444 observations deleted)
+
+
+Data Setup
+Covariate adjustment: sh_white_cens2010 sh_black_cens2010 sh_hhlds_renteroccup_
+> cens2010 med_hhld_inc_acs2011
+
+
+Optimizing...
+Iteration 1: Max Difference = 18184.64
+Iteration 2: Max Difference = 6688.99987
+Iteration 3: Max Difference = 2459.99332
+Iteration 4: Max Difference = 904.237192
+Iteration 5: Max Difference = 331.929264
+Iteration 6: Max Difference = 121.449538
+Iteration 7: Max Difference = 44.1741666
+Iteration 8: Max Difference = 16.1138179
+Iteration 9: Max Difference = 6.48271976
+Iteration 10: Max Difference = 3.08108316
+Iteration 11: Max Difference = .910451151
+Iteration 12: Max Difference = .184201623
+Iteration 13: Max Difference = .010296207
+maximum difference smaller than the tolerance level; convergence achieved
+
+
+No. of units adjusted: 3183 total of weights: 3183
+
+
+Before: without weighting
+
+             |      mean   variance   skewness 
+-------------+---------------------------------
+sh_whit~2010 |     .6805     .04358     -1.112 
+sh_blac~2010 |     .1526     .03864      2.194 
+sh_hhld~2010 |     .3387     .02158      .5929 
+med_hhl~2011 |     57140   5.27e+08      1.074 
+
+
+After:  _webal as the weighting variable
+
+             |      mean   variance   skewness 
+-------------+---------------------------------
+sh_whit~2010 |     .8342     .02065     -1.877 
+sh_blac~2010 |    .07545     .01235      3.469 
+sh_hhld~2010 |      .224     .02684      .7555 
+med_hhl~2011 |     28690   1.94e+08      .2339 
+
+
+Data Setup
+Covariate adjustment: sh_white_cens2010 sh_black_cens2010 sh_hhlds_renteroccup_
+> cens2010 med_hhld_inc_acs2011
+
+
+Optimizing...
+Iteration 1: Max Difference = 7699.94662
+Iteration 2: Max Difference = 2831.90005
+Iteration 3: Max Difference = 1041.0546
+Iteration 4: Max Difference = 382.263128
+Iteration 5: Max Difference = 139.970663
+Iteration 6: Max Difference = 51.0001642
+Iteration 7: Max Difference = 18.6619178
+Iteration 8: Max Difference = 7.52927119
+Iteration 9: Max Difference = 3.76584703
+Iteration 10: Max Difference = 1.26717933
+Iteration 11: Max Difference = .363806303
+Iteration 12: Max Difference = .045977559
+Iteration 13: Max Difference = .000876636
+maximum difference smaller than the tolerance level; convergence achieved
+
+
+No. of units adjusted: 1285 total of weights: 1285
+
+
+Before: without weighting
+
+             |      mean   variance   skewness 
+-------------+---------------------------------
+sh_whit~2010 |     .6698     .03874     -1.199 
+sh_blac~2010 |     .1595     .03706      2.276 
+sh_hhld~2010 |     .3307     .02008      .7608 
+med_hhl~2011 |     59944   4.71e+08      .9037 
+
+
+After:  _webal as the weighting variable
+
+             |      mean   variance   skewness 
+-------------+---------------------------------
+sh_whit~2010 |     .8343     .01894     -2.152 
+sh_blac~2010 |    .07543     .01219      3.726 
+sh_hhld~2010 |      .224     .03356      .8758 
+med_hhl~2011 |     28657   1.27e+08      .6437 
+
+
+Data Setup
+Covariate adjustment: sh_white_cens2010 sh_black_cens2010 sh_hhlds_renteroccup_
+> cens2010 med_hhld_inc_acs2011
+
+
+Optimizing...
+Iteration 1: Max Difference = 7699.94662
+Iteration 2: Max Difference = 2831.90005
+Iteration 3: Max Difference = 1041.0546
+Iteration 4: Max Difference = 382.263128
+Iteration 5: Max Difference = 139.970663
+Iteration 6: Max Difference = 51.0001642
+Iteration 7: Max Difference = 18.6619178
+Iteration 8: Max Difference = 7.52927119
+Iteration 9: Max Difference = 3.76584703
+Iteration 10: Max Difference = 1.26717933
+Iteration 11: Max Difference = .363806303
+Iteration 12: Max Difference = .045977559
+Iteration 13: Max Difference = .000876636
+maximum difference smaller than the tolerance level; convergence achieved
+
+
+No. of units adjusted: 1285 total of weights: 1285
+
+
+Before: without weighting
+
+             |      mean   variance   skewness 
+-------------+---------------------------------
+sh_whit~2010 |     .6698     .03874     -1.199 
+sh_blac~2010 |     .1595     .03706      2.276 
+sh_hhld~2010 |     .3307     .02008      .7608 
+med_hhl~2011 |     59944   4.71e+08      .9037 
+
+
+After:  _webal as the weighting variable
+
+             |      mean   variance   skewness 
+-------------+---------------------------------
+sh_whit~2010 |     .8343     .01894     -2.152 
+sh_blac~2010 |    .07543     .01219      3.726 
+sh_hhld~2010 |      .224     .03356      .8758 
+med_hhl~2011 |     28657   1.27e+08      .6437 
+(note: file ../temp/weights.dta not found)
+file ../temp/weights.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           197,761  
+    -----------------------------------------
 (data now sorted by zipcode year_month)
   variable fullbal_sample was float now byte
   (593,283 bytes saved)
@@ -262,7 +416,7 @@ file ../temp/baseline_zipcode.dta saved
 File: ../../../drive/derived_large/estimation_samples/zipcode_months.dta
 Key: zipcode year_month
 ===============================================================================
-  197761:153(46361):638674243:2177959180
+  197761:160(28319):916291988:1661947878
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -284,171 +438,179 @@ statefips_~m |    197,761    23.67546     16.7588          1         56
 statutory_mw |    197,761    8.488577    1.653847       7.25         16
       mw_res |    197,761    2.122522    .1733356   1.981001   2.772589
 -------------+---------------------------------------------------------
+  binding_mw |    197,761    1.710176    .6739856          1          4
+binding_mw~l |    197,761    1.615603    .4864521          1          2
+binding_mw~x |    197,761    1.726372    .7026668          1          4
+binding_mw~n |    197,761    1.684933    .6315546          1          4
 mw_wkp_to~09 |    197,549    2.110157    .1734357   1.371012   2.691656
+-------------+---------------------------------------------------------
 mw_wkp_~9_09 |    197,549    2.113599    .1706218   1.493845   2.696938
 mw_wkp_~4_09 |    197,549    2.109471    .1745941   1.319214   2.688022
 mw_wkp_~5_09 |    197,549    2.107602    .1748354    1.15919   2.692894
 mw_wkp_~0_09 |    197,549    2.113115    .1686556   1.391297    2.68406
--------------+---------------------------------------------------------
 mw_~_3333_09 |    197,549    2.112117    .1722945    1.43795   2.687926
+-------------+---------------------------------------------------------
 mw_~e3333_09 |    197,549    2.106257    .1784669   1.247891   2.697946
 mw_wkp_go~09 |    197,549     2.12039    .1653718   1.793131   2.675497
 mw_wkp_tr~09 |    197,549    2.110759    .1755848   1.510678   2.671746
 mw_wkp_ot~09 |    197,549    2.108711    .1752524   1.197225   2.700762
--------------+---------------------------------------------------------
 mw_wkp_to~10 |    197,549    2.111318    .1751739   1.416477   2.691589
+-------------+---------------------------------------------------------
 mw_wkp_~9_10 |    197,549    2.114858    .1713683   1.450441   2.697745
 mw_wkp_~4_10 |    197,549    2.110525      .17664   1.385754     2.6896
 mw_wkp_~5_10 |    197,549    2.109362    .1767224   1.278214   2.701672
 mw_wkp_~0_10 |    197,549     2.11389     .169362   1.344035   2.687006
--------------+---------------------------------------------------------
 mw_~_3333_10 |    197,549    2.113025    .1731012   1.435375   2.687218
+-------------+---------------------------------------------------------
 mw_~e3333_10 |    197,549    2.107593    .1815221   1.335299   2.697877
 mw_wkp_go~10 |    197,549    2.120696     .165632    1.55633    2.68284
 mw_wkp_tr~10 |    197,549    2.106523     .183064   1.276819   2.676319
 mw_wkp_ot~10 |    197,549    2.111676    .1759405   1.273019   2.704047
--------------+---------------------------------------------------------
 mw_wkp_to~11 |    197,761     2.11136    .1740065   1.495337   2.707758
+-------------+---------------------------------------------------------
 mw_wkp_~9_11 |    197,761    2.114277     .170772   1.585098   2.729035
 mw_wkp_~4_11 |    197,761     2.11091    .1752656   1.435842   2.702423
 mw_wkp_~5_11 |    197,761    2.109211    .1755468   1.371867   2.700213
 mw_wkp_~0_11 |    197,761    2.112391    .1682194    1.47123   2.713394
--------------+---------------------------------------------------------
 mw_~_3333_11 |    197,761    2.113331    .1721902   1.510977   2.701911
+-------------+---------------------------------------------------------
 mw_~e3333_11 |    197,761    2.108596    .1800072   1.252163    2.71382
 mw_wkp_go~11 |    197,761    2.120989    .1654468   1.580299   2.688559
 mw_wkp_tr~11 |    197,761    2.108144    .1779826   1.454692    2.70805
 mw_wkp_ot~11 |    197,761    2.111202     .175586   1.344498   2.724681
--------------+---------------------------------------------------------
 mw_wkp_to~12 |    197,761    2.114476     .172821   1.247422   2.716431
+-------------+---------------------------------------------------------
 mw_wkp_~9_12 |    197,761    2.117035    .1695735   1.527868   2.710816
 mw_wkp_~4_12 |    197,761    2.114068    .1740364   1.149974   2.719466
 mw_wkp_~5_12 |    197,761    2.112709    .1741332   1.064985   2.709734
 mw_wkp_~0_12 |    197,761    2.115887    .1663895   1.758108   2.713306
--------------+---------------------------------------------------------
 mw_~_3333_12 |    197,761    2.115644    .1711059   1.513415   2.714014
+-------------+---------------------------------------------------------
 mw_~e3333_12 |    197,761    2.112382    .1785573   .8584745   2.717151
 mw_wkp_go~12 |    197,761    2.121244    .1650846   1.609398    2.69106
 mw_wkp_tr~12 |    197,761    2.113305    .1722958    1.49126   2.703494
 mw_wkp_ot~12 |    197,761    2.113947    .1749581   1.066326   2.725769
--------------+---------------------------------------------------------
 mw_wkp_to~13 |    197,761    2.114777     .172523   1.243621   2.723325
+-------------+---------------------------------------------------------
 mw_wkp_~9_13 |    197,761    2.117333    .1694655    1.55787   2.735872
 mw_wkp_~4_13 |    197,761    2.114462    .1736769    1.16024   2.721404
 mw_wkp_~5_13 |    197,761    2.112841    .1739523   1.021972   2.715742
 mw_wkp_~0_13 |    197,761    2.116187    .1660876   1.760912   2.728561
--------------+---------------------------------------------------------
 mw_~_3333_13 |    197,761    2.116054    .1707632   1.512014   2.714919
+-------------+---------------------------------------------------------
 mw_~e3333_13 |    197,761    2.112644    .1781081   .8512771   2.723883
 mw_wkp_go~13 |    197,761    2.121048    .1645227   1.717717   2.688457
 mw_wkp_tr~13 |    197,761    2.113668    .1718463   1.500105   2.695763
 mw_wkp_ot~13 |    197,761    2.114259    .1747059   1.066106   2.729256
--------------+---------------------------------------------------------
 mw_wkp_to~14 |    197,761    2.114711    .1721029   1.198626   2.722655
+-------------+---------------------------------------------------------
 mw_wkp_~9_14 |    197,761    2.117052    .1694591   1.369459   2.736814
 mw_wkp_~4_14 |    197,761    2.114511     .173257    1.14611   2.720013
 mw_wkp_~5_14 |    197,761    2.112725    .1728741   1.085828   2.716448
 mw_wkp_~0_14 |    197,761    2.115189    .1657125   1.659895   2.735022
--------------+---------------------------------------------------------
 mw_~_3333_14 |    197,761    2.116187    .1706268    1.27901   2.716375
+-------------+---------------------------------------------------------
 mw_~e3333_14 |    197,761    2.113031    .1772974   .9220478   2.722252
 mw_wkp_go~14 |    197,761    2.121432    .1638407   1.895516    2.70805
 mw_wkp_tr~14 |    197,761    2.113458    .1717462   1.537597   2.690724
 mw_wkp_ot~14 |    197,761    2.114113    .1742972   1.012266   2.734641
--------------+---------------------------------------------------------
 mw_wkp_to~15 |    197,761    2.113799    .1720296   1.272426     2.6843
+-------------+---------------------------------------------------------
 mw_wkp_~9_15 |    197,761    2.116179    .1695027   1.439306   2.696414
 mw_wkp_~4_15 |    197,761    2.113641    .1731464   1.216833   2.685536
 mw_wkp_~5_15 |    197,761    2.111657     .172809   1.151291    2.68107
 mw_wkp_~0_15 |    197,761    2.114094    .1654223   1.550753   2.689313
--------------+---------------------------------------------------------
 mw_~_3333_15 |    197,761    2.115309    .1704171   1.356126   2.690777
+-------------+---------------------------------------------------------
 mw_~e3333_15 |    197,761    2.111838    .1770763   .9864618    2.69182
 mw_wkp_go~15 |    197,761    2.121414    .1641973   1.816198   2.670133
 mw_wkp_tr~15 |    197,761    2.113936    .1724708   1.540371   2.716242
 mw_wkp_ot~15 |    197,761    2.112847    .1739029   1.085444   2.694545
--------------+---------------------------------------------------------
 mw_wkp_to~16 |    197,761    2.113352    .1720052   1.244324   2.687391
+-------------+---------------------------------------------------------
 mw_wkp_~9_16 |    197,761    2.115648    .1696553   1.391616    2.70167
 mw_wkp_~4_16 |    197,761     2.11326    .1732843   1.163473   2.684705
 mw_wkp_~5_16 |    197,761    2.111133    .1723632   1.211934   2.679673
 mw_wkp_~0_16 |    197,761    2.112546    .1654848   1.543889   2.693111
--------------+---------------------------------------------------------
 mw_~_3333_16 |    197,761    2.114035     .171957   1.324207   2.684582
+-------------+---------------------------------------------------------
 mw_~e3333_16 |    197,761    2.112471    .1760486   .9636837   2.691162
 mw_wkp_go~16 |    197,761    2.121439    .1641929   1.761365   2.671271
 mw_wkp_tr~16 |    197,761    2.112532    .1724726    1.50332   2.715862
 mw_wkp_ot~16 |    197,761    2.112575    .1740311   1.044275   2.693552
--------------+---------------------------------------------------------
 mw_wkp_to~17 |    197,761    2.114349    .1711354   1.271492   2.688884
+-------------+---------------------------------------------------------
 mw_wkp_~9_17 |    197,761    2.116299    .1687246   1.410909   2.704646
 mw_wkp_~4_17 |    197,761    2.114423    .1723006   1.227557   2.686055
 mw_wkp_~5_17 |    197,761    2.112042    .1716916   1.156366   2.678318
 mw_wkp_~0_17 |    197,761    2.113381    .1649796   1.523804   2.681913
--------------+---------------------------------------------------------
 mw_~_3333_17 |    197,761    2.115587    .1691416    1.38224   2.681041
+-------------+---------------------------------------------------------
 mw_~e3333_17 |    197,761    2.113205    .1756346   .9871737    2.69384
 mw_wkp_go~17 |    197,761    2.121602    .1640948    1.82908   2.665318
 mw_wkp_tr~17 |    197,761     2.11293    .1723989   1.513893   2.721374
 mw_wkp_ot~17 |    197,761    2.113807    .1726676   1.078004   2.692268
--------------+---------------------------------------------------------
 mw_wkp_to~18 |    197,761    2.113701    .1725303   1.610219   2.693405
+-------------+---------------------------------------------------------
 mw_wkp_~9_18 |    197,761    2.116303    .1699471   1.643204   2.708283
 mw_wkp_~4_18 |    197,761    2.113743    .1737364   1.552368   2.690215
 mw_wkp_~5_18 |    197,761    2.110903    .1730265   1.482997   2.681597
 mw_wkp_~0_18 |    197,761    2.113503    .1647637    1.72545   2.680484
--------------+---------------------------------------------------------
 mw_~_3333_18 |    197,761     2.11595    .1697578   1.667945   2.681725
+-------------+---------------------------------------------------------
 mw_~e3333_18 |    197,761    2.111814    .1780053   1.390111   2.699122
 mw_wkp_go~18 |    197,761    2.121408    .1638556   1.861334   2.667329
 mw_wkp_tr~18 |    197,761    2.108973    .1775239   1.462239   2.728186
 mw_wkp_ot~18 |    197,761    2.114128    .1733336   1.442361   2.696399
--------------+---------------------------------------------------------
 mw_wkp_tot~y |    158,041    2.092621     .148576   1.271492   2.656646
+-------------+---------------------------------------------------------
 m~9_timevary |    158,041    2.094997    .1460925   1.410909   2.671718
 m~4_timevary |    158,041    2.092502    .1498363   1.227557   2.653376
 m~5_timevary |    158,041    2.090433    .1490281   1.156366   2.644757
 m~0_timevary |    158,041    2.092691    .1417238   1.571924   2.642999
--------------+---------------------------------------------------------
 mw_wkp_ear.. |    158,041    2.094297    .1468246    1.38224   2.645047
+-------------+---------------------------------------------------------
 mw_wkp_ear.. |    158,041    2.090885    .1534832   .9871737   2.662518
 mw_wkp_goo~y |    158,041    2.100267     .140967    1.82908   2.602943
 mw_wkp_tra~y |    158,041    2.090741    .1507508   1.457836   2.692696
 mw_wkp_oth~y |    158,041    2.092234    .1501565   1.078004   2.655622
--------------+---------------------------------------------------------
 medDailyli~C |    148,676    179.1506    129.0239         12       2234
+-------------+---------------------------------------------------------
 medli~e_SFCC |    170,738    379783.8    372364.3      17800    6995000
 medli~t_SFCC |    187,110    212.5246    208.3545   15.76577   2695.917
 medli~w_tier |     94,049    132.8645    99.42843   15.82222   1672.388
 medli~p_tier |    128,908     253.707    245.5388   62.48275   2729.885
--------------+---------------------------------------------------------
 medren~e_2BR |     71,253    1774.934    917.2319        475      19500
+-------------+---------------------------------------------------------
 medren~e_3BR |     65,547    1873.977    1503.395        595      40000
 medre~e_SFCC |    170,240    1766.395     1558.59        500      50000
 medren~t_2BR |     69,509    1.702952    .8440058   .5015198   12.55461
 medren~t_3BR |     62,492    1.217543    .8199384   .5060225       17.5
--------------+---------------------------------------------------------
 medre~t_SFCC |    197,761    1.303416    1.033597   .1091193   23.96932
+-------------+---------------------------------------------------------
 Monthlylis~C |    154,546    231.1468    153.6988         13       2540
 NewMonthly~C |     56,926    62.24103    34.77379         11        609
  Sale_Counts |    178,387    60.62863    33.16517          0        382
      quarter |    197,761    2.542033    1.116307          1          4
--------------+---------------------------------------------------------
 year_quarter |    197,761    226.2741    9.874127        200        239
+-------------+---------------------------------------------------------
     ln_rents |    197,761    .1256474    .4679301  -2.215314   3.176775
 ln_emp_biz~v |    197,749    11.03673    1.380379   5.659482   13.38876
  ln_emp_info |    196,629    8.893489    1.579093   2.397895   12.38988
   ln_emp_fin |    197,737    10.07466    1.418751   2.944439   12.89542
--------------+---------------------------------------------------------
 ln_estcoun~v |    197,761    8.571091    1.253452   1.098612   10.96353
+-------------+---------------------------------------------------------
 ln_estcoun~o |    197,749     6.00503    1.367954          0   9.531191
 ln_estcoun~n |    197,761     7.87745    1.203608   2.197225   10.33748
 ln_avgwwag~v |    197,749    7.120409    .3154899   5.420535   8.461046
 ln_avgwwag~o |    196,629     7.30131    .3753262   5.891644   9.004791
--------------+---------------------------------------------------------
 ln_avgwwag~n |    197,737    7.274133    .3635629   6.061457   9.163982
+-------------+---------------------------------------------------------
 baseline_s~e |    197,761    .6751685     .468313          0          1
 fullbal_sa~e |    197,761    .4009688     .490096          0          1
+weights_un~l |    189,501    .8399927    9.906315   1.24e-08   602.7372
+weights_ba~e |    127,550    .8905848    9.534349   6.82e-09    417.649
+weights_fu~l |    127,550    .8905848    9.534349   6.82e-09    417.649
 
 
 
@@ -459,6 +621,256 @@ file ../../../drive/derived_large/estimation_samples/zipcode_months.dta saved
 (note: file ../../../drive/derived_large/estimation_samples/zipcode_months.csv 
 > not found)
 file ../../../drive/derived_large/estimation_samples/zipcode_months.csv saved
+(0 observations deleted)
+       panel variable:  county_num (unbalanced)
+        time variable:  year_month, 2010m1 to 2019m12
+                delta:  1 month
+(12 missing values generated)
+(610 missing values generated)
+(22 missing values generated)
+(12 missing values generated)
+(12 missing values generated)
+(610 missing values generated)
+(22 missing values generated)
+(236 observations deleted)
+(data already sorted by countyfips)
+  variable baseline_sample was float now byte
+  (1,392 bytes saved)
+===============================================================================
+File: ../temp/baseline_county.dta
+Key: countyfips
+===============================================================================
+  464:2(99393):1601251349:4128260379
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  countyfips |          0
+baseline_s~e |        464           1           0          1          1
+
+
+
+
+(note: file ../temp/baseline_county.dta not found)
+file ../temp/baseline_county.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                         7,722
+        from master                     7,722  
+        from using                          0  
+
+    matched                            48,761  
+    -----------------------------------------
+(7,722 real changes made)
+(21,385 real changes made)
+(data now sorted by countyfips year_month)
+  variable fullbal_sample was float now byte
+  (169,449 bytes saved)
+===============================================================================
+File: ../../../drive/derived_large/estimation_samples/county_months.dta
+Key: countyfips year_month
+===============================================================================
+  56483:156(48008):3734101126:3520287260
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  countyfips |          0
+  year_month |     56,483    671.0619     31.9825        600        719
+  county_num |     56,483    28584.38    15946.02       1001      56025
+        year |     56,483    2015.454    2.659293       2010       2019
+       month |     56,483     6.61314    3.441755          1         12
+-------------+---------------------------------------------------------
+   statefips |          0
+statefips_~m |     56,483    28.48266    15.90754          1         56
+        cbsa |          0
+    cbsa_num |     56,483    29695.73    12165.09      10140      99999
+n_months_z~s |     56,483    96.87614    26.88128         12        120
+-------------+---------------------------------------------------------
+populat~2010 |     56,483    424113.3    668340.3          0    9818605
+n_male_~2010 |     56,483    207793.2    328478.6          0    4839654
+n_white~2010 |     56,483    289649.8    384372.8          0    4936599
+n_black~2010 |     56,483    58910.12    113986.1          0    1287767
+urb_pop~2010 |     56,159    .8265931    .1504363   .1866012          1
+-------------+---------------------------------------------------------
+n_hhlds_ce~0 |     56,483    175168.8    256393.2          0    3445076
+n_hhlds_ur~0 |     56,483    160988.4    256189.3          0    3420978
+n_hhlds_re~0 |     56,483     58463.6    110631.7          0    1696455
+sh_whit~2010 |     56,159    .7496407    .1457814   .1609192   .9683796
+sh_blac~2010 |     56,159    .1287703    .1304379   .0022105   .7910549
+-------------+---------------------------------------------------------
+sh_male~2010 |     56,159    .4913234    .0107563   .4588652   .5895433
+sh_hhlds_u~0 |     56,159    .8246142    .1544164   .1604094          1
+sh_hhlds_r~0 |     56,159    .2974661    .0871098   .0811995   .7625533
+statutory_mw |     56,278     8.01705    1.199783       7.25      15.59
+      mw_res |     56,278    2.071964    .1336205   1.981001    2.74663
+-------------+---------------------------------------------------------
+  binding_mw |     56,278     1.49099    .5664122          1          4
+binding_mw~l |     56,278    1.461246    .4985003          1          2
+binding_mw~x |     56,483    1.510702    .6194943          1          4
+binding_mw~n |     56,483    1.482517    .5459562          1          4
+mw_wkp_to~09 |     56,483    2.066127    .1749876   .0517452   2.673318
+-------------+---------------------------------------------------------
+mw_wkp_~9_09 |     56,483    2.065702    .1744485   .0612735   2.667827
+mw_wkp_~4_09 |     56,483    2.066264    .1752332   .0465837   2.673494
+mw_wkp_~5_09 |     56,483    2.066167    .1749195   .0545381   2.682501
+mw_wkp_~0_09 |     56,483    2.065289    .1759466   .0491057   2.679018
+mw_~_3333_09 |     56,483    2.065514    .1748608   .0451126   2.672862
+-------------+---------------------------------------------------------
+mw_~e3333_09 |     56,483    2.067057    .1744785   .0621605   2.675985
+mw_wkp_go~09 |     56,483    2.065656    .1685994   .0677784   2.643101
+mw_wkp_tr~09 |     56,483    2.066102    .1756298   .0623842     2.6592
+mw_wkp_ot~09 |     56,483    2.066178    .1761819   .0461077   2.683148
+mw_wkp_to~10 |     56,483     2.06752    .1750692   .0538532   2.673374
+-------------+---------------------------------------------------------
+mw_wkp_~9_10 |     56,483    2.066907    .1746065   .0637128   2.667394
+mw_wkp_~4_10 |     56,483     2.06767    .1753078   .0489722   2.674594
+mw_wkp_~5_10 |     56,483    2.067754    .1749979   .0552841   2.682528
+mw_wkp_~0_10 |     56,483     2.06596    .1756158    .054443   2.678566
+mw_~_3333_10 |     56,483    2.066371    .1748376    .045826   2.673107
+-------------+---------------------------------------------------------
+mw_~e3333_10 |     56,483    2.068934    .1748169   .0626245   2.678143
+mw_wkp_go~10 |     56,483    2.066081    .1678461    .076382   2.643786
+mw_wkp_tr~10 |     56,483    2.066461    .1755818   .0642506   2.658815
+mw_wkp_ot~10 |     56,483    2.067867    .1763431   .0473281   2.682951
+mw_wkp_to~11 |     56,483    2.068722    .1652121   .3592618   2.674401
+-------------+---------------------------------------------------------
+mw_wkp_~9_11 |     56,483    2.068098    .1640103   .3619788   2.666356
+mw_wkp_~4_11 |     56,483     2.06892    .1653176   .3573864   2.675062
+mw_wkp_~5_11 |     56,483    2.068845    .1663438   .3610308    2.68183
+mw_wkp_~0_11 |     56,483    2.066931      .16698   .2704912   2.678476
+mw_~_3333_11 |     56,483     2.06732     .166368   .3193096   2.671866
+-------------+---------------------------------------------------------
+mw_~e3333_11 |     56,483    2.070471    .1630109   .4371202   2.678009
+mw_wkp_go~11 |     56,483    2.067732    .1555666   .5724395   2.644072
+mw_wkp_tr~11 |     56,483     2.06798    .1620221   .3170858   2.658664
+mw_wkp_ot~11 |     56,483    2.068901    .1681334   .3214646   2.683683
+mw_wkp_to~12 |     56,483     2.06883    .1649341   .3666393   2.675175
+-------------+---------------------------------------------------------
+mw_wkp_~9_12 |     56,483     2.06815    .1630473   .3981294   2.670921
+mw_wkp_~4_12 |     56,483    2.069073    .1650648   .3640261   2.675206
+mw_wkp_~5_12 |     56,483    2.068862    .1664997   .3486638   2.679752
+mw_wkp_~0_12 |     56,483    2.067057    .1667807   .2815068   2.680325
+mw_~_3333_12 |     56,483    2.067419    .1660374   .3246207   2.672398
+-------------+---------------------------------------------------------
+mw_~e3333_12 |     56,483    2.070559    .1627175   .4460704   2.677348
+mw_wkp_go~12 |     56,483    2.067873    .1555022   .5708271   2.644529
+mw_wkp_tr~12 |     56,483    2.068167    .1616224   .3293606   2.661648
+mw_wkp_ot~12 |     56,483    2.068999     .167825   .3291676   2.684108
+mw_wkp_to~13 |     56,483      2.0689    .1646664   .3610612   2.675442
+-------------+---------------------------------------------------------
+mw_wkp_~9_13 |     56,483     2.06822    .1627775   .3880794   2.671039
+mw_wkp_~4_13 |     56,483    2.069154    .1647275   .3626238   2.675324
+mw_wkp_~5_13 |     56,483    2.068916    .1663584   .3391086   2.680606
+mw_wkp_~0_13 |     56,483    2.067073    .1667838   .2639093   2.680613
+mw_~_3333_13 |     56,483    2.067495    .1657495   .3230919   2.671601
+-------------+---------------------------------------------------------
+mw_~e3333_13 |     56,483    2.070601    .1624162   .4399488   2.676341
+mw_wkp_go~13 |     56,483     2.06785    .1549547   .5858966    2.64219
+mw_wkp_tr~13 |     56,483    2.068192     .161073   .3402101   2.661631
+mw_wkp_ot~13 |     56,483    2.069094    .1676641   .3162261   2.684671
+mw_wkp_to~14 |     56,483    2.068902    .1644111   .3622731   2.674271
+-------------+---------------------------------------------------------
+mw_wkp_~9_14 |     56,483    2.068215    .1629289   .3747527   2.669058
+mw_wkp_~4_14 |     56,483    2.069145    .1644517   .3644448    2.67445
+mw_wkp_~5_14 |     56,483    2.068952    .1657742   .3497734   2.679403
+mw_wkp_~0_14 |     56,483    2.067224    .1660091   .2883998   2.678938
+mw_~_3333_14 |     56,483    2.067381    .1660915    .301032   2.671522
+-------------+---------------------------------------------------------
+mw_~e3333_14 |     56,483    2.070558    .1621311   .4396362   2.676649
+mw_wkp_go~14 |     56,483    2.067847      .15497   .5826615   2.641095
+mw_wkp_tr~14 |     56,483    2.068243     .160602   .3566569   2.661821
+mw_wkp_ot~14 |     56,483    2.069096    .1674247   .3173455   2.683911
+mw_wkp_to~15 |     56,483    2.068763    .1647176   .3497388   2.677645
+-------------+---------------------------------------------------------
+mw_wkp_~9_15 |     56,483    2.068027    .1635872   .3576857   2.677964
+mw_wkp_~4_15 |     56,483     2.06902     .164752    .353451   2.677076
+mw_wkp_~5_15 |     56,483    2.068817    .1657073   .3377621   2.679005
+mw_wkp_~0_15 |     56,483    2.066944    .1662879   .2746856   2.681611
+mw_~_3333_15 |     56,483     2.06722     .166417   .2857945   2.671884
+-------------+---------------------------------------------------------
+mw_~e3333_15 |     56,483     2.07046     .162471   .4281775   2.679329
+mw_wkp_go~15 |     56,483    2.067884     .155255   .5668887   2.643643
+mw_wkp_tr~15 |     56,483    2.068114    .1615493   .3112569    2.66215
+mw_wkp_ot~15 |     56,483    2.068915    .1676118   .3118219   2.686949
+mw_wkp_to~16 |     56,483    2.068872    .1644969   .3573392   2.677859
+-------------+---------------------------------------------------------
+mw_wkp_~9_16 |     56,483    2.068108    .1633061   .3718935   2.678297
+mw_wkp_~4_16 |     56,483    2.069145    .1645865   .3556323   2.677638
+mw_wkp_~5_16 |     56,483    2.068947    .1654739   .3502268   2.678014
+mw_wkp_~0_16 |     56,483    2.067017    .1663452   .2731929   2.680584
+mw_~_3333_16 |     56,483    2.067281    .1662993   .2854831    2.67228
+-------------+---------------------------------------------------------
+mw_~e3333_16 |     56,483    2.070555    .1621585   .4416421   2.680042
+mw_wkp_go~16 |     56,483     2.06815    .1548328    .579832   2.643659
+mw_wkp_tr~16 |     56,483    2.068223    .1608116   .3419494   2.663148
+mw_wkp_ot~16 |     56,483    2.068998      .16756   .3133628   2.686891
+mw_wkp_to~17 |     56,483    2.068941    .1637699   .3708839   2.676332
+-------------+---------------------------------------------------------
+mw_wkp_~9_17 |     56,483    2.068248    .1620716   .3931017    2.67487
+mw_wkp_~4_17 |     56,483    2.069215    .1638984   .3691301   2.676617
+mw_wkp_~5_17 |     56,483    2.068938    .1651094   .3591642   2.677224
+mw_wkp_~0_17 |     56,483    2.067088    .1651079   .3025182   2.677591
+mw_~_3333_17 |     56,483    2.067325     .165777   .2924096   2.670447
+-------------+---------------------------------------------------------
+mw_~e3333_17 |     56,483    2.070536    .1616728   .4457496   2.678568
+mw_wkp_go~17 |     56,483    2.068169    .1542586   .6064803   2.640545
+mw_wkp_tr~17 |     56,483    2.068211     .160307   .3470255   2.660987
+mw_wkp_ot~17 |     56,483    2.069098    .1667563   .3247878   2.685125
+mw_wkp_to~18 |     56,483    2.068893    .1638603    .359302   2.676692
+-------------+---------------------------------------------------------
+mw_wkp_~9_18 |     56,483     2.06814    .1622321   .3831452   2.676217
+mw_wkp_~4_18 |     56,483    2.069193    .1638756   .3585233   2.676762
+mw_wkp_~5_18 |     56,483     2.06889    .1653227   .3452069    2.67704
+mw_wkp_~0_18 |     56,483    2.066947    .1651528   .2999653    2.67645
+mw_~_3333_18 |     56,483    2.067268    .1661659   .2716161   2.670777
+-------------+---------------------------------------------------------
+mw_~e3333_18 |     56,483    2.070467    .1616721   .4324866   2.679098
+mw_wkp_go~18 |     56,483    2.067967    .1543655   .5834293   2.641027
+mw_wkp_tr~18 |     56,483     2.06824    .1600882   .3440461   2.660615
+mw_wkp_ot~18 |     56,483    2.069065     .166939    .311783   2.685521
+mw_wkp_tot~y |     48,083    2.056305    .1520358   .3592618   2.617611
+-------------+---------------------------------------------------------
+m~9_timevary |     48,083    2.055661    .1504783   .3619788   2.616793
+m~4_timevary |     48,083    2.056526     .152042   .3573864   2.617341
+m~5_timevary |     48,083    2.056382    .1535579   .3391658   2.619372
+m~0_timevary |     48,083    2.054658    .1539874   .2640144   2.620151
+mw_wkp_ear.. |     48,083    2.054979    .1540823   .3005156   2.610292
+-------------+---------------------------------------------------------
+mw_wkp_ear.. |     48,083    2.057716      .14928   .4371202   2.619315
+mw_wkp_goo~y |     48,083    2.055605    .1422454   .5708591   2.550193
+mw_wkp_tra~y |     48,083    2.055689    .1482474   .3170859   2.589816
+mw_wkp_oth~y |     48,083    2.056426    .1551683   .3162877   2.628629
+medrentpri~C |     56,483    1.020526    .6349937   .4472472   17.05931
+-------------+---------------------------------------------------------
+     quarter |     56,483    2.535205    1.115706          1          4
+year_quarter |     56,483    223.3515    10.66025        200        239
+        qmon |     56,483     6.61314    3.441755          1         12
+   end_month |     56,483    7.605616    3.347117          3         12
+    ln_rents |     56,483   -.0554106    .3384614  -.8046438   2.836696
+-------------+---------------------------------------------------------
+ln_emp_biz~v |     56,471    9.388308    1.356938   5.659482   13.38876
+ ln_emp_info |     55,873    7.175644    1.513981   2.079442   12.38988
+  ln_emp_fin |     56,461    8.447465    1.356778   2.944439   12.89542
+ln_estcoun~v |     56,483    7.057437    1.170698   1.098612   10.96353
+ln_estcoun~o |     56,471    4.454994    1.222481          0   9.531191
+-------------+---------------------------------------------------------
+ln_estcoun~n |     56,483    6.450282    1.079887   2.197225   10.33748
+ln_avgwwag~v |     56,471    6.933469    .3185906   5.420535   9.135509
+ln_avgwwag~o |     55,873    7.036581    .3500125   5.365976   9.584453
+ln_avgwwag~n |     56,461     7.04334     .316929   6.061457   9.163982
+baseline_s~e |     56,483    .8632863    .3435479          0          1
+-------------+---------------------------------------------------------
+fullbal_sa~e |     56,483    .4846768    .4997696          0          1
+
+
+
+
+(note: file ../../../drive/derived_large/estimation_samples/county_months.dta n
+> ot found)
+file ../../../drive/derived_large/estimation_samples/county_months.dta saved
+(note: file ../../../drive/derived_large/estimation_samples/countye_months.csv 
+> not found)
+file ../../../drive/derived_large/estimation_samples/countye_months.csv saved
 
 . 
 end of do-file
@@ -1147,4 +1559,4 @@ file ../../../drive/derived_large/estimation_samples/stacked_sample_window9.dta
 . 
 end of do-file
 
- make.py ended: 2022-03-04 13:16:15
+ make.py ended: 2022-03-07 11:58:24
