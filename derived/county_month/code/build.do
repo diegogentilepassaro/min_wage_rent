@@ -89,6 +89,7 @@ program merge_qcew
     merge m:1 statefips countyfips year month           ///
         using "`instub'/ind_emp_wage_countymonth.dta", ///
         nogen keep(3)
+	drop end_month qmon
 end
 
 
