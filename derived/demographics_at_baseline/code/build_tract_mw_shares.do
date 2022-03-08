@@ -5,7 +5,7 @@ adopath + ../../../lib/stata/gslab_misc/ado
 program main
     local instub  "../temp"
     local outstub "../../../drive/derived_large/demographics_at_baseline"
-    local logfile "../output/data_file_manifest.log"
+    local logfile "../output/block_tract_file_manifest.log"
 
     * Monthly hours completed in a full time job (ft) are obtained from
     * https://www.irs.gov/affordable-care-act/employers/identifying-full-time-employees

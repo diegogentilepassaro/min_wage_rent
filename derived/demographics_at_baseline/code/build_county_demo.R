@@ -9,7 +9,7 @@ main <- function(){
   in_master <- "../../../drive/base_large/census_block_master"
   in_demo   <- "../../../drive/derived_large/demographics_at_baseline"
   outstub   <- "../../../drive/derived_large/demographics_at_baseline"
-  log_file  <- "../output/zip_data_manifest.log"
+  log_file  <- "../output/county_data_manifest.log"
   
   dt_geo <- fread(file.path(in_master, "census_block_master.csv"),
                   select = list(character = c("block", "countyfips"),
