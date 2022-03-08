@@ -59,7 +59,7 @@ tract_to_zip <- function(instub, dt_geo) {
                    by = .(tract, zipcode)]
 
   # Make zipcode level dataset
-  vars = c("population", "n_workers", 
+  vars = c("population", "n_workers", "med_hhld_inc",
            "n_mw_workers_statutory", "n_mw_workers_state", "n_mw_workers_fed")
 
   dt <- fread(file.path(instub, "tract.csv"),
@@ -75,11 +75,12 @@ tract_to_zip <- function(instub, dt_geo) {
     dt[, c(var) := round(share_in_zip*get(var))]
   }
 
-  dt <- dt[, .(population_acs2011  = sum(population),
-               n_workers_acs2011   = sum(n_workers),
-               n_mw_wkrs_statutory = sum(n_mw_workers_statutory),
-               n_mw_wkrs_state     = sum(n_mw_workers_state),
-               n_mw_wkrs_fed       = sum(n_mw_workers_fed)),
+  dt <- dt[, .(population_acs2011     = sum(population),
+               n_workers_acs2011      = sum(n_workers),
+               n_mw_wkrs_statutory    = sum(n_mw_workers_statutory),
+               n_mw_wkrs_state        = sum(n_mw_workers_state),
+               n_mw_wkrs_fed          = sum(n_mw_workers_fed),
+               med_hhld_inc_acs2011   = weighted.mean(med_hhld_inc, num_house10)),
            by = .(zipcode)]
 
   return(dt)
