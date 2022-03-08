@@ -9,8 +9,8 @@ program main
     use "`instub'/estimates_dynamic.dta", replace
     make_bounds
     
-    local y_label       "-0.08(0.02).14"
-	local mw_wkp_var "mw_wkp_tot_17"
+    local y_label    "-0.08(0.02).14"
+    local mw_wkp_var "mw_wkp_tot_17"
     sum at
     local w = r(max)
     
