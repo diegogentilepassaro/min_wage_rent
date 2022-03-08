@@ -25,7 +25,7 @@ program main
         rent_var(`rent_var') target_ym(`target_year_month')
 
     compute_weights, instub(`in_zipcode') target_vars(`target_vars')
-    merge m:1 zipcode using "../temp/weights.dta", ///
+    merge 1:1 zipcode year_month using "../temp/weights.dta", ///
        nogen assert(2 3) keep(3)
 
     save_data "`outstub'/zipcode_months.dta", key(zipcode year_month) ///
@@ -43,7 +43,7 @@ program main
 
     save_data "`outstub'/county_months.dta", key(countyfips year_month) ///
         replace log(`logfile')
-    export delimited "`outstub'/countye_months.csv", replace
+    export delimited "`outstub'/county_months.csv", replace
 end
 
 program create_unbalanced_panel
@@ -105,11 +105,8 @@ end
 program compute_weights
     syntax, instub(str) target_vars(str)
     
-    preserve 
-        keep zipcode baseline_sample fullbal_sample
-        gcollapse (max) baseline_sample fullbal_sample, by(zipcode)
-        
-        merge 1:1 zipcode using "`instub'/zipcode_cross.dta", ///
+    preserve
+        merge m:1 zipcode using "`instub'/zipcode_cross.dta", ///
             assert(2 3) keep(2 3) keepusing(`target_vars')
         foreach var of local target_vars {
             qui sum `var'
@@ -128,7 +125,7 @@ program compute_weights
         ebalance `target_vars' if fullbal_sample, manualtargets(`target_means')
         rename _webal weights_fullbal
         
-        keep zipcode weights_unbal weights_baseline weights_fullbal
+        keep zipcode year_month weights_unbal weights_baseline weights_fullbal
         save "../temp/weights.dta", replace
     restore
 end

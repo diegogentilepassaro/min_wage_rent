@@ -1,5 +1,5 @@
 
- make.py started: 2022-03-07 12:28:45 C:\Users\diegog\Desktop\Diego\min_wage_rent\derived\estimation_samples\code 
+ make.py started: 2022-03-08 08:12:33 C:\Users\diegog\Desktop\Diego\min_wage_rent\derived\estimation_samples\code 
 
 
 
@@ -60,34 +60,35 @@ running c:\ado\personal\profile.do ...
  10.     local target_vars       "sh_white_cens2010 sh_black_cens2010 sh_hhlds_
 > renteroccup_cens2010 med_hhld_inc_acs2011" // n_workers_acs2011 
  11.         
-.         create_unbalanced_panel, instub(`in_zip_mth')                     ///
->                 geo(zipcode) rent_var(`rent_var')                            
->  ///
->                 start_ym(`start_year_month') end_ym(`end_year_month')
- 12.         gen_vars, rent_var(`rent_var')
- 13.         flag_samples, instub(`in_zip_mth') geo(zipcode) geo_name(zipcode) 
-> ///
->             rent_var(`rent_var') target_ym(`target_year_month')
- 14.     add_weights, instub(`in_zipcode') target_vars(`target_vars')
- 15.     merge m:1 zipcode using "../temp/weights.dta", ///
->            nogen assert(2 3) keep(3)
- 16.         save_data "`outstub'/zipcode_months.dta", key(zipcode year_month) 
-> ///
->                 replace log(`logfile')
- 17.         export delimited "`outstub'/zipcode_months.csv", replace
- 18.         
-.         create_unbalanced_panel, instub(`in_cty_mth')                     ///
->                 geo(county) rent_var(`rent_var')                             
-> ///
->                 start_ym(`start_year_month') end_ym(`end_year_month')
- 19.         gen_vars, rent_var(`rent_var')
- 20.         flag_samples, instub(`in_cty_mth') geo(county) geo_name(countyfips
-> ) ///
->             rent_var(`rent_var') target_ym(`target_year_month')
- 21.         save_data "`outstub'/county_months.dta", key(countyfips year_month
-> ) ///
->                 replace log(`logfile')
- 22.         export delimited "`outstub'/countye_months.csv", replace
+.     create_unbalanced_panel, instub(`in_zip_mth')                     ///
+>         geo(zipcode) rent_var(`rent_var')                             ///
+>         start_ym(`start_year_month') end_ym(`end_year_month')
+ 12. 
+.     gen_vars, rent_var(`rent_var')
+ 13. 
+.     flag_samples, instub(`in_zip_mth') geo(zipcode) geo_name(zipcode) ///
+>         rent_var(`rent_var') target_ym(`target_year_month')
+ 14. 
+.     compute_weights, instub(`in_zipcode') target_vars(`target_vars')
+ 15.     merge 1:1 zipcode year_month using "../temp/weights.dta", ///
+>        nogen assert(2 3) keep(3)
+ 16. 
+.     save_data "`outstub'/zipcode_months.dta", key(zipcode year_month) ///
+>         replace log(`logfile')
+ 17.     export delimited "`outstub'/zipcode_months.csv", replace
+ 18.     
+.     create_unbalanced_panel, instub(`in_cty_mth')                     ///
+>         geo(county) rent_var(`rent_var')                             ///
+>         start_ym(`start_year_month') end_ym(`end_year_month')
+ 19. 
+.     gen_vars, rent_var(`rent_var')
+ 20. 
+.     flag_samples, instub(`in_cty_mth') geo(county) geo_name(countyfips) ///
+>         rent_var(`rent_var') target_ym(`target_year_month')
+ 21. 
+.     save_data "`outstub'/county_months.dta", key(countyfips year_month) ///
+>         replace log(`logfile')
+ 22.     export delimited "`outstub'/county_months.csv", replace
  23. end
 
 . 
@@ -123,11 +124,11 @@ running c:\ado\personal\profile.do ...
 . 
 . program flag_samples
   1.     syntax, instub(str) geo(str) geo_name(str) ///
->             rent_var(str) target_ym(str)
+>         rent_var(str) target_ym(str)
   2. 
 .     preserve
-  3.         use year_month `geo_name' medrentpricepsqft_SFCC using  ///
->             "`instub'/`geo'_month_panel.dta"               ///
+  3.         use year_month `geo_name' medrentpricepsqft_SFCC   ///
+>             using "`instub'/`geo'_month_panel.dta"         ///
 >             if !missing(`rent_var'), clear
   4.         
 .         gcollapse (min) min_year_month = year_month, by(`geo_name')
@@ -150,39 +151,36 @@ running c:\ado\personal\profile.do ...
  14. end
 
 . 
-. program add_weights
+. program compute_weights
   1.     syntax, instub(str) target_vars(str)
   2.     
-.     preserve 
-  3.             keep zipcode baseline_sample fullbal_sample
-  4.                 gcollapse (max) baseline_sample fullbal_sample, by(zipcode
-> )
-  5.                 
-.                 merge 1:1 zipcode using "`instub'/zipcode_cross.dta", ///
->                         assert(2 3) keep(2 3) keepusing(`target_vars')
-  6.                 foreach var of local target_vars {
-  7.                     qui sum `var'
-  8.                         local mean = r(mean)
-  9.                         local target_means "`target_means' `mean'"
- 10.                 }
- 11.                                 
-.                 keep if _merge == 3
- 12.                 
-.                 ebalance `target_vars', manualtargets(`target_means')
- 13.                 rename _webal weights_unbal
- 14.                 
-.                 ebalance `target_vars' if baseline_sample, manualtargets(`tar
-> get_means')
- 15.                 rename _webal weights_baseline
- 16.                 
-.                 ebalance `target_vars' if fullbal_sample, manualtargets(`targ
-> et_means')
- 17.                 rename _webal weights_fullbal
- 18.                 
-.                 keep zipcode weights_unbal weights_baseline weights_fullbal
- 19.                 save "../temp/weights.dta", replace
- 20.         restore
- 21. end
+.     preserve
+  3.         merge m:1 zipcode using "`instub'/zipcode_cross.dta", ///
+>             assert(2 3) keep(2 3) keepusing(`target_vars')
+  4.         foreach var of local target_vars {
+  5.             qui sum `var'
+  6.             local mean = r(mean)
+  7.             local target_means "`target_means' `mean'"
+  8.         }
+  9.                 
+.         keep if _merge == 3
+ 10.         
+.         ebalance `target_vars', manualtargets(`target_means')
+ 11.         rename _webal weights_unbal
+ 12.         
+.         ebalance `target_vars' if baseline_sample, manualtargets(`target_mean
+> s')
+ 13.         rename _webal weights_baseline
+ 14.         
+.         ebalance `target_vars' if fullbal_sample, manualtargets(`target_means
+> ')
+ 15.         rename _webal weights_fullbal
+ 16.         
+.         keep zipcode year_month weights_unbal weights_baseline weights_fullba
+> l
+ 17.         save "../temp/weights.dta", replace
+ 18.     restore
+ 19. end
 
 . 
 . program drop_vars
@@ -263,7 +261,7 @@ file ../temp/baseline_zipcode.dta saved
         from master                         0  (_merge==1)
         from using                     28,444  (_merge==2)
 
-    matched                             3,310  (_merge==3)
+    matched                           197,761  (_merge==3)
     -----------------------------------------
 (28,444 observations deleted)
 
@@ -274,43 +272,46 @@ Covariate adjustment: sh_white_cens2010 sh_black_cens2010 sh_hhlds_renteroccup_
 
 
 Optimizing...
-Iteration 1: Max Difference = 18184.64
-Iteration 2: Max Difference = 6688.99987
-Iteration 3: Max Difference = 2459.99332
-Iteration 4: Max Difference = 904.237192
-Iteration 5: Max Difference = 331.929264
-Iteration 6: Max Difference = 121.449538
-Iteration 7: Max Difference = 44.1741666
-Iteration 8: Max Difference = 16.1138179
-Iteration 9: Max Difference = 6.48271976
-Iteration 10: Max Difference = 3.08108316
-Iteration 11: Max Difference = .910451151
-Iteration 12: Max Difference = .184201623
-Iteration 13: Max Difference = .010296207
+Iteration 1: Max Difference = 1109092.48
+Iteration 2: Max Difference = 408010.886
+Iteration 3: Max Difference = 150097.383
+Iteration 4: Max Difference = 55216.3071
+Iteration 5: Max Difference = 20311.5101
+Iteration 6: Max Difference = 7470.75311
+Iteration 7: Max Difference = 2746.90311
+Iteration 8: Max Difference = 1009.09721
+Iteration 9: Max Difference = 369.797926
+Iteration 10: Max Difference = 134.62311
+Iteration 11: Max Difference = 48.1346706
+Iteration 12: Max Difference = 16.3899108
+Iteration 13: Max Difference = 4.89184467
+Iteration 14: Max Difference = 1.03578813
+Iteration 15: Max Difference = .097484911
+Iteration 16: Max Difference = .001508359
 maximum difference smaller than the tolerance level; convergence achieved
 
 
-No. of units adjusted: 3183 total of weights: 3183
+No. of units adjusted: 189501 total of weights: 189501
 
 
 Before: without weighting
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_whit~2010 |     .6805     .04358     -1.112 
-sh_blac~2010 |     .1526     .03864      2.194 
-sh_hhld~2010 |     .3387     .02158      .5929 
-med_hhl~2011 |     57140   5.27e+08      1.074 
+sh_whit~2010 |     .6764     .04093     -1.138 
+sh_blac~2010 |      .156     .03756      2.217 
+sh_hhld~2010 |     .3325     .02031      .6716 
+med_hhl~2011 |     58527   5.01e+08      .9958 
 
 
 After:  _webal as the weighting variable
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_whit~2010 |     .8342     .02065     -1.877 
-sh_blac~2010 |    .07545     .01235      3.469 
-sh_hhld~2010 |      .224     .02684      .7555 
-med_hhl~2011 |     28690   1.94e+08      .2339 
+sh_whit~2010 |     .6969     .03704     -1.207 
+sh_blac~2010 |     .1457     .03167      2.352 
+sh_hhld~2010 |     .3188     .01872      .6993 
+med_hhl~2011 |     54280   3.77e+08      .9452 
 
 
 Data Setup
@@ -319,43 +320,46 @@ Covariate adjustment: sh_white_cens2010 sh_black_cens2010 sh_hhlds_renteroccup_
 
 
 Optimizing...
-Iteration 1: Max Difference = 7699.94662
-Iteration 2: Max Difference = 2831.90005
-Iteration 3: Max Difference = 1041.0546
-Iteration 4: Max Difference = 382.263128
-Iteration 5: Max Difference = 139.970663
-Iteration 6: Max Difference = 51.0001642
-Iteration 7: Max Difference = 18.6619178
-Iteration 8: Max Difference = 7.52927119
-Iteration 9: Max Difference = 3.76584703
-Iteration 10: Max Difference = 1.26717933
-Iteration 11: Max Difference = .363806303
-Iteration 12: Max Difference = .045977559
-Iteration 13: Max Difference = .000876636
+Iteration 1: Max Difference = 763374.498
+Iteration 2: Max Difference = 280828.35
+Iteration 3: Max Difference = 103309.542
+Iteration 4: Max Difference = 38004.0225
+Iteration 5: Max Difference = 13979.4646
+Iteration 6: Max Difference = 5141.32389
+Iteration 7: Max Difference = 1889.95443
+Iteration 8: Max Difference = 693.844591
+Iteration 9: Max Difference = 253.826187
+Iteration 10: Max Difference = 91.968163
+Iteration 11: Max Difference = 32.4658268
+Iteration 12: Max Difference = 10.6843161
+Iteration 13: Max Difference = 2.92427009
+Iteration 14: Max Difference = .51261654
+Iteration 15: Max Difference = .033493549
+Iteration 16: Max Difference = .000212281
 maximum difference smaller than the tolerance level; convergence achieved
 
 
-No. of units adjusted: 1285 total of weights: 1285
+No. of units adjusted: 127550 total of weights: 127550
 
 
 Before: without weighting
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_whit~2010 |     .6698     .03874     -1.199 
-sh_blac~2010 |     .1595     .03706      2.276 
-sh_hhld~2010 |     .3307     .02008      .7608 
-med_hhl~2011 |     59944   4.71e+08      .9037 
+sh_whit~2010 |     .6708     .03835     -1.187 
+sh_blac~2010 |     .1603     .03676      2.253 
+sh_hhld~2010 |     .3272     .01924      .7677 
+med_hhl~2011 |     59849   4.66e+08      .9075 
 
 
 After:  _webal as the weighting variable
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_whit~2010 |     .8343     .01894     -2.152 
-sh_blac~2010 |    .07543     .01219      3.726 
-sh_hhld~2010 |      .224     .03356      .8758 
-med_hhl~2011 |     28657   1.27e+08      .6437 
+sh_whit~2010 |     .6969     .03283     -1.245 
+sh_blac~2010 |     .1457     .02831      2.432 
+sh_hhld~2010 |     .3188     .01821      .7977 
+med_hhl~2011 |     54276   3.29e+08      .8915 
 
 
 Data Setup
@@ -364,43 +368,45 @@ Covariate adjustment: sh_white_cens2010 sh_black_cens2010 sh_hhlds_renteroccup_
 
 
 Optimizing...
-Iteration 1: Max Difference = 7699.94662
-Iteration 2: Max Difference = 2831.90005
-Iteration 3: Max Difference = 1041.0546
-Iteration 4: Max Difference = 382.263128
-Iteration 5: Max Difference = 139.970663
-Iteration 6: Max Difference = 51.0001642
-Iteration 7: Max Difference = 18.6619178
-Iteration 8: Max Difference = 7.52927119
-Iteration 9: Max Difference = 3.76584703
-Iteration 10: Max Difference = 1.26717933
-Iteration 11: Max Difference = .363806303
-Iteration 12: Max Difference = .045977559
-Iteration 13: Max Difference = .000876636
+Iteration 1: Max Difference = 454460.479
+Iteration 2: Max Difference = 167185.233
+Iteration 3: Max Difference = 61502.5759
+Iteration 4: Max Difference = 22624.0992
+Iteration 5: Max Difference = 8321.50707
+Iteration 6: Max Difference = 3059.87797
+Iteration 7: Max Difference = 1124.23414
+Iteration 8: Max Difference = 412.154197
+Iteration 9: Max Difference = 150.204465
+Iteration 10: Max Difference = 53.8649803
+Iteration 11: Max Difference = 18.4932758
+Iteration 12: Max Difference = 5.65348262
+Iteration 13: Max Difference = 1.28876668
+Iteration 14: Max Difference = .151367683
+Iteration 15: Max Difference = .003830914
 maximum difference smaller than the tolerance level; convergence achieved
 
 
-No. of units adjusted: 1285 total of weights: 1285
+No. of units adjusted: 75815 total of weights: 75815
 
 
 Before: without weighting
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_whit~2010 |     .6698     .03874     -1.199 
-sh_blac~2010 |     .1595     .03706      2.276 
-sh_hhld~2010 |     .3307     .02008      .7608 
-med_hhl~2011 |     59944   4.71e+08      .9037 
+sh_whit~2010 |     .6698     .03871     -1.199 
+sh_blac~2010 |     .1595     .03703      2.276 
+sh_hhld~2010 |     .3307     .02006      .7608 
+med_hhl~2011 |     59944   4.70e+08      .9037 
 
 
 After:  _webal as the weighting variable
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_whit~2010 |     .8343     .01894     -2.152 
-sh_blac~2010 |    .07543     .01219      3.726 
-sh_hhld~2010 |      .224     .03356      .8758 
-med_hhl~2011 |     28657   1.27e+08      .6437 
+sh_whit~2010 |     .6969     .03328     -1.271 
+sh_blac~2010 |     .1457     .02882      2.452 
+sh_hhld~2010 |     .3188     .01864      .7911 
+med_hhl~2011 |     54287   3.31e+08      .8861 
 (note: file ../temp/weights.dta not found)
 file ../temp/weights.dta saved
 
@@ -409,14 +415,14 @@ file ../temp/weights.dta saved
     not matched                             0
     matched                           197,761  
     -----------------------------------------
-(data now sorted by zipcode year_month)
+(data already sorted by zipcode year_month)
   variable fullbal_sample was float now byte
   (593,283 bytes saved)
 ===============================================================================
 File: ../../../drive/derived_large/estimation_samples/zipcode_months.dta
 Key: zipcode year_month
 ===============================================================================
-  197761:160(28319):916291988:1661947878
+  197761:160(28319):2130038790:1200011393
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -608,9 +614,9 @@ ln_avgwwag~n |    197,737    7.274133    .3635629   6.061457   9.163982
 -------------+---------------------------------------------------------
 baseline_s~e |    197,761    .6751685     .468313          0          1
 fullbal_sa~e |    197,761    .4009688     .490096          0          1
-weights_un~l |    189,501    .8399927    9.906315   1.24e-08   602.7372
-weights_ba~e |    127,550    .8905848    9.534349   6.82e-09    417.649
-weights_fu~l |    127,550    .8905848    9.534349   6.82e-09    417.649
+weights_un~l |    189,501           1    .3032795    .166774   3.360758
+weights_ba~e |    127,550           1    .3786701   .1492365   3.864214
+weights_fu~l |     75,815           1    .3914334   .1439045   4.076242
 
 
 
@@ -670,7 +676,7 @@ file ../temp/baseline_county.dta saved
 File: ../../../drive/derived_large/estimation_samples/county_months.dta
 Key: countyfips year_month
 ===============================================================================
-  56483:156(48008):3734101126:3520287260
+  56483:154(85909):3190797968:1644532253
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -844,22 +850,19 @@ medrentpri~C |     56,483    1.020526    .6349937   .4472472   17.05931
 -------------+---------------------------------------------------------
      quarter |     56,483    2.535205    1.115706          1          4
 year_quarter |     56,483    223.3515    10.66025        200        239
-        qmon |     56,483     6.61314    3.441755          1         12
-   end_month |     56,483    7.605616    3.347117          3         12
     ln_rents |     56,483   -.0554106    .3384614  -.8046438   2.836696
--------------+---------------------------------------------------------
 ln_emp_biz~v |     56,471    9.388308    1.356938   5.659482   13.38876
  ln_emp_info |     55,873    7.175644    1.513981   2.079442   12.38988
+-------------+---------------------------------------------------------
   ln_emp_fin |     56,461    8.447465    1.356778   2.944439   12.89542
 ln_estcoun~v |     56,483    7.057437    1.170698   1.098612   10.96353
 ln_estcoun~o |     56,471    4.454994    1.222481          0   9.531191
--------------+---------------------------------------------------------
 ln_estcoun~n |     56,483    6.450282    1.079887   2.197225   10.33748
 ln_avgwwag~v |     56,471    6.933469    .3185906   5.420535   9.135509
+-------------+---------------------------------------------------------
 ln_avgwwag~o |     55,873    7.036581    .3500125   5.365976   9.584453
 ln_avgwwag~n |     56,461     7.04334     .316929   6.061457   9.163982
 baseline_s~e |     56,483    .8632863    .3435479          0          1
--------------+---------------------------------------------------------
 fullbal_sa~e |     56,483    .4846768    .4997696          0          1
 
 
@@ -868,9 +871,9 @@ fullbal_sa~e |     56,483    .4846768    .4997696          0          1
 (note: file ../../../drive/derived_large/estimation_samples/county_months.dta n
 > ot found)
 file ../../../drive/derived_large/estimation_samples/county_months.dta saved
-(note: file ../../../drive/derived_large/estimation_samples/countye_months.csv 
-> not found)
-file ../../../drive/derived_large/estimation_samples/countye_months.csv saved
+(note: file ../../../drive/derived_large/estimation_samples/county_months.csv n
+> ot found)
+file ../../../drive/derived_large/estimation_samples/county_months.csv saved
 
 . 
 end of do-file
@@ -1609,4 +1612,4 @@ file ../../../drive/derived_large/estimation_samples/stacked_sample_window9.dta
 . 
 end of do-file
 
- make.py ended: 2022-03-07 12:44:59
+ make.py ended: 2022-03-08 08:27:22
