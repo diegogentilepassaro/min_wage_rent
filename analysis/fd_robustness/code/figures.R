@@ -15,15 +15,13 @@ main <- function() {
     mutate(b_lb = b - t*se,
            b_ub = b + t*se)
   
-  df.geotrends <- df %>% filter(model %in% c(paste0("static_", c("baseline", 'county_timefe', "cbsa_timefe", "state_timefe"))))
+  df.geotrends <- df %>% filter(model %in% c("baseline", 'county_timefe', "cbsa_timefe", "state_timefe"))
   
   ggplot(df.geotrends, aes(y = var)) +
     geom_point(aes(x = b), size = 2.5) +
     geom_errorbar(aes(xmin = b_lb, xmax = b_ub), width = 0.1) +
     facet_column(~model, strip.position = "left") +
     theme_bw() 
-  
-  
 }
 
-
+main()

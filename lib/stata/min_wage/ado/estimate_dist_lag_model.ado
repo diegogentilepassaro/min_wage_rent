@@ -12,7 +12,7 @@ program estimate_dist_lag_model
         local wgtsyntax ""
     } 
     else {
-        local wgtsyntax "[pw=`wgt']"
+        local wgtsyntax "[aw = `wgt']"
     }
 
     if "`controls'"==" " {
