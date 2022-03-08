@@ -15,11 +15,11 @@ program main
     use "`in_county'/county_cross.dta", clear
    
     merge 1:m countyfips using "`in_mw_meas'/countyfips_mw_res.dta", ///
-	    nogen assert(3)
+        nogen assert(3)
     merge 1:m countyfips year month using "`in_mw_pans'/county_statutory_mw.dta", ///
-       nogen assert(1 3) keepusing(statutory_mw binding_mw*)
+        nogen assert(1 3) keepusing(statutory_mw binding_mw*)
 
-    merge_morkplace_mw, instub(`in_mw_meas')	  
+    merge_morkplace_mw, instub(`in_mw_meas')
     merge_zillow, instub(`in_zillow')
 
     make_date_variables

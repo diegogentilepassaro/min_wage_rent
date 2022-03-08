@@ -23,7 +23,7 @@ program main
     gen all_zip_changed = (n_zipcodes == n_zipcodes_with_change)
     
     save_data "`outstub'/cbsa_month.dta", ///
-        key(cbsa year_month) log(`logfile') replace		
+        key(cbsa year_month) log(`logfile') replace
 
     make_cbsa_event_data
 
@@ -37,9 +37,9 @@ program load_data
     use zipcode year_month year statefips cbsa                   ///
         medrentpricepsqft_SFCC mw_res mw_wkp_tot_17 statutory_mw  ///
         using  "`instub'/zipcode_month_panel.dta", clear
-	keep if cbsa != "99999"
-	destring zipcode, gen(zipcode_num)
-	
+    keep if cbsa != "99999"
+    destring zipcode, gen(zipcode_num)
+
     xtset zipcode_num year_month
 
     gen d_mw_res        = D.mw_res
@@ -65,7 +65,7 @@ program make_cbsa_event_data
         gen time_since_treated = event_year_month[_n] - event_year_month[_n - 1]
 
     keep cbsa event_id event_year event_year_month ///
-	    all_zip_changed time_since_treated
+        all_zip_changed time_since_treated
 end
 
 
