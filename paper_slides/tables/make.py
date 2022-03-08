@@ -45,9 +45,9 @@ tablefill(input    = os.path.join(fd_baseline_dir, "static.txt"),
           template = "input/static.tex", 
           output   = "output/static.tex")
 
-tablefill(input    = os.path.join(fd_stacked_dir, "stacked.txt"), 
-          template = "input/stacked.tex", 
-          output   = "output/stacked.tex")
+tablefill(input    = os.path.join(fd_stacked_dir, "stacked_w6.txt"), 
+          template = "input/stacked_w6.tex", 
+          output   = "output/stacked_w6.tex")
 
 tablefill(input    = os.path.join(fd_baseline_dir, "static.txt"), 
           template = "input/slides_static.tex",
