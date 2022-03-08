@@ -69,7 +69,7 @@ program merge_zillow_data
     merge 1:1 zipcode year month using "`instub'/zillow_zipcode_clean.dta"
 
     sum medrentpricepsqft_SFCC if _merge == 2 & inrange(year, 2010, 2019)    
-    *assert r(N) == 0
+    *assert r(N) == 0 // Commented out because after the spatial matching some zipcodes with Zillow data are not in our master.
     keep if inlist(_merge, 1, 3)
     drop _merge
 end
