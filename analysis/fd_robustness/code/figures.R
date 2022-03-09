@@ -17,11 +17,17 @@ main <- function() {
   
   df.geotrends <- df %>% filter(model %in% c("baseline", 'county_timefe', "cbsa_timefe", "state_timefe"))
   
-  ggplot(df.geotrends, aes(y = var)) +
-    geom_point(aes(x = b), size = 2.5) +
-    geom_errorbar(aes(xmin = b_lb, xmax = b_ub), width = 0.1) +
-    facet_column(~model, strip.position = "left") +
+  ggplot(df.geotrends, 
+         aes(y = var, color = model)) +
+    geom_point(aes(x = b), size = 2.5, 
+               position = position_dodge(0.3)) +
+    geom_errorbar(aes(xmin = b_lb, xmax = b_ub), width = 0.1,
+                   position = position_dodge(0.3)) +
+    labs(x = "Coefficient", y = "") +
     theme_bw() 
+
+  ggsave('../output/geotrends.png', dpi = 300,
+         width = 7, height = 5)
 }
 
 main()
