@@ -77,13 +77,13 @@ tablefill(input    = os.path.join(fd_county_dir, "static_county.txt"),
           template = "input/static_county.tex", 
           output   = "output/static_county.tex")
 
-tablefill(input    = os.path.join(fd_robust_dir, "static_expMW_sensitivity.txt"),
-          template = "input/static_expMW_sensitivity.tex", 
-          output   = "output/static_expMW_sensitivity.tex")
+tablefill(input    = os.path.join(fd_robust_dir, "static_wkp_mw_sensitivity.txt"),
+          template = "input/static_wkp_mw_sensitivity.tex", 
+          output   = "output/static_wkp_mw_sensitivity.tex")
 
-tablefill(input    = os.path.join(fd_robust_dir, "static_expMW_sensitivity.txt"),
-          template = "input/slides_static_expMW_sensitivity.tex", 
-          output   = "output/slides_static_expMW_sensitivity.tex")
+tablefill(input    = os.path.join(fd_robust_dir, "static_wkp_mw_sensitivity.txt"),
+          template = "input/slides_static_wkp_mw_sensitivity.tex", 
+          output   = "output/slides_static_wkp_mw_sensitivity.tex")
 
 tablefill(input    = os.path.join(fd_wages_dir, "static_wages.txt"), 
           template = "input/static_wages.tex", 

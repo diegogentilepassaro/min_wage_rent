@@ -110,7 +110,7 @@ main <- function() {
   
   
   
-  txt_static_robust <- c("<tab:static_expMW_sensitivity>")
+  txt_static_robust <- c("<tab:static_wkp_mw_sensitivity>")
   txt_static_robust <- c(txt_static_robust,
                          paste(est[model == "mw_wkp_tot_10"             & var == "mw_res",]$b,
                                est[model == "mw_wkp_tot_14"             & var == "mw_res",]$b,
@@ -150,7 +150,7 @@ main <- function() {
                                  est[model == "mw_wkp_age_under29_17"     & var == "ln_mw",][[stat]],
                                  sep = "\t"))
   }
-  fileConn <- file(file.path(outstub, "static_expMW_sensitivity.txt"))
+  fileConn <- file(file.path(outstub, "static_wkp_mw_sensitivity.txt"))
   writeLines(txt_static_robust, fileConn)
   close(fileConn)
 }
