@@ -9,8 +9,8 @@ program main
     use "`instub'/estimates_dynamic.dta", replace
     make_bounds
     
-    local y_label       "-0.08(0.02).14"
-	local mw_wkp_var "mw_wkp_tot_17"
+    local y_label    "-0.08(0.02).14"
+    local mw_wkp_var "mw_wkp_tot_17"
     sum at
     local w = r(max)
     
@@ -39,7 +39,7 @@ program main
         stat_var(`mw_wkp_var') legend_stat_var(Workplace MW) ///
         color_stat_var(navy) symbol_stat_var(circle) ///
         x_label(-6(1)6) name(fd_both_mw_res_only_dynamic)
-	
+
     offset_x_axis, k(0.3)
 
     plot_dynamics_both, model(both_dynamic) dyn_var(mw_res) ///
