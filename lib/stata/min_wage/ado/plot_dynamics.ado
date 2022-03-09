@@ -7,10 +7,10 @@ program plot_dynamics
         keep if model == "`model'"
         twoway (scatter b       at if var == "`var'", mcol(`color') msymbol(`symbol')) ///
                 (rcap b_lb b_ub at if var == "`var'", lcol(`color') lw(thin)),         ///
-            yline(0, lcol(black))                                                      ///
-            xlabel(-6(1)6, labsize(small)) xtitle("")                                  ///
+            yline(0, lcol(grey) lpattern(dot))                                               ///
+            xlabel(-6(1)6, labsize(small)) xtitle("")   ///
             ylabel(`y_label', grid labsize(small)) ytitle("Coefficient")               ///
-            legend(order(1 `"`legend_var'"'))                                          ///
+            legend(order(1 `"`legend_var'"'))                                  ///
             graphregion(color(white)) bgcolor(white)
         
         graph export "../output/`name'.png", replace width(`width') height(`height')
