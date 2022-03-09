@@ -9,12 +9,12 @@ program main
     local outstub "../output"
     
     define_controls
-	local controls "`r(economic_controls)'"
-	local cluster = "statefips"
-	local absorb  = "year_month"
+    local controls "`r(economic_controls)'"
+    local cluster = "statefips"
+    local absorb  = "year_month"
 
-	local mw_wkp_var "mw_wkp_tot_17"
-    
+    local mw_wkp_var "mw_wkp_tot_17"
+
     use "`instub'/zipcode_months.dta", clear
     xtset zipcode_num `absorb'
 
