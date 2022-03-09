@@ -42,21 +42,32 @@ program main
         dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)  ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
         model_name(unbal) outfolder("../temp")
-		
+	
     estimate_dist_lag_model if !missing(D.ln_rents), ///
 	    depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
         model_name(unbal_mw_wkp_on_res_mw) outfolder("../temp")
+		
+    estimate_dist_lag_model, depvar(ln_rents) ///
+        dyn_var(`mw_wkp_var') w(0) stat_var(mw_res) controls(`controls') ///
+		absorb(`absorb'##yr_entry_to_zillow) cluster(`cluster') ///
+        model_name(unbal_by_entry) outfolder("../temp")
+		
+    estimate_dist_lag_model if !missing(D.ln_rents), ///
+	    depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) ///
+		controls(`controls') absorb(`absorb'##yr_entry_to_zillow) ///
+		cluster(`cluster') model_name(unbal_by_entry_mw_wkp_on_res_mw) ///
+		outfolder("../temp")
     
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)  wgt(weights_unbal) ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(unbal_wgt) outfolder("../temp")
+        controls(`controls') absorb(`absorb'##yr_entry_to_zillow) cluster(`cluster') ///
+        model_name(unbal_by_entry_wgt) outfolder("../temp")
 		
     estimate_dist_lag_model if !missing(D.ln_rents), ///
 	    depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) wgt(weights_unbal) ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(unbal_wgt_mw_wkp_on_res_mw) outfolder("../temp")
+        controls(`controls') absorb(`absorb'##yr_entry_to_zillow) cluster(`cluster') ///
+        model_name(unbal_by_entry_wgt_mw_wkp_on_res_mw) outfolder("../temp")
     
     estimate_dist_lag_model if fullbal_sample == 1, depvar(ln_rents) ///
         dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)  ///
@@ -79,7 +90,8 @@ program main
         model_name(fullbal_wgt_mw_wkp_on_res_mw) outfolder("../temp")
     
     local specifications "baseline baseline_mw_wkp_on_res_mw baseline_wgt baseline_wgt_mw_wkp_on_res_mw" 
-	local specifications "`specifications' unbal unbal_mw_wkp_on_res_mw unbal_wgt unbal_wgt_mw_wkp_on_res_mw" 
+	local specifications "`specifications' unbal unbal_mw_wkp_on_res_mw unbal_by_entry unbal_by_entry_mw_wkp_on_res_mw"
+	local specifications "`specifications' unbal_by_entry_wgt unbal_by_entry_wgt_mw_wkp_on_res_mw" 
 	local specifications "`specifications' fullbal fullbal_mw_wkp_on_res_mw fullbal_wgt fullbal_wgt_mw_wkp_on_res_mw"
 
     estimate_dist_lag_model if baseline_sample == 1, depvar(ln_rents) ///
