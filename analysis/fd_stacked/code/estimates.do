@@ -14,32 +14,30 @@ program main
 
     foreach w in 3 6 9 {
         use "`instub'/stacked_sample_window`w'.dta", clear
-        describe d_ln_emp_* d_ln_estcount_* d_ln_avgwwage_*, varlist
-        local controls = r(varlist)
 
         estimate_stacked_model if !missing(d_ln_rents), depvar(`mw_wkp_var') ///
             mw_var1(d_mw_res) mw_var2(d_mw_res) ///
-            controls(`controls') absorb(`absorb') cluster(`cluster') ///
+            absorb(`absorb') cluster(`cluster') ///
             model_name(mw_wkp_on_res_mw_w`w') outfolder("../temp")
 
         estimate_stacked_model, depvar(d_ln_rents) ///
             mw_var1(d_mw_res) mw_var2(d_mw_res) ///
-            controls(`controls') absorb(`absorb') cluster(`cluster') ///
+            absorb(`absorb') cluster(`cluster') ///
             model_name(static_mw_res_w`w') outfolder("../temp")
             
         estimate_stacked_model, depvar(d_ln_rents) ///
             mw_var1(`mw_wkp_var') mw_var2(`mw_wkp_var') ///
-            controls(`controls') absorb(`absorb') cluster(`cluster') ///
+            absorb(`absorb') cluster(`cluster') ///
             model_name(static_mw_wkp_w`w') outfolder("../temp")
 
         estimate_stacked_model, depvar(d_ln_rents) ///
             mw_var1(d_mw_res) mw_var2(`mw_wkp_var') ///
-            controls(`controls') absorb(`absorb') cluster(`cluster') ///
+            absorb(`absorb') cluster(`cluster') ///
             model_name(static_both_w`w') outfolder("../temp")
 
         estimate_dyn_stacked_model, depvar(d_ln_rents) w(`w') ///
             res_mw_var(d_mw_res) wkp_mw_var(`mw_wkp_var') ///
-            controls(`controls') absorb(`absorb') cluster(`cluster') ///
+            absorb(`absorb') cluster(`cluster') ///
             model_name(mw_wkp_only_dynamic_w`w') outfolder("../temp")
 
         use ../temp/estimates_mw_wkp_on_res_mw_w`w'.dta, clear
