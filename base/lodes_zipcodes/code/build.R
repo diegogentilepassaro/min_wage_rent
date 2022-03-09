@@ -35,14 +35,13 @@ main <- function() {
     
     dt.all <- rbindlist(list(dt.all, dt))
   }
-  
-  save_data(dt.all, key = c("zipcode", "year", "jobs_by"),
-            filename = file.path(outstub, "jobs.csv"),
-            logfile = log_file)
-  
+  # 31527
+
   save_data(dt.all, key = c("zipcode", "year", "jobs_by"),
             filename = file.path(outstub, "jobs.dta"),
-            nolog = TRUE)
+            logfile = log_file)
+  fwrite(dt.all,
+         file = file.path(outstub, "jobs.csv"))
 }
 
 load_xwalk <- function(instub) {
@@ -84,10 +83,12 @@ format_lodes <- function(pov, year, instub, xwalk,
                new = c("block", new_varnames))
   
   dtzip <- xwalk[dt, on = "block"][, block := NULL]
+  dtzip <- dtzip[!is.na(zipcode)]  # Drop blocks with no zipcodes
+
   dtzip <- dtzip[, lapply(.SD, sum, na.rm = T),
                   .SDcols = new_varnames,
                   by = c("zipcode")]
-  
+
   dtzip <- make_shares(dtzip, new_varnames)
   
   if (pov == "wac") dtzip[, jobs_by := "workplace"]
