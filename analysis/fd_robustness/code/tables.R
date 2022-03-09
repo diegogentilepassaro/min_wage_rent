@@ -10,31 +10,31 @@ main <- function() {
   txt_static_sample <- c("<tab:static_sample>")
   for (xvar in c("mw_res", "mw_wkp_tot_17")) {
     txt_static_sample <- c(txt_static_sample, 
-                            paste(est[model == "baseline"     & var == xvar,]$b,
-                                  est[model == "baseline_wgt" & var == xvar,]$b,
-                                  est[model == "unbal"        & var == xvar,]$b,
-                                  est[model == "unbal_wgt"    & var == xvar,]$b,
-                                  est[model == "fullbal"      & var == xvar,]$b,
-                                  est[model == "fullbal_wgt"  & var == xvar,]$b,
+                            paste(est[model == "baseline"              & var == xvar,]$b,
+                                  est[model == "baseline_wgt"          & var == xvar,]$b,
+                                  est[model == "unbal_by_entry"        & var == xvar,]$b,
+                                  est[model == "unbal_by_entry_wgt"    & var == xvar,]$b,
+                                  est[model == "fullbal"               & var == xvar,]$b,
+                                  est[model == "fullbal_wgt"           & var == xvar,]$b,
                                   sep = "\t"))
     txt_static_sample <- c(txt_static_sample, 
-                            paste(est[model == "baseline"     & var == xvar,]$se,
-                                  est[model == "baseline_wgt" & var == xvar,]$se,
-                                  est[model == "unbal"        & var == xvar,]$se,
-                                  est[model == "unbal_wgt"    & var == xvar,]$se,
-                                  est[model == "fullbal"      & var == xvar,]$se,
-                                  est[model == "fullbal_wgt"  & var == xvar,]$se,
+                            paste(est[model == "baseline"              & var == xvar,]$se,
+                                  est[model == "baseline_wgt"          & var == xvar,]$se,
+                                  est[model == "unbal_by_entry"        & var == xvar,]$se,
+                                  est[model == "unbal_by_entry_wgt"    & var == xvar,]$se,
+                                  est[model == "fullbal"               & var == xvar,]$se,
+                                  est[model == "fullbal_wgt"           & var == xvar,]$se,
                                   sep = "\t"))
   }
 
   for (stat in c("p_equality", "r2", "N")) {
     txt_static_sample <- c(txt_static_sample, 
-                            paste(est[model == "baseline"     & var == "cumsum_from0",][[stat]],
-                                  est[model == "baseline_wgt" & var == "cumsum_from0",][[stat]],
-                                  est[model == "unbal"        & var == "cumsum_from0",][[stat]],
-                                  est[model == "unbal_wgt"    & var == "cumsum_from0",][[stat]],
-                                  est[model == "fullbal"      & var == "cumsum_from0",][[stat]],
-                                  est[model == "fullbal_wgt"  & var == "cumsum_from0",][[stat]],
+                            paste(est[model == "baseline"              & var == "cumsum_from0",][[stat]],
+                                  est[model == "baseline_wgt"          & var == "cumsum_from0",][[stat]],
+                                  est[model == "unbal_by_entry"        & var == "cumsum_from0",][[stat]],
+                                  est[model == "unbal_by_entry_wgt"    & var == "cumsum_from0",][[stat]],
+                                  est[model == "fullbal"               & var == "cumsum_from0",][[stat]],
+                                  est[model == "fullbal_wgt"           & var == "cumsum_from0",][[stat]],
                                   sep = "\t"))
   }
 
