@@ -4,7 +4,7 @@ adopath + ../../../lib/stata/min_wage/ado
 set maxvar 32000 
 
 program main
-    local instub "../../fd_county/output"
+    local instub "../output"
     
     use "`instub'/estimates_dynamic.dta", replace
     make_bounds
