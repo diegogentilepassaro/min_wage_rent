@@ -4,7 +4,7 @@ adopath + ../../../lib/stata/min_wage/ado
 set maxvar 32000 
 
 program main
-    foreach w in 3 6 9 {
+	foreach w in 3 6 9 {
 		use "../output/estimates_stacked_dyn_w`w'.dta", clear
 		make_bounds
 		
@@ -22,7 +22,6 @@ program main
 			color_stat_var(maroon) symbol_stat_var(square) ///
 			x_label(-`w'(1)`w') name(fd_mw_wkp_only_dynamic_w`w')	
 	}
-
 end
 
 main
