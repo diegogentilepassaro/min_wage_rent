@@ -1,4 +1,0 @@
-
-### DEPENDENCIES
-
-- `./raw/crosswalk/`

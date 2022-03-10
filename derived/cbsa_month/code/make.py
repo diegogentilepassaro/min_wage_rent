@@ -19,7 +19,7 @@ from gslab_make.dir_mod import *
 set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
-delete_files('../../../drive/derived_large/stacked_sample_experimental/*')
+delete_files('../../../drive/derived_large/cbsa_month/*')
 delete_files('../output/*')
 
 envir_vars = os.getenv('PATH')

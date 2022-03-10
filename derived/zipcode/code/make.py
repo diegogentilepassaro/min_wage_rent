@@ -20,6 +20,7 @@ set_option(link_logs_dir = '../output/')
 set_option(output_dir = '../output/', temp_dir = '../temp/')
 clear_dirs('../temp/')
 delete_files('../output/*')
+delete_files('../../../drive/derived_large/zipcode/*')
 
 envir_vars = os.getenv('PATH')
 if envir_vars is None:

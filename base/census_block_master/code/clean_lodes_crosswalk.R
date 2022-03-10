@@ -18,7 +18,7 @@ main <- function(){
     
     setnames(dt_state, old = geos, 
               new = c("block", "statefips", 
-                      "countyfips", "countyfips_name",
+                      "countyfips", "county_name",
                       "tract", "blockgroup", "cbsa", 
                       "zcta", "place_code", "place_name"))
     

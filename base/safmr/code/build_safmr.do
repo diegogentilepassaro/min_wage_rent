@@ -16,10 +16,10 @@ program main
         append using `temp'/safmrs_`yr'.dta
     }
 
-    save_data `outstub'/safmr_2012_2016_by_zipcode_county_cbsa10.dta, ///
-        key(countyfips cbsa10 zipcode year) replace
-    save_data `outstub'/safmr_2012_2016_by_zipcode_county_cbsa10.csv, ///
-        key(countyfips cbsa10 zipcode year) log(none) outsheet replace
+    save_data `outstub'/safmr_2012_2016_by_zipcode_county_cbsa.dta, ///
+        key(countyfips cbsa zipcode year) replace
+    save_data `outstub'/safmr_2012_2016_by_zipcode_county_cbsa.csv, ///
+        key(countyfips cbsa zipcode year) log(none) outsheet replace
     
     forval yr = 2017(1)2019 {
         prepare_17_19, raw(`raw') temp(`temp') yr(`yr')
@@ -30,10 +30,10 @@ program main
         append using `temp'/safmrs_`yr'.dta
     }
 
-    save_data `outstub'/safmr_2017_2019_by_zipcode_cbsa10.dta, ///
-        key(cbsa10 zipcode year) replace
-    save_data `outstub'/safmr_2017_2019_by_zipcode_cbsa10.csv, ///
-        key(cbsa10 zipcode year) log(none) outsheet replace
+    save_data `outstub'/safmr_2017_2019_by_zipcode_cbsa.dta, ///
+        key(cbsa zipcode year) replace
+    save_data `outstub'/safmr_2017_2019_by_zipcode_cbsa.csv, ///
+        key(cbsa zipcode year) log(none) outsheet replace
 end
 
 program prepare_12_16
@@ -47,28 +47,27 @@ program prepare_12_16
     cap rename zip_code zipcode
     
     cap rename state statefips
+	cap rename fips_state_code statefips
+	cap rename fips_county_code county
     cap gen countyfips = statefips + county
-    
-    cap tostring cbsa, gen(cbsa10)
-    cap rename cbsamet cbsa10
-    cap rename metro_code cbsa10
+
+    cap tostring cbsa, replace
+    cap rename cbsamet cbsa
+    cap rename metro_code cbsa
     cap rename area_rent_br* safmr*br
     
     gen year = `yr'
     
     drop if missing(zipcode)
-    drop if missing(cbsa10)
+    drop if missing(cbsa)
     drop if missing(countyfips)
-
-    sort cbsa10 countyfips zipcode year
-    order cbsa10 countyfips zipcode year
     
     collapse (mean) safmr0br safmr1br safmr2br safmr3br safmr4br, ///
-        by(countyfips cbsa10 zipcode year)
+        by(countyfips cbsa zipcode year)
     
-    keep countyfips cbsa10 zipcode year safmr0br ///
+    keep countyfips cbsa zipcode year safmr0br ///
         safmr1br safmr2br safmr3br safmr4br
-    save_data `temp'/safmrs_`yr'.dta, key(countyfips cbsa10 zipcode year) ///
+    save_data `temp'/safmrs_`yr'.dta, key(countyfips cbsa zipcode year) ///
         log(none) replace
 end
 
@@ -81,27 +80,24 @@ program prepare_17_19
     cap rename zip zipcode
     cap rename zip_code zipcode
         
-    cap rename metro_code cbsa10
-    
-    cap gen cbsa = substr(hudareacode, 1, 10)
-    cap gen cbsa10 = subinstr(cbsa, "METRO", "", .)
+    cap rename metro_code cbsa
+    cap gen cbsa10 = substr(hudareacode, 1, 10)
+    cap gen cbsa = subinstr(cbsa10, "METRO", "", .)
+	cap drop cbsa10
 
     cap rename area_rent_br* safmr*br
     
     gen year = `yr'
     
     drop if missing(zipcode)
-    drop if missing(cbsa10)
-
-    sort cbsa10 zipcode year
-    order cbsa10 zipcode year
+    drop if missing(cbsa)
         
     collapse (mean) safmr0br safmr1br safmr2br safmr3br safmr4br, ///
-        by(cbsa10 zipcode year)
+        by(cbsa zipcode year)
 
-    keep cbsa10 zipcode year safmr0br ///
+    keep cbsa zipcode year safmr0br ///
         safmr1br safmr2br safmr3br safmr4br
-    save_data `temp'/safmrs_`yr'.dta, key(cbsa10 zipcode year) ///
+    save_data `temp'/safmrs_`yr'.dta, key(cbsa zipcode year) ///
         log(none) replace
 end
 
