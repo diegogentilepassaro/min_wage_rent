@@ -10,8 +10,8 @@ library(ggplot2)
 
 main <- function(){
   in_map  <- "../../../drive/raw_data/shapefiles/USPS_zipcodes"
-  in_geo  <- "../../../base/geo_master/output"
-  in_data <- "../../../drive/derived_large/shares"
+  in_geo  <- "../../../drive/base_large/zipcode_master"
+  in_data <- "../../../drive/derived_large/od_shares"
   
   df_data <- prepare_data(in_map, in_geo, in_data)
   
@@ -30,8 +30,8 @@ main <- function(){
       
       for (tt in c("", "_lowinc", "_young")) {
         
-        resid_var   <- paste0("share", tt ,"_residents_ofCBSA")
-        workers_var <- paste0("share", tt ,"_workers_ofCBSA")
+        resid_var   <- paste0("sh", tt ,"_residents_ofCBSA")
+        workers_var <- paste0("sh", tt ,"_workers_ofCBSA")
         
         lab <- ""
         if (tt == "_lowinc") lab <- " low-income"
@@ -60,41 +60,43 @@ prepare_data <- function(in_map, in_geo, in_data) {
     select(ZIP_CODE) %>%
     rename(zipcode = ZIP_CODE)
   
+  level_vars <- c("residents", "residents_young", "residents_lowinc",
+                  "workers",   "workers_young",   "workers_lowinc")
   shares <- data.table::fread(file.path(in_data, "zipcode_shares.csv"),
                               colClasses = c(zipcode ="character", 
                                              year ="integer")) %>%
-    select(zipcode, year,
-           residents, residents_young, residents_lowinc,
-           workers,   workers_young,   workers_lowinc,
-           share_residents_young,      share_residents_lowinc,
-           share_workers_young,        share_workers_lowinc)
+    select_at(c("zipcode", "year", level_vars,
+               "sh_residents_young", "sh_residents_lowinc",
+               "sh_workers_young",   "sh_workers_lowinc"))
   
-  geo_master <- data.table::fread(file.path(in_geo, "zip_county_place_usps_master.csv"),
-                                  select     = c("zipcode", "cbsa10"),
-                                  colClasses = c(zipcode ="character", 
-                                                 cbsa10 = "character"))
+  for (var in level_vars) {
+    shares[is.na(get(var)), c(var) := 0]
+  }
+  
+  geo_master <- data.table::fread(file.path(in_geo, "zipcode_master.csv"),
+                                  select     = list(character = c("zipcode", "cbsa")))
   
   df_map %>%
-    left_join(shares, by = "zipcode") %>%
+    left_join(shares,     by = "zipcode") %>%
     left_join(geo_master, by = "zipcode")
 }
 
-prepare_event_data <- function(data, cbsa10_code, year_num){
+prepare_event_data <- function(data, cbsa_code, year_num) {
   data %>%
-    filter(cbsa10 == cbsa10_code,
-           year   == year_num) %>%
-    mutate(share_residents_ofCBSA        = 100*residents       /sum(residents),
-           share_lowinc_residents_ofCBSA = 100*residents_lowinc/sum(residents_lowinc),
-           share_young_residents_ofCBSA  = 100*residents_young /sum(residents_young),
-           share_workers_ofCBSA          = 100*workers         /sum(workers),
-           share_lowinc_workers_ofCBSA   = 100*workers_lowinc  /sum(workers_lowinc),
-           share_young_workers_ofCBSA    = 100*workers_young   /sum(workers_young)) %>%
+    filter(cbsa == cbsa_code,
+           year == year_num) %>%
+    mutate(sh_residents_ofCBSA        = 100*residents       /sum(residents),
+           sh_lowinc_residents_ofCBSA = 100*residents_lowinc/sum(residents_lowinc),
+           sh_young_residents_ofCBSA  = 100*residents_young /sum(residents_young),
+           sh_workers_ofCBSA          = 100*workers         /sum(workers),
+           sh_lowinc_workers_ofCBSA   = 100*workers_lowinc  /sum(workers_lowinc),
+           sh_young_workers_ofCBSA    = 100*workers_young   /sum(workers_young)) %>%
     ungroup() %>%
     replace(is.na(.), 0)
 }
 
 build_map <- function(data, var, var_legend, break_values,
-                      map_name, .dpi = 250){
+                      map_name, .dpi = 250) {
   
   map <- tm_shape(data) + 
     tm_fill(col = var,
