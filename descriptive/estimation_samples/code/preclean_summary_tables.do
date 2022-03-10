@@ -84,7 +84,8 @@ program clean_demo
     syntax, instub(str)
 	
 	use "`instub'/zipcode.dta", clear
-    gen rural = (sh_rural_pop_2010 == 1) if !missing(sh_rural_pop_2010)
+	gen sh_urban_pop_2010 = 1 - sh_rural_pop_2010 if !missing(sh_rural_pop_2010)
+    gen rural = (sh_rural_pop_2010 >= 0.6) if !missing(sh_rural_pop_2010)
 end
 
 program clean_irs 

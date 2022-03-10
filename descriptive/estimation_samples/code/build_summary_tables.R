@@ -53,7 +53,7 @@ build_basic_stats <- function(df) {
   stats <- df %>%
     summarise(population_cens2010           = mean(population_cens2010, na.rm = T),
               n_hhlds_cens2010              = mean(n_hhlds_cens2010, na.rm = T),
-              sh_rural_pop_2010             = mean(sh_rural_pop_2010, na.rm = T),
+              sh_urban_pop_2010             = mean(sh_urban_pop_2010, na.rm = T),
               sh_hhlds_renteroccup_cens2010 = mean(sh_hhlds_renteroccup_cens2010, na.rm = T),
               sh_black_cens2010             = mean(sh_black_cens2010, na.rm = T),
               sh_white_cens2010             = mean(sh_white_cens2010, na.rm = T),
