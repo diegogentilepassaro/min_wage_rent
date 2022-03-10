@@ -8,7 +8,9 @@ program main
     local instub_demo      "../../../drive/derived_large/demographics_at_baseline"
     local instub_irs       "../../../drive/base_large/irs_soi"
     local instub_safmr     "../../../base/safmr/output"
+    local instub_zip_mth   "../../../drive/derived_large/zipcode_month"   
     local instub_est_samp  "../../../drive/derived_large/estimation_samples"    
+
 
 	clean_demo, instub(`instub_demo')
     save_data "../temp/demo_clean.dta",  log(none)      ///
@@ -30,13 +32,14 @@ program main
     use zipcode countyfips cbsa statefips year_month year  ///
         month medrentprice_SFCC medrentpricepsqft_SFCC            ///
         medrentprice_2BR medrentpricepsqft_2BR ///
-		statutory_mw baseline_sample    ///
-        using "`instub_est_samp'/zipcode_months.dta", clear
+		statutory_mw ///
+        using "`instub_zip_mth'/zipcode_month_panel.dta", clear
 	merge m:1 zipcode using "../temp/demo_clean.dta", nogen ///
 	    assert(2 3)
-	
-    build_zip_lvl_samples, instub(`instub_est_samp')
+	merge 1:1 zipcode year_month using "`instub_est_samp'/zipcode_months.dta", ///
+	    nogen assert(1 3) keepusing(baseline_sample)
 
+    build_zip_lvl_samples, instub(`instub_est_samp')
     foreach data in "all"              "all_urban"          ///
                     "all_zillow_rents" "baseline" {
         
@@ -44,6 +47,8 @@ program main
 	    merge 1:1 zipcode using "../temp/demo_clean.dta", nogen ///
 	        assert(2 3) keep(3)
         merge 1:1 zipcode using "../temp/statutory_mw_feb2010.dta",  ///
+            nogen keep(1 3)
+        merge 1:1 zipcode using "../temp/statutory_mw_dec2019.dta",  ///
             nogen keep(1 3)
         merge 1:1 zipcode using "../temp/rents_jan2015.dta",      ///
             nogen keep(1 3)
@@ -115,7 +120,15 @@ program build_zip_lvl_samples
     preserve
         keep if year == 2010 & month == 2
         keep zipcode statutory_mw
+		rename statutory_mw statutory_mw_feb2010
         save "../temp/statutory_mw_feb2010.dta", replace
+    restore
+	
+    preserve
+        keep if year == 2019 & month == 12
+        keep zipcode statutory_mw
+		rename statutory_mw statutory_mw_dec2019
+        save "../temp/statutory_mw_dec2019.dta", replace
     restore
     
     preserve

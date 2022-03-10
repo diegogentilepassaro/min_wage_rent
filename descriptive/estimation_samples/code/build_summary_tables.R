@@ -63,9 +63,12 @@ build_basic_stats <- function(df) {
               agi_per_hhld_irs_2010         = mean(agi_per_hhld, na.rm = T),
               wage_per_hhld_irs2010         = mean(wage_per_hhld, na.rm = T),
               rent40thperc_2br_safmr2012    = mean(safmr2br, na.rm = T),
-              min_binding_mw_feb2010        = min(statutory_mw, na.rm = T),
-              avg_binding_mw_feb2010        = mean(statutory_mw, na.rm = T),
-              max_binding_mw_feb2010        = max(statutory_mw, na.rm = T),
+              min_binding_mw_feb2010        = min(statutory_mw_feb2010, na.rm = T),
+              avg_binding_mw_feb2010        = mean(statutory_mw_feb2010, na.rm = T),
+              max_binding_mw_feb2010        = max(statutory_mw_feb2010, na.rm = T),
+              min_binding_mw_dec2019        = min(statutory_mw_dec2019, na.rm = T),
+              avg_binding_mw_dec2019        = mean(statutory_mw_dec2019, na.rm = T),
+              max_binding_mw_dec2019        = max(statutory_mw_dec2019, na.rm = T),
               zip_count                     = n_distinct(zipcode))
   return(stats)
 }
