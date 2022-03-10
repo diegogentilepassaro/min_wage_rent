@@ -5,10 +5,10 @@ program main
 	local instub "../../../drive/derived_large/estimation_samples"
 	local outstub "../output"
 
-    use zipcode zipcode_num year_month actual_mw ///
-		using "`instub'/all_zipcode_months.dta", clear
-	xtset
-	gen pct_ch_MW = 100*(actual_mw/L.actual_mw - 1)
+    use zipcode zipcode_num year_month statutory_mw ///
+		using "`instub'/zipcode_months.dta", clear
+	xtset zipcode_num year_month
+	gen pct_ch_MW = 100*(statutory_mw/L.statutory_mw - 1)
 	drop if missing(pct_ch_MW)
 	
 	plot_mw_dist, outstub(`outstub')

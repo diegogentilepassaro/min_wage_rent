@@ -8,7 +8,7 @@ main <- function() {
   all_zipcodes      <- load_data("all_zipcode_lvl_data.csv")
   urban_zipcodes    <- load_data("all_urban_zipcode_lvl_data.csv")
   zillow_zipcodes   <- load_data("all_zillow_rents_zipcode_lvl_data.csv")
-  baseline_zipcodes <- load_data("baseline_zillow_rents_zipcode_lvl_data.csv")
+  baseline_zipcodes <- load_data("baseline_zipcode_lvl_data.csv")
 
   all_zipcodes_stats      <- build_basic_stats(all_zipcodes)
   urban_zipcodes_stats    <- build_basic_stats(urban_zipcodes)
@@ -27,7 +27,7 @@ main <- function() {
   ## ZIP-month stats of baseline panel
   baseline_panel <- load_data("baseline_zillow_rents_zipcode_months.csv")
   
-  vars_for_table <- c("actual_mw", "ln_mw", "exp_ln_mw_17",
+  vars_for_table <- c("statutory_mw", "mw_res", "mw_wkp_tot_17",
                       "medrentprice_SFCC", "medrentpricepsqft_SFCC", "ln_rents", 
                       "medrentprice_2BR", "medrentpricepsqft_2BR",
                       "ln_emp_bizserv", "ln_estcount_bizserv", "ln_avgwwage_bizserv", 
@@ -51,21 +51,21 @@ load_data <- function(filename, instub = "../output") {
 
 build_basic_stats <- function(df) {
   stats <- df %>%
-    summarise(population_acs2011            = mean(population, na.rm = T),
-              households_acs2011            = mean(total_households, na.rm = T),
-              hhld_size_acs_2011            = mean(hhld_size, na.rm = T),
-              urb_zip_share_geo_master      = 1 - mean(rural, na.rm = T),
-              share_renter_hhlds_acs2011    = mean(share_renter_hhlds, na.rm = T),
-              share_black_pop_acs2011       = mean(share_black_pop, na.rm = T),
-              share_hispanic_pop_acs2011    = mean(share_hispanic_pop, na.rm = T),
+    summarise(population_cens2010           = mean(population_cens2010, na.rm = T),
+              n_hhlds_cens2010              = mean(n_hhlds_cens2010, na.rm = T),
+              sh_rural_pop_2010             = mean(sh_rural_pop_2010, na.rm = T),
+              sh_hhlds_renteroccup_cens2010 = mean(sh_hhlds_renteroccup_cens2010, na.rm = T),
+              sh_black_cens2010             = mean(sh_black_cens2010, na.rm = T),
+              sh_white_cens2010             = mean(sh_white_cens2010, na.rm = T),
+              sh_male_cens2010              = mean(sh_male_cens2010, na.rm = T),
               share_wage_hhlds_irs2010      = mean(share_wage_hhlds, na.rm = T),
               share_bussiness_hhlds_irs2010 = mean(share_bussiness_hhlds, na.rm = T),
               agi_per_hhld_irs_2010         = mean(agi_per_hhld, na.rm = T),
               wage_per_hhld_irs2010         = mean(wage_per_hhld, na.rm = T),
               rent40thperc_2br_safmr2012    = mean(safmr2br, na.rm = T),
-              min_binding_mw_feb2010        = min(actual_mw, na.rm = T),
-              avg_binding_mw_feb2010        = mean(actual_mw, na.rm = T),
-              max_binding_mw_feb2010        = max(actual_mw, na.rm = T),
+              min_binding_mw_feb2010        = min(statutory_mw, na.rm = T),
+              avg_binding_mw_feb2010        = mean(statutory_mw, na.rm = T),
+              max_binding_mw_feb2010        = max(statutory_mw, na.rm = T),
               zip_count                     = n_distinct(zipcode))
   return(stats)
 }
