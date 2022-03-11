@@ -4,7 +4,7 @@ library(data.table)
 
 main <- function() {
   in_sample <- '../../../drive/derived_large/estimation_samples'
-  out_file <- '../output/events_count.txt'
+  out_file <- '../output/events_count.tex'
   
   if (file.exists(out_file))  file.remove(out_file)
   
@@ -36,8 +36,8 @@ main <- function() {
   
   events <- sum(data$event_mw, na.rm = T)
   
-  text <- paste('Number of MW events at the ZIP code level:',
-                events)
+  text <- paste0("\\newcommand{\\ZIPMWevents}{\\textnormal{", 
+                    events,"}}")
   
   write.table(
     text,
@@ -52,12 +52,12 @@ main <- function() {
     gg <- geographies[i]
     
     data_agg <-
-      data[binding_mw == i + 1, .(event_mw = max(event_mw)), by = c(gg, 'year_month')]
+      data[round(binding_mw,0) == i + 1, .(event_geo = max(event_mw)), by = c(gg, 'year_month')]
     
-    events <- sum(data_agg$event_mw, na.rm = T)
+    events <- sum(data_agg$event_geo, na.rm = T)
     
-    text <- paste('Number of MW events at the', gg, 'level:',
-                  events)
+    text <- paste0("\\newcommand{\\",gg,"MWevents}{\\textnormal{", 
+                   events,"}}")
     
     write.table(
       text,
@@ -69,6 +69,23 @@ main <- function() {
     )
   }
   
+  # Average percent change among Zillow ZIP codes (line 143 of data_sample.tex)
+  
+  data[,mean_mw := fifelse(event_mw==1,statutory_mw / shift(statutory_mw),0)]
+  
+  avchange <- (mean(data[mean_mw>0,mean_mw], na.rm=T)-1)*100
+
+  text <- paste0("\\newcommand{\\AvgPctChange}{\\textnormal{", 
+                 round(avchange,2),"\\%}}")
+  
+  write.table(
+    text,
+    out_file,
+    quote = F,
+    row.names = F,
+    col.names = F,
+    append = T
+  )
 }
 
 # Execute
