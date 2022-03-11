@@ -4,7 +4,6 @@ library(data.table)
 
 main <- function() {
   in_sample <- '../../../drive/derived_large/estimation_samples'
-  outdir <- '../output'
   out_file <- '../output/events_count.txt'
   
   if (file.exists(out_file))  file.remove(out_file)
