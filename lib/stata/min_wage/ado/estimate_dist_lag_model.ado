@@ -1,11 +1,11 @@
 cap program drop estimate_dist_lag_model
 program estimate_dist_lag_model 
-    syntax [if], depvar(str) dyn_var(str) stat_var(str)        ///
-        controls(str) absorb(str) cluster(str) model_name(str) ///
+    syntax [if], depvar(str) dyn_var(str) stat_var(str)          ///
+        [controls(str)] absorb(str) cluster(str) model_name(str) ///
         [wgt(str) ab test_equality outfolder(str) w(int 6)]
 
     if "`outfolder'"==""{
-        local outfolder "../output"
+        local outfolder "../temp"
     }
 
     if "`wgt'"=="" {
@@ -15,7 +15,7 @@ program estimate_dist_lag_model
         local wgtsyntax "[pw = `wgt']"
     }
 
-    if "`controls'"==" " {
+    if "`controls'"=="" {
         local contlist ""
     }
     else {

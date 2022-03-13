@@ -7,7 +7,7 @@ set maxvar 32000
 program main
     local instub "../../../drive/derived_large/estimation_samples"
     local outstub "../output"
-    
+
     define_controls
     local controls "`r(economic_controls)'"
     local cluster = "statefips"
@@ -18,165 +18,41 @@ program main
     use "`instub'/zipcode_months.dta", clear
     xtset zipcode_num `absorb'
 
-    estimate_dist_lag_model if baseline_sample == 1, depvar(ln_rents) ///
-        dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)  ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(baseline) outfolder("../temp")
-		
-    estimate_dist_lag_model if (baseline_sample == 1 & !missing(D.ln_rents)), ///
-	    depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(baseline_mw_wkp_on_res_mw) outfolder("../temp")
-
-    estimate_dist_lag_model if baseline_sample == 1, depvar(ln_rents) ///
-        dyn_var(`mw_wkp_var') w(0) stat_var(mw_res) wgt(weights_baseline) ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(baseline_wgt) outfolder("../temp")
-		
-    estimate_dist_lag_model if (baseline_sample == 1 & !missing(D.ln_rents)), ///
-	    depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) wgt(weights_baseline) ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(baseline_wgt_mw_wkp_on_res_mw) outfolder("../temp")
-		
-    estimate_dist_lag_model, depvar(ln_rents) ///
-        dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)  ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(unbal) outfolder("../temp")
-	
-    estimate_dist_lag_model if !missing(D.ln_rents), ///
-	    depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(unbal_mw_wkp_on_res_mw) outfolder("../temp")
-		
-    estimate_dist_lag_model, depvar(ln_rents) ///
-        dyn_var(`mw_wkp_var') w(0) stat_var(mw_res) controls(`controls') ///
-		absorb(`absorb'##yr_entry_to_zillow) cluster(`cluster') ///
-        model_name(unbal_by_entry) outfolder("../temp")
-		
-    estimate_dist_lag_model if !missing(D.ln_rents), ///
-	    depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) ///
-		controls(`controls') absorb(`absorb'##yr_entry_to_zillow) ///
-		cluster(`cluster') model_name(unbal_by_entry_mw_wkp_on_res_mw) ///
-		outfolder("../temp")
+    estimate_baseline_ctrls, mw_wkp_var(`mw_wkp_var') controls(`controls')      ///
+        absorb(`absorb') cluster(`cluster')
+    local specifications "`r(specifications)'"
     
-    estimate_dist_lag_model, depvar(ln_rents) ///
-        dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)  wgt(weights_unbal) ///
-        controls(`controls') absorb(`absorb'##yr_entry_to_zillow) cluster(`cluster') ///
-        model_name(unbal_by_entry_wgt) outfolder("../temp")
-		
-    estimate_dist_lag_model if !missing(D.ln_rents), ///
-	    depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) wgt(weights_unbal) ///
-        controls(`controls') absorb(`absorb'##yr_entry_to_zillow) cluster(`cluster') ///
-        model_name(unbal_by_entry_wgt_mw_wkp_on_res_mw) outfolder("../temp")
+    estimate_geofe_specifications, mw_wkp_var(`mw_wkp_var') controls(" ")       ///
+        cluster(`cluster') geos(county cbsa statefips)
+    local specifications "`specifications' `r(specifications)'"
     
-    estimate_dist_lag_model if fullbal_sample == 1, depvar(ln_rents) ///
-        dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)  ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(fullbal) outfolder("../temp")
-		
-    estimate_dist_lag_model if (fullbal_sample == 1 & !missing(D.ln_rents)), ///
-	    depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(fullbal_mw_wkp_on_res_mw) outfolder("../temp")
+    estimate_zipcodetrend, mw_wkp_var(`mw_wkp_var') controls(`controls')         ///
+        absorb(`absorb') cluster(`cluster')
+    local specifications "`specifications' `r(specifications)'"
     
-    estimate_dist_lag_model if fullbal_sample == 1, depvar(ln_rents) ///
-        dyn_var(`mw_wkp_var') w(0) stat_var(mw_res) wgt(weights_fullbal) ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(fullbal_wgt) outfolder("../temp")
-		
-    estimate_dist_lag_model if (fullbal_sample == 1 & !missing(D.ln_rents)), ///
-	    depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) wgt(weights_fullbal) ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(fullbal_wgt_mw_wkp_on_res_mw) outfolder("../temp")
+    estimate_sample_specifications, mw_wkp_var(`mw_wkp_var') controls(`controls') ///
+        absorb(`absorb') cluster(`cluster')                                       ///
+        samples(baseline unbal unbal_by_entry fullbal)
+    local specifications "`specifications' `r(specifications)'"
     
-    local specifications "baseline baseline_mw_wkp_on_res_mw baseline_wgt baseline_wgt_mw_wkp_on_res_mw" 
-	local specifications "`specifications' unbal unbal_mw_wkp_on_res_mw unbal_by_entry unbal_by_entry_mw_wkp_on_res_mw"
-	local specifications "`specifications' unbal_by_entry_wgt unbal_by_entry_wgt_mw_wkp_on_res_mw" 
-	local specifications "`specifications' fullbal fullbal_mw_wkp_on_res_mw fullbal_wgt fullbal_wgt_mw_wkp_on_res_mw"
-
-    estimate_dist_lag_model if baseline_sample == 1, depvar(ln_rents) ///
-        dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)  ///
-        controls(`controls') ab absorb(`absorb') cluster(`cluster') ///
-        model_name(AB) outfolder("../temp")
-		
-    estimate_dist_lag_model if (baseline_sample == 1 & !missing(D.ln_rents)), ///
-	    depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) ///
-        controls(`controls') ab absorb(`absorb') cluster(`cluster') ///
-        model_name(AB_mw_wkp_on_res_mw) outfolder("../temp")
+    estimate_arellano_bond, mw_wkp_var(`mw_wkp_var') controls(`controls')         ///
+        absorb(`absorb') cluster(`cluster')
+    local specifications "`specifications' `r(specifications)'"
     
-    local specifications "`specifications' AB AB_mw_wkp_on_res_mw"
-	
-    estimate_dist_lag_model if baseline_sample == 1, depvar(ln_rents) ///
-        dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)  ///
-        controls(" ") absorb(`absorb') cluster(`cluster') ///
-        model_name(nocontrols) outfolder("../temp")
-		
-    estimate_dist_lag_model if (baseline_sample == 1 & !missing(D.ln_rents)), ///
-	    depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) ///
-        controls(" ") absorb(`absorb') cluster(`cluster') ///
-        model_name(nocontrols_mw_wkp_on_res_mw) outfolder("../temp")
-		
-    estimate_dist_lag_model if baseline_sample == 1, depvar(ln_rents) ///
-        dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)  ///
-        controls(`controls') absorb(`absorb'##county_num) cluster(`cluster') ///
-        model_name(county_timefe) outfolder("../temp")
-		
-    estimate_dist_lag_model if (baseline_sample == 1 & !missing(D.ln_rents)), ///
-	    depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) ///
-        controls(`controls') absorb(`absorb'##county_num) cluster(`cluster') ///
-        model_name(county_timefe_mw_wkp_on_res_mw) outfolder("../temp")
-		
-    estimate_dist_lag_model if baseline_sample == 1, depvar(ln_rents) ///
-        dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)  ///
-        controls(`controls') absorb(`absorb'##cbsa_num) ///
-        cluster(`cluster') ///
-        model_name(cbsa_timefe) outfolder("../temp")
-		
-    estimate_dist_lag_model if (baseline_sample == 1 & !missing(D.ln_rents)), ///
-	    depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) ///
-        controls(`controls') absorb(`absorb'##cbsa_num) cluster(`cluster') ///
-        model_name(cbsa_timefe_mw_wkp_on_res_mw) outfolder("../temp")
+    foreach mw_wkp_var in mw_wkp_tot_14 mw_wkp_tot_18 mw_wkp_tot_timevary    ///
+                              mw_wkp_earn_under1250_17 mw_wkp_age_under29_17        {
         
-    estimate_dist_lag_model if baseline_sample == 1, depvar(ln_rents) ///
-        dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)  ///
-        controls(`controls') absorb(`absorb'##statefips_num) ///
-        cluster(`cluster') ///
-        model_name(state_timefe) outfolder("../temp")
-		
-    estimate_dist_lag_model if (baseline_sample == 1 & !missing(D.ln_rents)), ///
-	    depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) ///
-        controls(`controls') absorb(`absorb'##statefips_num) cluster(`cluster') ///
-        model_name(state_timefe_mw_wkp_on_res_mw) outfolder("../temp")
-
-    estimate_dist_lag_model if baseline_sample == 1, depvar(ln_rents) ///
-        dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)  ///
-        controls(`controls') absorb(`absorb' zipcode) cluster(`cluster') ///
-        model_name(zip_spec_trend) outfolder("../temp")
-		
-    estimate_dist_lag_model if (baseline_sample == 1 & !missing(D.ln_rents)), ///
-	    depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) ///
-        controls(`controls') absorb(`absorb' zipcode) cluster(`cluster') ///
-        model_name(zip_spec_trend_mw_wkp_on_res_mw) outfolder("../temp")
-    
-    local specifications "`specifications' nocontrols nocontrols_mw_wkp_on_res_mw"
-	local specification "`specifications' county_timefe county_timefe_mw_wkp_on_res_mw"
-	local specification "`specifications' cbsa_timefe cbsa_timefe_mw_wkp_on_res_mw"
-	local specification "`specifications' state_timefe state_timefe_mw_wkp_on_res_mw"
-	local specification "`specifications' zip_spec_trend zip_spec_trend_mw_wkp_on_res_mw"
-
-    foreach mw_wkp_alt_var in mw_wkp_tot_14 mw_wkp_tot_18 mw_wkp_tot_timevary mw_wkp_earn_under1250_17 mw_wkp_age_under29_17 {
-        
-        estimate_dist_lag_model if baseline_sample == 1, depvar(ln_rents) ///
-            dyn_var(`mw_wkp_alt_var') w(0) stat_var(mw_res)  ///
-            controls(`controls') absorb(`absorb') cluster(`cluster') ///
-            model_name(`mw_wkp_alt_var') outfolder("../temp")
-			
-        estimate_dist_lag_model if (baseline_sample == 1 & !missing(D.ln_rents)), ///
-	        depvar(`mw_wkp_alt_var') dyn_var(mw_res) w(0) stat_var(mw_res) ///
-            controls(`controls') absorb(`absorb') cluster(`cluster') ///
-            model_name(`mw_wkp_alt_var'_mw_wkp_on_res_mw) outfolder("../temp")
+        estimate_dist_lag_model if baseline_sample,                           ///
+            depvar(ln_rents) dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)      ///
+            controls(`controls') absorb(`absorb') cluster(`cluster')          ///
+            model_name(`mw_wkp_var'_rents)
             
-        local specifications "`specifications' `mw_wkp_alt_var' `mw_wkp_alt_var'_mw_wkp_on_res_mw"
+        estimate_dist_lag_model if (baseline_sample & !missing(D.ln_rents)),  ///
+            depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res)        ///
+            controls(`controls') absorb(`absorb') cluster(`cluster')          ///
+            model_name(`mw_wkp_var'_mw_wkp_on_res_mw)
+            
+        local specifications "`specifications' `mw_wkp_var'_rents `mw_wkp_var'_mw_wkp_on_res_mw"
     }
 
     clear
@@ -185,6 +61,138 @@ program main
     }
     save             `outstub'/estimates_static.dta, replace
     export delimited `outstub'/estimates_static.csv, replace
+end
+
+program estimate_baseline_ctrls, rclass
+    syntax, mw_wkp_var(str) controls(str) absorb(str) cluster(str)
+
+    local specifications ""
+    foreach num in 1 2 {
+	
+        if `num' == 1 {
+            local name      "baseline"
+            local ctrl_vars "`controls'"
+        }
+        else {
+            local name "nocontrols"
+        }    
+
+        estimate_dist_lag_model if baseline_sample,                           ///
+            depvar(ln_rents) dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)      ///
+            controls(`ctrl_vars') absorb(`absorb') cluster(`cluster')         ///
+            model_name(`name'_rents)
+        
+        estimate_dist_lag_model if (baseline_sample & !missing(D.ln_rents)),   ///
+            depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res)         ///
+            controls(`ctrl_vars') absorb(`absorb') cluster(`cluster')          ///
+            model_name(`name'_mw_wkp_on_res_mw)
+
+        local specifications "`specifications' `name'_rents `name'_mw_wkp_on_res_mw"
+    }
+
+    return local specifications "`specifications'"
+end
+
+program estimate_geofe_specifications, rclass
+    syntax, mw_wkp_var(str) controls(str) cluster(str) geos(str)
+
+    local specifications ""
+    foreach geo in `geos' {
+        estimate_dist_lag_model if baseline_sample,                                 ///
+            depvar(ln_rents) dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)            ///
+            controls(`controls') absorb(year_month##county_num) cluster(`cluster')  ///
+            model_name(`geo'time_fe_rents)
+            
+        estimate_dist_lag_model if (baseline_sample & !missing(D.ln_rents)),         ///
+            depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res)               ///
+            controls(`controls') absorb(year_month##`geo'_num) cluster(`cluster')    ///
+            model_name(`geo'time_fe_mw_wkp_on_res_mw)
+
+        local specifications "`specifications' `geo'time_fe_rents `geo'time_fe_mw_wkp_on_res_mw"
+    }
+
+    return local specifications "`specifications'"
+end
+
+program estimate_sample_specifications, rclass
+    syntax, mw_wkp_var(str) controls(str) absorb(str) cluster(str) ///
+            samples(str)
+
+    gen unbal_sample           = 1
+    gen unbal_by_entry_sample  = 1
+    gen weights_unbal_by_entry = 1
+
+    local specifications ""
+    foreach sample in `samples' {
+
+        local absorb_vars "`absorb'"
+        if "`'" == "unbal_by_entry" {
+            local absorb_vars "`absorb'##yr_entry_to_zillow"
+        }
+
+        if "`sample'" != "baseline" {
+            estimate_dist_lag_model if `sample'_sample,                                    ///
+                depvar(ln_rents) dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)               ///
+                controls(`controls') absorb(`absorb_vars') cluster(`cluster')              ///
+                model_name(`sample'_rents)
+                
+            estimate_dist_lag_model if (`sample'_sample & !missing(D.ln_rents)),           ///
+                depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res)                 ///
+                controls(`controls') absorb(`absorb_vars') cluster(`cluster')              ///
+                model_name(`sample'_mw_wkp_on_res_mw)
+
+            local specifications "`specifications' `sample'_rents `sample'_mw_wkp_on_res_mw"
+        }
+
+        estimate_dist_lag_model if `sample'_sample, depvar(ln_rents)                        ///
+            dyn_var(`mw_wkp_var') w(0) stat_var(mw_res) wgt(weights_`sample')               ///
+            controls(`controls') absorb(`absorb_vars') cluster(`cluster')                   ///
+            model_name(`sample'_wgt_rents)
+            
+        estimate_dist_lag_model if (`sample'_sample & !missing(D.ln_rents)),                 ///
+            depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) wgt(weights_`sample') ///
+            controls(`controls') absorb(`absorb_vars') cluster(`cluster')                    ///
+            model_name(`sample'_wgt_mw_wkp_on_res_mw)
+            
+        local specifications "`specifications' `sample'_wgt_rents `sample'_wgt_mw_wkp_on_res_mw"
+    }
+
+    drop unbal_* weights_unbal_by_entry
+    return local specifications "`specifications'"
+end
+
+
+program estimate_arellano_bond, rclass
+    syntax, mw_wkp_var(str) controls(str) absorb(str) cluster(str)
+
+    estimate_dist_lag_model if baseline_sample,                         ///
+        depvar(ln_rents) dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)    ///
+        controls(`controls') ab absorb(`absorb') cluster(`cluster')     ///
+        model_name(AB_rents)
+    
+    estimate_dist_lag_model if (baseline_sample & !missing(D.ln_rents)), ///
+        depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res)       ///
+        controls(`controls') ab absorb(`absorb') cluster(`cluster')      ///
+        model_name(AB_mw_wkp_on_res_mw)
+
+    return local specifications "AB_rents AB_mw_wkp_on_res_mw"
+end
+
+
+program estimate_zipcodetrend, rclass
+    syntax, mw_wkp_var(str) controls(str) absorb(str) cluster(str)
+
+    estimate_dist_lag_model if baseline_sample,                           ///
+        depvar(ln_rents) dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)      ///
+        controls(`controls') absorb(`absorb' zipcode) cluster(`cluster')  ///
+        model_name(ziptrend_rents)
+        
+    estimate_dist_lag_model if (baseline_sample & !missing(D.ln_rents)),   ///
+        depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res)         ///
+        controls(`controls') absorb(`absorb' zipcode) cluster(`cluster')   ///
+        model_name(zip_trend_mw_wkp_on_res_mw)
+
+    return local specifications "ziptrend_rents zip_trend_mw_wkp_on_res_mw"
 end
 
 
