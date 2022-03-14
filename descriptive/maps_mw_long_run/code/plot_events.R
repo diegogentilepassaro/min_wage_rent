@@ -11,7 +11,7 @@ library(ggplot2)
 main <- function(){
   in_map_states  <- "../../../drive/raw_data/shapefiles/states"
   in_map_zip  <- "../../../drive/raw_data/shapefiles/USPS_zipcodes"
-  in_data <- "../../../drive/derived_large/estimation_samples"
+  in_data <- "../../../drive/derived_large/min_wage_panels"
   
   data_for_map <- prepare_data(in_map_zip, in_data)
   
@@ -21,9 +21,9 @@ main <- function(){
     filter(!(state_name %in% c("AK", "HI", "VI", "MP", "PR", "GU", "AS")))
   data_states <- data_states[st_is_valid(data_states),]
   
-  build_map(data_for_map, data_states,  "change_perc_actual_mw", 
+  build_map(data_for_map, data_states,  "change_perc_statutory_mw", 
   	        "Percentage change in statutory MW", 
-            paste0("US", "change_perc_actual_mw"))
+            paste0("US", "change_perc_statutory_mw"))
 }
 
 prepare_data <- function(in_map_zip, in_data) {
@@ -31,23 +31,20 @@ prepare_data <- function(in_map_zip, in_data) {
                            layer = "USPS_zipcodes_July2020") %>%
     select(ZIP_CODE, PO_NAME, STATE, POPULATION, SQMI, POP_SQMI) %>%
     rename(zipcode = ZIP_CODE, zipcode_name = PO_NAME,
-           state_name = STATE, pop2020 = POPULATION, 
-           area_sq_miles = SQMI, pop2020_per_sq_miles = POP_SQMI)
+           state_name = STATE, area_sq_miles = SQMI)
 
-  mw_rent_data <- data.table::fread(file.path(in_data, "all_zipcode_months.csv"),
-                                    colClasses = c(zipcode ="character",
-                                                   state_abb = "character", statefips = "character")) %>%
-    select(zipcode, state_abb, year, month, actual_mw) %>%
-    mutate(ln_actual_mw = log(actual_mw)) %>%
+  mw_rent_data <- data.table::fread(file.path(in_data, "zip_statutory_mw.csv"),
+                                    select = list(character = c("zipcode"),
+                                                  numeric   = c("year", "month", "statutory_mw"))) %>%
     filter((year == 2010 & month == 1) | (year == 2019 & month == 12)) %>%
     group_by(zipcode) %>%
-    summarise(change_perc_actual_mw = 100*(last(actual_mw) - first(actual_mw))/first(actual_mw)) %>%
+    summarise(change_perc_statutory_mw = 100*(last(statutory_mw) - first(statutory_mw))/first(statutory_mw)) %>%
     ungroup()
   
   data_for_map <- left_join(USPS_zipcodes, mw_rent_data, by = "zipcode") %>%
     filter(is.na(area_sq_miles) == FALSE)  %>%
-    filter(state_name != "AK" & state_name != "HI" & state_name != "VI" & state_name != "MP"
-           & state_name != "PR" & state_name != "GU" & state_name != "AS")
+    filter(!(state_name %in% c("AK", "HI", "VI", "MP", "PR", "GU", "AS")))
+
   data_for_map <- data_for_map[st_is_valid(data_for_map),]
 
   return(data_for_map)
