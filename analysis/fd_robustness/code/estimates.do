@@ -121,7 +121,7 @@ program estimate_sample_specifications, rclass
 
     gen unbal_sample           = 1
     gen unbal_by_entry_sample  = 1
-    gen weights_unbal_by_entry = 1
+    gen weights_unbal_by_entry = weights_unbal
 
     local specifications ""
     foreach sample in `samples' {
