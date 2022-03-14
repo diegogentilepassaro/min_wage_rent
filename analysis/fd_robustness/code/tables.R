@@ -93,18 +93,23 @@ main <- function() {
 
 make_row_robustness <- function(est, name) {
   
+  mw_wkp_var <- "mw_wkp_tot_17"
+  if (grepl("mw_wkp", name)) {
+    mw_wkp_var <- name
+  }
+  
   name_wkp   <- paste0(name, "_wkp_mw_on_res_mw")
   name_rents <- paste0(name, "_rents")
   
-  coeffs  <- paste(est[model == name_wkp   & var == "mw_res"       ]$b,
-                   est[model == name_rents & var == "mw_res"       ]$b,
-                   est[model == name_rents & var == "mw_wkp_tot_17"]$b,
-                   est[model == name_rents & var == "cumsum_from0" ]$b,
-                   est[model == name_rents & var == "mw_res"       ]$N,  sep = "\t")
-  stderrs <- paste(est[model == name_wkp   & var == "mw_res"       ]$se,
-                   est[model == name_rents & var == "mw_res"       ]$se,
-                   est[model == name_rents & var == "mw_wkp_tot_17"]$se,
-                   est[model == name_rents & var == "cumsum_from0" ]$se, sep = "\t")
+  coeffs  <- paste(est[model == name_wkp   & var == "mw_res"      ]$b,
+                   est[model == name_rents & var == "mw_res"      ]$b,
+                   est[model == name_rents & var == mw_wkp_var    ]$b,
+                   est[model == name_rents & var == "cumsum_from0"]$b,
+                   est[model == name_rents & var == "mw_res"      ]$N,  sep = "\t")
+  stderrs <- paste(est[model == name_wkp   & var == "mw_res"      ]$se,
+                   est[model == name_rents & var == "mw_res"      ]$se,
+                   est[model == name_rents & var == mw_wkp_var    ]$se,
+                   est[model == name_rents & var == "cumsum_from0"]$se, sep = "\t")
   
   return(c(coeffs, stderrs))
 }
