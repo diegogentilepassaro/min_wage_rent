@@ -190,9 +190,9 @@ program estimate_zipcodetrend, rclass
     estimate_dist_lag_model if (baseline_sample & !missing(D.ln_rents)),   ///
         depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res)         ///
         controls(`controls') absorb(`absorb' zipcode) cluster(`cluster')   ///
-        model_name(zip_trend_wkp_mw_on_res_mw)
+        model_name(ziptrend_wkp_mw_on_res_mw)
 
-    return local specifications "ziptrend_rents zip_trend_wkp_mw_on_res_mw"
+    return local specifications "ziptrend_rents ziptrend_wkp_mw_on_res_mw"
 end
 
 

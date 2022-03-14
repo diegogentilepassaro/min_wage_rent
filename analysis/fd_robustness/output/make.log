@@ -1,5 +1,5 @@
 
- make.py started: 2022-03-13 17:07:22 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\fd_robustness\code 
+ make.py started: 2022-03-13 17:38:48 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\fd_robustness\code 
 
 
 
@@ -296,9 +296,9 @@ running c:\ado\personal\profile.do ...
 > /
 >         controls(`controls') absorb(`absorb' zipcode) cluster(`cluster')   //
 > /
->         model_name(zip_trend_wkp_mw_on_res_mw)
+>         model_name(ziptrend_wkp_mw_on_res_mw)
   4. 
-.     return local specifications "ziptrend_rents zip_trend_wkp_mw_on_res_mw"
+.     return local specifications "ziptrend_rents ziptrend_wkp_mw_on_res_mw"
   5. end
 
 . 
@@ -1129,8 +1129,8 @@ file ../temp/estimates.dta saved
 (1 real change made)
 (2 real changes made)
 (1 real change made)
-(note: file ../temp/estimates_zip_trend_wkp_mw_on_res_mw.dta not found)
-file ../temp/estimates_zip_trend_wkp_mw_on_res_mw.dta saved
+(note: file ../temp/estimates_ziptrend_wkp_mw_on_res_mw.dta not found)
+file ../temp/estimates_ziptrend_wkp_mw_on_res_mw.dta saved
 
  ( 1)  D.mw_res = 0
 
@@ -1143,15 +1143,15 @@ mw_wkp_to~17 |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 number of observations will be reset to 1
 Press any key to continue, or Break to abort
 number of observations (_N) was 0, now 1
-(note: file ../temp/estimates_zip_trend_wkp_mw_on_res_mw_sumsum_from0.dta not f
-> ound)
-file ../temp/estimates_zip_trend_wkp_mw_on_res_mw_sumsum_from0.dta saved
+(note: file ../temp/estimates_ziptrend_wkp_mw_on_res_mw_sumsum_from0.dta not fo
+> und)
+file ../temp/estimates_ziptrend_wkp_mw_on_res_mw_sumsum_from0.dta saved
 (note: variable at was byte, now float to accommodate using data's values)
 (note: variable var was str6, now str12 to accommodate using data's values)
 (1 observation deleted)
-file ../temp/estimates_zip_trend_wkp_mw_on_res_mw.dta saved
-(note: file ../temp/estimates_zip_trend_wkp_mw_on_res_mw.csv not found)
-file ../temp/estimates_zip_trend_wkp_mw_on_res_mw.csv saved
+file ../temp/estimates_ziptrend_wkp_mw_on_res_mw.dta saved
+(note: file ../temp/estimates_ziptrend_wkp_mw_on_res_mw.csv not found)
+file ../temp/estimates_ziptrend_wkp_mw_on_res_mw.csv saved
 (MWFE estimator converged in 1 iterations)
 
 HDFE Linear regression                            Number of obs   =    125,425
@@ -3410,4 +3410,143 @@ file ../output/estimates_static.csv saved
 . 
 end of do-file
 
- make.py ended: 2022-03-13 17:11:01
+
+Execute:  R CMD BATCH --no-save "./tables.R" tables.Rout
+
+R version 4.1.1 (2021-08-10) -- "Kick Things"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list = ls())
+> library(data.table)
+> 
+> main <- function() {
++   instub  <- "../output/"
++   outstub <- "../output/"
++   
++   est <- fread(file.path(instub, "estimates_static.csv"))
++   
++   names <- c("baseline", 
++              "nocontrols", "countytime_fe", "cbsatime_fe", "statefipstime_fe", "ziptrend",
++              paste0("mw_wkp_", c("tot_14", "tot_18", "timevary", "earn_under1250_17", "age_under29_17")))
++ 
++   # Robustness Table
++   txt <- c("<tab:robustness>")
++   for (name in names) {
++     txt <- c(txt, make_row_robustness(est, name))
++   }
++   
++   fileConn <- file(file.path(outstub, "robustness.tex"))
++   writeLines(txt, fileConn)
++   close(fileConn)
++   
++   est[, model := gsub("_rents", "", model)]
++   
++   # Different samples table
++   txt <- c("<tab:static_sample>")
++   for (xvar in c("mw_res", "mw_wkp_tot_17")) {
++     txt  <- c(txt, 
++               paste(est[model == "baseline"              & var == xvar,]$b,
++                     est[model == "baseline_wgt"          & var == xvar,]$b,
++                     est[model == "unbal_by_entry"        & var == xvar,]$b,
++                     est[model == "unbal_by_entry_wgt"    & var == xvar,]$b,
++                     est[model == "fullbal"               & var == xvar,]$b,
++                     est[model == "fullbal_wgt"           & var == xvar,]$b,
++                     sep = "\t"))
++     txt  <- c(txt, 
++               paste(est[model == "baseline"              & var == xvar,]$se,
++                     est[model == "baseline_wgt"          & var == xvar,]$se,
++                     est[model == "unbal_by_entry"        & var == xvar,]$se,
++                     est[model == "unbal_by_entry_wgt"    & var == xvar,]$se,
++                     est[model == "fullbal"               & var == xvar,]$se,
++                     est[model == "fullbal_wgt"           & var == xvar,]$se,
++                     sep = "\t"))
++   }
++ 
++   for (stat in c("p_equality", "r2", "N")) {
++     txt  <- c(txt, 
++               paste(est[model == "baseline"              & var == "cumsum_from0",][[stat]],
++                     est[model == "baseline_wgt"          & var == "cumsum_from0",][[stat]],
++                     est[model == "unbal_by_entry"        & var == "cumsum_from0",][[stat]],
++                     est[model == "unbal_by_entry_wgt"    & var == "cumsum_from0",][[stat]],
++                     est[model == "fullbal"               & var == "cumsum_from0",][[stat]],
++                     est[model == "fullbal_wgt"           & var == "cumsum_from0",][[stat]],
++                     sep = "\t"))
++   }
++ 
++   fileConn <- file(file.path(outstub, "static_sample.txt"))
++   writeLines(txt, fileConn)
++   close(fileConn)
++   
++   # AB table
++   txt_ab <- c("<tab:static_ab>")
++   for (xvar in c("mw_res", "mw_wkp_tot_17")) {
++     txt_ab <- c(txt_ab, 
++                 paste(est[model == "baseline" & var == xvar,]$b,
++                       est[model == "AB"       & var == xvar,]$b,
++                       sep = "\t"))
++     txt_ab <- c(txt_ab, 
++                 paste(est[model == "baseline" & var == xvar,]$se,
++                       est[model == "AB"       & var == xvar,]$se,
++                       sep = "\t"))
++   }
++ 
++   txt_ab <- c(txt_ab,
++               paste(est[model == "AB" & var == "L_ln_rents",]$b,
++                     sep = "\t"))
++   txt_ab <- c(txt_ab,
++               paste(est[model == "AB" & var == "L_ln_rents",]$se,
++                     sep = "\t"))
++   
++   for (stat in c("p_equality", "r2", "N")) {
++     txt_ab <- c(txt_ab, 
++                 paste(est[model == "baseline" & var == "mw_wkp_tot_17",][[stat]],
++                       est[model == "AB"       & var == "mw_wkp_tot_17",][[stat]],
++                       sep = "\t"))
++   }
++ 
++   fileConn <- file(file.path(outstub, "static_ab.txt"))
++   writeLines(txt_ab, fileConn)
++   close(fileConn) 
++ }
+> 
+> make_row_robustness <- function(est, name) {
++   
++   name_wkp   <- paste0(name, "_wkp_mw_on_res_mw")
++   name_rents <- paste0(name, "_rents")
++   
++   coeffs  <- paste(est[model == name_wkp   & var == "mw_res"       ]$b,
++                    est[model == name_rents & var == "mw_res"       ]$b,
++                    est[model == name_rents & var == "mw_wkp_tot_17"]$b,
++                    est[model == name_rents & var == "cumsum_from0" ]$b,
++                    est[model == name_rents & var == "mw_res"       ]$N,  sep = "\t")
++   stderrs <- paste(est[model == name_wkp   & var == "mw_res"       ]$se,
++                    est[model == name_rents & var == "mw_res"       ]$se,
++                    est[model == name_rents & var == "mw_wkp_tot_17"]$se,
++                    est[model == name_rents & var == "cumsum_from0" ]$se, sep = "\t")
++   
++   return(c(coeffs, stderrs))
++ }
+> 
+> 
+> main()
+> 
+> proc.time()
+   user  system elapsed 
+   0.92    0.15    1.07 
+
+ make.py ended: 2022-03-13 17:42:25
