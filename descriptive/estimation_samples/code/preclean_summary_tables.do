@@ -12,10 +12,10 @@ program main
     local instub_est_samp  "../../../drive/derived_large/estimation_samples"    
 
 
-	clean_demo, instub(`instub_demo')
+    clean_demo, instub(`instub_demo')
     save_data "../temp/demo_clean.dta",  log(none)      ///
         key(zipcode) replace
-		
+    
     clean_irs, instub(`instub_irs')
     save_data "../temp/irs_2010_clean.dta",  log(none)      ///
         key(zipcode) replace
@@ -32,20 +32,20 @@ program main
     use zipcode countyfips cbsa statefips year_month year  ///
         month medrentprice_SFCC medrentpricepsqft_SFCC            ///
         medrentprice_2BR medrentpricepsqft_2BR ///
-		statutory_mw ///
+        statutory_mw ///
         using "`instub_zip_mth'/zipcode_month_panel.dta", clear
-	merge m:1 zipcode using "../temp/demo_clean.dta", nogen ///
-	    assert(2 3)
-	merge 1:1 zipcode year_month using "`instub_est_samp'/zipcode_months.dta", ///
-	    nogen assert(1 3) keepusing(baseline_sample)
+    merge m:1 zipcode using "../temp/demo_clean.dta", nogen ///
+        assert(2 3)
+    merge 1:1 zipcode year_month using "`instub_est_samp'/zipcode_months.dta", ///
+        nogen assert(1 3) keepusing(baseline_sample)
 
     build_zip_lvl_samples, instub(`instub_est_samp')
     foreach data in "all"              "all_urban"          ///
                     "all_zillow_rents" "baseline" {
         
         use "../temp/`data'_zipcodes.dta", clear
-	    merge 1:1 zipcode using "../temp/demo_clean.dta", nogen ///
-	        assert(2 3) keep(3)
+        merge 1:1 zipcode using "../temp/demo_clean.dta", nogen ///
+            assert(2 3) keep(3)
         merge 1:1 zipcode using "../temp/statutory_mw_feb2010.dta",  ///
             nogen keep(1 3)
         merge 1:1 zipcode using "../temp/statutory_mw_dec2019.dta",  ///
@@ -71,8 +71,8 @@ program main
         ln_emp_bizserv ln_emp_info ln_emp_fin                      ///
         ln_estcount_bizserv ln_estcount_info ln_estcount_fin       ///
         ln_avgwwage_bizserv ln_avgwwage_info ln_avgwwage_fin baseline_sample ///
-		using "`instub_est_samp'/zipcode_months.dta" ///
-		if baseline_sample == 1, clear
+        using "`instub_est_samp'/zipcode_months.dta" ///
+        if baseline_sample == 1, clear
     merge m:1 zipcode countyfips cbsa year using "../temp/safmr_clean.dta", ///
         nogen keep(1 3)
     save_data "../output/baseline_zillow_rents_zipcode_months.dta", ///
@@ -82,9 +82,9 @@ end
 
 program clean_demo
     syntax, instub(str)
-	
-	use "`instub'/zipcode.dta", clear
-	gen sh_urban_pop_2010 = 1 - sh_rural_pop_2010 if !missing(sh_rural_pop_2010)
+    
+    use "`instub'/zipcode.dta", clear
+    gen sh_urban_pop_2010 = 1 - sh_rural_pop_2010 if !missing(sh_rural_pop_2010)
     gen rural = (sh_rural_pop_2010 >= 0.6) if !missing(sh_rural_pop_2010)
 end
 
@@ -121,14 +121,14 @@ program build_zip_lvl_samples
     preserve
         keep if year == 2010 & month == 2
         keep zipcode statutory_mw
-		rename statutory_mw statutory_mw_feb2010
+        rename statutory_mw statutory_mw_feb2010
         save "../temp/statutory_mw_feb2010.dta", replace
     restore
-	
+    
     preserve
         keep if year == 2019 & month == 12
         keep zipcode statutory_mw
-		rename statutory_mw statutory_mw_dec2019
+        rename statutory_mw statutory_mw_dec2019
         save "../temp/statutory_mw_dec2019.dta", replace
     restore
     
