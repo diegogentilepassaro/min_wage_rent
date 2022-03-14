@@ -102,7 +102,8 @@ program compare_zillow_safmr_zipcode
 			                                     size(medsmall))     ///
 			xlabel(, labsize(small))      xtitle(, size(medsmall))   ///
 			graphregion(color(white)) bgcolor(white)
-		graph export ../output/trend_zillow_safmr_zipcode_m`m'.png, replace
+		graph export ../output/trend_zillow_safmr_zipcode_m`m'.png, ///
+		    replace height(650) width(900)
 
 		twoway (line medrentprice_SFCC year, lc(eltblue))           ///
 			   (line safmr3br year, lp(dash) lc(black)),            ///
@@ -111,7 +112,8 @@ program compare_zillow_safmr_zipcode
 			                                     size(medsmall))    ///
 			xlabel(, labsize(small))      xtitle(, size(medsmall))  ///
 			graphregion(color(white)) bgcolor(white)
-		graph export "../output/trend_zillow_safmr3br_zipcode_m`m'.png", replace
+		graph export "../output/trend_zillow_safmr3br_zipcode_m`m'.png", ///
+		    replace height(650) width(900)
 		restore	
 	}
 end
