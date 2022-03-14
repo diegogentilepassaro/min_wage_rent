@@ -60,7 +60,12 @@ program estimate_stacked_model
         ** Put everything together
         use "../temp/estimates.dta", clear
 
-        keep if _n <= 2
+        if "`mw_var1'" == "`mw_var2'" {
+            keep if _n <= 1
+        }
+        else {
+            keep if _n <= 2
+        }
         keep if !missing(at)
         gen var     = "`mw_var1'"    if _n == 1
         replace var = "`mw_var2'"   if _n == 2
