@@ -6,7 +6,6 @@ library(tmap)
 library(tmaptools)
 library(leaflet)
 library(ggplot2)
-library(data.table)
 
 main <- function(){
   in_map_states  <- "../../../drive/raw_data/shapefiles/states"

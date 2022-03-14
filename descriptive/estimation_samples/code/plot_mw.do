@@ -27,7 +27,7 @@ program plot_mw_dist
     keep if pct_ch_MW > 0
     twoway (hist year_month, color(navy%80) lcolor(white) lw(vthin)), ///
         xtitle("Monthly date") ytitle("Relative frequency") ///
-        xlabel(#20, labsize(small) angle(45)) ///
+        xlabel(`=mofd(td(01jun2010))'(6)`=mofd(td(01dec2019))', labsize(small) angle(45)) ///
         graphregion(color(white)) bgcolor(white)
     graph export `outstub'/pct_ch_mw_date_dist.png, replace 
     graph export `outstub'/pct_ch_mw_date_dist.eps, replace 
