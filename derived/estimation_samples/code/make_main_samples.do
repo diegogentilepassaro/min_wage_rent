@@ -20,7 +20,15 @@ program main
         start_ym(`start_year_month') end_ym(`end_year_month')
 
     gen_vars, rent_var(`rent_var')
-
+    preserve 
+		collapse (min) ym_entry_to_zillow = year_month ///
+		    if !missing(`rent_var'), by(zipcode)
+		gen yr_entry_to_zillow = year(dofm(ym_entry_to_zillow))
+		drop ym_entry_to_zillow
+		save "../temp/ym_entry_to_zillow.dta", replace
+	restore
+	merge m:1 zipcode using "../temp/ym_entry_to_zillow.dta", ///
+		nogen keep(1 3) assert(1 3)
     flag_samples, instub(`in_zip_mth') geo(zipcode) geo_name(zipcode) ///
         rent_var(`rent_var') target_ym(`target_year_month')
 

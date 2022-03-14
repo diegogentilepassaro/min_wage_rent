@@ -18,8 +18,8 @@ program plot_dynamics_both
                     mcol(`color_stat_var') msymbol(`symbol_stat_var'))          ///
                 (rcap b_lb b_ub at_l if var == "`stat_var'",                    ///
                     col(`color_stat_var') lw(thin)),                            ///
-            yline(0, lcol(black))                                               ///
-            xlabel(`x_label', labsize(small)) xtitle("")                           ///
+            yline(0, lcol(grey) lpattern(dot))                                               ///
+            xlabel(`x_label', labsize(small)) xtitle("")               ///
             ylabel(`y_label', grid labsize(small)) ytitle("Coefficient")        ///
             legend(order(1 `"`legend_dyn_var'"' 5 `"`legend_stat_var'"' ))      ///
             graphregion(color(white)) bgcolor(white)
