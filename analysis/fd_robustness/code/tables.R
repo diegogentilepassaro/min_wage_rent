@@ -17,7 +17,7 @@ main <- function() {
     txt <- c(txt, make_row_robustness(est, name))
   }
   
-  fileConn <- file(file.path(outstub, "robustness.tex"))
+  fileConn <- file(file.path(outstub, "robustness.txt"))
   writeLines(txt, fileConn)
   close(fileConn)
   
