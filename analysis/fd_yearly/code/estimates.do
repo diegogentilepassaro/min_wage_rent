@@ -48,19 +48,19 @@ program main
 		star(* 0.10 ** 0.05 *** 0.01)
 		
 	eststo clear
-	eststo: run_model if baseline_sample == 1, depvar(ln_res_jobs_tot) ///
+	eststo: run_model, depvar(ln_res_jobs_tot) ///
 	    mw_res(mw_res_avg) mw_wkp(mw_wkp_tot_17_avg) ///
 	    controls(`avg_controls') absorb(`absorb') cluster(`cluster')
 	
-	eststo: run_model if baseline_sample == 1, depvar(ln_res_jobs_tot) ///
+	eststo: run_model, depvar(ln_res_jobs_tot) ///
 	    mw_res(mw_res) mw_wkp(mw_wkp_tot_17) ///
 	    controls(`controls') absorb(`absorb') cluster(`cluster')
 		
-	eststo: run_model if baseline_sample == 1, depvar(ln_wkp_jobs_tot) ///
+	eststo: run_model, depvar(ln_wkp_jobs_tot) ///
 	    mw_res(mw_res_avg) mw_wkp(mw_wkp_tot_17_avg) ///
 	    controls(`avg_controls') absorb(`absorb') cluster(`cluster')
 	
-	eststo: run_model if baseline_sample == 1, depvar(ln_wkp_jobs_tot) ///
+	eststo: run_model, depvar(ln_wkp_jobs_tot) ///
 	    mw_res(mw_res) mw_wkp(mw_wkp_tot_17) ///
 	    controls(`controls') absorb(`absorb') cluster(`cluster')
 	esttab * using "../output/workers.txt", replace ///
