@@ -53,6 +53,10 @@ tablefill(input    = os.path.join(fd_stacked_dir, "stacked_w6.txt"),
           template = "input/stacked_w6.tex", 
           output   = "output/stacked_w6.tex")
 
+tablefill(input    = os.path.join(fd_robust_dir, "robustness.txt"),
+          template = "input/robustness.tex",
+          output   = "output/robustness.tex")
+
 tablefill(input    = os.path.join(fd_robust_dir, "static_sample.txt"),
           template = "input/static_sample.tex",
           output   = "output/static_sample.tex")
