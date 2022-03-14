@@ -101,7 +101,7 @@ program estimate_geofe_specifications, rclass
     foreach geo in `geos' {
         estimate_dist_lag_model if baseline_sample,                                 ///
             depvar(ln_rents) dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)            ///
-            controls(`controls') absorb(year_month##county_num) cluster(`cluster')  ///
+            controls(`controls') absorb(year_month##`geo'_num) cluster(`cluster')   ///
             model_name(`geo'time_fe_rents) test_equality
             
         estimate_dist_lag_model if (baseline_sample & !missing(D.ln_rents)),         ///
