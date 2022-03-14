@@ -40,7 +40,7 @@ program main
     local specifications "`specifications' `r(specifications)'"
     
     foreach mw_wkp_var in mw_wkp_tot_14 mw_wkp_tot_18 mw_wkp_tot_timevary    ///
-                              mw_wkp_earn_under1250_17 mw_wkp_age_under29_17        {
+                          mw_wkp_earn_under1250_17 mw_wkp_age_under29_17        {
         
         estimate_dist_lag_model if baseline_sample,                           ///
             depvar(ln_rents) dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)      ///
@@ -74,7 +74,8 @@ program estimate_baseline_ctrls, rclass
             local ctrl_vars "`controls'"
         }
         else {
-            local name "nocontrols"
+            local name      "nocontrols"
+            local ctrl_vars ""
         }    
 
         estimate_dist_lag_model if baseline_sample,                           ///
