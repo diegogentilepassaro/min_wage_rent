@@ -34,44 +34,30 @@ main <- function() {
   
   setnames(data, old_names, geographies)
   
-  data[, event_mw := fifelse(statutory_mw > shift(statutory_mw), 1, 0), 
+  data[, event_mw := fifelse(statutory_mw > shift(statutory_mw), 1, 0),
        by = 'zipcode']
   
-  events <- sum(data$event_mw, na.rm = T)
-  
-  text <- paste0(
-    "\\newcommand{\\ZIPMWeventsUnbal}{\\textnormal{",
-    events,
-    "}} \n% ZIP code MW changes in the Unbalanced sample"
-  )
-  
-  write.table(
-    text,
-    out_file,
-    quote = F,
-    row.names = F,
-    col.names = F,
-    append = T
-  )
-  
-  for (i in 1:3) {
-    gg <- geographies[i]
-    
-    data_agg <-
-      data[binding_mw_max == i + 1,
-           .(event_geo = max(event_mw)),
-           by = c(gg, 'year_month')]
-    
-    events <- sum(data_agg$event_geo, na.rm = T)
+  count_events <- function(dataset, panel) {
+    if (panel == "Unbalanced") {
+      data_sample <- data
+      short <- 'Unbal'
+    } else if (panel == "Full Balanced") {
+      data_sample <- data[fullbal_sample == 1]
+      short <- 'Full'
+    } else if (panel == "Baseline") {
+      data_sample <- data[baseline_sample == 1]
+      short <- 'Base'
+    }
+    events <- sum(data_sample$event_mw, na.rm = T)
     
     text <- paste0(
-      "\\newcommand{\\",
-      gg,
-      "MWeventsUnbal}{\\textnormal{",
+      "\\newcommand{\\ZIPMWevents",
+      short,
+      "}{\\textnormal{",
       events,
-      "}} \n% ",
-      gg,
-      ' MW changes in the Unbalanced sample'
+      "}} % ZIP code MW changes in the ",
+      panel,
+      " sample"
     )
     
     write.table(
@@ -82,111 +68,47 @@ main <- function() {
       col.names = F,
       append = T
     )
-  }
-  
-  # Baseline sample
-  
-  data_sample <- data[baseline_sample == 1]
-  
-  events <- sum(data_sample$event_mw, na.rm = T)
-  
-  text <- paste0(
-    "\\newcommand{\\ZIPMWeventsBase}{\\textnormal{",
-    events,
-    "}} \n% ZIP code MW changes in the Baseline sample"
-  )
-  
-  write.table(
-    text,
-    out_file,
-    quote = F,
-    row.names = F,
-    col.names = F,
-    append = T
-  )
-  
-  for (i in 1:3) {
-    gg <- geographies[i]
     
-    data_agg <-
-      data_sample[binding_mw_max == i + 1,
-                  .(event_geo = max(event_mw)),
-                  by = c(gg, 'year_month')]
-    
-    events <- sum(data_agg$event_geo, na.rm = T)
-    
-    text <-
-      paste0(
-        "\\newcommand{\\",
-        gg,
-        "MWeventsBase}{\\textnormal{",
-        events,
-        "}} \n% ",
-        gg,
-        ' MW changes in the Baseline sample'
+    for (i in 1:3) {
+      gg <- geographies[i]
+      
+      data_agg <-
+        data_sample[binding_mw_max == i + 1,
+                    .(event_geo = max(event_mw)),
+                    by = c(gg, 'year_month')]
+      
+      events <- sum(data_agg$event_geo, na.rm = T)
+      
+      text <-
+        paste0(
+          "\\newcommand{\\",
+          gg,
+          "MWevents",
+          short,
+          "}{\\textnormal{",
+          events,
+          "}} % ",
+          gg,
+          ' MW changes in the ',
+          panel,
+          ' sample'
+        )
+      
+      write.table(
+        text,
+        out_file,
+        quote = F,
+        row.names = F,
+        col.names = F,
+        append = T
       )
-    
-    write.table(
-      text,
-      out_file,
-      quote = F,
-      row.names = F,
-      col.names = F,
-      append = T
-    )
+    }
   }
   
-  # Full balanced sample
-  
-  data_sample <- data[fullbal_sample == 1]
-  
-  events <- sum(data_sample$event_mw, na.rm = T)
-  
-  text <- paste0(
-    "\\newcommand{\\ZIPMWeventsFull}{\\textnormal{",
-    events,
-    "}} \n% ZIP code MW changes in the Full Balanced sample"
-  )
-  
-  write.table(
-    text,
-    out_file,
-    quote = F,
-    row.names = F,
-    col.names = F,
-    append = T
-  )
-  
-  for (i in 1:3) {
-    gg <- geographies[i]
-    
-    data_agg <-
-      data_sample[binding_mw_max == i + 1,
-                  .(event_geo = max(event_mw)),
-                  by = c(gg, 'year_month')]
-    
-    events <- sum(data_agg$event_geo, na.rm = T)
-    
-    text <-
-      paste0(
-        "\\newcommand{\\",
-        gg,
-        "MWeventsFull}{\\textnormal{",
-        events,
-        "}} \n% ",
-        gg,
-        ' MW changes in the Full Balanced sample'
-      )
-    
-    write.table(
-      text,
-      out_file,
-      quote = F,
-      row.names = F,
-      col.names = F,
-      append = T
-    )
+  for (panels in c('Unbalanced', 'Full Balanced', 'Baseline')) {
+    count_events(data, panels)
   }
+  
   
   # Average percent change among Zillow ZIP codes (line 143 of data_sample.tex)
   
@@ -198,7 +120,7 @@ main <- function() {
   text <- paste0(
     "\\newcommand{\\AvgPctChange}{\\textnormal{",
     round(avchange, 2),
-    "\\%}}\n% Average percent change among Zillow ZIP codes"
+    "\\%}} % Average percent change among Zillow ZIP codes"
   )
   
   write.table(
