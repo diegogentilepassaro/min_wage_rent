@@ -4,9 +4,9 @@ library(data.table)
 
 main <- function() {
   in_sample <- '../../../drive/derived_large/estimation_samples'
+  in_estimates <- '../../../analysis/fd_baseline/output'
+  out_estimates <- '../output/estimates.tex'
   out_file <- '../output/events_count.tex'
-  
-  if (file.exists(out_file)) file.remove(out_file)
   
   data <- fread(
     file.path(in_sample, 'zipcode_months.csv'),
@@ -26,21 +26,67 @@ main <- function() {
       'fullbal_sample',
       "mw_wkp_tot_17",
       "mw_wkp_age_under29_17",
-      "mw_wkp_earn_under1250_17")
+      "mw_wkp_earn_under1250_17"
+    )
   )
   
   # Correlation matrix
   
-  vars <- c("mw_wkp_tot_17","mw_wkp_age_under29_17","mw_wkp_earn_under1250_17")
+  vars <-
+    c("mw_wkp_tot_17",
+      "mw_wkp_age_under29_17",
+      "mw_wkp_earn_under1250_17")
   
-  cormatrix <- cor(data[,..vars])
+  cormatrix <- cor(data[, ..vars])
   
-  write.table(
-    cormatrix,
-    "../output/cormatrix.txt",
-    quote = F,
-    append = T
+  write.table(cormatrix,
+              "../output/cormatrix.txt",
+              quote = F,
+              append = T)
+  
+  # Introduction estimates
+  
+  estimates <- fread(
+    file.path(in_estimates, 'estimates_static.csv'),
+    select = c("model", "var", "b", "se")
   )
+  
+  estimates <- estimates[model == "static_both"][, model := NULL]
+  
+  vars <- c("workplace",
+            "residence",
+            "both")
+  
+  estimates[, `:=`(b = round(10 * b, 2),
+                   se = round(10 * se, 2),
+                   var = vars)]
+  
+  for (vv in vars) {
+    b <- estimates[var == vv][, b]
+    se <- estimates[var == vv][, se]
+    
+    text_b <- paste0("\\newcommand{\\",
+                     vv,
+                     "Est}{\\textnormal{",
+                     b,
+                     "}}")
+    text_se <- paste0("\\newcommand{\\",
+                      vv,
+                      "Se}{\\textnormal{",
+                      se,
+                      "}}")
+    text <- paste0(text_b, "\n", text_se)
+    
+    write.table(
+      text,
+      out_estimates,
+      quote = F,
+      row.names = F,
+      col.names = F,
+      append = T
+    )
+  }
+  
   
   # MW summary statistics
   
