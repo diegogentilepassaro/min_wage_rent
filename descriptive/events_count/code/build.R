@@ -62,7 +62,7 @@ main <- function() {
                    var = vars)]
   
   for (vv in vars) {
-    b <- estimates[var == vv][, b]
+    b <- abs(estimates[var == vv][, b])
     se <- estimates[var == vv][, se]
     
     text_b <- paste0("\\newcommand{\\",
