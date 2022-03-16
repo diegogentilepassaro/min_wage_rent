@@ -2,7 +2,7 @@
 #****************************************************
 # GET LIBRARY
 #****************************************************
-import subprocess, shutil, os
+import subprocess, shutil, os, time
 from distutils.dir_util import copy_tree
 copy_tree("../../../lib/python/gslab_make", "./gslab_make") # Copy from gslab tools stored locally
 from gslab_make.get_externals import *
@@ -31,6 +31,16 @@ if "StataSE" in envir_vars:
     stata = "StataSE-64"
 
 start_make_logging()
+
+t = time.localtime()
+current_time = time.strftime("%H:%M:%S", t)
+print("Going to sleep at ", current_time)
+
+time.sleep(6600)
+
+t = time.localtime()
+current_time = time.strftime("%H:%M:%S", t)
+print("Waking up at ", current_time)
 
 run_stata(program = 'build.do', executable = stata)
 
