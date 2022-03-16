@@ -59,7 +59,7 @@ program make_yearly_data
         bys zipcode year: egen `var'_avg = mean(`var')
     }
 
-    bysort zipcode year (month): keep if _n == 1
+    bysort zipcode year (month): keep if _n == 7
     drop month
     
     save "../temp/mw_rents_data.dta", replace
@@ -109,14 +109,20 @@ program clean_area_shares
     syntax, instub(str)
 
     use "`instub'/jobs.dta", clear
+    
     preserve
         keep if jobs_by == "residence"
         
-        keep zipcode year share_age_* share_earn_* share_naics_* share_sch_*
+        keep zipcode year jobs_tot jobs_age_under29 jobs_earn_under1250 ///
+            share_age_* share_earn_* share_naics_* share_sch_*
         rename share_age_*   sh_residents_*
         rename share_earn_*  sh_residents_*
         rename share_naics_* sh_residents_*
         rename share_sch_*   sh_residents_*
+        
+        rename jobs_tot      res_jobs_tot 
+        rename jobs_age_under29 res_jobs_age_under29 
+        rename jobs_earn_under1250 res_jobs_earn_under1250
         
         save "../temp/residence_shares.dta", replace
     restore
@@ -124,11 +130,16 @@ program clean_area_shares
     preserve
         keep if jobs_by == "workplace"
         
-        keep zipcode year share_age_* share_earn_* share_naics_* share_sch_*
+        keep zipcode year jobs_tot jobs_age_under29 jobs_earn_under1250 ///
+            share_age_* share_earn_* share_naics_* share_sch_*
         rename share_age_*   sh_workers_*
         rename share_earn_*  sh_workers_*
         rename share_naics_* sh_workers_*
         rename share_sch_*   sh_workers_*
+        
+        rename jobs_tot      wkp_jobs_tot 
+        rename jobs_age_under29 wkp_jobs_age_under29 
+        rename jobs_earn_under1250 wkp_jobs_earn_under1250
         
         save "../temp/workplace_shares.dta", replace
     restore
@@ -137,16 +148,17 @@ end
 program clean_qcew
     syntax, instub(str)
     
-    use countyfips year estcount* avgwwage* emp*            ///
+    use countyfips year month estcount* avgwwage* emp*            ///
        using `instub'/ind_emp_wage_countymonth.dta, clear
 
     foreach var of varlist estcount* avgwwage* emp* {
         gen ln_`var' = log(`var')
         drop `var'
+        bys countyfips year: egen ln_`var'_avg = mean(ln_`var')
     }
 
-    collapse (mean) ln_*, by(countyfips year)
-    rename ln_* ln_*_avg
+	bysort countyfips year (month): keep if _n == 7
+    drop month
 
     save "../temp/qcew_data.dta", replace
 end
