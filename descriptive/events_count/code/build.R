@@ -23,9 +23,26 @@ main <- function() {
       'binding_mw_max',
       'year_month',
       'baseline_sample',
-      'fullbal_sample'
-    )
+      'fullbal_sample',
+      "mw_wkp_tot_17",
+      "mw_wkp_age_under29_17",
+      "mw_wkp_earn_under1250_17")
   )
+  
+  # Correlation matrix
+  
+  vars <- c("mw_wkp_tot_17","mw_wkp_age_under29_17","mw_wkp_earn_under1250_17")
+  
+  cormatrix <- cor(data[,..vars])
+  
+  write.table(
+    cormatrix,
+    "../output/cormatrix.txt",
+    quote = F,
+    append = T
+  )
+  
+  # MW summary statistics
   
   geographies <-
     c("state", "county", "local")
@@ -102,13 +119,53 @@ main <- function() {
         col.names = F,
         append = T
       )
+      
     }
+  }
+  
+  count_local <- function(dataset, panel) {
+    if (panel == "Unbalanced") {
+      data_sample <- data
+      short <- 'Unbal'
+    } else if (panel == "Full Balanced") {
+      data_sample <- data[fullbal_sample == 1]
+      short <- 'Full'
+    } else if (panel == "Baseline") {
+      data_sample <- data[baseline_sample == 1]
+      short <- 'Base'
+    }
+    data_agg <-
+      data_sample[binding_mw_max %in% c(3, 4),
+                  .(event_local = max(event_mw)),
+                  by = c("county", 'year_month')]
+    
+    events <- sum(data_agg$event_local, na.rm = T)
+    
+    text <-
+      paste0(
+        "\\newcommand{\\CityCountyMWevents",
+        short,
+        "}{\\textnormal{",
+        events,
+        "}} % City + County MW changes in the ",
+        panel,
+        ' sample'
+      )
+    
+    write.table(
+      text,
+      out_file,
+      quote = F,
+      row.names = F,
+      col.names = F,
+      append = T
+    )
   }
   
   for (panels in c('Unbalanced', 'Full Balanced', 'Baseline')) {
     count_events(data, panels)
+    count_local(data, panels)
   }
-  
   
   # Average percent change among Zillow ZIP codes (line 143 of data_sample.tex)
   
