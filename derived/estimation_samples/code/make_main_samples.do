@@ -14,21 +14,22 @@ program main
     local end_year_month    "2019m12"
     local target_year_month "2015m1"
     local target_vars       "sh_white_cens2010 sh_black_cens2010 sh_hhlds_renteroccup_cens2010 med_hhld_inc_acs2011" // n_workers_acs2011 
-        
+    
+    * Zipcode-months
     create_unbalanced_panel, instub(`in_zip_mth')                     ///
         geo(zipcode) rent_var(`rent_var')                             ///
         start_ym(`start_year_month') end_ym(`end_year_month')
 
-    gen_vars, rent_var(`rent_var')
+    gen_vars, rent_var(`rent_var') geo(zipcode)
     preserve 
-		collapse (min) ym_entry_to_zillow = year_month ///
-		    if !missing(`rent_var'), by(zipcode)
-		gen yr_entry_to_zillow = year(dofm(ym_entry_to_zillow))
-		drop ym_entry_to_zillow
-		save "../temp/ym_entry_to_zillow.dta", replace
-	restore
-	merge m:1 zipcode using "../temp/ym_entry_to_zillow.dta", ///
-		nogen keep(1 3) assert(1 3)
+        collapse (min) ym_entry_to_zillow = year_month ///
+            if !missing(`rent_var'), by(zipcode)
+        gen yr_entry_to_zillow = year(dofm(ym_entry_to_zillow))
+        drop ym_entry_to_zillow
+        save "../temp/ym_entry_to_zillow.dta", replace
+    restore
+    merge m:1 zipcode using "../temp/ym_entry_to_zillow.dta", ///
+        nogen keep(1 3) assert(1 3)
     flag_samples, instub(`in_zip_mth') geo(zipcode) geo_name(zipcode) ///
         rent_var(`rent_var') target_ym(`target_year_month')
 
@@ -40,11 +41,12 @@ program main
         replace log(`logfile')
     export delimited "`outstub'/zipcode_months.csv", replace
     
+    * County-months
     create_unbalanced_panel, instub(`in_cty_mth')                     ///
         geo(county) rent_var(`rent_var')                             ///
         start_ym(`start_year_month') end_ym(`end_year_month')
 
-    gen_vars, rent_var(`rent_var')
+    gen_vars, rent_var(`rent_var') geo(county)
 
     flag_samples, instub(`in_cty_mth') geo(county) geo_name(countyfips) ///
         rent_var(`rent_var') target_ym(`target_year_month')
@@ -70,12 +72,15 @@ program create_unbalanced_panel
 end
 
 program gen_vars
-    syntax, rent_var(str)
+    syntax, rent_var(str) geo(str)
 
     gen ln_rents = log(`rent_var')
-    foreach stub in 1BR 2BR 3BR 4BR 5BR CC MFdxtx Mfr5Plus SF Studio {
-        gen ln_rents_`stub' = log(medrentpricepsqft_`stub')
-        drop medrentpricepsqft_`stub'
+
+    if "`geo'" == "zipcode"{
+        foreach stub in 1BR 2BR 3BR 4BR 5BR CC MFdxtx Mfr5Plus SF Studio {
+            gen ln_rents_`stub' = log(medrentpricepsqft_`stub')
+            drop medrentpricepsqft_`stub'
+        }
     }
     
     foreach ctrl_type in emp estcount avgwwage {
