@@ -41,7 +41,7 @@ end
 
 program make_yearly_data
 
-    gen ln_rents        = log(medrentprice_SFCC)
+    gen ln_rents        = log(medrentpricepsqft_SFCC)
     gen ln_price        = log(medlistingpricepsqft_SFCC)
     gen ln_sale_counts  = log(Sale_Counts)
     gen ln_monthly_listings = log(Monthlylistings_NSA_SFCC)
