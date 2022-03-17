@@ -57,6 +57,10 @@ tablefill(input    = os.path.join(fd_robust_dir, "robustness.txt"),
           template = "input/robustness.tex",
           output   = "output/robustness.tex")
 
+tablefill(input    = os.path.join(fd_robust_dir, "alt_zillow_categories.txt"),
+          template = "input/alt_zillow_categories.tex",
+          output   = "output/alt_zillow_categories.tex")
+
 tablefill(input    = os.path.join(fd_robust_dir, "static_sample.txt"),
           template = "input/static_sample.tex",
           output   = "output/static_sample.tex")

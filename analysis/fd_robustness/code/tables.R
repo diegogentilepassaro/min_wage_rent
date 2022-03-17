@@ -6,18 +6,31 @@ main <- function() {
   outstub <- "../output/"
   
   est <- fread(file.path(instub, "estimates_static.csv"))
-  
+
+  # Robustness Table
   names <- c("baseline", 
              "nocontrols", "countytime_fe", "cbsatime_fe", "statefipstime_fe", "ziptrend",
              paste0("mw_wkp_", c("tot_14", "tot_18", "tot_timevary", "earn_under1250_17", "age_under29_17")))
 
-  # Robustness Table
   txt <- c("<tab:robustness>")
   for (name in names) {
     txt <- c(txt, make_row_robustness(est, name))
   }
   
   fileConn <- file(file.path(outstub, "robustness.txt"))
+  writeLines(txt, fileConn)
+  close(fileConn)
+
+  # Alternative Zillow categories Table
+  names <- c("baseline", 
+             "SF", "CC", "Studio", "1BR", "2BR", "3BR", "Mfr5Plus")
+  
+  txt <- c("<tab:alt_zillow_categories>")
+  for (name in names) {
+    txt <- c(txt, make_row_robustness(est, name))
+  }
+  
+  fileConn <- file(file.path(outstub, "alt_zillow_categories.txt"))
   writeLines(txt, fileConn)
   close(fileConn)
   
