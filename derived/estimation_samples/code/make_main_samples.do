@@ -73,6 +73,10 @@ program gen_vars
     syntax, rent_var(str)
 
     gen ln_rents = log(`rent_var')
+    foreach stub in 1BR 2BR 3BR 4BR 5BR CC MFdxtx Mfr5Plus SF Studio {
+        gen ln_rents_`stub' = log(medrentpricepsqft_`stub')
+        drop medrentpricepsqft_`stub'
+    }
     
     foreach ctrl_type in emp estcount avgwwage {
         gen ln_`ctrl_type'_bizserv = log(`ctrl_type'_bizserv)
@@ -143,10 +147,7 @@ program drop_vars
         medlistingprice_top_tier medpctpricereduction_SFCC ///
         medrentprice_1BR medrentprice_4BR medrentprice_5BR ///
         medrentprice_CC medrentprice_MFdxtx medrentprice_Mfr5Plus ///
-        medrentprice_SF medrentprice_Studio medrentpricepsqft_1BR ///
-        medrentpricepsqft_4BR medrentpricepsqft_5BR medrentpricepsqft_CC ///
-        medrentpricepsqft_MFdxtx medrentpricepsqft_Mfr5Plus ///
-        medrentpricepsqft_SF medrentpricepsqft_Studio ///
+        medrentprice_SF medrentprice_Studio ///
         pctlistings_pricedown_SFCC SalesPrevForeclosed_Share ///
         zhvi_2BR zhvi_SFCC zhvi_C zhvi_SF zri_SFCCMF zri_MF {
         cap drop `var'
