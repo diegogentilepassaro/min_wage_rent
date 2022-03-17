@@ -16,7 +16,7 @@ program main
 	local avg_controls "`avg_controls' ln_emp_manu_avg ln_emp_natres_avg"
 	local avg_controls "`avg_controls' ln_emp_stgov_avg ln_emp_transp_avg"
     local cluster = "statefips"
-    local absorb  = "year##cbsa_num"
+    local absorb  = "year"
 
     local mw_wkp_var "mw_wkp_tot_17"
 	
