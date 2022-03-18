@@ -21,22 +21,22 @@ program main
     estimate_dist_lag_model if !missing(D.ln_rents), depvar(`mw_wkp_var') ///
         dyn_var(mw_res) w(0) stat_var(mw_res) ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(mw_wkp_on_res_mw) save_res_zip_month(Yes) outfolder("../temp") 
+        model_name(mw_wkp_on_res_mw) 
 
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(mw_res) w(0) stat_var(mw_res) ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(static_mw_res) outfolder("../temp")
+        model_name(static_mw_res)
 
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(`mw_wkp_var') w(0) stat_var(`mw_wkp_var') ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(static_mw_wkp) outfolder("../temp")
+        model_name(static_mw_wkp)
 
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(`mw_wkp_var') w(0) stat_var(mw_res) ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(static_both) test_equality save_res_zip_month(Yes) outfolder("../temp")
+        model_name(static_both) test_equality
 
     use "../temp/estimates_mw_wkp_on_res_mw.dta", clear
     gen p_equality = .
@@ -45,10 +45,24 @@ program main
     }
     save             "`outstub'/estimates_static.dta", replace
     export delimited "`outstub'/estimates_static.csv", replace
-	
-	use "../temp/resid_mw_wkp_on_res_mw.dta", clear
-	merge 1:1 zipcode year month using "../temp/resid_static_both.dta", nogen
-    export delimited "`outstub'/estimates_residuals.csv", replace	
+
+    ** RESIDUALS UNBALANCED
+    use "`instub'/zipcode_months.dta", clear
+    xtset zipcode_num `absorb'
+
+    estimate_dist_lag_model if !missing(D.ln_rents), depvar(`mw_wkp_var') ///
+        dyn_var(mw_res) w(0) stat_var(mw_res) ///
+        controls(`controls') absorb(`absorb') cluster(`cluster') ///
+        model_name(unbal_mw_wkp_on_res_mw) save_res_zip_month(Yes) 
+
+    estimate_dist_lag_model, depvar(ln_rents) ///
+        dyn_var(`mw_wkp_var') w(0) stat_var(mw_res) ///
+        controls(`controls') absorb(`absorb') cluster(`cluster') ///
+        model_name(unbal_static_both) save_res_zip_month(Yes)
+
+    use "../temp/resid_unbal_mw_wkp_on_res_mw.dta", clear
+    merge 1:1 zipcode year month using "../temp/resid_unbal_static_both.dta", nogen
+    export delimited "`outstub'/estimates_unbal_residuals.csv", replace    
 
     ** DYNAMIC
     use "`instub'/zipcode_months.dta" if baseline_sample, clear
@@ -57,27 +71,27 @@ program main
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(`mw_wkp_var') w(6) stat_var(mw_res) ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(both_mw_wkp_dynamic) outfolder("../temp")
+        model_name(both_mw_wkp_dynamic)
         
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(mw_res) w(6) stat_var(`mw_wkp_var') ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(both_mw_res_dynamic) outfolder("../temp")
+        model_name(both_mw_res_dynamic)
         
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(`mw_wkp_var') w(6) stat_var(`mw_wkp_var') ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(mw_wkp_only_dynamic) outfolder("../temp")
+        model_name(mw_wkp_only_dynamic) 
         
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(mw_res) w(6) stat_var(mw_res) ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(mw_res_only_dynamic) outfolder("../temp")
+        model_name(mw_res_only_dynamic)
         
     estimate_dist_lag_model_two_dyn, depvar(ln_rents) ///
         dyn_var1(`mw_wkp_var') w(6) dyn_var2(mw_res) ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(both_dynamic) outfolder("../temp")
+        model_name(both_dynamic)
         
     use "../temp/estimates_both_mw_wkp_dynamic.dta", clear
     foreach ff in both_mw_res_dynamic mw_wkp_only_dynamic ///

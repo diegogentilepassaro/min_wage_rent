@@ -9,25 +9,28 @@ library(leaflet)
 library(ggplot2)
 
 main <- function(){
-  in_map  <- "../../../drive/raw_data/shapefiles/USPS_zipcodes"
-  in_data <- "../../../drive/derived_large/zipcode_month"
+  in_map   <- "../../../drive/raw_data/shapefiles/USPS_zipcodes"
+  in_resid <- "../../fd_baseline/output"
+  in_data  <- "../../../drive/derived_large/zipcode_month"
   
-  df_all <- prepare_data(in_map, in_data)
+  data_for_map <- prepare_data(in_map, in_data, in_resid)
   
-  events <- list(list("chicago",   16980, 2019, 6, 2019, 12),
-                 list("san_diego", 41740, 2018, 12, 2019, 6),
-                 list("seattle",   42660, 2018, 12, 2019, 6),
-                 list("nyc",       35620, 2018, 12, 2019, 6),
-                 list("kc",        28140, 2018, 12, 2019, 6),
-                 list("bay_area",  41860, 2018, 12, 2019, 6))
+  events <- list(list("chicago",   16980, 2019, 6,  2019, 7),
+                 list("san_diego", 41740, 2018, 12, 2019, 1),
+                 #list("seattle",   42660, 2018, 12, 2019, 1),
+                 list("nyc",       35620, 2018, 12, 2019, 1),
+                 list("kc",        28140, 2018, 12, 2019, 1),
+                 list("bay_area",  41860, 2018, 12, 2019, 1))
                  # Name cbsa, Code cbsa, start date, end date
   
   lapply(events,
     function(event) {
-      df <- restrict_and_build_changes(df_all, event[[2]],
+      df <- restrict_and_build_changes(data_for_map, event[[2]],
                                        event[[3]], event[[4]], event[[5]], event[[6]]) 
-      max_break_mw    <- round(max(df$change_ln_statutory_mw, na.rm = TRUE), digits = 2)
-      max_break_rents <- round(max(df$change_ln_rents, na.rm = TRUE), digits = 2)
+      max_break_mw      <- round(max(df$change_ln_statutory_mw, na.rm = TRUE), digits = 2)
+      max_break_rents   <- round(max(df$change_ln_rents, na.rm = TRUE), digits = 2)
+      max_break_r_rents <- round(max(df$change_resid_ln_rents, na.rm = TRUE), digits = 2)
+      max_break_r_wkp   <- round(max(df$change_resid_wkp_on_res, na.rm = TRUE), digits = 2)
       
       build_map(df, "change_ln_statutory_mw", "Change in\nresidence MW", 
                 c(0, max_break_mw/2, max_break_mw), 
@@ -38,11 +41,17 @@ main <- function(){
       build_map(df, "change_ln_rents", "Change in\nlog(rents)",
                 c(0, max_break_rents/2, max_break_rents),
                 paste0(event[[1]], event[[3]], "-", event[[4]], "_rents"))
+      build_map(df, "change_resid_ln_rents", "Change in residuals\nlog(rents)",
+                c(0, max_break_r_rents/2, max_break_r_rents),
+                paste0(event[[1]], event[[3]], "-", event[[4]], "_r_rents"))
+      build_map(df, "change_resid_wkp_on_res", "Change in residuals\nworkplace MW ",
+                c(0, max_break_r_wkp/2, max_break_r_wkp),
+                paste0(event[[1]], event[[3]], "-", event[[4]], "_r_wkp"))
     }
   ) -> l
 }
 
-prepare_data <- function(in_map, in_data) {
+prepare_data <- function(in_map, in_data, in_resid) {
   
   USPS_zipcodes <- read_sf(dsn = in_map, 
                            layer = "USPS_zipcodes_July2020") %>%
@@ -58,7 +67,10 @@ prepare_data <- function(in_map, in_data) {
            mw_wkp_tot_17, medrentpricepsqft_SFCC) %>%
     mutate(ln_statutory_mw = log(statutory_mw),
            ln_rent_var  = log(medrentpricepsqft_SFCC))
-  
+  resid_data <- data.table::fread(file.path(in_resid, "estimates_unbal_residuals.csv"),
+                                  colClasses = c(zipcode ="character"))
+  mw_rent_data <- left_join(mw_rent_data, resid_data, by = c("zipcode", "year", "month"))
+
   data_for_map <- left_join(USPS_zipcodes, mw_rent_data, by = "zipcode")
   
   return(data_for_map)
@@ -71,10 +83,12 @@ restrict_and_build_changes <- function(data, cbsa_code, year_lb, month_lb,
     filter(  (year == year_lb & month == month_lb) 
            | (year == year_ub & month == month_ub)) %>%
     group_by(zipcode) %>%
-    summarise(change_statutory_mw    = last(statutory_mw)   - first(statutory_mw), 
-              change_ln_statutory_mw = last(ln_statutory_mw) - first(ln_statutory_mw),
-              change_wkp_ln_mw    = last(mw_wkp_tot_17)   - first(mw_wkp_tot_17),
-              change_ln_rents     = last(ln_rent_var) - first(ln_rent_var)) %>%
+    summarise(change_statutory_mw      = last(statutory_mw)   - first(statutory_mw), 
+              change_ln_statutory_mw   = last(ln_statutory_mw) - first(ln_statutory_mw),
+              change_wkp_ln_mw         = last(mw_wkp_tot_17)   - first(mw_wkp_tot_17),
+              change_ln_rents          = last(ln_rent_var) - first(ln_rent_var),
+              change_resid_ln_rents    = last(r_unbal_static_both),
+              change_resid_wkp_on_res  = last(r_unbal_mw_wkp_on_res_mw)) %>%
     ungroup()
 }
 
