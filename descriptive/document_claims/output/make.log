@@ -1,83 +1,248 @@
 
- make.py started: 2022-03-17 23:17:39 C:\Users\Usuario\Documents\GitHub\min_wage_rent\descriptive\document_claims\code 
+ make.py started: 2022-03-18 11:01:56 C:\Users\shermo\Documents\GitHub\min_wage_rent\descriptive\document_claims\code 
 
 
 
 
-Execute:  R CMD BATCH --no-save "./build.R" build.Rout
+Execute:  R CMD BATCH --no-save "./autofill_estimates.R" autofill_estimates.Rout
 
-R version 4.1.2 (2021-11-01) -- "Bird Hippie"
+R version 4.1.1 (2021-08-10) -- "Kick Things"
 Copyright (C) 2021 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64 (64-bit)
 
-R es un software libre y viene sin GARANTIA ALGUNA.
-Usted puede redistribuirlo bajo ciertas circunstancias.
-Escriba 'license()' o 'licence()' para detalles de distribucion.
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
 
-R es un proyecto colaborativo con muchos contribuyentes.
-Escriba 'contributors()' para obtener más información y
-'citation()' para saber cómo citar R o paquetes de R en publicaciones.
+  Natural language support but running in an English locale
 
-Escriba 'demo()' para demostraciones, 'help()' para el sistema on-line de ayuda,
-o 'help.start()' para abrir el sistema de ayuda HTML con su navegador.
-Escriba 'q()' para salir de R.
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
 
 > remove(list = ls())
-> 
 > library(data.table)
 > library(stringr)
 > 
 > source('../../../lib/R/write_command.R')
-> source('autofill_estimates.R')
-> source('event_counts.R')
 > 
 > main <- function() {
-+   in_sample <- '../../../drive/derived_large/estimation_samples'
++   in_sample    <- '../../../drive/derived_large/estimation_samples'
 +   in_estimates <- '../../../analysis/fd_baseline/output'
-+   out_estimates <- '../output/estimates.tex'
-+   out_events <- '../output/events_count.tex'
-+   out_corrmatrix <- '../output/corrmatrix.txt'
++   outstub      <- '../output'
 +   
-+   varchar <- c('zipcode', 'countyfips', 'statefips', 'place_code','year_month')
-+   
++   varchar <- c("zipcode", "countyfips", "statefips", "place_code", "year_month")
 +   varnum <-  c("statutory_mw", "binding_mw", "binding_mw_max", 
-+               "mw_res", "mw_wkp_tot_17", "mw_wkp_age_under29_17", 
-+               "mw_wkp_earn_under1250_17","baseline_sample", "fullbal_sample")
++                "mw_res", "mw_wkp_tot_17", "mw_wkp_age_under29_17", 
++                "mw_wkp_earn_under1250_17","baseline_sample", "fullbal_sample")
++ 
++   dt <- fread(file.path(in_sample, 'zipcode_months.csv'),
++                 colClasses = list(character = varchar,
++                                   numeric   = varnum))
 +   
-+   data <- fread(file.path(in_sample, 'zipcode_months.csv'),
-+     colClasses = list(
-+       character = varchar,
-+       numeric = varnum
-+       ),
-+     select = c(varchar,varnum)
-+     )
-+   
-+   # Correlation matrix
-+   
-+   vars <- c("mw_wkp_tot_17", "mw_wkp_age_under29_17", "mw_wkp_earn_under1250_17")
-+   
-+   corrmatrix <- cor(data[, ..vars])
-+   
-+   stargazer::stargazer(corrmatrix,
-+                        summary = F,
-+                        type="text",
-+                        out=out_corrmatrix, 
-+                        digits = 4)
-+   
-+   # Introduction estimates
++   estimates <- fread(
++     file.path(in_estimates, 'estimates_static.csv'),
++     select = c("model", "var", "b", "se"))
 +   
 +   mw_pc_change <- 10
 +   
-+   output_estimates <- intro_estimates(in_estimates,mw_pc_change)
++   out_estimates <- generate_autofill(estimates, mw_pc_change)
++   out_estimates <- paste0(out_estimates, 
++                           write_command("ReferencePcChangeMW", mw_pc_change))
 +   
-+   write.table(output_estimates, out_estimates, quote = F, row.names = F, col.names = F)
++   write.table(out_estimates, 
++               file.path(outstub, "estimates.tex"),
++               quote = F, row.names = F, col.names = F)
++ }
+> 
+> generate_autofill <- function(estimates, mw_pc_change = 10) {
 +   
-+   # MW summary statistics
++   estimates <- estimates[model == "static_both"][, model := NULL]
 +   
-+   output_summary <- mw_summary(data)
++   vars <- c("BetaBase", "GammaBase", "BetaPlusGammaBase")
 +   
-+   write.table(output_summary, out_events, quote = F, row.names = F, col.names = F)
++   estimates[, var := vars]
 +   
++   out_estimates <- ""
++     
++   for (vv in vars) {
++     b     <- mw_pc_change*estimates[var == vv][["b"]]
++     b_abs <- sprintf("%.2f", abs(b))
++     b     <- sprintf("%.2f", b)
++ 
++     se    <- sprintf("%.2f", mw_pc_change*estimates[var == vv][["se"]])
++     
++     text_b  <- write_command(vv, b)
++     if (vv == "GammaBase") text_b <- paste0(text_b, write_command(paste0(vv, "Abs"), b_abs))
++ 
++     text_se <- write_command(paste0(vv, "SE"), se)
++     text    <- paste0(text_b, text_se)
++     
++     out_estimates <- paste0(out_estimates, text)    
++   }
++   
++   return(out_estimates)
++ }
+> 
+> # Execute
+> main()
+> 
+> proc.time()
+   user  system elapsed 
+   4.54    1.39    2.46 
+
+
+Execute:  R CMD BATCH --no-save "./event_counts.R" event_counts.Rout
+
+R version 4.1.1 (2021-08-10) -- "Kick Things"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list = ls())
+> library(data.table)
+> library(stringr)
+> 
+> source('../../../lib/R/write_command.R')
+> 
+> main <- function() {
++   in_sample     <- '../../../drive/derived_large/estimation_samples'
++   in_estimates  <- '../../../analysis/fd_baseline/output'
++   outstub       <- '../output'
++   out_estimates <- '../output/estimates.tex'
++   out_events    <- '../output/events_count.tex'
++   
++   varchar <- c("zipcode", "countyfips", "statefips", "place_code", "year_month")
++   varnum <-  c("statutory_mw", "binding_mw", "binding_mw_max", 
++                "mw_res", "mw_wkp_tot_17", "mw_wkp_age_under29_17", 
++                "mw_wkp_earn_under1250_17","baseline_sample", "fullbal_sample")
++ 
++   dt <- fread(file.path(in_sample, 'zipcode_months.csv'),
++                 colClasses = list(character = varchar,
++                                   numeric   = varnum))
++   
++   # Correlation matrix  
++   vars <- c("mw_wkp_tot_17", "mw_wkp_age_under29_17", "mw_wkp_earn_under1250_17")  
++   corrmatrix <- cor(dt[, ..vars])
++   
++   stargazer::stargazer(corrmatrix, summary = F, digits = 4,
++                        type = "text",
++                        out  = file.path(outstub, "corrmatrix.txt"))
++   
++   
++   # MW summary statistics  
++   geographies <- c("state", "county", "local")
++   
++   old_names <- c("statefips", "countyfips", "place_code")
++   
++   setnames(dt, old_names, geographies)
++   
++   dt[, event_mw := fifelse(statutory_mw > shift(statutory_mw), 1, 0),
++        by = "zipcode"]
++   
++   output_summary <- ""
++   
++   for (panels in c("Unbalanced", "Fully Balanced", "Baseline")) {
++     output_summary <- paste0(output_summary, count_events(dt, panels, geographies))
++     output_summary <- paste0(output_summary, count_local(dt, panels))
++   }
++   
++   # Average percent change among Zillow ZIP codes (line 143 of data_sample.tex)  
++   dt[, mean_mw := fifelse(event_mw == 1, statutory_mw / shift(statutory_mw), 0)]  
++   avchange <- (mean(dt[mean_mw > 0, mean_mw], na.rm = T) - 1) * 100
++   
++   text <- write_command("AvgPctChange", round(avchange, 2))
++   
++   output_summary <- paste0(output_summary, text)
++   
++   write.table(output_summary, 
++               file.path(outstub, "events_count.tex"),
++               quote = F, row.names = F, col.names = F)
++ }
+> 
+> 
+> count_events <- function(data, panel, geographies) {
++   
++   sample_data <- filter_data(data, panel)
++   short_name  <- sample_data$short_name
++   dt_sample   <- sample_data$dt_sample
++ 
++   events <- sum(dt_sample$event_mw, na.rm = T)
++   
++   text <- write_command(paste0("ZIPMWevents", short_name), events)
++   
++   output_events <- text
++   
++   for (i in 1:3) {
++     gg <- geographies[i]
++     
++     data_agg <- dt_sample[binding_mw_max == i + 1,
++                           .(event_geo = max(event_mw)),
++                           by = c(gg, "year_month")]
++     
++     events <- sum(data_agg$event_geo, na.rm = T)
++     
++     name <- paste0(toupper_first_letter(gg), "MWevents", short_name)
++     
++     text <- write_command(name,events)
++     
++     output_events <- paste0(output_events, text)    
++   }
++ 
++   return(output_events)
++ }
+> 
+> 
+> count_local <- function(data, panel) {
++ 
++   sample_data <- filter_data(data, panel)
++   short_name  <- sample_data$short_name
++   dt_sample   <- sample_data$dt_sample
++ 
++   data_agg <- dt_sample[binding_mw_max %in% c(3, 4),
++                         .(event_local = max(event_mw)),
++                         by = c("county", "year_month")]
++   
++   events <- sum(data_agg$event_local, na.rm = T)
++     
++   return(write_command(paste0("CityCountyMWevents", short_name), events))
++ }
+> 
+> filter_data <- function(data, panel) {
++ 
++   if (panel == "Unbalanced") {
++     dt_sample  <- data
++     short_name <- "Unbal"
++   } else if (panel == "Fully Balanced") {
++     dt_sample  <- data[fullbal_sample == 1]
++     short_name <- "Fullbal"
++   } else if (panel == "Baseline") {
++     dt_sample  <- data[baseline_sample == 1]
++     short_name <- "Base"
++   }
++ 
++   return(list("dt_sample" = dt_sample, "short_name" = short_name))
++ }
+> 
+> toupper_first_letter <- function(text) {
++   return(paste0(toupper(substr(text, 1, 1)), substr(text, 2, nchar(text))))
 + }
 > 
 > # Execute
@@ -86,13 +251,13 @@ Escriba 'q()' para salir de R.
 =====================================================================================
                          mw_wkp_tot_17 mw_wkp_age_under29_17 mw_wkp_earn_under1250_17
 -------------------------------------------------------------------------------------
-mw_wkp_tot_17                  1              0.9971                  0.9912         
-mw_wkp_age_under29_17       0.9971               1                    0.9946         
-mw_wkp_earn_under1250_17    0.9912            0.9946                    1            
+mw_wkp_tot_17                  1              0.9996                  0.9988         
+mw_wkp_age_under29_17       0.9996               1                    0.9995         
+mw_wkp_earn_under1250_17    0.9988            0.9995                    1            
 -------------------------------------------------------------------------------------
 > 
 > proc.time()
    user  system elapsed 
-   2.34    0.54    3.25 
+   6.17    3.92    4.09 
 
- make.py ended: 2022-03-17 23:17:42
+ make.py ended: 2022-03-18 11:02:05

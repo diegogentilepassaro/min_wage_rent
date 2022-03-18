@@ -1,57 +1,66 @@
-intro_estimates <- function(estimates, mw_pc_change = 10) {
+remove(list = ls())
+library(data.table)
+library(stringr)
+
+source('../../../lib/R/write_command.R')
+
+main <- function() {
+  in_sample    <- '../../../drive/derived_large/estimation_samples'
+  in_estimates <- '../../../analysis/fd_baseline/output'
+  outstub      <- '../output'
+  
+  varchar <- c("zipcode", "countyfips", "statefips", "place_code", "year_month")
+  varnum <-  c("statutory_mw", "binding_mw", "binding_mw_max", 
+               "mw_res", "mw_wkp_tot_17", "mw_wkp_age_under29_17", 
+               "mw_wkp_earn_under1250_17","baseline_sample", "fullbal_sample")
+
+  dt <- fread(file.path(in_sample, 'zipcode_months.csv'),
+                colClasses = list(character = varchar,
+                                  numeric   = varnum))
+  
+  estimates <- fread(
+    file.path(in_estimates, 'estimates_static.csv'),
+    select = c("model", "var", "b", "se"))
+  
+  mw_pc_change <- 10
+  
+  out_estimates <- generate_autofill(estimates, mw_pc_change)
+  out_estimates <- paste0(out_estimates, 
+                          write_command("ReferencePcChangeMW", mw_pc_change))
+  
+  write.table(out_estimates, 
+              file.path(outstub, "estimates.tex"),
+              quote = F, row.names = F, col.names = F)
+}
+
+generate_autofill <- function(estimates, mw_pc_change = 10) {
   
   estimates <- estimates[model == "static_both"][, model := NULL]
   
-  vars <- c("BetaBaseline", "GammaBaseline", "BetaPlusGammaBaseline")
+  vars <- c("BetaBase", "GammaBase", "BetaPlusGammaBase")
   
-  estimates[, `:=`(b = round(mw_pc_change * b, 2),
-                   se = round(mw_pc_change * se, 2),
-                   var = vars)]
+  estimates[, var := vars]
   
-  output_estimates <- ""
+  out_estimates <- ""
     
   for (vv in vars) {
-    b <- str_pad(abs(estimates[var == vv][, b]), 4, "right", pad = 0)
-    se <- str_pad(abs(estimates[var == vv][, se]), 4, "right", pad = 0)
+    b     <- mw_pc_change*estimates[var == vv][["b"]]
+    b_abs <- sprintf("%.2f", abs(b))
+    b     <- sprintf("%.2f", b)
+
+    se    <- sprintf("%.2f", mw_pc_change*estimates[var == vv][["se"]])
     
-    text_b <- write_command(vv,b)
-    text_se <- write_command(paste0(vv,"SE"),se)
-    text <- paste0(text_b, text_se)
+    text_b  <- write_command(vv, b)
+    if (vv == "GammaBase") text_b <- paste0(text_b, write_command(paste0(vv, "Abs"), b_abs))
+
+    text_se <- write_command(paste0(vv, "SE"), se)
+    text    <- paste0(text_b, text_se)
     
-    output_estimates <- paste0(output_estimates,text)
-    
+    out_estimates <- paste0(out_estimates, text)    
   }
   
-  return(output_estimates)
+  return(out_estimates)
 }
 
-
-mw_summary <- function(data) {
-  geographies <- c("state", "county", "local")
-  
-  old_names <- c('statefips', 'countyfips', 'place_code')
-  
-  setnames(data, old_names, geographies)
-  
-  data[, event_mw := fifelse(statutory_mw > shift(statutory_mw), 1, 0),
-       by = 'zipcode']
-  
-  output_summary <- ""
-  
-  for (panels in c('Unbalanced', 'Full Balanced', 'Baseline')) {
-    output_summary <- paste0(output_summary,count_events(data, panels, geographies))
-    output_summary <- paste0(output_summary,count_local(data, panels))
-  }
-  
-  # Average percent change among Zillow ZIP codes (line 143 of data_sample.tex)
-  
-  data[, mean_mw := fifelse(event_mw == 1, statutory_mw / shift(statutory_mw), 0)]
-  
-  avchange <- (mean(data[mean_mw > 0, mean_mw], na.rm = T) - 1) * 100
-  
-  text <- write_command('AvgPctChange',paste0(round(avchange, 2),"\\%"))
-  
-  output_summary <- paste0(output_summary,text)
-  
-  return(output_summary)
-}
+# Execute
+main()

@@ -30,7 +30,8 @@ if "StataSE" in envir_vars:
 
 start_make_logging()
 
-run_rbatch(program = 'build.R')
+run_rbatch(program = 'autofill_estimates.R')
+run_rbatch(program = 'event_counts.R')
 
 end_make_logging()
 
