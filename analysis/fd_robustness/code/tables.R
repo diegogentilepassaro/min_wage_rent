@@ -25,12 +25,12 @@ main <- function() {
   names <- c("baseline", 
              "SF", "CC", "Studio", "1BR", "2BR", "3BR", "Mfr5Plus")
   
-  txt <- c("<tab:alt_zillow_categories>")
+  txt <- c("<tab:zillow_categories>")
   for (name in names) {
     txt <- c(txt, make_row_robustness(est, name))
   }
   
-  fileConn <- file(file.path(outstub, "alt_zillow_categories.txt"))
+  fileConn <- file(file.path(outstub, "zillow_categories.txt"))
   writeLines(txt, fileConn)
   close(fileConn)
   
