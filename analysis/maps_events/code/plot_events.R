@@ -20,18 +20,18 @@ main <- function(){
                  list("nyc",       35620, 2018, 12, 2019, 6),
                  list("kc",        28140, 2018, 12, 2019, 6),
                  list("bay_area",  41860, 2018, 12, 2019, 6))
-                 # Name CBSA10, Code CBSA10, start date, end date
+                 # Name cbsa, Code cbsa, start date, end date
   
   lapply(events,
     function(event) {
       df <- restrict_and_build_changes(df_all, event[[2]],
                                        event[[3]], event[[4]], event[[5]], event[[6]]) 
-      max_break_mw    <- round(max(df$change_ln_actual_mw, na.rm = TRUE), digits = 2)
+      max_break_mw    <- round(max(df$change_ln_statutory_mw, na.rm = TRUE), digits = 2)
       max_break_rents <- round(max(df$change_ln_rents, na.rm = TRUE), digits = 2)
       
-      build_map(df, "change_ln_actual_mw", "Change in\nresidence MW", 
+      build_map(df, "change_ln_statutory_mw", "Change in\nresidence MW", 
                 c(0, max_break_mw/2, max_break_mw), 
-                paste0(event[[1]], "_", event[[3]], "-", event[[4]], "_actual_mw"))
+                paste0(event[[1]], "_", event[[3]], "-", event[[4]], "_statutory_mw"))
       build_map(df, "change_exp_ln_mw", "Change in\nworkplace MW", 
                 c(0, max_break_mw/2, max_break_mw), 
                 paste0(event[[1]], event[[3]], "-", event[[4]], "_exp_mw"))
@@ -51,29 +51,27 @@ prepare_data <- function(in_map, in_data) {
            state_name = STATE, pop2020 = POPULATION, 
            area_sq_miles = SQMI, pop2020_per_sq_miles = POP_SQMI)
   
-  mw_rent_data <- data.table::fread(file.path(in_data, "all_zipcode_months.csv"),
-                                    colClasses = c(zipcode ="character", place_code ="character", 
-                                                   countyfips = "character", cbsa10 = "character",
-                                                   zcta ="character", place_name = "character", 
-                                                   county_name = "character", cbsa10_name = "character",
-                                                   state_abb = "character", statefips = "character")) %>%
-    select(zipcode, cbsa10, year, month, actual_mw, exp_ln_mw_17, medrentpricepsqft_SFCC) %>%
-    mutate(ln_actual_mw = log(actual_mw),
+  mw_rent_data <- data.table::fread(file.path(in_data, "zipcode_months.csv"),
+                                    colClasses = c(zipcode ="character", 
+                                                   cbsa = "character", statefips = "character")) %>%
+    select(zipcode, cbsa, year, month, statutory_mw, 
+           mw_wkp_tot_17, medrentpricepsqft_SFCC) %>%
+    mutate(ln_statutory_mw = log(statutory_mw),
            ln_rent_var  = log(medrentpricepsqft_SFCC))
   
   left_join(USPS_zipcodes, mw_rent_data, by = "zipcode")
 }
 
-restrict_and_build_changes <- function(data, cbsa10_code, year_lb, month_lb, 
+restrict_and_build_changes <- function(data, cbsa_code, year_lb, month_lb, 
                                        year_ub, month_ub){
   data %>%
-    filter(cbsa10 == cbsa10_code) %>%
+    filter(cbsa == cbsa_code) %>%
     filter(  (year == year_lb & month == month_lb) 
            | (year == year_ub & month == month_ub)) %>%
     group_by(zipcode) %>%
-    summarise(change_actual_mw    = last(actual_mw)   - first(actual_mw), 
-              change_ln_actual_mw = last(ln_actual_mw) - first(ln_actual_mw),
-              change_exp_ln_mw    = last(exp_ln_mw_17)   - first(exp_ln_mw_17),
+    summarise(change_statutory_mw    = last(statutory_mw)   - first(statutory_mw), 
+              change_ln_statutory_mw = last(ln_statutory_mw) - first(ln_statutory_mw),
+              change_exp_ln_mw    = last(mw_wkp_tot_17)   - first(mw_wkp_tot_17),
               change_ln_rents     = last(ln_rent_var) - first(ln_rent_var)) %>%
     ungroup()
 }
