@@ -10,7 +10,7 @@ library(ggplot2)
 
 main <- function(){
   in_map  <- "../../../drive/raw_data/shapefiles/USPS_zipcodes"
-  in_data <- "../../../drive/derived_large/estimation_samples"
+  in_data <- "../../../drive/derived_large/zipcode_month"
   
   df_all <- prepare_data(in_map, in_data)
   
@@ -32,9 +32,9 @@ main <- function(){
       build_map(df, "change_ln_statutory_mw", "Change in\nresidence MW", 
                 c(0, max_break_mw/2, max_break_mw), 
                 paste0(event[[1]], "_", event[[3]], "-", event[[4]], "_statutory_mw"))
-      build_map(df, "change_exp_ln_mw", "Change in\nworkplace MW", 
+      build_map(df, "change_wkp_ln_mw", "Change in\nworkplace MW", 
                 c(0, max_break_mw/2, max_break_mw), 
-                paste0(event[[1]], event[[3]], "-", event[[4]], "_exp_mw"))
+                paste0(event[[1]], event[[3]], "-", event[[4]], "_wkp_mw"))
       build_map(df, "change_ln_rents", "Change in\nlog(rents)",
                 c(0, max_break_rents/2, max_break_rents),
                 paste0(event[[1]], event[[3]], "-", event[[4]], "_rents"))
@@ -51,7 +51,7 @@ prepare_data <- function(in_map, in_data) {
            state_name = STATE, pop2020 = POPULATION, 
            area_sq_miles = SQMI, pop2020_per_sq_miles = POP_SQMI)
   
-  mw_rent_data <- data.table::fread(file.path(in_data, "zipcode_months.csv"),
+  mw_rent_data <- data.table::fread(file.path(in_data, "zipcode_month_panel.csv"),
                                     colClasses = c(zipcode ="character", 
                                                    cbsa = "character", statefips = "character")) %>%
     select(zipcode, cbsa, year, month, statutory_mw, 
@@ -59,7 +59,9 @@ prepare_data <- function(in_map, in_data) {
     mutate(ln_statutory_mw = log(statutory_mw),
            ln_rent_var  = log(medrentpricepsqft_SFCC))
   
-  left_join(USPS_zipcodes, mw_rent_data, by = "zipcode")
+  data_for_map <- left_join(USPS_zipcodes, mw_rent_data, by = "zipcode")
+  
+  return(data_for_map)
 }
 
 restrict_and_build_changes <- function(data, cbsa_code, year_lb, month_lb, 
@@ -71,7 +73,7 @@ restrict_and_build_changes <- function(data, cbsa_code, year_lb, month_lb,
     group_by(zipcode) %>%
     summarise(change_statutory_mw    = last(statutory_mw)   - first(statutory_mw), 
               change_ln_statutory_mw = last(ln_statutory_mw) - first(ln_statutory_mw),
-              change_exp_ln_mw    = last(mw_wkp_tot_17)   - first(mw_wkp_tot_17),
+              change_wkp_ln_mw    = last(mw_wkp_tot_17)   - first(mw_wkp_tot_17),
               change_ln_rents     = last(ln_rent_var) - first(ln_rent_var)) %>%
     ungroup()
 }
