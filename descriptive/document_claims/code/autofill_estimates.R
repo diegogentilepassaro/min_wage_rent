@@ -1,9 +1,4 @@
-intro_estimates <- function(in_estimates, mw_pc_change = 10) {
-  
-  estimates <- fread(
-    file.path(in_estimates, 'estimates_static.csv'),
-    select = c("model", "var", "b", "se")
-  )
+intro_estimates <- function(estimates, mw_pc_change = 10) {
   
   estimates <- estimates[model == "static_both"][, model := NULL]
   

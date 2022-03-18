@@ -40,13 +40,6 @@ main <- function() {
                        out=out_corrmatrix, 
                        digits = 4)
   
-  # Introduction estimates
-  
-  mw_pc_change <- 10
-  
-  output_estimates <- intro_estimates(in_estimates,mw_pc_change)
-  
-  write.table(output_estimates, out_estimates, quote = F, row.names = F, col.names = F)
   
   # MW summary statistics
   
@@ -54,6 +47,18 @@ main <- function() {
   
   write.table(output_summary, out_events, quote = F, row.names = F, col.names = F)
   
+  # Introduction estimates
+  
+  estimates <- fread(
+    file.path(in_estimates, 'estimates_static.csv'),
+    select = c("model", "var", "b", "se")
+  )
+  
+  mw_pc_change <- 10
+  
+  output_estimates <- intro_estimates(estimates,mw_pc_change)
+  
+  write.table(output_estimates, out_estimates, quote = F, row.names = F, col.names = F)
 }
 
 # Execute
