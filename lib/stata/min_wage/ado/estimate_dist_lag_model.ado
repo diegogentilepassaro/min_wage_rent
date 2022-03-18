@@ -2,7 +2,7 @@ cap program drop estimate_dist_lag_model
 program estimate_dist_lag_model 
     syntax [if], depvar(str) dyn_var(str) stat_var(str)          ///
         [controls(str)] absorb(str) cluster(str) model_name(str) ///
-        [wgt(str) ab test_equality outfolder(str) w(int 6)]
+        [wgt(str) ab test_equality outfolder(str) w(int 6) save_res_zip_month(str)]
 
     if "`outfolder'"==""{
         local outfolder "../temp"
@@ -22,17 +22,15 @@ program estimate_dist_lag_model
         local contlist "D.(`controls')"
     }
 
-    preserve
-
         if "`ab'"=="" {
             reghdfe D.`depvar' L(-`w'/`w').D.`dyn_var' D.`stat_var' ///
                     `contlist' `wgtsyntax' `if', absorb(`absorb') ///
-                    vce(cluster `cluster') nocons                     
+                    vce(cluster `cluster') nocons resid              
         }
         else {
             ivreghdfe D.`depvar' L(-`w'/`w').D.`dyn_var' D.`stat_var' ///
                     (L.D.`depvar'=L2.D.`depvar') `contlist' `wgtsyntax' `if', absorb(`absorb') ///
-                    cluster(`cluster') nocons
+                    cluster(`cluster') nocons resid
         }
 
         ** Model diagnostics
@@ -54,6 +52,16 @@ program estimate_dist_lag_model
 
         estimate save "../temp/estimates.dta", replace
         
+        if "`save_res_zip_month'" == "Yes" {
+            preserve
+                predict r_`model_name', resid
+
+                keep zipcode year month r_`model_name'
+                save "`outfolder'/resid_`model_name'.dta", replace
+            restore 
+        }
+        
+    preserve
         ** Build basic results
         qui coefplot, vertical base gen
         keep __at __b __se

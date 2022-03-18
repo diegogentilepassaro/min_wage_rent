@@ -21,7 +21,7 @@ program main
     estimate_dist_lag_model if !missing(D.ln_rents), depvar(`mw_wkp_var') ///
         dyn_var(mw_res) w(0) stat_var(mw_res) ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(mw_wkp_on_res_mw) outfolder("../temp")
+        model_name(mw_wkp_on_res_mw) save_res_zip_month(Yes) outfolder("../temp") 
 
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(mw_res) w(0) stat_var(mw_res) ///
@@ -36,15 +36,19 @@ program main
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(`mw_wkp_var') w(0) stat_var(mw_res) ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(static_both) test_equality outfolder("../temp")
+        model_name(static_both) test_equality save_res_zip_month(Yes) outfolder("../temp")
 
-    use ../temp/estimates_mw_wkp_on_res_mw.dta, clear
+    use "../temp/estimates_mw_wkp_on_res_mw.dta", clear
     gen p_equality = .
     foreach ff in static_mw_res static_mw_wkp static_both {
         append using ../temp/estimates_`ff'.dta
     }
-    save             `outstub'/estimates_static.dta, replace
-    export delimited `outstub'/estimates_static.csv, replace
+    save             "`outstub'/estimates_static.dta", replace
+    export delimited "`outstub'/estimates_static.csv", replace
+	
+	use "../temp/resid_mw_wkp_on_res_mw.dta", clear
+	merge 1:1 zipcode year month using "../temp/resid_static_both.dta", nogen
+    export delimited "`outstub'/estimates_residuals.csv", replace	
 
     ** DYNAMIC
     use "`instub'/zipcode_months.dta" if baseline_sample, clear
@@ -75,13 +79,13 @@ program main
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
         model_name(both_dynamic) outfolder("../temp")
         
-    use ../temp/estimates_both_mw_wkp_dynamic.dta, clear
+    use "../temp/estimates_both_mw_wkp_dynamic.dta", clear
     foreach ff in both_mw_res_dynamic mw_wkp_only_dynamic ///
         mw_res_only_dynamic both_dynamic {
         append using ../temp/estimates_`ff'.dta
     }
-    save             `outstub'/estimates_dynamic.dta, replace
-    export delimited `outstub'/estimates_dynamic.csv, replace
+    save             "`outstub'/estimates_dynamic.dta", replace
+    export delimited "`outstub'/estimates_dynamic.csv", replace
 end
 
 main
