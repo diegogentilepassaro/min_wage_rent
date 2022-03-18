@@ -48,6 +48,7 @@ block_to_zip <- function(instub, dt_geo) {
                n_hhlds_urban_cens2010       = sum(n_hhlds_urban,           na.rm = T),
                n_hhlds_renteroccup_cens2010 = sum(n_hhlds_renter_occupied, na.rm = T)),
            by = .(zipcode)]
+  dt <- dt[, sh_rural_pop_2010 := 1 - (urb_pop_cens2010/population_cens2010)]
 
   return(dt)
 }
@@ -106,6 +107,5 @@ compute_shares <- function(dt) {
   
   return(dt)
 }
-
 
 main()

@@ -8,7 +8,7 @@ program main
 	local instub_safmr "../../../base/safmr/output"
 	local logfile "../output/data_file_manifest.log"
 	
-	import delim "../../../drive/raw_data/census/cpi2012_usa.csv", clear  
+	import delim "../../../drive/raw_data/cpi2012/cpi2012_usa.csv", clear  
 	replace cpi2012 = cpi2012 /100
 	save ../temp/cpi2012.dta, replace
 
@@ -16,12 +16,12 @@ program main
 	prepare_ahs_weights
 	save ../temp/ahs_wgt.dta, replace 
 	
-	use "`instub_safmr'/safmr_2017_2019_by_zipcode_cbsa10.dta", clear
+	use "`instub_safmr'/safmr_2017_2019_by_zipcode_cbsa.dta", clear
 	collapse (sum) safmr1br safmr2br safmr3br safmr4br, ///
 	    by(zipcode year)
 	save "../temp/safmr_2017_2019.dta", replace
 	
-	use "`instub_safmr'/safmr_2012_2016_by_zipcode_county_cbsa10.dta", clear
+	use "`instub_safmr'/safmr_2012_2016_by_zipcode_county_cbsa.dta", clear
 	collapse (sum) safmr1br safmr2br safmr3br safmr4br, ///
 	    by(zipcode year)
 	append using "../temp/safmr_2017_2019.dta"
@@ -59,9 +59,9 @@ end
 program compare_zillow_safmr_zipcode
 	syntax, inzillow(str) mlist(str)
 	
-	use zipcode place_code cbsa10 countyfips statefips ///
+	use zipcode place_code cbsa countyfips statefips ///
 		year_month medrentprice_SFCC ///
-		using "`inzillow'/all_zipcode_months.dta"
+		using "`inzillow'/zipcode_months.dta"
 
 	g rmtag = (medrentprice_SFCC == .)
 	bys zipcode (year_month): g ziplen = _N
@@ -102,7 +102,8 @@ program compare_zillow_safmr_zipcode
 			                                     size(medsmall))     ///
 			xlabel(, labsize(small))      xtitle(, size(medsmall))   ///
 			graphregion(color(white)) bgcolor(white)
-		graph export ../output/trend_zillow_safmr_zipcode_m`m'.png, replace
+		graph export ../output/trend_zillow_safmr_zipcode_m`m'.png, ///
+		    replace height(650) width(900)
 
 		twoway (line medrentprice_SFCC year, lc(eltblue))           ///
 			   (line safmr3br year, lp(dash) lc(black)),            ///
@@ -111,7 +112,8 @@ program compare_zillow_safmr_zipcode
 			                                     size(medsmall))    ///
 			xlabel(, labsize(small))      xtitle(, size(medsmall))  ///
 			graphregion(color(white)) bgcolor(white)
-		graph export "../output/trend_zillow_safmr3br_zipcode_m`m'.png", replace
+		graph export "../output/trend_zillow_safmr3br_zipcode_m`m'.png", ///
+		    replace height(650) width(900)
 		restore	
 	}
 end
