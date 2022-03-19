@@ -9,7 +9,7 @@ main <- function() {
 
   # Robustness Table
   names <- c("baseline", 
-             "nocontrols", "countytime_fe", "cbsatime_fe", "ziptrend",
+             "nocontrols", "countytime_fe", "cbsatime_fe", "place_codetime_fe", "ziptrend",
              paste0("mw_wkp_", c("tot_14", "tot_18", "tot_timevary", "earn_under1250_17", "age_under29_17")))
 
   txt <- c("<tab:robustness>")
