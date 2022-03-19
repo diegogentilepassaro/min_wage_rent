@@ -32,6 +32,7 @@ if "StataSE" in envir_vars:
 start_make_logging()
 
 run_stata(program = 'autocorrelation.do', executable = stata)
+run_rbatch(program = 'table.R')
 
 end_make_logging()
 

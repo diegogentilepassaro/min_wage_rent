@@ -1,5 +1,5 @@
 
- make.py started: 2022-03-18 20:31:43 C:\Users\Usuario\Documents\GitHub\min_wage_rent\analysis\autocorrelation\code 
+ make.py started: 2022-03-18 22:11:41 C:\Users\Usuario\Documents\GitHub\min_wage_rent\analysis\autocorrelation\code 
 
 
 
@@ -56,32 +56,53 @@ Notes:
 
 
 . 
-. local instub "../../../drive/derived_large/estimation_samples"
-
-. local outstub "../output"
-
-. 
-. local controls "`r(economic_controls)'"
-
-. 
-. use "`instub'/zipcode_months", clear
-
-. keep if baseline_sample
-(64,239 observations deleted)
-
-. 
-. gen ln_medrents = log(medrentpricepsqft_SFCC)
-
-. 
-. xtset zipcode_num year_month
-       panel variable:  zipcode_num (unbalanced)
-        time variable:  year_month, 2010m2 to 2019m12
-                delta:  1 month
-
-. 
+. program main 
+  1. 
+.         local instub "../../../drive/derived_large/estimation_samples"
+  2.         local outstub "../output"
+  3. 
+.         local controls "`r(economic_controls)'"
+  4. 
+.         use "`instub'/zipcode_months", clear
+  5.         keep if baseline_sample
+  6. 
+.         gen ln_medrents = log(medrentpricepsqft_SFCC)
+  7. 
+.         xtset zipcode_num year_month
+  8. 
 .         reghdfe D.ln_medrents D.mw_res D.mw_wkp_tot_17 `controls',      ///
 >                         absorb(year_month)      ///
 >                         vce(cluster statefips) nocons residuals(fd_res)
+  9.         
+.         reg fd_res L.fd_res, cluster(statefips)
+ 10.         test (L.fd_res = -0.5) 
+ 11.         scalar p_val_auto = r(p)
+ 12. 
+.         estimate_stacked_model, depvar(ln_medrents)  ///
+>         mw_var1(mw_res) mw_var2(mw_wkp_tot_17) controls(`controls') ///
+>         absorb(year_month zipcode) cluster(statefips) ///
+>         model_name(levels_model) outfolder("../temp")
+ 13. 
+.         estimate_dist_lag_model, depvar(ln_medrents) ///
+>         dyn_var(mw_wkp_tot_17) w(0) stat_var(mw_res) ///
+>         controls(`controls') absorb(year_month) cluster(statefips) ///
+>         model_name(baseline_model) outfolder("../temp")
+ 14.                 
+.         use ../temp/estimates_levels_model.dta, clear
+ 15.         append using ../temp/estimates_baseline_model.dta
+ 16. 
+.         gen p_val = .
+ 17.         replace p_val = p_val_auto if model == "baseline_model"
+ 18.          
+.         export delimited `outstub'/estimates_autocorrelation.csv, replace
+ 19. end
+
+. 
+. main
+(64,239 observations deleted)
+       panel variable:  zipcode_num (unbalanced)
+        time variable:  year_month, 2010m2 to 2019m12
+                delta:  1 month
 (MWFE estimator converged in 1 iterations)
 
 HDFE Linear regression                            Number of obs   =    132,178
@@ -111,9 +132,6 @@ Absorbed degrees of freedom:
   year_month |       118           0         118     |
 -----------------------------------------------------+
 
-.         
-.         reg fd_res L.fd_res, cluster(statefips)
-
 Linear regression                               Number of obs     =    130,834
                                                 F(1, 39)          =    1603.45
                                                 Prob > F          =     0.0000
@@ -131,20 +149,10 @@ Linear regression                               Number of obs     =    130,834
        _cons |  -.0000109   .0002142    -0.05   0.960    -.0004443    .0004224
 ------------------------------------------------------------------------------
 
-.         test (L.fd_res = -0.5) 
-
  ( 1)  L.fd_res = -.5
 
        F(  1,    39) = 2039.87
             Prob > F =    0.0000
-
-.         scalar p_val_auto = r(p)
-
-. 
-.         estimate_stacked_model, depvar(ln_medrents)  ///
->         mw_var1(mw_res) mw_var2(mw_wkp_tot_17) controls(`controls') ///
->         absorb(year_month zipcode) cluster(statefips) ///
->         model_name(levels_model) outfolder("../temp")
 (MWFE estimator converged in 6 iterations)
 
 HDFE Linear regression                            Number of obs   =    133,522
@@ -204,12 +212,6 @@ variable var was str6 now str13
 file ../temp/estimates_levels_model.dta saved
 (note: file ../temp/estimates_levels_model.csv not found)
 file ../temp/estimates_levels_model.csv saved
-
-. 
-.         estimate_dist_lag_model, depvar(ln_medrents) ///
->         dyn_var(mw_wkp_tot_17) w(0) stat_var(mw_res) ///
->         controls(`controls') absorb(year_month) cluster(statefips) ///
->         model_name(baseline_model) outfolder("../temp")
 (MWFE estimator converged in 1 iterations)
 
 HDFE Linear regression                            Number of obs   =    132,178
@@ -265,27 +267,74 @@ file ../temp/estimates_baseline_model_sumsum_from0.dta saved
 file ../temp/estimates_baseline_model.dta saved
 (note: file ../temp/estimates_baseline_model.csv not found)
 file ../temp/estimates_baseline_model.csv saved
-
-.                 
-.          use ../temp/estimates_levels_model.dta, clear
-
-.          append using ../temp/estimates_baseline_model.dta
 (note: variable model was str12, now str14 to accommodate using data's
        values)
-
-. 
-.          gen p_val = .
 (6 missing values generated)
-
-.          replace p_val = p_val_auto if model == "baseline_model"
 (3 real changes made)
-
-.          
-.          export delimited `outstub'/estimates_autocorrelation.csv, replace
 (note: file ../output/estimates_autocorrelation.csv not found)
 file ../output/estimates_autocorrelation.csv saved
 
 . 
 end of do-file
 
- make.py ended: 2022-03-18 20:31:56
+
+Execute:  R CMD BATCH --no-save "./table.R" table.Rout
+
+R version 4.1.2 (2021-11-01) -- "Bird Hippie"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R es un software libre y viene sin GARANTIA ALGUNA.
+Usted puede redistribuirlo bajo ciertas circunstancias.
+Escriba 'license()' o 'licence()' para detalles de distribucion.
+
+R es un proyecto colaborativo con muchos contribuyentes.
+Escriba 'contributors()' para obtener más información y
+'citation()' para saber cómo citar R o paquetes de R en publicaciones.
+
+Escriba 'demo()' para demostraciones, 'help()' para el sistema on-line de ayuda,
+o 'help.start()' para abrir el sistema de ayuda HTML con su navegador.
+Escriba 'q()' para salir de R.
+
+> remove(list = ls())
+> 
+> library(data.table)
+> 
+> main <- function() {
++   instub <- "../output"
++   outstub <- "../output/"
++   
++   est <- fread(file.path(instub, "estimates_autocorrelation.csv"))
++   est_var <- est[var != "cumsum_from0"]
++   
++   txt <- c("<tab:static>")
++   
++   txt <- c(txt, 
++            paste(est_var[model == "levels_model" & var == "mw_res"]$b, 
++                  est_var[model == "baseline_model" & var == "mw_res"]$b, sep = "\t"), 
++            paste(est_var[model == "levels_model" & var == "mw_res"]$se, 
++                  est_var[model == "baseline_model" & var == "mw_res"]$se, sep = "\t"))
++   
++   txt <- c(txt, 
++            paste(est_var[model == "levels_model" & var == "mw_wkp_tot_17"]$b, 
++                  est_var[model == "baseline_model" & var == "mw_wkp_tot_17"]$b, sep = "\t"), 
++            paste(est_var[model == "levels_model" & var == "mw_wkp_tot_17"]$se,
++                  est_var[model == "baseline_model" & var == "mw_wkp_tot_17"]$se, sep = "\t"))
++   
++   txt <- c(txt, paste(format(round(est_var[model == "baseline_model" & var == "mw_res"]$p_val),nsmall=3)))
++   
++   txt <- c(txt, paste(est_var[model == "levels_model" & var == "mw_res"]$N, 
++                       est_var[model == "baseline_model" & var == "mw_res"]$N, sep = "\t"))
++   
++   fileConn <- file(file.path(outstub, "autocorrelation.txt"))
++   writeLines(txt, fileConn)
++   close(fileConn)
++ }
+> 
+> main()
+> 
+> proc.time()
+   user  system elapsed 
+   0.26    0.07    0.32 
+
+ make.py ended: 2022-03-18 22:11:51
