@@ -50,15 +50,17 @@ program main
     use "`instub'/zipcode_months.dta", clear
     xtset zipcode_num `absorb'
 
+    local absorb_res "yr_entry_to_zillow##`absorb'"
+
     estimate_dist_lag_model if !missing(D.ln_rents), depvar(`mw_wkp_var') ///
         dyn_var(mw_res) w(0) stat_var(mw_res) ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(unbal_mw_wkp_on_res_mw) save_res_zip_month(Yes) 
+        controls(`controls') absorb(`absorb_res') cluster(`cluster') ///
+        model_name(unbal_mw_wkp_on_res_mw) save_res_zip_month
 
     estimate_dist_lag_model, depvar(ln_rents) ///
-        dyn_var(`mw_wkp_var') w(0) stat_var(mw_res) ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(unbal_static_both) save_res_zip_month(Yes)
+        dyn_var(" ") w(0) stat_var(" ") ///
+        controls(`controls') absorb(`absorb_res') cluster(`cluster') ///
+        model_name(unbal_static_both) save_res_zip_month
 
     use "../temp/resid_unbal_mw_wkp_on_res_mw.dta", clear
     merge 1:1 zipcode year month using "../temp/resid_unbal_static_both.dta", nogen
