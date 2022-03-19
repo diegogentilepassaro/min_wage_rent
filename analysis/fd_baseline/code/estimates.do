@@ -73,7 +73,7 @@ program main
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(`mw_wkp_var') w(6) stat_var(mw_res) ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(both_mw_wkp_dynamic)
+        model_name(both_mw_wkp_dynamic) test_equality
         
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(mw_res) w(6) stat_var(`mw_wkp_var') ///
@@ -83,7 +83,7 @@ program main
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(`mw_wkp_var') w(6) stat_var(`mw_wkp_var') ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(mw_wkp_only_dynamic) 
+        model_name(mw_wkp_only_dynamic)
         
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(mw_res) w(6) stat_var(mw_res) ///
