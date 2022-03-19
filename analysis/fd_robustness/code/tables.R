@@ -92,7 +92,7 @@ main <- function() {
               paste(est[model == "AB" & var == "L_ln_rents",]$se,
                     sep = "\t"))
   
-  for (stat in c("p_equality", "r2", "N")) {
+  for (stat in c("p_equality", "N")) {
     txt_ab <- c(txt_ab, 
                 paste(est[model == "baseline" & var == "mw_wkp_tot_17",][[stat]],
                       est[model == "AB"       & var == "mw_wkp_tot_17",][[stat]],
