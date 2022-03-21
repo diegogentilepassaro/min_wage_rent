@@ -8,17 +8,16 @@ program main
 
 	local instub "../../../drive/derived_large/estimation_samples"
 	local outstub "../output"
-
+	
+	define_controls
 	local controls "`r(economic_controls)'"
 
 	use "`instub'/zipcode_months", clear
 	keep if baseline_sample
 
-	gen ln_medrents = log(medrentpricepsqft_SFCC)
-
 	xtset zipcode_num year_month
 
-	reghdfe D.ln_medrents D.mw_res D.mw_wkp_tot_17 `controls',	///
+	reghdfe D.ln_rents D.mw_res D.mw_wkp_tot_17 `controls',	///
 			absorb(year_month) 	///
 			vce(cluster statefips) nocons residuals(fd_res)
 	
@@ -26,12 +25,12 @@ program main
 	test (L.fd_res = -0.5) 
 	scalar p_val_auto = r(p)
 
-	estimate_stacked_model, depvar(ln_medrents)  ///
+	estimate_stacked_model, depvar(ln_rents)  ///
         mw_var1(mw_res) mw_var2(mw_wkp_tot_17) controls(`controls') ///
         absorb(year_month zipcode) cluster(statefips) ///
         model_name(levels_model) outfolder("../temp")
 
-	estimate_dist_lag_model, depvar(ln_medrents) ///
+	estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(mw_wkp_tot_17) w(0) stat_var(mw_res) ///
         controls(`controls') absorb(year_month) cluster(statefips) ///
         model_name(baseline_model) outfolder("../temp")
