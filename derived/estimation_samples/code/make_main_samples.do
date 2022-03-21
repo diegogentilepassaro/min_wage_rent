@@ -14,8 +14,7 @@ program main
     local end_year_month    "2019m12"
     local target_year_month "2015m1"
     local target_vars       "sh_white_cens2010 sh_black_cens2010 sh_hhlds_renteroccup_cens2010"
-	local target_vars       "`target_vars' med_hhld_inc_acs2011 sh_hhlds_urban_cens2010"
-	local target_vars       "`target_vars' sh_workers_underHS_2013"
+	local target_vars       "`target_vars' med_hhld_inc_acs2011 sh_workers_underHS_2013"
     
     * Zipcode-months
     create_unbalanced_panel, instub(`in_zip_mth')                     ///
