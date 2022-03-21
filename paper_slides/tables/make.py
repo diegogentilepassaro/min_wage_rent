@@ -25,7 +25,7 @@ clear_dirs("output/")
 
 start_make_logging()
 
-autocorrelation      = "../../analysis/autocorrelation/output"
+autocorr_dir         = "../../analysis/autocorrelation/output"
 desc_est_samples_dir = "../../descriptive/estimation_samples/output"
 fd_baseline_dir      = "../../analysis/fd_baseline/output"
 fd_cf_dir            = "../../analysis/counterfactuals/output"
@@ -90,7 +90,7 @@ tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals.txt"),
           template = "input/slides_counterfactuals.tex", 
           output   = "output/slides_counterfactuals.tex")
 
-tablefill(input    = os.path.join(autocorrelation, "autocorrelation.txt"), 
+tablefill(input    = os.path.join(autocorr_dir, "autocorrelation.txt"), 
           template = "input/autocorrelation.tex", 
           output   = "output/autocorrelation.tex")
 
