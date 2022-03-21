@@ -14,7 +14,7 @@ program main
     local end_year_month    "2019m12"
     local target_year_month "2015m1"
     local target_vars       "sh_white_cens2010 sh_black_cens2010 sh_hhlds_renteroccup_cens2010"
-	local target_vars       "`target_vars' med_hhld_inc_acs2011 sh_workers_underHS_2013"
+	local target_vars       "`target_vars' sh_mw_wkrs_statutory"
     
     * Zipcode-months
     create_unbalanced_panel, instub(`in_zip_mth')                     ///
@@ -125,9 +125,9 @@ program compute_weights
     
     preserve
         merge m:1 zipcode using "`instub'/zipcode_cross.dta", ///
-            assert(2 3) keep(2 3) keepusing(`target_vars')
+            assert(2 3) keep(2 3) keepusing(`target_vars' sh_rural_pop_2010)
         foreach var of local target_vars {
-            qui sum `var'
+            qui sum `var' if sh_rural_pop_2010 >= 0.6
             local mean = r(mean)
             local target_means "`target_means' `mean'"
         }
