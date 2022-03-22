@@ -9,7 +9,7 @@ main <- function() {
   est <- fread(file.path(instub, "estimates_autocorrelation.csv"))
   est_var <- est[var != "cumsum_from0"]
   
-  txt <- c("<tab:static>")
+  txt <- c("<tab:autocorrelation>")
   
   txt <- c(txt, 
            paste(est_var[model == "levels_model" & var == "mw_res"]$b, 
