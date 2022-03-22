@@ -32,6 +32,14 @@ fd_robust_dir         = "../../analysis/fd_robustness/output"
 fd_wages_dir          = "../../analysis/twfe_wages/output"
 fd_stacked_dir        = "../../analysis/fd_stacked/output"
 fd_zip_cty_yr_mth_dir = "../../analysis/fd_zip_cty_yr_mth/output"
+autocorr_dir         = "../../analysis/autocorrelation/output"
+desc_est_samples_dir = "../../descriptive/estimation_samples/output"
+fd_baseline_dir      = "../../analysis/fd_baseline/output"
+fd_cf_dir            = "../../analysis/counterfactuals/output"
+fd_robust_dir        = "../../analysis/fd_robustness/output"
+fd_county_dir        = "../../analysis/fd_county/output"
+fd_wages_dir         = "../../analysis/twfe_wages/output"
+fd_stacked_dir       = "../../analysis/fd_stacked/output"
 
 tablefill(input    = os.path.join(desc_est_samples_dir, "stats_zip_samples.txt"), 
           template = "input/stats_zip_samples.tex", 
@@ -92,6 +100,10 @@ tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals.txt"),
 tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals.txt"), 
           template = "input/slides_counterfactuals.tex", 
           output   = "output/slides_counterfactuals.tex")
+
+tablefill(input    = os.path.join(autocorr_dir, "autocorrelation.txt"), 
+          template = "input/autocorrelation.tex", 
+          output   = "output/autocorrelation.tex")
 
 end_make_logging()
 
