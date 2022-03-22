@@ -17,6 +17,13 @@ program main
 
 	xtset zipcode_num year_month
 
+	* LEVELS
+	estimate_stacked_model, depvar(ln_rents)  ///
+        mw_var1(mw_res) mw_var2(mw_wkp_tot_17) controls(`controls') ///
+        absorb(year_month zipcode) cluster(statefips) ///
+        model_name(levels_model) outfolder("../temp")
+	
+	* FD
 	reghdfe D.ln_rents D.mw_res D.mw_wkp_tot_17 `controls',	///
 			absorb(year_month) 	///
 			vce(cluster statefips) nocons residuals(fd_res)
@@ -24,11 +31,6 @@ program main
 	reg fd_res L.fd_res, cluster(statefips)
 	test (L.fd_res = -0.5) 
 	scalar p_val_auto = r(p)
-
-	estimate_stacked_model, depvar(ln_rents)  ///
-        mw_var1(mw_res) mw_var2(mw_wkp_tot_17) controls(`controls') ///
-        absorb(year_month zipcode) cluster(statefips) ///
-        model_name(levels_model) outfolder("../temp")
 
 	estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(mw_wkp_tot_17) w(0) stat_var(mw_res) ///
