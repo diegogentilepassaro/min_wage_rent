@@ -1,5 +1,5 @@
 
- make.py started: 2022-03-22 07:31:41 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\autocorrelation\code 
+ make.py started: 2022-03-22 08:19:28 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\autocorrelation\code 
 
 
 
@@ -36,14 +36,7 @@ running c:\ado\personal\profile.do ...
 
 . set more off
 
-. adopath + ../../../lib/stata/gslab_misc/ado
-  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
-  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
-  [3]              "."
-  [4]  (PERSONAL)  "c:\ado\personal/"
-  [5]  (PLUS)      "c:\ado\plus/"
-  [6]  (OLDPLACE)  "c:\ado/"
-  [7]              "../../../lib/stata/gslab_misc/ado"
+. version 15
 
 . adopath + ../../../lib/stata/min_wage/ado
   [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
@@ -52,53 +45,51 @@ running c:\ado\personal\profile.do ...
   [4]  (PERSONAL)  "c:\ado\personal/"
   [5]  (PLUS)      "c:\ado\plus/"
   [6]  (OLDPLACE)  "c:\ado/"
-  [7]              "../../../lib/stata/gslab_misc/ado"
-  [8]              "../../../lib/stata/min_wage/ado"
+  [7]              "../../../lib/stata/min_wage/ado"
 
 . set maxvar 32000 
 
 
 . 
-. program main 
-  1. 
-.         local instub "../../../drive/derived_large/estimation_samples"
-  2.         local outstub "../output"
-  3.         
-.         define_controls
-  4.         local controls "`r(economic_controls)'"
+. program main
+  1.     local instub "../../../drive/derived_large/estimation_samples"
+  2.     local outstub "../output"
+  3. 
+.     define_controls
+  4.     local controls "`r(economic_controls)'"
   5. 
-.         use "`instub'/zipcode_months", clear
-  6.         keep if baseline_sample
+.     use "`instub'/zipcode_months", clear
+  6.     keep if baseline_sample
   7. 
-.         xtset zipcode_num year_month
+.     xtset zipcode_num year_month
   8. 
-.         * LEVELS
-.         estimate_stacked_model, depvar(ln_rents)  ///
+.     * LEVELS
+.     estimate_stacked_model, depvar(ln_rents)  ///
 >         mw_var1(mw_res) mw_var2(mw_wkp_tot_17) controls(`controls') ///
 >         absorb(year_month zipcode) cluster(statefips) ///
->         model_name(levels_model) outfolder("../temp")
-  9.         
-.         * FD
-.         reghdfe D.ln_rents D.mw_res D.mw_wkp_tot_17 `controls', ///
->                         absorb(year_month)      ///
->                         vce(cluster statefips) nocons residuals(fd_res)
- 10.         
-.         reg fd_res L.fd_res, cluster(statefips)
- 11.         test (L.fd_res = -0.5) 
- 12.         scalar p_val_auto = r(p)
+>         model_name(levels_model)
+  9. 
+.     * FD
+.     reghdfe D.ln_rents D.mw_res D.mw_wkp_tot_17 D.`controls',   ///
+>             absorb(year_month)  vce(cluster statefips) ///
+>             nocons residuals(fd_res)
+ 10. 
+.     reg fd_res L.fd_res, cluster(statefips)
+ 11.     test (L.fd_res = -0.5) 
+ 12.     local p_val_auto = "`r(p)'"
  13. 
-.         estimate_dist_lag_model, depvar(ln_rents) ///
+.     estimate_dist_lag_model, depvar(ln_rents) ///
 >         dyn_var(mw_wkp_tot_17) w(0) stat_var(mw_res) ///
 >         controls(`controls') absorb(year_month) cluster(statefips) ///
 >         model_name(baseline_model) outfolder("../temp")
- 14.                 
-.         use ../temp/estimates_levels_model.dta, clear
- 15.         append using ../temp/estimates_baseline_model.dta
+ 14.         
+.     use ../temp/estimates_levels_model.dta, clear
+ 15.     append using ../temp/estimates_baseline_model.dta
  16. 
-.         gen p_val = .
- 17.         replace p_val = p_val_auto if model == "baseline_model"
- 18.          
-.         export delimited `outstub'/estimates_autocorrelation.csv, replace
+.     gen     p_val = ""
+ 17.     replace p_val = "`p_val_auto'" if model == "baseline_model"
+ 18.         
+.     export delimited `outstub'/estimates_autocorrelation.csv, replace
  19. end
 
 . 
@@ -178,7 +169,7 @@ file ../temp/estimates_levels_model.csv saved
 (MWFE estimator converged in 1 iterations)
 
 HDFE Linear regression                            Number of obs   =    131,564
-Absorbing 1 HDFE group                            F(  11,     40) =      15.02
+Absorbing 1 HDFE group                            F(  11,     40) =      12.63
 Statistics robust to heteroskedasticity           Prob > F        =     0.0000
                                                   R-squared       =     0.0211
                                                   Adj R-squared   =     0.0202
@@ -191,20 +182,22 @@ Number of clusters (statefips) =         41       Root MSE        =     0.0290
   D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
       mw_res |
-         D1. |  -.0213347   .0162044    -1.32   0.195     -.054085    .0114157
+         D1. |  -.0207103   .0165736    -1.25   0.219    -.0542067    .0127861
              |
 mw_wkp_to~17 |
-         D1. |   .0538036   .0274485     1.96   0.057     -.001672    .1092791
+         D1. |   .0532514    .027734     1.92   0.062    -.0028011    .1093039
              |
-ln_emp_biz~v |  -.0009299   .0001944    -4.78   0.000    -.0013228   -.0005369
- ln_emp_info |    .000285   .0002431     1.17   0.248    -.0002064    .0007763
-  ln_emp_fin |   .0003575    .000259     1.38   0.175    -.0001659     .000881
-ln_estcoun~v |    .000433   .0005183     0.84   0.408    -.0006146    .0014806
-ln_estcoun~o |    .000354   .0004045     0.88   0.387    -.0004636    .0011715
-ln_estcoun~n |  -.0002447   .0007283    -0.34   0.739    -.0017167    .0012273
-ln_avgwwag~v |  -.0002581    .000737    -0.35   0.728    -.0017476    .0012315
-ln_avgwwag~o |   .0004795   .0005626     0.85   0.399    -.0006577    .0016166
-ln_avgwwag~n |  -.0013201    .000573    -2.30   0.027    -.0024781   -.0001621
+ln_emp_biz~v |
+         D1. |   .0106312   .0053311     1.99   0.053    -.0001433    .0214057
+             |
+ ln_emp_info |   .0000436   .0002674     0.16   0.871    -.0004969    .0005841
+  ln_emp_fin |  -.0000537   .0002707    -0.20   0.844    -.0006008    .0004935
+ln_estcoun~v |   -.000188   .0005684    -0.33   0.743    -.0013367    .0009607
+ln_estcoun~o |   .0004693   .0004138     1.13   0.264    -.0003671    .0013056
+ln_estcoun~n |  -3.83e-06   .0007352    -0.01   0.996    -.0014898    .0014821
+ln_avgwwag~v |  -.0006145   .0007056    -0.87   0.389    -.0020405    .0008115
+ln_avgwwag~o |    .000694   .0005671     1.22   0.228    -.0004523    .0018402
+ln_avgwwag~n |  -.0012132   .0005751    -2.11   0.041    -.0023755   -.0000508
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
@@ -215,7 +208,7 @@ Absorbed degrees of freedom:
 -----------------------------------------------------+
 
 Linear regression                               Number of obs     =    130,050
-                                                F(1, 40)          =    1646.54
+                                                F(1, 40)          =    1639.73
                                                 Prob > F          =     0.0000
                                                 R-squared         =     0.0553
                                                 Root MSE          =     .02808
@@ -226,14 +219,14 @@ Linear regression                               Number of obs     =    130,050
       fd_res |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
       fd_res |
-         L1. |   -.233896   .0057642   -40.58   0.000    -.2455458   -.2222461
+         L1. |  -.2338452   .0057749   -40.49   0.000    -.2455167   -.2221738
              |
-       _cons |  -.0000121   .0001257    -0.10   0.924    -.0002662    .0002419
+       _cons |  -.0000116   .0001486    -0.08   0.938     -.000312    .0002887
 ------------------------------------------------------------------------------
 
  ( 1)  L.fd_res = -.5
 
-       F(  1,    40) = 2131.23
+       F(  1,    40) = 2124.14
             Prob > F =    0.0000
 (MWFE estimator converged in 1 iterations)
 
@@ -319,6 +312,7 @@ file ../temp/estimates_baseline_model.csv saved
 (note: variable model was str12, now str14 to accommodate using data's
        values)
 (6 missing values generated)
+variable p_val was str1 now str17
 (3 real changes made)
 (note: file ../output/estimates_autocorrelation.csv not found)
 file ../output/estimates_autocorrelation.csv saved
@@ -372,8 +366,10 @@ Type 'q()' to quit R.
 +            paste(est_var[model == "levels_model" & var == "mw_wkp_tot_17"]$se,
 +                  est_var[model == "baseline_model" & var == "mw_wkp_tot_17"]$se, sep = "\t"))
 +   
-+   txt <- c(txt, paste(format(round(est_var[model == "baseline_model" & var == "mw_res"]$p_val),nsmall=3)))
-+   
++   #txt <- c(txt, paste(format(round(est_var[model == "baseline_model" & var == "mw_res"]$p_val),nsmall=3)))
++   # The value is so small that gets printed as 0.00000
++   # Will write value as <0.0001 manually
++ 
 +   txt <- c(txt, paste(est_var[model == "levels_model" & var == "mw_res"]$N, 
 +                       est_var[model == "baseline_model" & var == "mw_res"]$N, sep = "\t"))
 +   
@@ -386,6 +382,6 @@ Type 'q()' to quit R.
 > 
 > proc.time()
    user  system elapsed 
-   0.40    0.14    0.53 
+   0.53    0.18    0.71 
 
- make.py ended: 2022-03-22 07:31:57
+ make.py ended: 2022-03-22 08:19:47
