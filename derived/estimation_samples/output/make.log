@@ -1,5 +1,5 @@
 
- make.py started: 2022-03-21 16:02:38 C:\Users\diegog\Desktop\Diego\min_wage_rent\derived\estimation_samples\code 
+ make.py started: 2022-03-21 20:18:45 C:\Users\shermo\Documents\GitHub\min_wage_rent\derived\estimation_samples\code 
 
 
 
@@ -36,6 +36,8 @@ running c:\ado\personal\profile.do ...
 
 . clear all
 
+. version 15
+
 . adopath + ../../../lib/stata/gslab_misc/ado
   [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
   [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
@@ -57,51 +59,54 @@ running c:\ado\personal\profile.do ...
   7.     local start_year_month  "2010m1"
   8.     local end_year_month    "2019m12"
   9.     local target_year_month "2015m1"
- 10.     local target_vars       "sh_white_cens2010 sh_black_cens2010 sh_hhlds_
-> renteroccup_cens2010"
- 11.         local target_vars       "`target_vars' med_hhld_inc_acs2011 sh_mw_
-> wkrs_statutory"
- 12.     
+ 10.     #delimit ;
+delimiter now ;
+.     local target_vars  "sh_hhlds_renteroccup_cens2010 sh_residents_under29_20
+> 13
+>                         sh_residents_accomm_food_2013";
+ 11.     #delimit cr
+delimiter now cr
+.     
 .     * Zipcode-months
 .     create_unbalanced_panel, instub(`in_zip_mth')                     ///
 >         geo(zipcode) rent_var(`rent_var')                             ///
 >         start_ym(`start_year_month') end_ym(`end_year_month')
- 13. 
+ 12. 
 .     gen_vars, rent_var(`rent_var') geo(zipcode)
- 14.     preserve 
- 15.         collapse (min) ym_entry_to_zillow = year_month ///
+ 13.     preserve 
+ 14.         collapse (min) ym_entry_to_zillow = year_month ///
 >             if !missing(`rent_var'), by(zipcode)
- 16.         gen yr_entry_to_zillow = year(dofm(ym_entry_to_zillow))
- 17.         drop ym_entry_to_zillow
- 18.         save "../temp/ym_entry_to_zillow.dta", replace
- 19.     restore
- 20.     merge m:1 zipcode using "../temp/ym_entry_to_zillow.dta", ///
+ 15.         gen yr_entry_to_zillow = year(dofm(ym_entry_to_zillow))
+ 16.         drop ym_entry_to_zillow
+ 17.         save "../temp/ym_entry_to_zillow.dta", replace
+ 18.     restore
+ 19.     merge m:1 zipcode using "../temp/ym_entry_to_zillow.dta", ///
 >         nogen keep(1 3) assert(1 3)
- 21.     flag_samples, instub(`in_zip_mth') geo(zipcode) geo_name(zipcode) ///
+ 20.     flag_samples, instub(`in_zip_mth') geo(zipcode) geo_name(zipcode) ///
 >         rent_var(`rent_var') target_ym(`target_year_month')
- 22. 
+ 21. 
 .     compute_weights, instub(`in_zipcode') target_vars(`target_vars')
- 23.     merge 1:1 zipcode year_month using "../temp/weights.dta", ///
+ 22.     merge 1:1 zipcode year_month using "../temp/weights.dta", ///
 >        nogen assert(2 3) keep(3)
- 24. 
+ 23. 
 .     save_data "`outstub'/zipcode_months.dta", key(zipcode year_month) ///
 >         replace log(`logfile')
- 25.     export delimited "`outstub'/zipcode_months.csv", replace
- 26.     
+ 24.     export delimited "`outstub'/zipcode_months.csv", replace
+ 25.     
 .     * County-months
 .     create_unbalanced_panel, instub(`in_cty_mth')                     ///
 >         geo(county) rent_var(`rent_var')                             ///
 >         start_ym(`start_year_month') end_ym(`end_year_month')
- 27. 
+ 26. 
 .     gen_vars, rent_var(`rent_var') geo(county)
- 28. 
+ 27. 
 .     flag_samples, instub(`in_cty_mth') geo(county) geo_name(countyfips) ///
 >         rent_var(`rent_var') target_ym(`target_year_month')
- 29. 
+ 28. 
 .     save_data "`outstub'/county_months.dta", key(countyfips year_month) ///
 >         replace log(`logfile')
- 30.     export delimited "`outstub'/county_months.csv", replace
- 31. end
+ 29.     export delimited "`outstub'/county_months.csv", replace
+ 30. end
 
 . 
 . program create_unbalanced_panel
@@ -171,15 +176,16 @@ running c:\ado\personal\profile.do ...
 
 . 
 . program compute_weights
-  1.     syntax, instub(str) target_vars(str)
+  1.     syntax, instub(str) target_vars(str) [thresh(real 0.2)]
   2.     
 .     preserve
   3.         merge m:1 zipcode using "`instub'/zipcode_cross.dta", ///
 >             assert(2 3) keep(2 3) keepusing(`target_vars' sh_rural_pop_2010)
-  4.         foreach var of local target_vars {
-  5.             qui sum `var' if sh_rural_pop_2010 < 0.4
-  6.             local mean = r(mean)
-  7.             local target_means "`target_means' `mean'"
+  4. 
+.         foreach var of local target_vars {
+  5.             qui sum `var' if sh_rural_pop_2010 < `thresh'
+  6.             local var_mean = r(mean)
+  7.             local target_means "`target_means' `var_mean'"
   8.         }
   9.                 
 .         keep if _merge == 3
@@ -301,151 +307,138 @@ file ../temp/baseline_zipcode.dta saved
 
 
 Data Setup
-Covariate adjustment: sh_white_cens2010 sh_black_cens2010 sh_hhlds_renteroccup_
-> cens2010 med_hhld_inc_acs2011 sh_mw_wkrs_statutory
+Covariate adjustment: sh_hhlds_renteroccup_cens2010 sh_residents_under29_2013 s
+> h_residents_accomm_food_2013
 
 
 Optimizing...
-Iteration 1: Max Difference = 1057004.5
-Iteration 2: Max Difference = 388848.694
-Iteration 3: Max Difference = 143047.908
-Iteration 4: Max Difference = 52622.8521
-Iteration 5: Max Difference = 19357.3332
-Iteration 6: Max Difference = 7119.63292
-Iteration 7: Max Difference = 2617.63512
-Iteration 8: Max Difference = 961.44418
-Iteration 9: Max Difference = 352.169639
-Iteration 10: Max Difference = 128.041052
-Iteration 11: Max Difference = 45.6183331
-Iteration 12: Max Difference = 15.3749295
-Iteration 13: Max Difference = 4.44509266
-Iteration 14: Max Difference = .839617182
-Iteration 15: Max Difference = .051206289
-Iteration 16: Max Difference = .000228003
+Iteration 1: Max Difference = 196844
+Iteration 2: Max Difference = 72414.5965
+Iteration 3: Max Difference = 26639.577
+Iteration 4: Max Difference = 9799.88848
+Iteration 5: Max Difference = 3604.91328
+Iteration 6: Max Difference = 1325.90929
+Iteration 7: Max Difference = 487.510667
+Iteration 8: Max Difference = 179.081288
+Iteration 9: Max Difference = 65.6171078
+Iteration 10: Max Difference = 23.8777229
+Iteration 11: Max Difference = 8.52738689
+Iteration 12: Max Difference = 2.89283696
+Iteration 13: Max Difference = .851607933
+Iteration 14: Max Difference = .169069912
+Iteration 15: Max Difference = .011700543
 maximum difference smaller than the tolerance level; convergence achieved
 
 
-No. of units adjusted: 180556 total of weights: 180556
+No. of units adjusted: 196845 total of weights: 196845
 
 
 Before: without weighting
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_whit~2010 |     .6782     .04016      -1.14 
-sh_blac~2010 |     .1543     .03701      2.237 
-sh_hhld~2010 |     .3304     .01987      .6622 
-med_hhl~2011 |     58542   5.00e+08      1.016 
-sh_mw_wkrs~y |     .1456    .002052      1.743 
+sh_hhld~2010 |     .3345     .02076      .6791 
+sh_re~9_2013 |     .2214    .001456      .8255 
+sh_re~d_2013 |     .1025    .001594      3.584 
 
 
 After:  _webal as the weighting variable
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_whit~2010 |     .6778     .04035     -1.141 
-sh_blac~2010 |     .1554     .03748       2.22 
-sh_hhld~2010 |     .3348     .02038      .6588 
-med_hhl~2011 |     57990   4.99e+08      1.024 
-sh_mw_wkrs~y |     .1478    .002275      1.908 
+sh_hhld~2010 |     .3392     .02125      .6656 
+sh_re~9_2013 |     .2218    .001479      .8396 
+sh_re~d_2013 |     .1021    .001526      3.602 
 
 
 Data Setup
-Covariate adjustment: sh_white_cens2010 sh_black_cens2010 sh_hhlds_renteroccup_
-> cens2010 med_hhld_inc_acs2011 sh_mw_wkrs_statutory
+Covariate adjustment: sh_hhlds_renteroccup_cens2010 sh_residents_under29_2013 s
+> h_residents_accomm_food_2013
 
 
 Optimizing...
-Iteration 1: Max Difference = 724048.945
-Iteration 2: Max Difference = 266361.189
-Iteration 3: Max Difference = 97987.273
-Iteration 4: Max Difference = 36045.971
-Iteration 5: Max Difference = 13259.0395
-Iteration 6: Max Difference = 4876.1962
-Iteration 7: Max Difference = 1792.32133
-Iteration 8: Max Difference = 657.829433
-Iteration 9: Max Difference = 240.479353
-Iteration 10: Max Difference = 86.9614905
-Iteration 11: Max Difference = 30.5299488
-Iteration 12: Max Difference = 9.88541807
-Iteration 13: Max Difference = 2.56396528
-Iteration 14: Max Difference = .363980202
-Iteration 15: Max Difference = .011137222
+Iteration 1: Max Difference = 132740
+Iteration 2: Max Difference = 48832.0528
+Iteration 3: Max Difference = 17964.0441
+Iteration 4: Max Difference = 6608.33826
+Iteration 5: Max Difference = 2430.80757
+Iteration 6: Max Difference = 893.979966
+Iteration 7: Max Difference = 328.612817
+Iteration 8: Max Difference = 120.626222
+Iteration 9: Max Difference = 44.113196
+Iteration 10: Max Difference = 15.9682408
+Iteration 11: Max Difference = 5.62129884
+Iteration 12: Max Difference = 1.83319155
+Iteration 13: Max Difference = .483934143
+Iteration 14: Max Difference = .071542855
+Iteration 15: Max Difference = .002449144
 maximum difference smaller than the tolerance level; convergence achieved
 
 
-No. of units adjusted: 121146 total of weights: 121146
+No. of units adjusted: 132741 total of weights: 132741
 
 
 Before: without weighting
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_whit~2010 |     .6725     .03742     -1.191 
-sh_blac~2010 |      .159      .0363       2.27 
-sh_hhld~2010 |     .3247     .01861      .7458 
-med_hhl~2011 |     59767   4.63e+08      .9411 
-sh_mw_wkrs~y |     .1394    .001621      1.671 
+sh_hhld~2010 |     .3295     .01986      .7754 
+sh_re~9_2013 |     .2206    .001443      .9752 
+sh_re~d_2013 |     .1044    .001854      3.499 
 
 
 After:  _webal as the weighting variable
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_whit~2010 |     .6777     .03664     -1.215 
-sh_blac~2010 |     .1554      .0352      2.309 
-sh_hhld~2010 |     .3348     .02062      .8257 
-med_hhl~2011 |     57999   4.58e+08      .9337 
-sh_mw_wkrs~y |     .1478     .00269      2.931 
+sh_hhld~2010 |     .3393     .02117      .7499 
+sh_re~9_2013 |     .2218    .001529      1.039 
+sh_re~d_2013 |     .1021    .001481      3.624 
 
 
 Data Setup
-Covariate adjustment: sh_white_cens2010 sh_black_cens2010 sh_hhlds_renteroccup_
-> cens2010 med_hhld_inc_acs2011 sh_mw_wkrs_statutory
+Covariate adjustment: sh_hhlds_renteroccup_cens2010 sh_residents_under29_2013 s
+> h_residents_accomm_food_2013
 
 
 Optimizing...
-Iteration 1: Max Difference = 430838.644
-Iteration 2: Max Difference = 158495.147
-Iteration 3: Max Difference = 58305.5739
-Iteration 4: Max Difference = 21447.8897
-Iteration 5: Max Difference = 7888.70565
-Iteration 6: Max Difference = 2900.56111
-Iteration 7: Max Difference = 1065.52669
-Iteration 8: Max Difference = 390.459059
-Iteration 9: Max Difference = 142.125866
-Iteration 10: Max Difference = 50.7969392
-Iteration 11: Max Difference = 17.2722562
-Iteration 12: Max Difference = 5.12308188
-Iteration 13: Max Difference = 1.04564175
-Iteration 14: Max Difference = .079453284
-Iteration 15: Max Difference = .000590508
+Iteration 1: Max Difference = 78823
+Iteration 2: Max Difference = 28997.097
+Iteration 3: Max Difference = 10667.1716
+Iteration 4: Max Difference = 3923.9689
+Iteration 5: Max Difference = 1443.28329
+Iteration 6: Max Difference = 530.690138
+Iteration 7: Max Difference = 194.966098
+Iteration 8: Max Difference = 71.4607225
+Iteration 9: Max Difference = 26.0272512
+Iteration 10: Max Difference = 9.31757057
+Iteration 11: Max Difference = 3.18199861
+Iteration 12: Max Difference = .954244069
+Iteration 13: Max Difference = .199568412
+Iteration 14: Max Difference = .01588409
+Iteration 15: Max Difference = .000130545
 maximum difference smaller than the tolerance level; convergence achieved
 
 
-No. of units adjusted: 71980 total of weights: 71980
+No. of units adjusted: 78824 total of weights: 78824
 
 
 Before: without weighting
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_whit~2010 |     .6713     .03786     -1.201 
-sh_blac~2010 |     .1583     .03661      2.291 
-sh_hhld~2010 |     .3279     .01931      .7325 
-med_hhl~2011 |     59856   4.67e+08      .9365 
-sh_mw_wkrs~y |     .1395    .001656      1.585 
+sh_hhld~2010 |     .3328      .0206      .7649 
+sh_re~9_2013 |     .2213    .001486      .9974 
+sh_re~d_2013 |     .1039     .00181       3.53 
 
 
 After:  _webal as the weighting variable
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_whit~2010 |     .6778     .03718     -1.235 
-sh_blac~2010 |     .1554     .03574      2.323 
-sh_hhld~2010 |     .3348     .02076      .7992 
-med_hhl~2011 |     57991   4.56e+08      .9373 
-sh_mw_wkrs~y |     .1478    .002592      2.757 
+sh_hhld~2010 |     .3394     .02149      .7444 
+sh_re~9_2013 |     .2218    .001533      1.025 
+sh_re~d_2013 |     .1021    .001533      3.624 
 (note: file ../temp/weights.dta not found)
 file ../temp/weights.dta saved
 
@@ -462,7 +455,7 @@ file ../temp/weights.dta saved
 File: ../../../drive/derived_large/estimation_samples/zipcode_months.dta
 Key: zipcode year_month
 ===============================================================================
-  197978:169(23960):1829433955:3703856006
+  197978:169(23960):4282963909:338739594
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -665,9 +658,9 @@ yr_entry_t~w |    197,978    2013.084      2.7304       2010       2019
 baseline_s~e |    197,978    .6748225    .4684423          0          1
 -------------+---------------------------------------------------------
 fullbal_sa~e |    197,978    .4008274    .4900673          0          1
-weights_un~l |    180,556           1    .0539336   .8637825   1.552012
-weights_ba~e |    121,146           1    .2504798   .6190326   6.219187
-weights_fu~l |     71,980           1    .2366598   .6022176   5.726164
+weights_un~l |    196,845           1    .0368606   .8628687   1.179093
+weights_ba~e |    132,741           1    .0938835   .5581957   1.410551
+weights_fu~l |     78,824           1    .0673606   .6529153   1.300458
 
 
 
@@ -1665,4 +1658,4 @@ file ../../../drive/derived_large/estimation_samples/stacked_sample_window9.dta
 . 
 end of do-file
 
- make.py ended: 2022-03-21 16:21:24
+ make.py ended: 2022-03-21 20:35:11

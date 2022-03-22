@@ -1,5 +1,6 @@
 set more off
 clear all
+version 15
 adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
@@ -13,8 +14,10 @@ program main
     local start_year_month  "2010m1"
     local end_year_month    "2019m12"
     local target_year_month "2015m1"
-    local target_vars       "sh_white_cens2010 sh_black_cens2010 sh_hhlds_renteroccup_cens2010"
-	local target_vars       "`target_vars' med_hhld_inc_acs2011 sh_mw_wkrs_statutory"
+    #delimit ;
+    local target_vars  "sh_hhlds_renteroccup_cens2010 sh_residents_under29_2013
+                        sh_residents_accomm_food_2013 ";
+    #delimit cr
     
     * Zipcode-months
     create_unbalanced_panel, instub(`in_zip_mth')                     ///
@@ -121,15 +124,16 @@ program flag_samples
 end
 
 program compute_weights
-    syntax, instub(str) target_vars(str)
+    syntax, instub(str) target_vars(str) [thresh(real 0.2)]
     
     preserve
         merge m:1 zipcode using "`instub'/zipcode_cross.dta", ///
             assert(2 3) keep(2 3) keepusing(`target_vars' sh_rural_pop_2010)
+
         foreach var of local target_vars {
-            qui sum `var' if sh_rural_pop_2010 < 0.4
-            local mean = r(mean)
-            local target_means "`target_means' `mean'"
+            qui sum `var' if sh_rural_pop_2010 < `thresh'
+            local var_mean = r(mean)
+            local target_means "`target_means' `var_mean'"
         }
                 
         keep if _merge == 3
