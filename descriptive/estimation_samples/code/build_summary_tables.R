@@ -29,7 +29,7 @@ main <- function() {
   
   vars_for_table <- c("statutory_mw", "mw_res", "mw_wkp_tot_17",
                       "medrentprice_SFCC", "medrentpricepsqft_SFCC", "ln_rents", 
-                      "medrentprice_2BR", "medrentpricepsqft_2BR",
+                      paste0("ln_rents_", c("SF", "CC", "Studio", "1BR", "2BR", "3BR", "Mfr5Plus")), 
                       "ln_emp_bizserv", "ln_estcount_bizserv", "ln_avgwwage_bizserv", 
                       "ln_emp_info", "ln_estcount_info", "ln_avgwwage_info", 
                       "ln_emp_fin", "ln_estcount_fin", "ln_avgwwage_fin")
@@ -38,7 +38,7 @@ main <- function() {
   writeLines(txt, "../output/stats_est_panel.txt")
   for (var in vars_for_table) {
    var_row <- build_panel_stats_row(baseline_panel, var)
-   write.table(var_row, "../output/stats_est_panel.txt", 
+   write.table(var_row, "../output/stats_est_panel.txt",
                append = TRUE, sep = "\t", dec = ".",
                row.names = FALSE, col.names = FALSE)
   }
@@ -50,7 +50,7 @@ load_data <- function(filename, instub = "../output") {
 }
 
 build_basic_stats <- function(df) {
-  stats <- df %>%
+  df %>%
     summarise(population_cens2010           = mean(population_cens2010, na.rm = T),
               n_hhlds_cens2010              = mean(n_hhlds_cens2010, na.rm = T),
               sh_urban_pop_2010             = mean(sh_urban_pop_2010, na.rm = T),
@@ -70,17 +70,16 @@ build_basic_stats <- function(df) {
               avg_binding_mw_dec2019        = mean(statutory_mw_dec2019, na.rm = T),
               max_binding_mw_dec2019        = max(statutory_mw_dec2019, na.rm = T),
               zip_count                     = n_distinct(zipcode))
-  return(stats)
 }
 
 build_panel_stats_row <-  function(panel, var){
   panel %>% 
-    summarise(across(.cols = var,
-                    .fns=list(n    =  ~ sum(!is.na(.x)), 
-                              mean = ~ mean(.x, na.rm = T), 
-                              sd   = ~ sd(.x, na.rm = T), 
-                              min  = ~ min(.x, na.rm = T), 
-                              max  = ~ max(.x, na.rm = T))))
+    summarise(across(.cols = all_of(var),
+                     .fns  = list(n    = ~ sum(!is.na(.x)), 
+                                  mean = ~ mean(.x, na.rm = T), 
+                                  sd   = ~ sd(.x, na.rm = T), 
+                                  min  = ~ min(.x, na.rm = T), 
+                                  max  = ~ max(.x, na.rm = T))))
 }
 
 
