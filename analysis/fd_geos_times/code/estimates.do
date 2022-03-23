@@ -18,28 +18,30 @@ program main
 	
 	** STATIC
 	local absorb = "year_month"
-    estimates_geo_month, in_est(`in_est') geo(zipcode) geo_name(zipcode) ///
-	    mw_wkp_var(`mw_wkp_var') controls(`controls') ///
+    estimates_geo_month, in_est(`in_est') geo(zipcode) geo_name(zipcode)   ///
+	    mw_wkp_var(`mw_wkp_var') controls(`controls')                      ///
 		absorb(`absorb') cluster(`cluster')
 		
     estimates_geo_month, in_est(`in_est') geo(county) geo_name(countyfips) ///
-	    mw_wkp_var(`mw_wkp_var') controls(`controls') ///
+	    mw_wkp_var(`mw_wkp_var') controls(`controls')                      ///
 		absorb(`absorb') cluster(`cluster')	
 		
-    local absorb  = "year"
-	estimates_geo_year, instub(`in_zip_yr') in_est(`in_est') ///
-	    geo(zipcode) geo_name(zipcode) ///
-	    mw_wkp_var(`mw_wkp_var') controls(`controls') ///
-		absorb(`absorb') cluster(`cluster')
-		
-	estimates_geo_year, instub(`in_cty_yr') in_est(`in_est') ///
-	    geo(county) geo_name(countyfips) ///
-	    mw_wkp_var(`mw_wkp_var') controls(`controls') ///
+    local absorb     "year"
+    local mw_wkp_var "d_mw_wkp_tot_17_avg"
+
+    define_controls
+    local d_controls "`r(d_economic_controls)'"
+
+	estimates_geo_year, instub(`in_zip_yr') in_est(`in_est')                 ///
+	    geo(zipcode) geo_name(zipcode)                                       ///
+	    mw_wkp_var(`mw_wkp_var') controls(`d_controls')                      ///
 		absorb(`absorb') cluster(`cluster')
 		
 	clear
 	foreach stub in "" "yr_" {
-         foreach geo in county zipcode {
+        local geos county zipcode
+        if "`stub'"=="yr_" local geos zipcode
+         foreach geo of local geos {
 	         foreach ff in `geo'_`stub'static_mw_res `geo'_`stub'static_mw_wkp ///
 		        `geo'_`stub'static_both `geo'_`stub'mw_wkp_on_res_mw {
                 append using ../temp/estimates_`ff'.dta
@@ -50,33 +52,35 @@ program main
     export delimited `outstub'/estimates_static.csv, replace
 	
     ** DYNAMIC
-	local absorb = "year_month"
+	local absorb     "year_month"
+    local mw_wkp_var "mw_wkp_tot_17"
+
     use "`in_est'/county_months.dta" if baseline_sample, clear
     xtset county_num `absorb'
 
-    estimate_dist_lag_model, depvar(ln_rents) ///
-        dyn_var(`mw_wkp_var') w(6) stat_var(mw_res) ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
+    estimate_dist_lag_model, depvar(ln_rents)                       ///
+        dyn_var(`mw_wkp_var') w(6) stat_var(mw_res)                 ///
+        controls(`controls') absorb(`absorb') cluster(`cluster')    ///
         model_name(county_both_mw_wkp_dynamic) outfolder("../temp")
         
-    estimate_dist_lag_model, depvar(ln_rents) ///
-        dyn_var(mw_res) w(6) stat_var(`mw_wkp_var') ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
+    estimate_dist_lag_model, depvar(ln_rents)                       ///
+        dyn_var(mw_res) w(6) stat_var(`mw_wkp_var')                 ///
+        controls(`controls') absorb(`absorb') cluster(`cluster')    ///
         model_name(county_both_mw_res_dynamic) outfolder("../temp")
         
-    estimate_dist_lag_model, depvar(ln_rents) ///
-        dyn_var(`mw_wkp_var') w(6) stat_var(`mw_wkp_var') ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
+    estimate_dist_lag_model, depvar(ln_rents)                       ///
+        dyn_var(`mw_wkp_var') w(6) stat_var(`mw_wkp_var')           ///
+        controls(`controls') absorb(`absorb') cluster(`cluster')    ///
         model_name(county_mw_wkp_only_dynamic) outfolder("../temp")
         
-    estimate_dist_lag_model, depvar(ln_rents) ///
-        dyn_var(mw_res) w(6) stat_var(mw_res) ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
+    estimate_dist_lag_model, depvar(ln_rents)                        ///
+        dyn_var(mw_res) w(6) stat_var(mw_res)                        ///
+        controls(`controls') absorb(`absorb') cluster(`cluster')     ///
         model_name(county_mw_res_only_dynamic) outfolder("../temp")
         
-    estimate_dist_lag_model_two_dyn, depvar(ln_rents) ///
-        dyn_var1(`mw_wkp_var') w(6) dyn_var2(mw_res) ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
+    estimate_dist_lag_model_two_dyn, depvar(ln_rents)                ///
+        dyn_var1(`mw_wkp_var') w(6) dyn_var2(mw_res)                 ///
+        controls(`controls') absorb(`absorb') cluster(`cluster')     ///
         model_name(county_both_dynamic) outfolder("../temp")
         
     use ../temp/estimates_county_both_mw_wkp_dynamic.dta, clear
@@ -96,24 +100,24 @@ program estimates_geo_month
     xtset `geo'_num year_month
 
     estimate_dist_lag_model if !missing(D.ln_rents), depvar(`mw_wkp_var') ///
-        dyn_var(mw_res) w(0) stat_var(mw_res) ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(`geo'_mw_wkp_on_res_mw) outfolder("../temp")
+        dyn_var(mw_res) w(0) stat_var(mw_res)                      ///
+        controls(`controls') absorb(`absorb') cluster(`cluster')   ///
+        model_name(`geo'_mw_wkp_on_res_mw)
 
-    estimate_dist_lag_model, depvar(ln_rents) ///
-        dyn_var(mw_res) w(0) stat_var(mw_res) ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(`geo'_static_mw_res) outfolder("../temp")
+    estimate_dist_lag_model, depvar(ln_rents)                      ///
+        dyn_var(mw_res) w(0) stat_var(mw_res)                      ///
+        controls(`controls') absorb(`absorb') cluster(`cluster')   ///
+        model_name(`geo'_static_mw_res)
 
-    estimate_dist_lag_model, depvar(ln_rents) ///
-        dyn_var(`mw_wkp_var') w(0) stat_var(`mw_wkp_var') ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(`geo'_static_mw_wkp) outfolder("../temp")
+    estimate_dist_lag_model, depvar(ln_rents)                      ///
+        dyn_var(`mw_wkp_var') w(0) stat_var(`mw_wkp_var')          ///
+        controls(`controls') absorb(`absorb') cluster(`cluster')   ///
+        model_name(`geo'_static_mw_wkp)
 
-    estimate_dist_lag_model, depvar(ln_rents) ///
-        dyn_var(`mw_wkp_var') w(0) stat_var(mw_res) ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(`geo'_static_both) test_equality outfolder("../temp")
+    estimate_dist_lag_model, depvar(ln_rents)                      ///
+        dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)                ///
+        controls(`controls') absorb(`absorb') cluster(`cluster')   ///
+        model_name(`geo'_static_both) test_equality
 end
 
 program estimates_geo_year
@@ -125,26 +129,26 @@ program estimates_geo_year
 	    geo_name(`geo_name') time(year)
     xtset `geo'_num year
 
-    estimate_dist_lag_model if baseline_sample == 1 & !missing(D.ln_rents), ///
-	    depvar(`mw_wkp_var') ///
-        dyn_var(mw_res) w(0) stat_var(mw_res) ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(`geo'_yr_mw_wkp_on_res_mw) outfolder("../temp")
+    estimate_stacked_model if baseline_sample == 1 & !missing(d_ln_rents_avg), ///
+	    depvar(`mw_wkp_var')                                               ///
+        mw_var1(d_mw_res_avg) mw_var2(d_mw_res_avg)                        ///
+        controls(`controls') absorb(`absorb') cluster(`cluster')           ///
+        model_name(`geo'_yr_mw_wkp_on_res_mw)
 
-    estimate_dist_lag_model if baseline_sample == 1, depvar(ln_rents) ///
-        dyn_var(mw_res) w(0) stat_var(mw_res) ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(`geo'_yr_static_mw_res) outfolder("../temp")
+    estimate_stacked_model if baseline_sample == 1, depvar(d_ln_rents_avg) ///
+        mw_var1(d_mw_res_avg) mw_var2(d_mw_res_avg)                        ///
+        controls(`controls') absorb(`absorb') cluster(`cluster')           ///
+        model_name(`geo'_yr_static_mw_res)
 
-    estimate_dist_lag_model if baseline_sample == 1, depvar(ln_rents) ///
-        dyn_var(`mw_wkp_var') w(0) stat_var(`mw_wkp_var') ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(`geo'_yr_static_mw_wkp) outfolder("../temp")
+    estimate_stacked_model if baseline_sample == 1, depvar(d_ln_rents_avg) ///
+        mw_var1(`mw_wkp_var') mw_var2(`mw_wkp_var')                        ///
+        controls(`controls') absorb(`absorb') cluster(`cluster')           ///
+        model_name(`geo'_yr_static_mw_wkp)
 
-    estimate_dist_lag_model if baseline_sample == 1, depvar(ln_rents) ///
-        dyn_var(`mw_wkp_var') w(0) stat_var(mw_res) ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
-        model_name(`geo'_yr_static_both) test_equality outfolder("../temp")
+    estimate_stacked_model if baseline_sample == 1, depvar(d_ln_rents_avg) ///
+        mw_var1(`mw_wkp_var') mw_var2(d_mw_res_avg)                        ///
+        controls(`controls') absorb(`absorb') cluster(`cluster')           ///
+        model_name(`geo'_yr_static_both)
 end
 
 program get_sample_flags
