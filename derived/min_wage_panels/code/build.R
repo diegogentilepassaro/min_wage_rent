@@ -153,8 +153,8 @@ assemble_statutory_mw <- function(dt, dt_mw) {
   )]
   
   dt[, binding_mw_less_10pc  := 1*(statutory_mw <= 1.1*fed_mw)]
-  dt[, binding_mw_less_9usd  := 1*(statutory_mw <  9)]
-  dt[, binding_mw_less_15usd := 1*(statutory_mw <  15)]
+  dt[, binding_mw_less_9usd  := 1*(statutory_mw <= 9)]
+  dt[, binding_mw_less_15usd := 1*(statutory_mw <= 15)]
   
   return(dt)
 }
@@ -185,19 +185,19 @@ compute_counterfactual <- function(dt) {
   dt_cf <- dt[  (year == 2019 & month == 12)
               | (year == 2020 & month == 01)]
 
-  dt_cf[, fed_mw_cf_10pc  := fed_mw*1.1]
-  dt_cf[, fed_mw_cf_9usd  := 9]
-  dt_cf[, fed_mw_cf_15usd := 15]
+  dt_cf[, fed_mw_cf_10pc  := fifelse(year == 2019, fed_mw, fed_mw*1.1)]
+  dt_cf[, fed_mw_cf_9usd  := fifelse(year == 2019, fed_mw, 9)]
+  dt_cf[, fed_mw_cf_15usd := fifelse(year == 2019, fed_mw, 15)]
   
   for (stub in c("_10pc", "_9usd", "_15usd")) {
     cf_mw_var <- paste0("fed_mw_cf", stub)
     new_var   <- paste0("statutory_mw_cf", stub)
     share_var <- paste0("sh_houses_w_less", stub)
 
-    dt_cf[, c(new_var) := statutory_mw]
+    dt_cf[, c(new_var) := pmax(local_mw, county_mw, state_mw, get(cf_mw_var), na.rm = T)]
     dt_cf[year == 2020 & month ==  1, 
-      c(new_var) := get(share_var)*get(cf_mw_var) 
-                  + (1 - get(share_var))*statutory_mw]
+          c(new_var) := get(share_var)*get(cf_mw_var) 
+                      + (1 - get(share_var))*get(new_var)]
   }
   
   return(dt_cf)
