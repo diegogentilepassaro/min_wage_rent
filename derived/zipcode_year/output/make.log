@@ -1,5 +1,5 @@
 
- make.py started: 2022-03-17 14:41:32 C:\Users\diegog\Desktop\Diego\min_wage_rent\derived\zipcode_year\code 
+ make.py started: 2022-03-23 13:57:41 C:\Users\shermo\Documents\GitHub\min_wage_rent\derived\zipcode_year\code 
 
 
 
@@ -60,62 +60,89 @@ running c:\ado\personal\profile.do ...
 >  ///
 >         using  "`in_zip_mth'/zipcode_month_panel.dta"
   9. 
-.     make_yearly_data
+.     destring_geographies
  10. 
+.     make_yearly_data
+ 11.     
 .     clean_safmr_data,  instub(`in_safmr')
- 11.     clean_irs_data,    instub(`in_irs')
- 12.     clean_area_shares, instub(`in_lodes_zip')
- 13.     clean_qcew,        instub(`in_qcew')
- 14. 
+ 12.     clean_irs_data,    instub(`in_irs')
+ 13.     clean_area_shares, instub(`in_lodes_zip')    
+ 14.     clean_qcew,        instub(`in_qcew')
+ 15.     
 .     use "../temp/mw_rents_data.dta", clear
- 15.     merge 1:1 zipcode countyfips cbsa year ///
+ 16.     merge 1:1 zipcode countyfips cbsa year ///
 >         using "../temp/safmr_2012_2016.dta", nogen keep(1 3)
- 16.     merge 1:1 zipcode cbsa year ///
+ 17.     merge 1:1 zipcode cbsa year ///
 >         using "../temp/safmr_2017_2019.dta", nogen keep(1 3)
- 17. 
+ 18. 
 .     merge 1:1 zipcode    year using "../temp/irs_data.dta",         nogen kee
 > p(1 3)
- 18.     merge 1:1 zipcode    year using "../temp/workplace_shares.dta", nogen 
+ 19.     merge 1:1 zipcode    year using "../temp/workplace_shares.dta", nogen 
 > keep(1 3)
- 19.     merge 1:1 zipcode    year using "../temp/residence_shares.dta", nogen 
+ 20.     merge 1:1 zipcode    year using "../temp/residence_shares.dta", nogen 
 > keep(1 3)
- 20.     merge m:1 countyfips year using "../temp/qcew_data.dta",        nogen 
+ 21.     merge m:1 countyfips year using "../temp/qcew_data.dta",        nogen 
 > keep(1 3)
- 21.         gen ln_wkp_jobs_tot = log(wkp_jobs_tot) 
- 22.         gen ln_res_jobs_tot = log(res_jobs_tot)
- 23.         
-.     destring_geographies
+ 22.         gen ln_wkp_jobs_tot = log(wkp_jobs_tot) 
+ 23.         gen ln_res_jobs_tot = log(res_jobs_tot)
  24. 
 .     save_data "`outstub'/zipcode_year.dta", key(zipcode year) ///
 >         log(`logfile') replace
  25. end
 
 . 
+. program destring_geographies
+  1. 
+.     destring zipcode,    gen(zipcode_num)
+  2.     destring statefips,  gen(statefips_num)
+  3.     destring cbsa,       gen(cbsa_num)
+  4.     destring countyfips, gen(county_num)
+  5. end
+
+. 
 . program make_yearly_data
   1. 
+.     gen    day        = 1
+  2.     gen    date       = mdy(month, day, year)
+  3.     gen    year_month = mofd(date)
+  4.     format year_month %tm
+  5.     drop   day date
+  6. 
 .     gen ln_rents        = log(medrentpricepsqft_SFCC)
-  2.     gen ln_price        = log(medlistingpricepsqft_SFCC)
-  3.     gen ln_sale_counts  = log(Sale_Counts)
-  4.     gen ln_monthly_listings = log(Monthlylistings_NSA_SFCC)
-  5. 
-.     rename *timevary* *timvar* 
-  6.     qui describe mw_wkp*, varlist
-  7.     local mw_wkp_vars = r(varlist)
-  8. 
+  7.     gen ln_price        = log(medlistingpricepsqft_SFCC)
+  8.     gen ln_sale_counts  = log(Sale_Counts)
+  9.     gen ln_monthly_listings = log(Monthlylistings_NSA_SFCC)
+ 10. 
+.     rename *timevary*  *tvar*
+ 11.     rename *_earn_*    *_e_*
+ 12.     rename *_age_*     *_a_*
+ 13.     qui describe mw_wkp*, varlist
+ 14.     local mw_wkp_vars = r(varlist)
+ 15. 
 .     local vars statutory_mw mw_res ln_rents ln_price ///
 >         `mw_wkp_vars' ln_sale_counts ln_monthly_listings
-  9. 
-.     keep zipcode year countyfips cbsa statefips month `vars'
- 10.     
+ 16. 
+.     keep zipcode zipcode_num year month year_month countyfips cbsa statefips 
+> `vars'
+ 17.     
+.     xtset zipcode_num year_month
+ 18.         
 .     foreach var of local vars {
- 11.         bys zipcode year: egen `var'_avg = mean(`var')
- 12.     }
- 13. 
+ 19.         gen d_`var' = D.`var'
+ 20.     }
+ 21.     
+.     xtset, clear
+ 22.     drop year_month
+ 23.     foreach var of local vars {
+ 24.         bys zipcode year: egen `var'_avg   = mean(`var')
+ 25.         bys zipcode year: egen d_`var'_avg = mean(d_`var')
+ 26.     }
+ 27. 
 .     bysort zipcode year (month): keep if _n == 7
- 14.     drop month
- 15.     
+ 28.     drop month
+ 29.     
 .     save "../temp/mw_rents_data.dta", replace
- 16. end
+ 30. end
 
 . 
 . program clean_safmr_data
@@ -209,36 +236,178 @@ running c:\ado\personal\profile.do ...
 .     use countyfips year month estcount* avgwwage* emp*            ///
 >        using `instub'/ind_emp_wage_countymonth.dta, clear
   3. 
-.     foreach var of varlist estcount* avgwwage* emp* {
-  4.         gen ln_`var' = log(`var')
-  5.         drop `var'
-  6.         bys countyfips year: egen ln_`var'_avg = mean(ln_`var')
-  7.     }
+.     gen    day        = 1
+  4.     gen    date       = mdy(month, day, year)
+  5.     gen    year_month = mofd(date)
+  6.     format year_month %tm
+  7.     drop   day date
   8. 
-.         bysort countyfips year (month): keep if _n == 7
-  9.     drop month
+.     destring countyfips, gen(county_num)
+  9.     xtset county_num year_month
  10. 
+.     foreach var of varlist estcount* avgwwage* emp* {
+ 11.         gen ln_`var'   = log(`var')
+ 12.         gen d_ln_`var' = D.ln_`var'
+ 13.     }
+ 14. 
+.     xtset, clear
+ 15.     drop year_month
+ 16.     foreach var of varlist estcount* avgwwage* emp* {
+ 17.         bys countyfips year: egen ln_`var'_avg   = mean(ln_`var')
+ 18.         bys countyfips year: egen d_ln_`var'_avg = mean(d_ln_`var')
+ 19.         drop `var'
+ 20.     }
+ 21. 
+.         bysort countyfips year (month): keep if _n == 7
+ 22.     drop month
+ 23. 
 .     save "../temp/qcew_data.dta", replace
- 11. end
-
-. 
-. program destring_geographies
-  1. 
-.     destring statefips,  gen(statefips_num)
-  2.     destring cbsa,       gen(cbsa_num)
-  3.     destring countyfips, gen(county_num)
-  4.     destring zipcode,    gen(zipcode_num)
-  5. end
+ 24. end
 
 . 
 . 
 . main
+zipcode: all characters numeric; zipcode_num generated as long
+statefips: all characters numeric; statefips_num generated as byte
+cbsa: all characters numeric; cbsa_num generated as long
+countyfips: all characters numeric; county_num generated as long
 (3,843,924 missing values generated)
 (2,958,232 missing values generated)
 (1,448,337 missing values generated)
 (3,083,633 missing values generated)
+       panel variable:  zipcode_num (strongly balanced)
+        time variable:  year_month, 2009m7 to 2020m1
+                delta:  1 month
+(31,826 missing values generated)
+(31,826 missing values generated)
+(3,847,240 missing values generated)
+(2,969,089 missing values generated)
+(58,790 missing values generated)
+(58,790 missing values generated)
+(58,790 missing values generated)
+(58,790 missing values generated)
+(58,790 missing values generated)
+(58,790 missing values generated)
+(58,790 missing values generated)
+(58,790 missing values generated)
+(58,790 missing values generated)
+(58,790 missing values generated)
+(56,522 missing values generated)
+(56,522 missing values generated)
+(56,522 missing values generated)
+(56,522 missing values generated)
+(56,522 missing values generated)
+(56,522 missing values generated)
+(56,522 missing values generated)
+(56,522 missing values generated)
+(56,522 missing values generated)
+(56,522 missing values generated)
+(59,042 missing values generated)
+(59,042 missing values generated)
+(59,042 missing values generated)
+(59,042 missing values generated)
+(59,042 missing values generated)
+(59,042 missing values generated)
+(59,042 missing values generated)
+(59,042 missing values generated)
+(59,042 missing values generated)
+(59,042 missing values generated)
+(58,664 missing values generated)
+(58,664 missing values generated)
+(58,664 missing values generated)
+(58,664 missing values generated)
+(58,664 missing values generated)
+(58,664 missing values generated)
+(58,664 missing values generated)
+(58,664 missing values generated)
+(58,664 missing values generated)
+(58,664 missing values generated)
+(59,924 missing values generated)
+(59,924 missing values generated)
+(59,924 missing values generated)
+(59,924 missing values generated)
+(59,924 missing values generated)
+(59,924 missing values generated)
+(59,924 missing values generated)
+(59,924 missing values generated)
+(59,924 missing values generated)
+(59,924 missing values generated)
+(59,798 missing values generated)
+(59,798 missing values generated)
+(59,798 missing values generated)
+(59,798 missing values generated)
+(59,798 missing values generated)
+(59,798 missing values generated)
+(59,798 missing values generated)
+(59,798 missing values generated)
+(59,798 missing values generated)
+(59,798 missing values generated)
+(59,546 missing values generated)
+(59,546 missing values generated)
+(59,546 missing values generated)
+(59,546 missing values generated)
+(59,546 missing values generated)
+(59,546 missing values generated)
+(59,546 missing values generated)
+(59,546 missing values generated)
+(59,546 missing values generated)
+(59,546 missing values generated)
+(59,546 missing values generated)
+(59,546 missing values generated)
+(59,546 missing values generated)
+(59,546 missing values generated)
+(59,546 missing values generated)
+(59,546 missing values generated)
+(59,546 missing values generated)
+(59,546 missing values generated)
+(59,546 missing values generated)
+(59,546 missing values generated)
+(58,664 missing values generated)
+(58,664 missing values generated)
+(58,664 missing values generated)
+(58,664 missing values generated)
+(58,664 missing values generated)
+(58,664 missing values generated)
+(58,664 missing values generated)
+(58,664 missing values generated)
+(58,664 missing values generated)
+(58,664 missing values generated)
+(58,916 missing values generated)
+(58,916 missing values generated)
+(58,916 missing values generated)
+(58,916 missing values generated)
+(58,916 missing values generated)
+(58,916 missing values generated)
+(58,916 missing values generated)
+(58,916 missing values generated)
+(58,916 missing values generated)
+(58,916 missing values generated)
+(470,110 missing values generated)
+(470,110 missing values generated)
+(470,110 missing values generated)
+(470,110 missing values generated)
+(470,110 missing values generated)
+(470,110 missing values generated)
+(470,110 missing values generated)
+(470,110 missing values generated)
+(470,110 missing values generated)
+(470,110 missing values generated)
+(1,758,212 missing values generated)
+(3,095,593 missing values generated)
 (3831734 missing values generated)
+(3834566 missing values generated)
 (2944130 missing values generated)
+(2946206 missing values generated)
+(27178 missing values generated)
+(27178 missing values generated)
+(27178 missing values generated)
+(27178 missing values generated)
+(27178 missing values generated)
+(27178 missing values generated)
+(27178 missing values generated)
+(27178 missing values generated)
+(27178 missing values generated)
+(27178 missing values generated)
 (27178 missing values generated)
 (27178 missing values generated)
 (27178 missing values generated)
@@ -259,6 +428,26 @@ running c:\ado\personal\profile.do ...
 (24892 missing values generated)
 (24892 missing values generated)
 (24892 missing values generated)
+(24892 missing values generated)
+(24892 missing values generated)
+(24892 missing values generated)
+(24892 missing values generated)
+(24892 missing values generated)
+(24892 missing values generated)
+(24892 missing values generated)
+(24892 missing values generated)
+(24892 missing values generated)
+(24892 missing values generated)
+(27432 missing values generated)
+(27432 missing values generated)
+(27432 missing values generated)
+(27432 missing values generated)
+(27432 missing values generated)
+(27432 missing values generated)
+(27432 missing values generated)
+(27432 missing values generated)
+(27432 missing values generated)
+(27432 missing values generated)
 (27432 missing values generated)
 (27432 missing values generated)
 (27432 missing values generated)
@@ -279,6 +468,16 @@ running c:\ado\personal\profile.do ...
 (27051 missing values generated)
 (27051 missing values generated)
 (27051 missing values generated)
+(27051 missing values generated)
+(27051 missing values generated)
+(27051 missing values generated)
+(27051 missing values generated)
+(27051 missing values generated)
+(27051 missing values generated)
+(27051 missing values generated)
+(27051 missing values generated)
+(27051 missing values generated)
+(27051 missing values generated)
 (28321 missing values generated)
 (28321 missing values generated)
 (28321 missing values generated)
@@ -289,6 +488,26 @@ running c:\ado\personal\profile.do ...
 (28321 missing values generated)
 (28321 missing values generated)
 (28321 missing values generated)
+(28321 missing values generated)
+(28321 missing values generated)
+(28321 missing values generated)
+(28321 missing values generated)
+(28321 missing values generated)
+(28321 missing values generated)
+(28321 missing values generated)
+(28321 missing values generated)
+(28321 missing values generated)
+(28321 missing values generated)
+(28194 missing values generated)
+(28194 missing values generated)
+(28194 missing values generated)
+(28194 missing values generated)
+(28194 missing values generated)
+(28194 missing values generated)
+(28194 missing values generated)
+(28194 missing values generated)
+(28194 missing values generated)
+(28194 missing values generated)
 (28194 missing values generated)
 (28194 missing values generated)
 (28194 missing values generated)
@@ -319,6 +538,36 @@ running c:\ado\personal\profile.do ...
 (27940 missing values generated)
 (27940 missing values generated)
 (27940 missing values generated)
+(27940 missing values generated)
+(27940 missing values generated)
+(27940 missing values generated)
+(27940 missing values generated)
+(27940 missing values generated)
+(27940 missing values generated)
+(27940 missing values generated)
+(27940 missing values generated)
+(27940 missing values generated)
+(27940 missing values generated)
+(27940 missing values generated)
+(27940 missing values generated)
+(27940 missing values generated)
+(27940 missing values generated)
+(27940 missing values generated)
+(27940 missing values generated)
+(27940 missing values generated)
+(27940 missing values generated)
+(27940 missing values generated)
+(27940 missing values generated)
+(27051 missing values generated)
+(27051 missing values generated)
+(27051 missing values generated)
+(27051 missing values generated)
+(27051 missing values generated)
+(27051 missing values generated)
+(27051 missing values generated)
+(27051 missing values generated)
+(27051 missing values generated)
+(27051 missing values generated)
 (27051 missing values generated)
 (27051 missing values generated)
 (27051 missing values generated)
@@ -339,6 +588,26 @@ running c:\ado\personal\profile.do ...
 (27305 missing values generated)
 (27305 missing values generated)
 (27305 missing values generated)
+(27305 missing values generated)
+(27305 missing values generated)
+(27305 missing values generated)
+(27305 missing values generated)
+(27305 missing values generated)
+(27305 missing values generated)
+(27305 missing values generated)
+(27305 missing values generated)
+(27305 missing values generated)
+(27305 missing values generated)
+(438278 missing values generated)
+(438278 missing values generated)
+(438278 missing values generated)
+(438278 missing values generated)
+(438278 missing values generated)
+(438278 missing values generated)
+(438278 missing values generated)
+(438278 missing values generated)
+(438278 missing values generated)
+(438278 missing values generated)
 (438278 missing values generated)
 (438278 missing values generated)
 (438278 missing values generated)
@@ -350,7 +619,9 @@ running c:\ado\personal\profile.do ...
 (438278 missing values generated)
 (438278 missing values generated)
 (629836 missing values generated)
+(1054035 missing values generated)
 (3078522 missing values generated)
+(3079111 missing values generated)
 (3,723,642 observations deleted)
 (note: file ../temp/mw_rents_data.dta not found)
 file ../temp/mw_rents_data.dta saved
@@ -371,77 +642,153 @@ file ../temp/residence_shares.dta saved
 (314,330 observations deleted)
 (note: file ../temp/workplace_shares.dta not found)
 file ../temp/workplace_shares.dta saved
+countyfips: all characters numeric; county_num generated as long
+       panel variable:  county_num (unbalanced)
+        time variable:  year_month, 2010m1 to 2019m12, but with gaps
+                delta:  1 month
 (1,026 missing values generated)
-(834 missing values generated)
+(4,235 missing values generated)
 (1,413 missing values generated)
-(1248 missing values generated)
+(4,614 missing values generated)
 (1,914 missing values generated)
-(1806 missing values generated)
+(5,112 missing values generated)
 (213 missing values generated)
-(198 missing values generated)
+(3,408 missing values generated)
 (1,254 missing values generated)
-(1104 missing values generated)
+(4,456 missing values generated)
 (12,999 missing values generated)
-(12228 missing values generated)
+(16,195 missing values generated)
 (1,104 missing values generated)
-(984 missing values generated)
+(4,305 missing values generated)
 (1,938 missing values generated)
-(1824 missing values generated)
+(5,130 missing values generated)
 (7,296 missing values generated)
-(6816 missing values generated)
+(10,501 missing values generated)
 (3,423 missing values generated)
-(3048 missing values generated)
+(6,632 missing values generated)
 (8,847 missing values generated)
-(8676 missing values generated)
+(11,995 missing values generated)
 (108 missing values generated)
-(84 missing values generated)
+(3,304 missing values generated)
 (24,273 missing values generated)
-(15528 missing values generated)
+(28,767 missing values generated)
 (43,059 missing values generated)
-(31380 missing values generated)
+(47,973 missing values generated)
 (17,088 missing values generated)
-(12954 missing values generated)
+(20,925 missing values generated)
 (318 missing values generated)
-(258 missing values generated)
+(3,520 missing values generated)
 (19,974 missing values generated)
-(14040 missing values generated)
+(24,097 missing values generated)
 (88,572 missing values generated)
-(77928 missing values generated)
+(92,983 missing values generated)
 (12,186 missing values generated)
-(7902 missing values generated)
+(16,079 missing values generated)
 (42,783 missing values generated)
-(37116 missing values generated)
+(46,674 missing values generated)
 (47,895 missing values generated)
-(40860 missing values generated)
+(51,868 missing values generated)
 (39,699 missing values generated)
-(28992 missing values generated)
+(44,446 missing values generated)
 (48,867 missing values generated)
-(43452 missing values generated)
+(52,655 missing values generated)
 (1,455 missing values generated)
-(1020 missing values generated)
+(4,716 missing values generated)
 (24,274 missing values generated)
-(15528 missing values generated)
+(28,768 missing values generated)
 (43,060 missing values generated)
-(31380 missing values generated)
+(47,975 missing values generated)
 (17,088 missing values generated)
-(12954 missing values generated)
+(20,925 missing values generated)
 (347 missing values generated)
-(258 missing values generated)
+(3,562 missing values generated)
 (19,974 missing values generated)
-(14040 missing values generated)
+(24,097 missing values generated)
 (88,572 missing values generated)
-(77928 missing values generated)
+(92,983 missing values generated)
 (12,186 missing values generated)
-(7902 missing values generated)
+(16,079 missing values generated)
 (42,783 missing values generated)
-(37116 missing values generated)
+(46,674 missing values generated)
 (47,895 missing values generated)
-(40860 missing values generated)
+(51,868 missing values generated)
 (39,701 missing values generated)
-(28992 missing values generated)
+(44,449 missing values generated)
 (48,867 missing values generated)
-(43452 missing values generated)
+(52,655 missing values generated)
 (1,455 missing values generated)
+(4,716 missing values generated)
+(834 missing values generated)
+(834 missing values generated)
+(1248 missing values generated)
+(1248 missing values generated)
+(1806 missing values generated)
+(1806 missing values generated)
+(198 missing values generated)
+(198 missing values generated)
+(1104 missing values generated)
+(1104 missing values generated)
+(12228 missing values generated)
+(12228 missing values generated)
+(984 missing values generated)
+(984 missing values generated)
+(1824 missing values generated)
+(1824 missing values generated)
+(6816 missing values generated)
+(6816 missing values generated)
+(3048 missing values generated)
+(3048 missing values generated)
+(8676 missing values generated)
+(8676 missing values generated)
+(84 missing values generated)
+(84 missing values generated)
+(15528 missing values generated)
+(15528 missing values generated)
+(31380 missing values generated)
+(31380 missing values generated)
+(12954 missing values generated)
+(12954 missing values generated)
+(258 missing values generated)
+(258 missing values generated)
+(14040 missing values generated)
+(14040 missing values generated)
+(77928 missing values generated)
+(77928 missing values generated)
+(7902 missing values generated)
+(7902 missing values generated)
+(37116 missing values generated)
+(37116 missing values generated)
+(40860 missing values generated)
+(40860 missing values generated)
+(28992 missing values generated)
+(28992 missing values generated)
+(43452 missing values generated)
+(43452 missing values generated)
+(1020 missing values generated)
+(1020 missing values generated)
+(15528 missing values generated)
+(15528 missing values generated)
+(31380 missing values generated)
+(31380 missing values generated)
+(12954 missing values generated)
+(12954 missing values generated)
+(258 missing values generated)
+(270 missing values generated)
+(14040 missing values generated)
+(14040 missing values generated)
+(77928 missing values generated)
+(77928 missing values generated)
+(7902 missing values generated)
+(7902 missing values generated)
+(37116 missing values generated)
+(37116 missing values generated)
+(40860 missing values generated)
+(40860 missing values generated)
+(28992 missing values generated)
+(28992 missing values generated)
+(43452 missing values generated)
+(43452 missing values generated)
+(1020 missing values generated)
 (1020 missing values generated)
 (350,891 observations deleted)
 (note: file ../temp/qcew_data.dta not found)
@@ -503,10 +850,6 @@ file ../temp/qcew_data.dta saved
     -----------------------------------------
 (41,593 missing values generated)
 (35,551 missing values generated)
-statefips: all characters numeric; statefips_num generated as byte
-cbsa: all characters numeric; cbsa_num generated as long
-countyfips: all characters numeric; county_num generated as long
-zipcode: all characters numeric; zipcode_num generated as long
 (data now sorted by zipcode year)
   variable year was long now int
   variable res_jobs_age_under29 was long now int
@@ -516,7 +859,7 @@ zipcode: all characters numeric; zipcode_num generated as long
 File: ../../../drive/derived_large/zipcode_year/zipcode_year.dta
 Key: zipcode year
 ===============================================================================
-  318260:365(49842):4142225792:3162689100
+  318260:667(82127):3735584645:1052960537
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -524,437 +867,800 @@ Key: zipcode year
         year |    318,260      2014.5    2.872286       2010       2019
  zipcode_num |    318,260    49822.79    27474.06          1      99950
   countyfips |          0
-  county_num |    318,260    29649.28    15251.45       1001      56045
--------------+---------------------------------------------------------
    statefips |          0
-statefips_~m |    318,260     29.5647    15.24013          1         56
-        cbsa |          0
-    cbsa_num |    318,260    48533.36    32191.98      10100      99999
-statutory_mw |    318,260    7.909106    1.099372       7.25         16
 -------------+---------------------------------------------------------
+        cbsa |          0
+statutory_mw |    318,260    7.909106    1.099372       7.25         16
       mw_res |    318,260    2.059821    .1231097   1.981001   2.772589
 mw_wkp_to~09 |    316,120    2.062067    .1212463   1.981001   2.714947
-mw_wkp_~9_09 |    316,120     2.05237     .183839          0    2.70805
-mw_wkp_~4_09 |    316,120    2.059174    .1441858          0   2.722751
-mw_wkp_~5_09 |    316,120    2.050002    .1981101          0   2.709241
+mw_wkp_a_u~9 |    316,120     2.05237     .183839          0    2.70805
 -------------+---------------------------------------------------------
-mw_wkp_~0_09 |    316,120    2.054451    .1707647          0   2.772589
-mw_~_3333_09 |    316,120      2.0562    .1607361          0   2.734671
-mw_~e3333_09 |    316,120    2.053423    .1835414          0   2.717053
+mw_wkp_a_3~9 |    316,120    2.059174    .1441858          0   2.722751
+mw_wkp_a_a~9 |    316,120    2.050002    .1981101          0   2.709241
+mw_wkp_e_u~9 |    316,120    2.054451    .1707647          0   2.772589
+mw_wkp_e_1~9 |    316,120      2.0562    .1607361          0   2.734671
+mw_wkp_e_a~9 |    316,120    2.053423    .1835414          0   2.717053
+-------------+---------------------------------------------------------
 mw_wkp_go~09 |    316,120    2.044222    .2203371          0    2.70805
 mw_wkp_tr~09 |    316,120    2.049568    .1984577          0    2.70805
--------------+---------------------------------------------------------
 mw_wkp_ot~09 |    316,120    2.060282    .1383092          0   2.718081
 mw_wkp_to~10 |    316,300    2.062412    .1214212   1.981001   2.728093
-mw_wkp_~9_10 |    316,300    2.054096    .1756913          0   2.766892
-mw_wkp_~4_10 |    316,300    2.060298    .1391823          0    2.74663
-mw_wkp_~5_10 |    316,300    2.053983    .1792421          0   2.772589
+mw_wkp_a_u~0 |    316,300    2.054096    .1756913          0   2.766892
 -------------+---------------------------------------------------------
-mw_wkp_~0_10 |    316,300    2.055589    .1652055          0   2.768791
-mw_~_3333_10 |    316,300    2.057709    .1517058          0   2.728103
-mw_~e3333_10 |    316,300    2.056531    .1686221          0    2.74663
+mw_wkp_a_3~0 |    316,300    2.060298    .1391823          0    2.74663
+mw_wkp_a_a~0 |    316,300    2.053983    .1792421          0   2.772589
+mw_wkp_e_u~0 |    316,300    2.055589    .1652055          0   2.768791
+mw_wkp_e_1~0 |    316,300    2.057709    .1517058          0   2.728103
+mw_wkp_e_a~0 |    316,300    2.056531    .1686221          0    2.74663
+-------------+---------------------------------------------------------
 mw_wkp_go~10 |    316,300    2.047851    .2031329          0   2.772589
 mw_wkp_tr~10 |    316,300    2.052093    .1856401          0   2.722595
--------------+---------------------------------------------------------
 mw_wkp_ot~10 |    316,300    2.061275    .1340198          0   2.730254
 mw_wkp_to~11 |    316,100    2.062484    .1214165   1.981001   2.720518
-mw_wkp_~9_11 |    316,100    2.053464    .1798515          0   2.734102
-mw_wkp_~4_11 |    316,100    2.060479    .1376465          0   2.716562
-mw_wkp_~5_11 |    316,100    2.054674    .1750761          0   2.772589
+mw_wkp_a_u~1 |    316,100    2.053464    .1798515          0   2.734102
 -------------+---------------------------------------------------------
-mw_wkp_~0_11 |    316,100    2.056169    .1619434          0    2.72465
-mw_~_3333_11 |    316,100    2.057775     .151753          0   2.772589
-mw_~e3333_11 |    316,100     2.05777    .1604093          0   2.722214
+mw_wkp_a_3~1 |    316,100    2.060479    .1376465          0   2.716562
+mw_wkp_a_a~1 |    316,100    2.054674    .1750761          0   2.772589
+mw_wkp_e_u~1 |    316,100    2.056169    .1619434          0    2.72465
+mw_wkp_e_1~1 |    316,100    2.057775     .151753          0   2.772589
+mw_wkp_e_a~1 |    316,100     2.05777    .1604093          0   2.722214
+-------------+---------------------------------------------------------
 mw_wkp_go~11 |    316,100    2.050879    .1886879          0   2.772589
 mw_wkp_tr~11 |    316,100    2.050816    .1918965          0    2.70805
--------------+---------------------------------------------------------
 mw_wkp_ot~11 |    316,100    2.061246    .1344793          0   2.729677
 mw_wkp_to~12 |    316,130     2.06251    .1214587   1.981001   2.750471
-mw_wkp_~9_12 |    316,130     2.05407     .176153          0   2.727893
-mw_wkp_~4_12 |    316,130    2.060697    .1367145          0   2.750471
-mw_wkp_~5_12 |    316,130    2.056224    .1661062          0   2.723834
+mw_wkp_a_u~2 |    316,130     2.05407     .176153          0   2.727893
 -------------+---------------------------------------------------------
-mw_wkp_~0_12 |    316,130    2.056696    .1591499          0   2.724959
-mw_~_3333_12 |    316,130    2.058243    .1486189          0   2.722779
-mw_~e3333_12 |    316,130     2.05859    .1553827          0   2.750471
+mw_wkp_a_3~2 |    316,130    2.060697    .1367145          0   2.750471
+mw_wkp_a_a~2 |    316,130    2.056224    .1661062          0   2.723834
+mw_wkp_e_u~2 |    316,130    2.056696    .1591499          0   2.724959
+mw_wkp_e_1~2 |    316,130    2.058243    .1486189          0   2.722779
+mw_wkp_e_a~2 |    316,130     2.05859    .1553827          0   2.750471
+-------------+---------------------------------------------------------
 mw_wkp_go~12 |    316,130    2.051372    .1854026          0    2.69106
 mw_wkp_tr~12 |    316,130    2.051424    .1888002          0    2.70805
--------------+---------------------------------------------------------
 mw_wkp_ot~12 |    316,130    2.061586    .1330913          0   2.750471
 mw_wkp_to~13 |    316,030    2.062552     .121406   1.981001   2.728209
-mw_wkp_~9_13 |    316,030    2.053516    .1794985          0   2.772589
-mw_wkp_~4_13 |    316,030    2.060608    .1376756          0   2.727209
-mw_wkp_~5_13 |    316,030    2.056532    .1649126          0   2.722742
+mw_wkp_a_u~3 |    316,030    2.053516    .1794985          0   2.772589
 -------------+---------------------------------------------------------
-mw_wkp_~0_13 |    316,030    2.056816    .1582418          0   2.728561
-mw_~_3333_13 |    316,030    2.058239    .1490193          0   2.723724
-mw_~e3333_13 |    316,030    2.058086    .1587473          0   2.728793
+mw_wkp_a_3~3 |    316,030    2.060608    .1376756          0   2.727209
+mw_wkp_a_a~3 |    316,030    2.056532    .1649126          0   2.722742
+mw_wkp_e_u~3 |    316,030    2.056816    .1582418          0   2.728561
+mw_wkp_e_1~3 |    316,030    2.058239    .1490193          0   2.723724
+mw_wkp_e_a~3 |    316,030    2.058086    .1587473          0   2.728793
+-------------+---------------------------------------------------------
 mw_wkp_go~13 |    316,030    2.050126    .1916143          0    2.70805
 mw_wkp_tr~13 |    316,030    2.052899    .1809069          0   2.710284
--------------+---------------------------------------------------------
 mw_wkp_ot~13 |    316,030     2.06158    .1335803          0   2.732606
 mw_wkp_to~14 |    316,040     2.06251    .1211041   1.981001   2.728408
-mw_wkp_~9_14 |    316,040    2.053317    .1803954          0   2.736814
-mw_wkp_~4_14 |    316,040    2.060788    .1359967          0   2.772589
-mw_wkp_~5_14 |    316,040    2.056949     .161796          0   2.723008
+mw_wkp_a_u~4 |    316,040    2.053317    .1803954          0   2.736814
 -------------+---------------------------------------------------------
-mw_wkp_~0_14 |    316,040    2.055388    .1670173          0   2.735022
-mw_~_3333_14 |    316,040    2.058722     .145181          0   2.725421
-mw_~e3333_14 |    316,040    2.058586    .1551146          0   2.728144
+mw_wkp_a_3~4 |    316,040    2.060788    .1359967          0   2.772589
+mw_wkp_a_a~4 |    316,040    2.056949     .161796          0   2.723008
+mw_wkp_e_u~4 |    316,040    2.055388    .1670173          0   2.735022
+mw_wkp_e_1~4 |    316,040    2.058722     .145181          0   2.725421
+mw_wkp_e_a~4 |    316,040    2.058586    .1551146          0   2.728144
+-------------+---------------------------------------------------------
 mw_wkp_go~14 |    316,040    2.052251    .1796041          0    2.70805
 mw_wkp_tr~14 |    316,040    2.051773    .1868359          0    2.70805
--------------+---------------------------------------------------------
 mw_wkp_ot~14 |    316,040    2.061639    .1328263          0   2.735748
 mw_wkp_to~15 |    316,060    2.062671      .12115   1.981001   2.772589
-mw_wkp_~9_15 |    316,060    2.054103    .1763037          0   2.772589
-mw_wkp_~4_15 |    316,060    2.060667    .1379476          0   2.713076
-mw_wkp_~5_15 |    316,060       2.057    .1622104          0   2.749045
+mw_wkp_a_u~5 |    316,060    2.054103    .1763037          0   2.772589
 -------------+---------------------------------------------------------
-mw_wkp_~0_15 |    316,060    2.055962     .162782          0   2.717813
-mw_~_3333_15 |    316,060    2.058893    .1452207          0   2.772589
-mw_~e3333_15 |    316,060    2.059456    .1508477          0    2.74663
+mw_wkp_a_3~5 |    316,060    2.060667    .1379476          0   2.713076
+mw_wkp_a_a~5 |    316,060       2.057    .1622104          0   2.749045
+mw_wkp_e_u~5 |    316,060    2.055962     .162782          0   2.717813
+mw_wkp_e_1~5 |    316,060    2.058893    .1452207          0   2.772589
+mw_wkp_e_a~5 |    316,060    2.059456    .1508477          0    2.74663
+-------------+---------------------------------------------------------
 mw_wkp_go~15 |    316,060    2.053185     .175547          0   2.772589
 mw_wkp_tr~15 |    316,060    2.054286     .174056          0   2.721279
--------------+---------------------------------------------------------
 mw_wkp_ot~15 |    316,060    2.061075    .1377528          0   2.749045
 mw_wkp_to~16 |    316,060    2.062681    .1211044   1.981001   2.707166
-mw_wkp_~9_16 |    316,060    2.054851     .172518          0    2.70805
-mw_wkp_~4_16 |    316,060    2.061164    .1345302          0    2.70805
-mw_wkp_~5_16 |    316,060    2.057285     .160046          0   2.696559
+mw_wkp_a_u~6 |    316,060    2.054851     .172518          0    2.70805
 -------------+---------------------------------------------------------
-mw_wkp_~0_16 |    316,060    2.056211    .1614853          0    2.70805
-mw_~_3333_16 |    316,060    2.059186    .1423346          0   2.712407
-mw_~e3333_16 |    316,060    2.059357    .1522142          0   2.707166
+mw_wkp_a_3~6 |    316,060    2.061164    .1345302          0    2.70805
+mw_wkp_a_a~6 |    316,060    2.057285     .160046          0   2.696559
+mw_wkp_e_u~6 |    316,060    2.056211    .1614853          0    2.70805
+mw_wkp_e_1~6 |    316,060    2.059186    .1423346          0   2.712407
+mw_wkp_e_a~6 |    316,060    2.059357    .1522142          0   2.707166
+-------------+---------------------------------------------------------
 mw_wkp_go~16 |    316,060    2.051559    .1851218          0    2.70805
 mw_wkp_tr~16 |    316,060    2.054223    .1748585          0   2.727584
--------------+---------------------------------------------------------
 mw_wkp_ot~16 |    316,060    2.061848    .1317331          0    2.70805
 mw_wkp_to~17 |    316,130     2.06274    .1210632   1.981001   2.692976
-mw_wkp_~9_17 |    316,130    2.054733    .1735107          0    2.74663
-mw_wkp_~4_17 |    316,130    2.060907    .1369986          0   2.699655
-mw_wkp_~5_17 |    316,130    2.057204    .1609051          0   2.696754
+mw_wkp_a_u~7 |    316,130    2.054733    .1735107          0    2.74663
 -------------+---------------------------------------------------------
-mw_wkp_~0_17 |    316,130    2.056202      .16137          0    2.69801
-mw_~_3333_17 |    316,130    2.058624    .1468807          0   2.687233
-mw_~e3333_17 |    316,130    2.059422    .1517545          0    2.70805
+mw_wkp_a_3~7 |    316,130    2.060907    .1369986          0   2.699655
+mw_wkp_a_a~7 |    316,130    2.057204    .1609051          0   2.696754
+mw_wkp_e_u~7 |    316,130    2.056202      .16137          0    2.69801
+mw_wkp_e_1~7 |    316,130    2.058624    .1468807          0   2.687233
+mw_wkp_e_a~7 |    316,130    2.059422    .1517545          0    2.70805
+-------------+---------------------------------------------------------
 mw_wkp_go~17 |    316,130     2.05061    .1907356          0   2.719677
 mw_wkp_tr~17 |    316,130    2.053795    .1774426          0   2.730712
--------------+---------------------------------------------------------
 mw_wkp_ot~17 |    316,130    2.061653    .1337108          0   2.700171
 mw_wkp_to~18 |    316,110    2.062738    .1210111   1.981001    2.70805
-mw_wkp_~9_18 |    316,110    2.055624    .1681055          0   2.772589
-mw_wkp_~4_18 |    316,110    2.061448    .1330095          0    2.70805
-mw_wkp_~5_18 |    316,110    2.057824    .1565911          0   2.706325
+mw_wkp_a_u~8 |    316,110    2.055624    .1681055          0   2.772589
 -------------+---------------------------------------------------------
-mw_wkp_~0_18 |    316,110     2.05612    .1621572          0    2.70805
-mw_~_3333_18 |    316,110    2.058466    .1477752          0   2.772589
-mw_~e3333_18 |    316,110    2.060374    .1449225          0    2.70805
+mw_wkp_a_3~8 |    316,110    2.061448    .1330095          0    2.70805
+mw_wkp_a_a~8 |    316,110    2.057824    .1565911          0   2.706325
+mw_wkp_e_u~8 |    316,110     2.05612    .1621572          0    2.70805
+mw_wkp_e_1~8 |    316,110    2.058466    .1477752          0   2.772589
+mw_wkp_e_a~8 |    316,110    2.060374    .1449225          0    2.70805
+-------------+---------------------------------------------------------
 mw_wkp_go~18 |    316,110    2.050572    .1899128          0    2.70805
 mw_wkp_tr~18 |    316,110    2.054339    .1743942          0   2.737473
--------------+---------------------------------------------------------
 mw_wkp_ot~18 |    316,110    2.062226    .1296692          0   2.772589
 mw_wkp_tot~r |    284,496    2.051652    .1054069   1.981001   2.660667
-mw_~9_timvar |    284,496    2.043378    .1649383          0   2.737609
-mw_~4_timvar |    284,496    2.049849    .1226274          0   2.656907
-mw_~5_timvar |    284,496    2.045525    .1537205          0    2.65289
+mw_wkp_a_u~r |    284,496    2.043378    .1649383          0   2.737609
 -------------+---------------------------------------------------------
-mw_~0_timvar |    284,496    2.045264    .1503648          0   2.654977
-mw_wkp_ear.. |    284,496    2.047609    .1348474          0   2.737609
-mw_wkp_ear.. |    284,496    2.047704    .1430231          0    2.66685
+mw_wkp_a_3~r |    284,496    2.049849    .1226274          0   2.656907
+mw_wkp_a_a~r |    284,496    2.045525    .1537205          0    2.65289
+mw_wkp_e_u~r |    284,496    2.045264    .1503648          0   2.654977
+mw_wkp_e_1~r |    284,496    2.047609    .1348474          0   2.737609
+mw_wkp_e_a~r |    284,496    2.047704    .1430231          0    2.66685
+-------------+---------------------------------------------------------
 mw_wkp_goo~r |    284,496    2.040213    .1778293          0   2.609297
 mw_wkp_tra~r |    284,496    2.042076    .1712721          0   2.701982
--------------+---------------------------------------------------------
 mw_wkp_oth~r |    284,496    2.050601    .1189971          0   2.737609
     ln_rents |     16,671     .131421    .4657815  -2.122927   2.995732
     ln_price |     90,655     4.93776    .5475929   2.484457    7.87953
+-------------+---------------------------------------------------------
 ln_sale_co~s |    210,683    2.059902    1.408379          0   5.765191
 ln_monthly~s |     78,918    4.623138    .7939217   2.397895   7.777792
+d_statutor~w |    318,260    .0216312     .142446          0       1.75
+    d_mw_res |    318,260    .0022471    .0147726          0   .1923719
+  d_ln_rents |     16,475    .0004667    .0324361  -.1841465   .1633652
 -------------+---------------------------------------------------------
+  d_ln_price |     90,455     .001013    .0271214  -.1954346   .1654916
+d_mw_wk~t_09 |    316,120    .0024772    .0130611          0   .1630799
+d_mw_wk~9_09 |    316,120    .0024615    .0129408          0   .1923719
+d_mw_wk~4_09 |    316,120    .0024749    .0130773          0   .1615769
+d_mw_wk~5_09 |    316,120    .0024629    .0132036          0   .1919406
+-------------+---------------------------------------------------------
+d_mw_wk~0_09 |    316,120    .0024419    .0131318          0   .1923719
+d_m~_3333_09 |    316,120    .0024561    .0131763          0   .1919406
+d_m~e3333_09 |    316,120    .0025146    .0130251          0   .1659447
+d_mw_wkp_g~9 |    316,120     .002351    .0128173          0   .1900929
+d_mw_wk~l_09 |    316,120    .0024964    .0129198          0   .1919406
+-------------+---------------------------------------------------------
+d_mw_wkp_o~9 |    316,120    .0024967     .013168          0   .1708805
+d_mw_wk~t_10 |    316,300    .0025261    .0130963          0   .1606869
+d_mw_wk~9_10 |    316,300    .0025016    .0129395          0   .1613442
+d_mw_wk~4_10 |    316,300    .0025242    .0131186          0   .1549461
+d_mw_wk~5_10 |    316,300    .0025352    .0132538          0    .192087
+-------------+---------------------------------------------------------
+d_mw_wk~0_10 |    316,300    .0024556    .0131062          0   .1508229
+d_m~_3333_10 |    316,300    .0024754    .0131663          0   .1627762
+d_m~e3333_10 |    316,300    .0025935    .0130996          0   .1923719
+d_mw_wkp_g~0 |    316,300    .0023653     .012809          0   .1681065
+d_mw_wk~l_10 |    316,300    .0024909    .0128925          0   .1508229
+-------------+---------------------------------------------------------
+d_mw_wkp_o~0 |    316,300    .0025595    .0132026          0   .1706641
+d_mw_wk~t_11 |    316,100    .0024939    .0131842          0   .1828501
+d_mw_wk~9_11 |    316,100    .0024552    .0129919          0   .1816846
+d_mw_wk~4_11 |    316,100    .0024916    .0131871          0   .1826822
+d_mw_wk~5_11 |    316,100    .0024953    .0132904          0   .1900829
+-------------+---------------------------------------------------------
+d_mw_wk~0_11 |    316,100    .0024223    .0131642          0   .1923719
+d_m~_3333_11 |    316,100    .0024507    .0132391          0    .185542
+d_m~e3333_11 |    316,100    .0025432    .0131598          0   .1833498
+d_mw_wkp_g~1 |    316,100    .0023477    .0128991          0   .1798499
+d_mw_wk~l_11 |    316,100    .0024333    .0129845          0   .1609512
+-------------+---------------------------------------------------------
+d_mw_wkp_o~1 |    316,100    .0025255    .0132643          0    .185809
+d_mw_wk~t_12 |    316,130    .0025031    .0131918          0   .1846485
+d_mw_wk~9_12 |    316,130     .002461    .0130194          0   .1870529
+d_mw_wk~4_12 |    316,130     .002503    .0131894          0   .1857317
+d_mw_wk~5_12 |    316,130    .0025022    .0132853          0   .1875056
+-------------+---------------------------------------------------------
+d_mw_wk~0_12 |    316,130    .0024414    .0132126          0   .1899672
+d_m~_3333_12 |    316,130    .0024526    .0132232          0   .1885242
+d_m~e3333_12 |    316,130     .002554    .0131931          0   .1923719
+d_mw_wkp_g~2 |    316,130    .0023493    .0128511          0   .1913468
+d_mw_wk~l_12 |    316,130    .0024419    .0130026          0    .169964
+-------------+---------------------------------------------------------
+d_mw_wkp_o~2 |    316,130    .0025414    .0132907          0   .1880272
+d_mw_wk~t_13 |    316,030    .0025039    .0131648          0   .1843886
+d_mw_wk~9_13 |    316,030    .0024547    .0129772          0   .1869532
+d_mw_wk~4_13 |    316,030    .0025085    .0131749          0   .1868441
+d_mw_wk~5_13 |    316,030    .0025091     .013274          0   .1829879
+-------------+---------------------------------------------------------
+d_mw_wk~0_13 |    316,030    .0024369    .0131648          0   .1865424
+d_m~_3333_13 |    316,030    .0024519    .0131993          0   .1823131
+d_m~e3333_13 |    316,030    .0025557    .0131543          0   .1874854
+d_mw_wkp_g~3 |    316,030    .0023311    .0127811          0   .1847167
+d_mw_wk~l_13 |    316,030    .0024447    .0129887          0   .1536046
+-------------+---------------------------------------------------------
+d_mw_wkp_o~3 |    316,030     .002546    .0132705          0   .1891706
+d_mw_wk~t_14 |    316,040    .0025132    .0130773          0   .1850727
+d_mw_wk~9_14 |    316,040    .0024638     .012863          0   .1889208
+d_mw_wk~4_14 |    316,040    .0025175    .0130935          0   .1849785
+d_mw_wk~5_14 |    316,040    .0025162    .0131891          0   .1842496
+-------------+---------------------------------------------------------
+d_mw_wk~0_14 |    316,040    .0024494    .0130666          0   .1922683
+d_m~_3333_14 |    316,040    .0024674    .0131349          0   .1884994
+d_m~e3333_14 |    316,040    .0025563    .0130606          0   .1923719
+d_mw_wkp_g~4 |    316,040    .0023261    .0126609          0   .1923719
+d_mw_wk~l_14 |    316,040    .0024487    .0128815          0   .1554231
+-------------+---------------------------------------------------------
+d_mw_wkp_o~4 |    316,040    .0025611    .0131879          0   .1903925
+d_mw_wk~t_15 |    316,060     .002533    .0130309          0    .151361
+d_mw_wk~9_15 |    316,060    .0024815    .0128629          0   .1550293
+d_mw_wk~4_15 |    316,060    .0025359    .0130328          0   .1518405
+d_mw_wk~5_15 |    316,060    .0025367    .0131429          0   .1923719
+-------------+---------------------------------------------------------
+d_mw_wk~0_15 |    316,060    .0024566     .013037          0   .1694705
+d_m~_3333_15 |    316,060    .0024819    .0131016          0   .1547214
+d_m~e3333_15 |    316,060    .0025856    .0129896          0   .1546315
+d_mw_wkp_g~5 |    316,060    .0023433     .012609          0   .1508229
+d_mw_wk~l_15 |    316,060    .0024968    .0128956          0   .1923719
+-------------+---------------------------------------------------------
+d_mw_wkp_o~5 |    316,060    .0025751    .0131289          0   .1598413
+d_mw_wk~t_16 |    316,060      .00254    .0130127          0   .1482503
+d_mw_wk~9_16 |    316,060    .0024938    .0128582          0   .1923719
+d_mw_wk~4_16 |    316,060    .0025423    .0130169          0   .1485202
+d_mw_wk~5_16 |    316,060    .0025484    .0131319          0   .1531006
+-------------+---------------------------------------------------------
+d_mw_wk~0_16 |    316,060     .002467    .0130156          0   .1547738
+d_m~_3333_16 |    316,060    .0024874     .013092          0   .1508229
+d_m~e3333_16 |    316,060    .0025961    .0129925          0   .1923719
+d_mw_wkp_g~6 |    316,060     .002358    .0126014          0   .1923719
+d_mw_wk~l_16 |    316,060    .0024983    .0128937          0   .1923719
+-------------+---------------------------------------------------------
+d_mw_wkp_o~6 |    316,060    .0025829    .0131178          0   .1579087
+d_mw_wk~t_17 |    316,130    .0025476    .0129888          0   .1560314
+d_mw_wk~9_17 |    316,130    .0024905    .0127845          0    .162285
+d_mw_wk~4_17 |    316,130    .0025544    .0130043          0   .1545403
+d_mw_wk~5_17 |    316,130    .0025522    .0131252          0   .1508229
+-------------+---------------------------------------------------------
+d_mw_wk~0_17 |    316,130    .0024749    .0129923          0   .1583785
+d_m~_3333_17 |    316,130    .0024927    .0130602          0   .1511452
+d_m~e3333_17 |    316,130     .002602    .0129713          0   .1597784
+d_mw_wkp_g~7 |    316,130    .0023512    .0125542          0   .1508229
+d_mw_wk~l_17 |    316,130    .0025108    .0128634          0   .1508229
+-------------+---------------------------------------------------------
+d_mw_wkp_o~7 |    316,130    .0025893    .0130899          0   .1619942
+d_mw_wk~t_18 |    316,110    .0025426     .012959          0   .1544322
+d_mw_wk~9_18 |    316,110    .0024979    .0127945          0   .1923719
+d_mw_wk~4_18 |    316,110    .0025534     .012996          0   .1923719
+d_mw_wk~5_18 |    316,110    .0025412    .0130662          0   .1508229
+-------------+---------------------------------------------------------
+d_mw_wk~0_18 |    316,110    .0024779    .0129763          0   .1625242
+d_m~_3333_18 |    316,110    .0024907    .0130547          0   .1508229
+d_m~e3333_18 |    316,110    .0025914    .0129336          0   .1923719
+d_mw_wkp_g~8 |    316,110    .0023345    .0125215          0   .1508229
+d_mw_wk~l_18 |    316,110    .0025064     .012827          0   .1508229
+-------------+---------------------------------------------------------
+d_mw_wkp_o~8 |    316,110     .002592     .013076          0   .1604975
+d_mw_~t_tvar |    284,496    .0022597    .0121047          0   .1482503
+d_mw_~9_tvar |    284,496    .0022205    .0119242          0    .159374
+d_mw_~4_tvar |    284,496    .0022649    .0121306          0   .1485054
+d_mw_~5_tvar |    284,496    .0022571    .0121894          0   .1531005
+-------------+---------------------------------------------------------
+d_mw_~0_tvar |    284,496    .0021905    .0120121          0   .1583786
+d~_3333_tvar |    284,496    .0022027    .0120589          0   .1421962
+d~e3333_tvar |    284,496    .0023133    .0121741          0   .1923718
+d_mw_wkp_g~r |    284,496    .0020652    .0116169          0    .144243
+d_mw_~l_tvar |    284,496    .0022035    .0118561          0   .1923718
+-------------+---------------------------------------------------------
+d_mw_wkp_o~r |    284,496    .0023071    .0122471          0   .1579087
+d_ln_sale_~s |    188,783   -.0441568    .5723375  -2.944439   2.917771
+d_ln_month~s |     78,866    .0299946    .1046378  -.7018809   .6621852
 statutory_~g |    318,260    7.903449    1.079558       7.25         16
+d_statutor~g |    318,260    .0118887    .0257327  -.1583333   .3385219
+-------------+---------------------------------------------------------
   mw_res_avg |    318,260    2.059301    .1213075   1.981001   2.772589
+d_mw_res_avg |    318,260    .0013043    .0027667   -.019396   .0305044
 ln_rents_avg |     17,514    .1259875    .4704168  -2.147684   3.176775
+d_ln_rents~g |     17,278    .0021467    .0084674  -.1851245   .1341099
 ln_price_avg |     91,481    4.928929    .5494333   2.476853   7.892458
+-------------+---------------------------------------------------------
+d_ln_price~g |     91,308     .002093    .0077065  -.1509795   .1629591
 mw_~t_09_avg |    316,120    2.061446    .1194022   1.981001   2.697885
--------------+---------------------------------------------------------
+d_m~t_09_avg |    316,120    .0013515    .0026112  -.0140811   .0210147
 mw_~9_09_avg |    316,120    2.051753    .1826146          0    2.70805
+d_m~9_09_avg |    316,120    .0013404    .0025955  -.0130578   .0201467
+-------------+---------------------------------------------------------
 mw_~4_09_avg |    316,120    2.058554    .1426181          0   2.705689
+d_m~4_09_avg |    316,120    .0013511    .0026162  -.0146047   .0210147
 mw_~5_09_avg |    316,120    2.049383     .196949          0    2.70805
+d_m~5_09_avg |    316,120    .0013404    .0026133  -.0158298   .0220462
 mw_~0_09_avg |    316,120    2.053842    .1694641          0   2.772589
-mw_wkp_ear.. |    316,120    2.055584    .1593486          0   2.734671
 -------------+---------------------------------------------------------
-mw_wkp_ear.. |    316,120    2.052788    .1822626          0    2.70805
+d_m~0_09_avg |    316,120    .0013366    .0026091  -.0131525   .0305044
+mw_wkp_e_1.. |    316,120    2.055584    .1593486          0   2.734671
+d_mw_wkp_e.. |    316,120    .0013382    .0026113  -.0142499   .0210147
+mw_wkp_e_a.. |    316,120    2.052788    .1822626          0    2.70805
+d_mw_wkp_e.. |    316,120     .001358    .0026096  -.0154846   .0248027
+-------------+---------------------------------------------------------
 mw~od_09_avg |    316,120    2.043662    .2193752          0    2.70805
+d_~od_09_avg |    316,120    .0013223     .002579  -.0147653   .0247997
 mw_~l_09_avg |    316,120    2.048926    .1972862          0    2.70805
+d_m~l_09_avg |    316,120    .0013383    .0025924  -.0126401   .0305044
 mw~nd_09_avg |    316,120    2.059653    .1366575          0    2.70057
+-------------+---------------------------------------------------------
+d_~nd_09_avg |    316,120    .0013552     .002623   -.015592   .0210147
 mw_~t_10_avg |    316,300    2.061757    .1195683   1.981001   2.710411
--------------+---------------------------------------------------------
+d_m~t_10_avg |    316,300    .0013532    .0026166  -.0120177   .0207061
 mw_~9_10_avg |    316,300    2.053451    .1744205          0   2.766892
+d_m~9_10_avg |    316,300    .0013421    .0025964  -.0118207   .0217192
+-------------+---------------------------------------------------------
 mw_~4_10_avg |    316,300    2.059645     .137546          0    2.72734
+d_m~4_10_avg |    316,300    .0013543    .0026224  -.0124161   .0207267
 mw_~5_10_avg |    316,300    2.053321    .1779485          0   2.772589
+d_m~5_10_avg |    316,300    .0013463    .0026194   -.019396   .0215783
 mw_~0_10_avg |    316,300    2.054968    .1638726          0   2.768791
-mw_wkp_ear.. |    316,300    2.057075    .1502468          0   2.710905
 -------------+---------------------------------------------------------
-mw_wkp_ear.. |    316,300    2.055846    .1672137          0    2.72734
+d_m~0_10_avg |    316,300     .001338    .0026112  -.0123078   .0215313
+mw_wkp_e_1.. |    316,300    2.057075    .1502468          0   2.710905
+d_mw_wkp_e.. |    316,300    .0013389    .0026155  -.0124076   .0248027
+mw_wkp_e_a.. |    316,300    2.055846    .1672137          0    2.72734
+d_mw_wkp_e.. |    316,300    .0013614    .0026152  -.0124701   .0201492
+-------------+---------------------------------------------------------
 mw~od_10_avg |    316,300    2.047279    .2020999          0   2.772589
+d_~od_10_avg |    316,300    .0013232    .0025821  -.0143433   .0210147
 mw_~l_10_avg |    316,300    2.051453    .1844124          0    2.70805
+d_m~l_10_avg |    316,300    .0013393    .0025977  -.0123814   .0248027
 mw~nd_10_avg |    316,300    2.060604    .1323011          0   2.712329
+-------------+---------------------------------------------------------
+d_~nd_10_avg |    316,300    .0013577    .0026263   -.012043   .0216722
 mw_~t_11_avg |    316,100    2.061845    .1195786   1.981001    2.70805
--------------+---------------------------------------------------------
+d_m~t_11_avg |    316,100    .0013526    .0026224    -.01211   .0202802
 mw_~9_11_avg |    316,100    2.052841    .1786244          0    2.71617
+d_m~9_11_avg |    316,100     .001341    .0026022  -.0120122   .0248017
+-------------+---------------------------------------------------------
 mw_~4_11_avg |    316,100    2.059842    .1360106          0    2.70805
+d_m~4_11_avg |    316,100    .0013526    .0026267  -.0122626   .0203713
 mw_~5_11_avg |    316,100    2.054031    .1737723          0   2.772589
+d_m~5_11_avg |    316,100    .0013448    .0026235  -.0134282   .0209289
 mw_~0_11_avg |    316,100    2.055564    .1606049          0   2.706723
-mw_wkp_ear.. |    316,100    2.057154    .1503028          0   2.772589
 -------------+---------------------------------------------------------
-mw_wkp_ear.. |    316,100    2.057108     .158959          0    2.70805
+d_m~0_11_avg |    316,100     .001338    .0026165  -.0141203   .0205209
+mw_wkp_e_1.. |    316,100    2.057154    .1503028          0   2.772589
+d_mw_wkp_e.. |    316,100    .0013386    .0026205  -.0133351   .0220458
+mw_wkp_e_a.. |    316,100    2.057108     .158959          0    2.70805
+d_mw_wkp_e.. |    316,100     .001359    .0026212  -.0137159   .0204867
+-------------+---------------------------------------------------------
 mw~od_11_avg |    316,100    2.050316     .187582          0   2.772589
+d_~od_11_avg |    316,100    .0013269    .0025886  -.0127362   .0248027
 mw_~l_11_avg |    316,100    2.050205    .1907325          0    2.70805
+d_m~l_11_avg |    316,100    .0013345    .0026036  -.0149447   .0248027
 mw~nd_11_avg |    316,100    2.060591    .1327826          0    2.71187
+-------------+---------------------------------------------------------
+d_~nd_11_avg |    316,100    .0013568     .002631  -.0134222   .0204891
 mw_~t_12_avg |    316,130    2.061865    .1196112   1.981001   2.750471
--------------+---------------------------------------------------------
+d_m~t_12_avg |    316,130    .0013535    .0026215  -.0122818   .0201295
 mw_~9_12_avg |    316,130    2.053443    .1748866          0   2.710046
+d_m~9_12_avg |    316,130    .0013413    .0026019  -.0114673    .021377
+-------------+---------------------------------------------------------
 mw_~4_12_avg |    316,130    2.060052    .1350602          0   2.750471
+d_m~4_12_avg |    316,130    .0013541    .0026253   -.012857   .0213573
 mw_~5_12_avg |    316,130    2.055579    .1647348          0    2.70805
+d_m~5_12_avg |    316,130    .0013481    .0026247  -.0140553   .0201125
 mw_~0_12_avg |    316,130    2.056081    .1577672          0   2.714996
-mw_wkp_ear.. |    316,130    2.057622    .1471406          0    2.70805
 -------------+---------------------------------------------------------
-mw_wkp_ear.. |    316,130     2.05792    .1538765          0   2.750471
+d_m~0_12_avg |    316,130    .0013401    .0026181  -.0127795   .0223224
+mw_wkp_e_1.. |    316,130    2.057622    .1471406          0    2.70805
+d_mw_wkp_e.. |    316,130    .0013399    .0026197   -.011871   .0203438
+mw_wkp_e_a.. |    316,130     2.05792    .1538765          0   2.750471
+d_mw_wkp_e.. |    316,130     .001361    .0026215  -.0146459   .0206679
+-------------+---------------------------------------------------------
 mw~od_12_avg |    316,130    2.050805    .1842854          0   2.684688
+d_~od_12_avg |    316,130    .0013254    .0025833  -.0129024   .0248027
 mw_~l_12_avg |    316,130    2.050808    .1876106          0    2.70805
+d_m~l_12_avg |    316,130    .0013355    .0026037  -.0142536   .0206689
 mw~nd_12_avg |    316,130    2.060923    .1313638          0   2.750471
+-------------+---------------------------------------------------------
+d_~nd_12_avg |    316,130    .0013599    .0026326  -.0130416   .0202407
 mw_~t_13_avg |    316,030    2.061906    .1195627   1.981001   2.710154
--------------+---------------------------------------------------------
+d_m~t_13_avg |    316,030    .0013541    .0026188  -.0118632   .0248027
 mw_~9_13_avg |    316,030     2.05289     .178261          0   2.772589
+d_m~9_13_avg |    316,030    .0013417     .002599  -.0133444   .0248027
+-------------+---------------------------------------------------------
 mw_~4_13_avg |    316,030    2.059959    .1360323          0   2.709205
+d_m~4_13_avg |    316,030    .0013547    .0026229  -.0119479   .0248027
 mw_~5_13_avg |    316,030    2.055884    .1635298          0   2.705014
+d_m~5_13_avg |    316,030    .0013492    .0026225     -.0132   .0205846
 mw_~0_13_avg |    316,030    2.056203    .1568594          0   2.709969
-mw_wkp_ear.. |    316,030    2.057618    .1475477          0    2.70606
 -------------+---------------------------------------------------------
-mw_wkp_ear.. |    316,030    2.057414    .1572766          0   2.710746
+d_m~0_13_avg |    316,030    .0013399    .0026142  -.0140531   .0220468
+mw_wkp_e_1.. |    316,030    2.057618    .1475477          0    2.70606
+d_mw_wkp_e.. |    316,030    .0013406    .0026168  -.0128417   .0248027
+mw_wkp_e_a.. |    316,030    2.057414    .1572766          0   2.710746
+d_mw_wkp_e.. |    316,030    .0013606    .0026174  -.0129659   .0204545
+-------------+---------------------------------------------------------
 mw~od_13_avg |    316,030    2.049567    .1905477          0    2.70805
+d_~od_13_avg |    316,030    .0013237    .0025776  -.0125274   .0210251
 mw_~l_13_avg |    316,030    2.052281    .1796692          0    2.70805
+d_m~l_13_avg |    316,030    .0013371     .002602  -.0141203   .0202958
 mw~nd_13_avg |    316,030    2.060914    .1318587          0   2.714223
+-------------+---------------------------------------------------------
+d_~nd_13_avg |    316,030    .0013606    .0026295  -.0128318   .0248027
 mw_~t_14_avg |    316,040    2.061856    .1192618   1.981001   2.710665
--------------+---------------------------------------------------------
+d_m~t_14_avg |    316,040     .001354    .0026092  -.0111408   .0202198
 mw_~9_14_avg |    316,040    2.052683    .1791665          0   2.718467
+d_m~9_14_avg |    316,040    .0013421    .0025856  -.0115504   .0248027
+-------------+---------------------------------------------------------
 mw_~4_14_avg |    316,040    2.060133    .1343367          0   2.772589
+d_m~4_14_avg |    316,040    .0013554     .002615  -.0109919    .022735
 mw_~5_14_avg |    316,040    2.056293    .1603998          0   2.705534
+d_m~5_14_avg |    316,040    .0013494    .0026138  -.0165471   .0203446
 mw_~0_14_avg |    316,040    2.054766    .1657103          0   2.716417
-mw_wkp_ear.. |    316,040     2.05809    .1436706          0    2.70805
 -------------+---------------------------------------------------------
-mw_wkp_ear.. |    316,040    2.057912    .1536196          0   2.710441
+d_m~0_14_avg |    316,040    .0013401    .0026022  -.0147699   .0228943
+mw_wkp_e_1.. |    316,040     2.05809    .1436706          0    2.70805
+d_mw_wkp_e.. |    316,040    .0013408    .0026085  -.0117856   .0201516
+mw_wkp_e_a.. |    316,040    2.057912    .1536196          0   2.710441
+d_mw_wkp_e.. |    316,040    .0013612    .0026091  -.0107313   .0210147
+-------------+---------------------------------------------------------
 mw~od_14_avg |    316,040    2.051693    .1784862          0    2.70805
+d_~od_14_avg |    316,040    .0013243    .0025684  -.0119369   .0242737
 mw_~l_14_avg |    316,040     2.05115    .1856427          0    2.70805
+d_m~l_14_avg |    316,040    .0013369    .0025917  -.0141968   .0248027
 mw~nd_14_avg |    316,040    2.060962    .1310976          0   2.717556
+-------------+---------------------------------------------------------
+d_~nd_14_avg |    316,040    .0013613    .0026206   -.011435   .0214202
 mw_~t_15_avg |    316,060    2.062007    .1192941   1.981001   2.772589
--------------+---------------------------------------------------------
+d_m~t_15_avg |    316,060    .0013561    .0026039  -.0109017   .0199017
 mw_~9_15_avg |    316,060    2.053461    .1750335          0   2.772589
+d_m~9_15_avg |    316,060    .0013437    .0025832  -.0114662   .0212595
+-------------+---------------------------------------------------------
 mw_~4_15_avg |    316,060    2.060003    .1363026          0    2.70805
+d_m~4_15_avg |    316,060    .0013571    .0026089  -.0108675   .0202857
 mw_~5_15_avg |    316,060    2.056336    .1608069          0   2.749045
+d_m~5_15_avg |    316,060    .0013514    .0026084  -.0122875   .0198308
 mw_~0_15_avg |    316,060    2.055338    .1614372          0    2.70805
-mw_wkp_ear.. |    316,060    2.058253    .1437102          0   2.772589
 -------------+---------------------------------------------------------
-mw_wkp_ear.. |    316,060    2.058767    .1492964          0    2.72734
+d_m~0_15_avg |    316,060    .0013386     .002597  -.0123577   .0201333
+mw_wkp_e_1.. |    316,060    2.058253    .1437102          0   2.772589
+d_mw_wkp_e.. |    316,060    .0013433    .0026053  -.0118467    .019788
+mw_wkp_e_a.. |    316,060    2.058767    .1492964          0    2.72734
+d_mw_wkp_e.. |    316,060     .001365    .0026028  -.0118532   .0201555
+-------------+---------------------------------------------------------
 mw~od_15_avg |    316,060    2.052619    .1744035          0   2.772589
+d_~od_15_avg |    316,060    .0013278    .0025638  -.0140053   .0200351
 mw_~l_15_avg |    316,060    2.053638    .1727511          0    2.72121
+d_m~l_15_avg |    316,060    .0013417    .0025877  -.0125834   .0212595
 mw~nd_15_avg |    316,060    2.060392    .1360767          0   2.749045
+-------------+---------------------------------------------------------
+d_~nd_15_avg |    316,060    .0013623    .0026151  -.0117936   .0201398
 mw_~t_16_avg |    316,060    2.062014    .1192488   1.981001   2.707166
--------------+---------------------------------------------------------
+d_m~t_16_avg |    316,060    .0013571     .002603  -.0105067    .019904
 mw_~9_16_avg |    316,060    2.054205     .171222          0    2.70805
+d_m~9_16_avg |    316,060     .001347     .002584  -.0110713   .0248027
+-------------+---------------------------------------------------------
 mw_~4_16_avg |    316,060    2.060495    .1328426          0    2.70805
+d_m~4_16_avg |    316,060    .0013582    .0026086  -.0106415   .0199507
 mw_~5_16_avg |    316,060    2.056614     .158621          0   2.686151
+d_m~5_16_avg |    316,060    .0013514    .0026057  -.0109131   .0199269
 mw_~0_16_avg |    316,060    2.055582    .1601322          0    2.70805
-mw_wkp_ear.. |    316,060    2.058543    .1407949          0    2.70805
 -------------+---------------------------------------------------------
-mw_wkp_ear.. |    316,060    2.058661     .150672          0   2.707166
+d_m~0_16_avg |    316,060    .0013403    .0025955  -.0122496   .0197472
+mw_wkp_e_1.. |    316,060    2.058543    .1407949          0    2.70805
+d_mw_wkp_e.. |    316,060    .0013427    .0026035  -.0110469   .0200207
+mw_wkp_e_a.. |    316,060    2.058661     .150672          0   2.707166
+d_mw_wkp_e.. |    316,060    .0013668     .002603  -.0116891   .0204305
+-------------+---------------------------------------------------------
 mw~od_16_avg |    316,060    2.050985     .184028          0    2.70805
+d_~od_16_avg |    316,060    .0013292    .0025645  -.0128061   .0248027
 mw_~l_16_avg |    316,060    2.053575    .1735607          0   2.727504
+d_m~l_16_avg |    316,060    .0013427    .0025891  -.0121636   .0197514
 mw~nd_16_avg |    316,060    2.061161    .1299805          0    2.70805
+-------------+---------------------------------------------------------
+d_~nd_16_avg |    316,060    .0013633    .0026134  -.0117639   .0202116
 mw_~t_17_avg |    316,130    2.062069    .1192038   1.981001   2.692524
--------------+---------------------------------------------------------
+d_m~t_17_avg |    316,130    .0013585    .0025991  -.0100504   .0198179
 mw_~9_17_avg |    316,130    2.054091    .1722304          0    2.72734
+d_m~9_17_avg |    316,130    .0013486    .0025758  -.0105298   .0214374
+-------------+---------------------------------------------------------
 mw_~4_17_avg |    316,130    2.060232    .1353373          0   2.689427
+d_m~4_17_avg |    316,130    .0013596    .0026055  -.0105695   .0202926
 mw_~5_17_avg |    316,130    2.056531    .1594813          0   2.696754
+d_m~5_17_avg |    316,130    .0013527    .0026046  -.0103453   .0305044
 mw_~0_17_avg |    316,130    2.055568    .1600119          0   2.682041
-mw_wkp_ear.. |    316,130     2.05798    .1453866          0   2.687069
 -------------+---------------------------------------------------------
-mw_wkp_ear.. |    316,130    2.058725    .1502096          0    2.70805
+d_m~0_17_avg |    316,130    .0013408    .0025896  -.0119354   .0292996
+mw_wkp_e_1.. |    316,130     2.05798    .1453866          0   2.687069
+d_mw_wkp_e.. |    316,130    .0013445    .0025995  -.0115499   .0247997
+mw_wkp_e_a.. |    316,130    2.058725    .1502096          0    2.70805
+d_mw_wkp_e.. |    316,130     .001367       .0026  -.0114334   .0221419
+-------------+---------------------------------------------------------
 mw~od_17_avg |    316,130    2.050041    .1896788          0    2.70805
+d_~od_17_avg |    316,130    .0013298    .0025611  -.0122118   .0195884
 mw_~l_17_avg |    316,130    2.053137    .1761543          0   2.730659
+d_m~l_17_avg |    316,130    .0013427    .0025821   -.011277   .0202394
 mw~nd_17_avg |    316,130    2.060963    .1319839          0   2.692977
+-------------+---------------------------------------------------------
+d_~nd_17_avg |    316,130    .0013649    .0026097  -.0112114   .0217018
 mw_~t_18_avg |    316,110    2.062072    .1191586   1.981001    2.70805
--------------+---------------------------------------------------------
+d_m~t_18_avg |    316,110    .0013589    .0025988  -.0119662   .0196532
 mw_~9_18_avg |    316,110    2.054978     .166779          0   2.772589
+d_m~9_18_avg |    316,110    .0013493    .0025779   -.011935    .020176
+-------------+---------------------------------------------------------
 mw_~4_18_avg |    316,110    2.060775    .1312982          0    2.70805
+d_m~4_18_avg |    316,110    .0013603    .0026048  -.0122943   .0197929
 mw_~5_18_avg |    316,110     2.05716    .1551485          0   2.706325
+d_m~5_18_avg |    316,110    .0013529    .0026031  -.0120496    .020176
 mw_~0_18_avg |    316,110    2.055487    .1608102          0    2.70805
-mw_wkp_ear.. |    316,110    2.057823    .1462901          0   2.772589
 -------------+---------------------------------------------------------
-mw_wkp_ear.. |    316,110    2.059683    .1433164          0    2.70805
+d_m~0_18_avg |    316,110    .0013415     .002588  -.0124739   .0195756
+mw_wkp_e_1.. |    316,110    2.057823    .1462901          0   2.772589
+d_mw_wkp_e.. |    316,110    .0013444    .0025998  -.0162649   .0198886
+mw_wkp_e_a.. |    316,110    2.059683    .1433164          0    2.70805
+d_mw_wkp_e.. |    316,110    .0013674    .0025998  -.0121164   .0201479
+-------------+---------------------------------------------------------
 mw~od_18_avg |    316,110     2.05001    .1888625          0    2.70805
+d_~od_18_avg |    316,110    .0013269    .0025585  -.0121359   .0225137
 mw_~l_18_avg |    316,110    2.053688    .1730892          0   2.737454
+d_m~l_18_avg |    316,110    .0013437     .002581  -.0131607    .019651
 mw~nd_18_avg |    316,110    2.061535    .1278887          0   2.772589
-mw_wkp_tot.. |    284,496    2.051175    .1037195   1.981001   2.660551
 -------------+---------------------------------------------------------
-mw_wkp_age.. |    284,496    2.042916    .1638682          0   2.737609
-mw_wkp_age.. |    284,496    2.049369    .1211616          0   2.656812
-mw_wkp_age.. |    284,496    2.045049    .1525522          0   2.652767
-mw_wkp_ear.. |    284,496    2.044822    .1492179          0   2.646968
-mw_wkp_ear.. |    284,496    2.047158    .1335634          0   2.737609
+d_~nd_18_avg |    316,110    .0013665     .002611  -.0124024   .0199334
+m~t_tvar_avg |    284,496    2.051175    .1037195   1.981001   2.660551
+d~t_tvar_avg |    284,496    .0012619    .0025664  -.0383485   .0347412
+m~9_tvar_avg |    284,496    2.042916    .1638682          0   2.737609
+d~9_tvar_avg |    284,496     .001275    .0119275  -.2199215   .2158315
 -------------+---------------------------------------------------------
-mw_wkp_ear.. |    284,496      2.0472    .1417258          0   2.666795
+m~4_tvar_avg |    284,496    2.049369    .1211616          0   2.656812
+d~4_tvar_avg |    284,496    .0012805    .0066134  -.1959479   .2070756
+m~5_tvar_avg |    284,496    2.045049    .1525522          0   2.652767
+d~5_tvar_avg |    284,496    .0013161    .0107971  -.2087938   .2104774
+m~0_tvar_avg |    284,496    2.044822    .1492179          0   2.646968
+-------------+---------------------------------------------------------
+d~0_tvar_avg |    284,496    .0012525    .0100496  -.2070756   .2153331
+mw_wkp_e_1.. |    284,496    2.047158    .1335634          0   2.737609
+d_mw_wkp_e.. |    284,496    .0012618    .0083704  -.2019413   .2153331
+mw_wkp_e_a.. |    284,496      2.0472    .1417258          0   2.666795
+d_mw_wkp_e.. |    284,496     .001334    .0095775  -.2087938   .2070756
+-------------+---------------------------------------------------------
 mw_wkp_goo.. |    284,496    2.039836    .1769624          0   2.609152
-mw_wkp_tra.. |    284,496    2.041624    .1702287          0   2.701956
+d_mw_wkp_g.. |    284,496    .0012886    .0129996  -.2067888   .2067888
+m~l_tvar_avg |    284,496    2.041624    .1702287          0   2.701956
+d~l_tvar_avg |    284,496     .001276    .0125188  -.2104774   .2122779
 mw_wkp_oth.. |    284,496    2.050101    .1174544          0   2.737609
-ln_sale_co~g |    270,558    1.563711      1.3651          0    5.52852
 -------------+---------------------------------------------------------
+d_mw_wkp_o.. |    284,496    .0012866    .0059295  -.2087938   .2137458
+ln_sale_co~g |    270,558    1.563711      1.3651          0    5.52852
+d_ln_sale_~g |    237,244    .0026631    .1748405  -2.397895   3.044523
 ln_monthly~g |     79,285    4.526922    .7948503   2.397895   7.786008
+d_ln_month~g |     79,240   -.0048269    .0221336  -.5108256   .1823215
+-------------+---------------------------------------------------------
     safmr0br |     80,217    667.0941    258.8799        330       2020
     safmr1br |     80,217    764.1347    278.4179        370       2370
     safmr2br |     80,217    942.7044    328.0104        490       2960
     safmr3br |     80,217     1256.57    437.5601        620       4090
--------------+---------------------------------------------------------
     safmr4br |     80,217    1453.214    536.2691        650       4600
+-------------+---------------------------------------------------------
  ln_safmr0br |     80,217    6.441781    .3351488   5.799093   7.610853
  ln_safmr1br |     80,217    6.583359    .3205889   5.913503   7.770645
  ln_safmr2br |     80,217    6.797828    .3078897   6.194406   7.992945
  ln_safmr3br |     80,217     7.08472    .3101469   6.429719     8.3163
--------------+---------------------------------------------------------
  ln_safmr4br |     80,217    7.223335    .3309004   6.476973   8.433811
+-------------+---------------------------------------------------------
  ln_wagebill |    275,688    11.19909    1.693351   6.376727   15.67136
    ln_bizinc |    262,765    8.002629    2.005023  -8.517193   13.15968
 ln_dividends |    259,380     6.95733    2.344619  -8.111728   15.00997
   ln_pop_irs |    275,690    8.256685    1.514703   3.912023   11.81887
--------------+---------------------------------------------------------
   ln_n_hhdls |    275,690    7.579834    1.522703   3.688879   10.98529
+-------------+---------------------------------------------------------
 ln_n_wage_~s |    275,688    7.376782    1.545668   3.401197   10.84934
 wkp_jobs_tot |    276,667     4397.17    9035.632          1     307546
 wkp_jobs_~29 |    276,667    1004.685     2019.65          0      61045
 wkp_job~1250 |    276,667    1056.271    1917.789          0      54089
--------------+---------------------------------------------------------
 sh_worker~29 |    276,667    .2147885    .0878305          0          1
+-------------+---------------------------------------------------------
 sh_worker~54 |    276,667    .5350074    .0956187          0          1
 sh_worker~55 |    276,667    .2502041    .0970962          0          1
 sh_work~1250 |    276,667    .2976732    .1422117          0          1
 sh_wor~_3333 |    276,667    .3775794    .1246867          0          1
--------------+---------------------------------------------------------
 sh_wor~e3333 |    276,667    .3247474    .1606465          0          1
+-------------+---------------------------------------------------------
 sh_workers~S |    276,667    .0990948    .0615939          0          1
 sh_wor~oColl |    276,667    .2553079    .0909815          0          1
 sh_wor~eColl |    276,667     .252587    .0746485          0          1
 sh_worker~ge |    276,667    .1782219    .0843054          0          1
--------------+---------------------------------------------------------
 sh_workers~f |    276,667    .0972106    .1533836          0          1
+-------------+---------------------------------------------------------
 sh_worker~il |    276,667    .1098289    .1190587          0          1
 sh_worker~ce |    276,667    .0264161    .0571572          0          1
 sh_workers~d |    276,667    .0839203    .1173205          0          1
 res_jobs_tot |    282,709    4283.079    6239.942          1      53153
--------------+---------------------------------------------------------
 res_jobs_~29 |    282,709    978.6875    1469.454          0      16398
+-------------+---------------------------------------------------------
 res_job~1250 |    282,709    1028.603    1467.118          0      13853
 sh_reside~29 |    282,709    .2207893    .0473055          0          1
 sh_reside~54 |    282,709    .5414812    .0545176          0          1
 sh_reside~55 |    282,709    .2377295    .0558824          0          1
--------------+---------------------------------------------------------
 sh_resi~1250 |    282,709    .2577542     .058234          0          1
+-------------+---------------------------------------------------------
 sh_res~_3333 |    282,709    .3669021    .0821295          0          1
 sh_res~e3333 |    282,709    .3753437    .1088714          0          1
 sh_residen~S |    282,709    .0878256    .0400508          0          1
 sh_res~oColl |    282,709    .2364141    .0540866          0          1
--------------+---------------------------------------------------------
 sh_res~eColl |    282,709    .2562051    .0423733          0          1
+-------------+---------------------------------------------------------
 sh_reside~ge |    282,709    .1987658    .0670045          0          1
 sh_residen~f |    282,709    .1083926    .0691567          0          1
 sh_reside~il |    282,709    .1155128    .0335982          0          1
 sh_reside~ce |    282,709      .03537    .0219621          0          1
--------------+---------------------------------------------------------
 sh_residen~d |    282,709    .0848322    .0396499          0          1
+-------------+---------------------------------------------------------
+  county_num |    318,178    29655.96    15247.58       1001      56045
 ln_estcou~rv |    317,974    5.667869    2.151239          0   10.93852
-ln_es~rv_avg |    318,022    5.663281    2.151954          0   10.93169
+d_ln_estc~rv |    317,962    .0064237    .0334752  -1.098612   1.098612
 ln_estcoun~t |    317,985    5.351968    1.798507          0   9.737374
-ln_est~t_avg |    318,027    5.347484    1.799279          0   9.726059
+d_ln_estco~t |    317,965    .0043657    .0349733  -.6931472   1.098612
 -------------+---------------------------------------------------------
 ln_estcoun~e |    317,853    5.590873     2.06992          0   12.41164
-ln_est~e_avg |    317,868    5.587327    2.069252          0   12.40821
+d_ln_estco~e |    317,847    .0056384    .0361069  -1.098612   1.098612
 ln_estc~dgov |    318,162     3.29021    1.006132          0   6.122493
-ln_estcoun.. |    318,164    3.290083    1.007045          0   6.117542
+d_ln_es~dgov |    318,162    .0005574    .0301958  -.6931472   1.098612
 ln_estcoun~n |    317,974    5.247573     1.95768          0   10.31685
 -------------+---------------------------------------------------------
-ln_est~n_avg |    318,005    5.246384    1.957542          0   10.31258
+d_ln_estco~n |    317,970    .0017451    .0287304  -.6931472   .6931472
 ln_estcoun~o |    314,907    3.439605    1.893162          0   9.488881
-ln_est~o_avg |    315,143    3.435247     1.89272          0   9.482695
+d_ln_estco~o |    314,829     .003011    .0605634  -1.098612   1.098612
 ln_estcou~is |    318,056    5.359372    1.872414          0   10.57699
-ln_es~is_avg |    318,070    5.355663    1.872194          0   10.57256
+d_ln_estc~is |    318,050    .0041693    .0327289  -1.098612   1.098612
 -------------+---------------------------------------------------------
 ln_estc~cgov |    318,178    4.173791     1.19948          0   8.333751
-ln_estcoun.. |    318,178    4.173196    1.198968          0   8.330255
+d_ln_es~cgov |    318,178     .000609    .0202899  -.4737842   1.386294
 ln_estcoun~u |    316,544    4.507551    1.828223          0   9.508146
-ln_est~u_avg |    316,653    4.505285    1.829541          0   9.502823
+d_ln_estco~u |    316,518     .000741    .0395351  -1.098612   .6931472
 ln_estcou~es |    317,365    3.654834    1.185544          0   7.515889
 -------------+---------------------------------------------------------
-ln_es~es_avg |    317,477    3.649743    1.186998          0   7.521037
+d_ln_estc~es |    317,338    .0070798    .0466778  -1.098612   1.098612
 ln_estc~tgov |    313,092     3.04535    1.209655          0   8.682708
-~t_stgov_avg |    313,121    3.044508    1.208126          0   8.687128
+d_ln_es~tgov |    313,087    -.000041    .0424837  -1.098612   .8586617
 ln_estcoun~p |    318,174    6.214996     1.76283          0   10.98852
-ln_est~p_avg |    318,174    6.213701    1.762474          0    10.9836
+d_ln_estco~p |    318,173    .0018244    .0173853  -.6931472   .6931472
 -------------+---------------------------------------------------------
 ln_avgwwa~rv |    310,867    6.734493    .3498174   4.248495   9.620992
-ln_av~rv_avg |    313,552    6.761815    .3655648   4.248495   8.894258
+d_ln_avgw~rv |    309,716    .0095903    .1000209  -1.576407   2.179604
 ln_avgwwag~t |    304,794    6.804849    .2624357   5.170484   8.684402
-ln_avg~t_avg |    308,396    6.796027    .2694635    4.85203   7.907791
+d_ln_avgww~t |    302,957     .041196    .0871051   -2.23326   2.529543
 ln_avgwwag~e |    313,993    6.602579    .2725573   3.663562   7.789868
 -------------+---------------------------------------------------------
-ln_avg~e_avg |    315,006     6.59483    .2723612   3.711262   7.787508
+d_ln_avgww~e |    313,307    .0257028    .0648262  -.8530693   1.235669
 ln_avgw~dgov |    318,156    7.044651    .2423501   3.850147   8.053887
-ln_avgwwag.. |    318,158    7.027159    .2340067   4.507414   8.019931
+d_ln_av~dgov |    318,150    .0460119    .1117372  -1.811962   1.260152
 ln_avgwwag~n |    311,949    6.809838    .3353338   5.170484   8.233768
-ln_avg~n_avg |    313,674    6.864106    .3544318   5.158989   8.521435
+d_ln_avgww~n |    311,078    .0062782    .0878119  -1.708273   1.523679
 -------------+---------------------------------------------------------
 ln_avgwwag~o |    285,489    6.833978    .4191141   4.219508   9.032887
-ln_avg~o_avg |    290,012    6.840471    .4265687   4.733621   8.899477
+d_ln_avgww~o |    283,127    .0258921    .1188472  -1.803686   2.309304
 ln_avgwwa~is |    315,949    5.741124    .3079927   4.025352   7.293018
-ln_av~is_avg |    316,763    5.721559    .3132516   4.207117   7.142036
+d_ln_avgw~is |    315,537    .0413903    .0775737  -.7638721   1.300934
 ln_avgw~cgov |    295,733    6.619979     .264296   5.451038   7.612337
 -------------+---------------------------------------------------------
-ln_avgwwag.. |    298,687    6.639058    .2464099   5.723585   7.581707
+d_ln_av~cgov |    294,649   -.0653443     .163162  -1.304745   .7511587
 ln_avgwwag~u |    302,391     6.86281    .3005874   4.624973   8.684402
-ln_avg~u_avg |    305,028    6.883574     .317238   4.979464   8.696846
+d_ln_avgww~u |    301,331     .006119    .0867901  -1.596497   1.255054
 ln_avgwwa~es |    304,126    6.663727    .3925129   4.532599   8.596559
-ln_av~es_avg |    307,951    6.687919    .3973783   5.010438   8.384871
+d_ln_avgw~es |    302,321    .0159084    .1415464  -2.111315   2.034978
 -------------+---------------------------------------------------------
 ln_avgw~tgov |    291,427    6.810126    .2720043   5.517453   7.966934
-~e_stgov_avg |    294,255    6.802343    .2596456   5.686915   8.216347
+d_ln_av~tgov |    290,365    .0218325    .1264586  -1.037004   1.058698
 ln_avgwwag~p |    318,066    6.514909    .2245875   4.983607   8.455105
-ln_avg~p_avg |    318,106    6.524619    .2322966   5.148474   7.986041
+d_ln_avgww~p |    318,051    .0165488    .0555505  -2.127876   2.030236
 ln_emp_biz~v |    310,867    7.831824    2.488684   .6931472   13.36667
 -------------+---------------------------------------------------------
-ln_emp_biz~g |    313,552    7.778679    2.518376   .8958797   13.36607
+d_ln_emp_b~v |    309,716    .0010524    .0597643  -1.230672   1.474225
 ln_emp_const |    304,794    7.374538    1.991619          0   12.04606
-ln_emp_con~g |    308,396    7.280176    2.026445   1.059351   12.04349
+d_ln_emp_c~t |    302,957    .0126705    .0643765  -1.834684   1.701246
 ln_emp_eduhe |    313,993    8.407313    2.129638   .6931472   13.62313
-ln_emp_edu~g |    315,006    8.404202    2.138626   .5972531   13.63009
+d_ln_emp_e~e |    313,307   -.0053609     .033817  -1.591894   2.206441
 -------------+---------------------------------------------------------
 ln_emp_fed~v |    318,150    6.075792    2.114523          0   12.28042
-ln_emp_fed~g |    318,158    6.055083    2.121322          0   12.26577
+d_ln_emp_f~v |    318,149   -.0070318    .0587504  -.9162908   1.599067
   ln_emp_fin |    311,949    7.203611    2.190103   .6931472   12.89351
-ln_emp_fin~g |    313,674     7.17138    2.201786   1.098612   12.87215
+d_ln_emp_fin |    311,078    .0030931    .0342619  -.9162908   1.716657
  ln_emp_info |    285,489    6.176681    2.231141          0   12.31626
 -------------+---------------------------------------------------------
-ln_emp_inf~g |    290,012    6.131096    2.247454   .5972531   12.33563
+d_ln_emp_i~o |    283,127    -.002305    .0624506  -1.272966    2.24071
  ln_emp_leis |    315,949    8.108313    2.115049   .6931472   13.21731
-ln_emp_lei~g |    316,763    8.028415    2.143638   .8283022   13.20877
+d_ln_emp_l~s |    315,537    .0076647    .0603063  -1.098612   1.272966
 ln_emp_loc~v |    295,733    8.225332     1.69842   3.178054   12.96441
-ln_emp_loc~g |    298,687    8.400119    1.665386   3.377829   13.01713
+d_ln_emp_l~v |    294,649   -.2052379    .1908729  -1.496987   .6055913
 -------------+---------------------------------------------------------
  ln_emp_manu |    302,391    8.064716    1.955904   1.098612   12.83883
-ln_emp_man~g |    305,028    8.026101    1.983965   1.181679   12.83062
+d_ln_emp_m~u |    301,331    .0013992    .0490051  -1.673976   2.808012
 ln_emp_nat~s |    304,126    6.026663    1.492908   .6931472   11.47314
-ln_emp_nat~g |    307,951    5.929271    1.502426   .9241962   11.45914
+d_ln_emp_n~s |    302,321    .0216679    .1714252  -1.784155   2.555133
 ln_emp_stgov |    291,427    6.650515    2.166077          0   11.64299
 -------------+---------------------------------------------------------
-ln_emp_stg~g |    294,255    6.650376     2.18406   1.031035   11.63277
+d_ln_emp_s~v |    290,365   -.0085944    .0700641  -3.135494   1.824549
 ln_emp_tra~p |    318,066    8.711733    1.992073   .6931472   13.63603
+d_ln_emp_t~p |    318,051   -.0022952    .0252445  -1.152679   .9162908
+ln_es~rv_avg |    318,022    5.663281    2.151954          0   10.93169
+d_ln_estco.. |    318,022    .0011249    .0060596  -.2310491   .1373265
+-------------+---------------------------------------------------------
+ln_est~t_avg |    318,027    5.347484    1.799279          0   9.726059
+d_ln_estco.. |    318,027   -.0001782    .0064919  -.2310491   .1373265
+ln_est~e_avg |    317,868    5.587327    2.069252          0   12.40821
+d_ln_estco.. |    317,868    .0029903    .0144049  -.1413708   .2379194
+ln_estcoun.. |    318,164    3.290083    1.007045          0   6.117542
+-------------+---------------------------------------------------------
+d_ln_estco.. |    318,164   -.0009887    .0049208  -.1155245   .0866434
+ln_est~n_avg |    318,005    5.246384    1.957542          0   10.31258
+d_~t_fin_avg |    318,005    .0001997    .0056288  -.2137458    .204728
+ln_est~o_avg |    315,143    3.435247     1.89272          0   9.482695
+d~t_info_avg |    315,143   -.0000786    .0113986  -.1831021     .17648
+-------------+---------------------------------------------------------
+ln_es~is_avg |    318,070    5.355663    1.872194          0   10.57256
+d~t_leis_avg |    318,070    .0008327    .0052787  -.1155245   .1155245
+ln_estcoun.. |    318,178    4.173196    1.198968          0   8.330255
+d_ln_estco.. |    318,178    .0002689     .007886  -.0577623   .3219777
+ln_est~u_avg |    316,653    4.505285    1.829541          0   9.502823
+-------------+---------------------------------------------------------
+d~t_manu_avg |    316,653   -.0001778    .0070897  -.2310491   .1155245
+ln_es~es_avg |    317,477    3.649743    1.186998          0   7.521037
+d_ln_estco.. |    317,477    .0012138    .0089889  -.1155245   .1386294
+ln_estcoun.. |    313,121    3.044508    1.208126          0   8.687128
+d_ln_estco.. |    313,121    .0005549    .0127336  -.1493133   .1732868
+-------------+---------------------------------------------------------
+ln_est~p_avg |    318,174    6.213701    1.762474          0    10.9836
+d_ln_estco.. |    318,174   -.0000268     .003201   -.091551    .091551
+ln_av~rv_avg |    313,552    6.761815    .3655648   4.248495   8.894258
+d_ln_avgww.. |    313,552    .0032897    .0134084  -.3575231   .3890224
+ln_avg~t_avg |    308,396    6.796027    .2694635    4.85203   7.907791
+-------------+---------------------------------------------------------
+d_ln_a~t_avg |    308,396    .0038863    .0127625  -.5675753   .3734863
+ln_avg~e_avg |    315,006     6.59483    .2723612   3.711262   7.787508
+d_ln_a~e_avg |    315,006    .0027888    .0075117  -.7046968   .1687835
+ln_avgwwag.. |    318,158    7.027159    .2340067   4.507414   8.019931
+d_ln_avgww.. |    318,158     .002871     .007973  -.1636251   .1570127
+-------------+---------------------------------------------------------
+ln_avg~n_avg |    313,674    6.864106    .3544318   5.158989   8.521435
+d_ln_a~n_avg |    313,674    .0030271    .0091668  -.2002821   .2378346
+ln_avg~o_avg |    290,012    6.840471    .4265687   4.733621   8.899477
+d_ln_a~o_avg |    290,012    .0023757     .012708  -.2145287   .2602958
+ln_av~is_avg |    316,763    5.721559    .3132516   4.207117   7.142036
+-------------+---------------------------------------------------------
+d~e_leis_avg |    316,763    .0030373    .0074196  -.3441434   .2402703
+ln_avgwwag.. |    298,687    6.639058    .2464099   5.723585   7.581707
+d_ln_avgww.. |    298,687    .0020496    .0049645  -.1473536   .0601321
+ln_avg~u_avg |    305,028    6.883574     .317238   4.979464   8.696846
+d_ln_a~u_avg |    305,028    .0025003    .0098245  -.4067745   .2194388
+-------------+---------------------------------------------------------
+ln_av~es_avg |    307,951    6.687919    .3973783   5.010438   8.384871
+d_ln_avgww.. |    307,951    .0030785    .0157357  -.5864962   .3410644
+ln_avgwwag.. |    294,255    6.802343    .2596456   5.686915   8.216347
+d_ln_avgww.. |    294,255    .0019249     .007746  -.2100995   .1487156
+ln_avg~p_avg |    318,106    6.524619    .2322966   5.148474   7.986041
+-------------+---------------------------------------------------------
+d_ln_a~p_avg |    318,106    .0027022    .0061868  -.1951725    .176864
+ln_emp_biz~g |    313,552    7.778679    2.518376   .8958797   13.36607
+d_ln_emp_b~g |    313,552    .0019049     .017321  -.9999886    .804719
+ln_emp_con~g |    308,396    7.280176    2.026445   1.059351   12.04349
+d_ln_emp_c~g |    308,396    .0031775    .0207745  -.7135582    .804719
+-------------+---------------------------------------------------------
+ln_emp_edu~g |    315,006    8.404202    2.138626   .5972531   13.63009
+d_ln_emp_e~g |    315,006     .001318    .0072243  -.4292847   .5493062
+ln_emp_fed~g |    318,158    6.055083    2.121322          0   12.26577
+d_ln_emp_f.. |    318,158   -.0008368    .0069793  -.2734092   .6931472
+ln_emp_fin~g |    313,674     7.17138    2.201786   1.098612   12.87215
+-------------+---------------------------------------------------------
+d_~p_fin_avg |    313,674    .0000886    .0075126  -.2480128    .389182
+ln_emp_inf~g |    290,012    6.131096    2.247454   .5972531   12.33563
+d_ln_emp_i~g |    290,012   -.0015412    .0146178  -.3781701   .4581454
+ln_emp_lei~g |    316,763    8.028415    2.143638   .8283022   13.20877
+d~p_leis_avg |    316,763    .0019034    .0113226   -.623729   1.018441
+-------------+---------------------------------------------------------
+ln_emp_loc~g |    298,687    8.400119    1.665386   3.377829   13.01713
+d_ln_emp_l.. |    298,687    .0002247    .0065422  -.1065016   .3664436
+ln_emp_man~g |    305,028    8.026101    1.983965   1.181679   12.83062
+d_ln_emp_m~g |    305,028    .0012226    .0236253  -.8714847   1.287939
+ln_emp_nat~g |    307,951    5.929271    1.502426   .9241962   11.45914
+-------------+---------------------------------------------------------
+d_ln_emp_n~g |    307,951    .0021119    .0205689   -.807152   .7621402
+ln_emp_stg~g |    294,255    6.650376     2.18406   1.031035   11.63277
+d_ln_emp_s~g |    294,255   -.0002195    .0131484  -.3465737   .5148097
 ln_emp_tra~g |    318,106    8.704721    2.001689   1.078982   13.64407
+d_ln_emp_t~g |    318,106     .000882    .0046707  -.1279553   .1693182
+-------------+---------------------------------------------------------
 ln_wkp_job~t |    276,667    6.495248    2.359417          0   12.63638
 ln_res_job~t |    282,709    7.093922    1.876889          0   10.88093
 
@@ -968,4 +1674,4 @@ file ../../../drive/derived_large/zipcode_year/zipcode_year.dta saved
 . 
 end of do-file
 
- make.py ended: 2022-03-17 14:47:55
+ make.py ended: 2022-03-23 14:14:55
