@@ -24,7 +24,7 @@ program main
     local specifications "`r(specifications)'"
     
     estimate_geofe_specifications, mw_wkp_var(`mw_wkp_var') controls(" ")       ///
-        cluster(`cluster') geos(county cbsa place_code)
+        cluster(`cluster') geos(county cbsa place_code statefips)
     local specifications "`specifications' `r(specifications)'"
     
     estimate_zipcodetrend, mw_wkp_var(`mw_wkp_var') controls(`controls')         ///
