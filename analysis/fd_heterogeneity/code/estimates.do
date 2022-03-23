@@ -3,47 +3,46 @@ set more off
 adopath + ../../../lib/stata/gslab_misc/ado
 adopath + ../../../lib/stata/min_wage/ado
 set maxvar 32000 
-
+	
 program main
+	
 	local instub  "../../../drive/derived_large/estimation_samples"
+	local incross "../../../drive/derived_large/zipcode"
 	local outstub "../output"
 	
 	define_controls
 	local controls     "`r(economic_controls)'"
 	local cluster_vars "statefips"
-	
-	** STATIC
-	load_and_clean, instub(`instub')
 
-	xtset zipcode_num year_month
-	eststo clear
-	foreach var in under29 30to54 under1250 above3333 underHS College {
-	eststo: reghdfe D.ln_rents D.ln_mw D.ln_mw_times_wrks_`var' ///
-	     D.exp_ln_mw_17 D.exp_ln_mw_times_res_`var', nocons ///
+	load_and_clean, instub(`instub') incross(`incross')
+
+	reghdfe D.ln_rents D.mw_res D.mw_wkp_tot_17_below ///
+	     D.mw_wkp_tot_17_above `controls', nocons ///
 		absorb(year_month) cluster(`cluster_vars')	
-	}
-    esttab *, se r2
 end
 
 
 program load_and_clean
-    syntax, instub(str)
+    syntax, instub(str) incross(str)
 
-	use "`instub'/baseline_zipcode_months.dta", clear
-	
+	use "`instub'/zipcode_months.dta", clear
 	xtset zipcode_num year_month
-		
-	foreach var in under29 30to54 under1250 above3333 underHS College {
-	    bys statefips: egen sh_res_`var'_med = median(sh_residents_`var'_2014)
-	    bys statefips: egen sh_ws_`var'_med  = median(sh_workers_`var'_2014)	
-	    
-		gen above_med_st_res_`var'  = (sh_residents_`var'_2014 > sh_res_`var'_med)
-	    gen above_med_st_wrks_`var' = (sh_workers_`var'_2014   > sh_ws_`var'_med)
-	    drop *_med
-		
-	    gen ln_mw_times_wrks_`var'    = ln_mw*above_med_st_wrks_`var'
-	    gen exp_ln_mw_times_res_`var' = exp_ln_mw_17*above_med_st_res_`var'
-	}
+
+	merge m:1 zipcode using "`incross'/zipcode_cross.dta", keepusing(sh_mw_wkrs_statutory)
+	keep if baseline_sample
+	xtset zipcode_num year_month
+
+	sum sh_mw_wkrs_statutory, d
+	local median `r(p50)'
+
+	gen above_median = 0
+	replace above_median = 1 if sh_mw_wkrs_statutory > `median'
+
+	gen below_median = 0
+	replace below_median = 1 if sh_mw_wkrs_statutory < `median'
+
+	gen mw_wkp_tot_17_above = mw_wkp_tot_17 * above_median
+	gen mw_wkp_tot_17_below = mw_wkp_tot_17 * below_median
 end
 
 
