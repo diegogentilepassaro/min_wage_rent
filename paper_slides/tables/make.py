@@ -25,13 +25,13 @@ clear_dirs("output/")
 
 start_make_logging()
 
-desc_est_samples_dir  = "../../descriptive/estimation_samples/output"
-fd_baseline_dir       = "../../analysis/fd_baseline/output"
-fd_cf_dir             = "../../analysis/counterfactuals/output"
-fd_robust_dir         = "../../analysis/fd_robustness/output"
-fd_wages_dir          = "../../analysis/twfe_wages/output"
-fd_stacked_dir        = "../../analysis/fd_stacked/output"
-fd_zip_cty_yr_mth_dir = "../../analysis/fd_zip_cty_yr_mth/output"
+desc_est_samples_dir = "../../descriptive/estimation_samples/output"
+fd_baseline_dir      = "../../analysis/fd_baseline/output"
+fd_cf_dir            = "../../analysis/counterfactuals/output"
+fd_robust_dir        = "../../analysis/fd_robustness/output"
+fd_wages_dir         = "../../analysis/twfe_wages/output"
+fd_stacked_dir       = "../../analysis/fd_stacked/output"
+fd_geos_times        = "../../analysis/fd_geos_times/output"
 autocorr_dir         = "../../analysis/autocorrelation/output"
 desc_est_samples_dir = "../../descriptive/estimation_samples/output"
 fd_baseline_dir      = "../../analysis/fd_baseline/output"
@@ -81,9 +81,9 @@ tablefill(input    = os.path.join(fd_robust_dir, "static_ab.txt"),
           template = "input/static_ab.tex", 
           output   = "output/static_ab.tex")
 
-tablefill(input    = os.path.join(fd_zip_cty_yr_mth_dir, "cty_vs_zip_mth_vs_yr.txt"),
-          template = "input/cty_vs_zip_mth_vs_yr.tex", 
-          output   = "output/cty_vs_zip_mth_vs_yr.tex")
+tablefill(input    = os.path.join(fd_geos_times, "static_geos_times.txt"),
+          template = "input/static_geos_times.tex", 
+          output   = "output/static_geos_times.tex")
 
 tablefill(input    = os.path.join(fd_wages_dir, "static_wages.txt"), 
           template = "input/static_wages.tex", 
