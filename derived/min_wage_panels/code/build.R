@@ -16,8 +16,8 @@ main <- function(){
   
   if (file.exists(log_file)) file.remove(log_file)
   
-  start_ym <- c(2009, 7)
-  end_ym   <- c(2020, 1)
+  start_ym <- c(2010, 1)
+  end_ym   <- c(2019, 12)
   
   dt_geo <- load_geographies(in_master)
   dt_mw  <- load_mw(in_mw_data)
@@ -182,8 +182,12 @@ collapse_data <- function(dt, key_vars = c("zipcode", "year", "month")) {
 
 compute_counterfactual <- function(dt) {
 
-  dt_cf <- dt[  (year == 2019 & month == 12)
-              | (year == 2020 & month == 01)]
+  dt_cf     <- dt[(year == 2019 & month == 12)]
+  dt_cf_dup <- copy(dt_cf)
+  dt_cf_dup <- dt_cf_dup[, year  := 2020]
+  dt_cf_dup <- dt_cf_dup[, month := 1]
+
+  dt_cf <- rbindlist(list(dt_cf, dt_cf_dup))
 
   dt_cf[, fed_mw_cf_10pc  := fifelse(year == 2019, fed_mw, fed_mw*1.1)]
   dt_cf[, fed_mw_cf_9usd  := fifelse(year == 2019, fed_mw, 9)]
@@ -199,9 +203,8 @@ compute_counterfactual <- function(dt) {
           c(new_var) := get(share_var)*get(cf_mw_var) 
                       + (1 - get(share_var))*get(new_var)]
   }
-  
+
   return(dt_cf)
 }
-
 
 main()

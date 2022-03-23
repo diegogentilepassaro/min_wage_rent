@@ -15,7 +15,7 @@ main <- function(paquetes, n_cores){
   outstub  <- "../../../drive/derived_large/min_wage_measures"
   log_file <- "../output/data_file_manifest_cfs.log"
   
-  od_yy  = 2018
+  od_yy  = 2017
   geo    = "zipcode"
   .w_var = "w_zipcode"
   .r_var = "r_zipcode"
