@@ -51,17 +51,18 @@ load_data <- function(filename, instub = "../output") {
 
 build_basic_stats <- function(df) {
   df %>%
-    summarise(population_cens2010           = mean(population_cens2010, na.rm = T),
-              n_hhlds_cens2010              = mean(n_hhlds_cens2010, na.rm = T),
+    summarise(tot_pop_cens2010              = sum(population_cens2010, na.rm = T)/1000,
+              mean_pop_cens2010             = mean(population_cens2010, na.rm = T)/1000,
+              tot_hhlds_cens2010            = sum(n_hhlds_cens2010, na.rm = T)/1000,
+              mean_hhlds_cens2010           = mean(n_hhlds_cens2010, na.rm = T)/1000,
               sh_urban_pop_2010             = mean(sh_urban_pop_2010, na.rm = T),
               sh_hhlds_renteroccup_cens2010 = mean(sh_hhlds_renteroccup_cens2010, na.rm = T),
               sh_black_cens2010             = mean(sh_black_cens2010, na.rm = T),
               sh_white_cens2010             = mean(sh_white_cens2010, na.rm = T),
-              sh_male_cens2010              = mean(sh_male_cens2010, na.rm = T),
               share_wage_hhlds_irs2010      = mean(share_wage_hhlds, na.rm = T),
               share_bussiness_hhlds_irs2010 = mean(share_bussiness_hhlds, na.rm = T),
-              agi_per_hhld_irs_2010         = mean(agi_per_hhld, na.rm = T),
-              wage_per_hhld_irs2010         = mean(wage_per_hhld, na.rm = T),
+              agi_per_hhld_irs_2010         = mean(agi_per_hhld, na.rm = T)/1000,
+              wage_per_hhld_irs2010         = mean(wage_per_hhld, na.rm = T)/1000,
               rent40thperc_2br_safmr2012    = mean(safmr2br, na.rm = T),
               min_binding_mw_feb2010        = min(statutory_mw_feb2010, na.rm = T),
               avg_binding_mw_feb2010        = mean(statutory_mw_feb2010, na.rm = T),
@@ -69,7 +70,9 @@ build_basic_stats <- function(df) {
               min_binding_mw_dec2019        = min(statutory_mw_dec2019, na.rm = T),
               avg_binding_mw_dec2019        = mean(statutory_mw_dec2019, na.rm = T),
               max_binding_mw_dec2019        = max(statutory_mw_dec2019, na.rm = T),
-              zip_count                     = n_distinct(zipcode))
+              zip_count                     = n_distinct(zipcode),
+              county_count                  = n_distinct(countyfips),
+              state_count                   = n_distinct(statefips))
 }
 
 build_panel_stats_row <-  function(panel, var){

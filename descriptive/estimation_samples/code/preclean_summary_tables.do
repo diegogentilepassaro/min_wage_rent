@@ -56,8 +56,6 @@ program main
         merge 1:1 zipcode countyfips cbsa                       ///
             using "../temp/safmr_2012_clean.dta", nogen keep(1 3)
         
-        drop countyfips cbsa statefips
-
         save_data "../output/`data'_zipcode_lvl_data.dta",        ///
             key(zipcode) replace
         export delimited "../output/`data'_zipcode_lvl_data.csv", replace
