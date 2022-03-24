@@ -7,7 +7,7 @@ main <- function() {
   
   est <- fread(file.path(instub, "estimates_static.csv"))
 
-  txt <- c("<tab:static_geo_times>")
+  txt <- c("<tab:static_geos_times>")
   txt <- c(txt, make_row_res_only(est, "zipcode"))
   txt <- c(txt, make_row_wkp_only(est, "zipcode"))
   txt <- c(txt, make_row_both(est, "zipcode"))
@@ -18,7 +18,7 @@ main <- function() {
   txt <- c(txt, make_row_wkp_only(est, "zipcode", "yr_"))
   txt <- c(txt, make_row_both(est, "zipcode", "yr_"))
  
-  fileConn <- file(file.path(outstub, "static_geo_times.txt"))
+  fileConn <- file(file.path(outstub, "static_geos_times.txt"))
   writeLines(txt, fileConn)
   close(fileConn)
 }
