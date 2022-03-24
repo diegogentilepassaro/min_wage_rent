@@ -52,9 +52,9 @@ load_data <- function(filename, instub = "../output") {
 build_basic_stats <- function(df) {
   df %>%
     summarise(tot_pop_cens2010              = sum(population_cens2010, na.rm = T)/1000,
-              mean_pop_cens2010             = mean(population_cens2010, na.rm = T)/1000,
               tot_hhlds_cens2010            = sum(n_hhlds_cens2010, na.rm = T)/1000,
-              mean_hhlds_cens2010           = mean(n_hhlds_cens2010, na.rm = T)/1000,
+              mean_pop_cens2010             = mean(population_cens2010, na.rm = T),
+              mean_hhlds_cens2010           = mean(n_hhlds_cens2010, na.rm = T),
               sh_urban_pop_2010             = mean(sh_urban_pop_2010, na.rm = T),
               sh_hhlds_renteroccup_cens2010 = mean(sh_hhlds_renteroccup_cens2010, na.rm = T),
               sh_black_cens2010             = mean(sh_black_cens2010, na.rm = T),
