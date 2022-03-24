@@ -1,5 +1,5 @@
 
- make.py started: 2022-03-24 06:59:18 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\fd_heterogeneity\code 
+ make.py started: 2022-03-24 07:41:40 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\fd_heterogeneity\code 
 
 
 
@@ -71,17 +71,12 @@ running c:\ado\personal\profile.do ...
   7. 
 .         load_and_clean, instub(`instub') incross(`incross')
   8. 
-.         reghdfe D.ln_rents D.mw_res D.mw_wkp_tot_17 i.above_median_sh_mw_wkrs
->  ///
->             c.D.mw_wkp_tot_17#i.above_median_sh_mw_wkrs ///
->             D.(`controls'), nocons absorb(year_month) cluster(`cluster_vars')
-  9. 
-.         reghdfe D.ln_rents D.mw_res D.mw_wkp_tot_17 i.below_median_sh_mw_wkrs
->  ///
->             c.D.mw_wkp_tot_17#i.below_median_sh_mw_wkrs ///
->             D.(`controls'), nocons absorb(year_month) cluster(`cluster_vars')
->    
- 10. end
+.         reghdfe D.ln_rents c.D.mw_res#i.high_mw_wrks ///
+>             c.D.mw_wkp_tot_17#i.high_mw_res ///
+>             D.(`controls'), nocons ///
+>                 absorb(year_month##high_mw_wrks##high_mw_res) cluster(`cluste
+> r_vars')
+  9. end
 
 . 
 . 
@@ -92,18 +87,33 @@ running c:\ado\personal\profile.do ...
   3.         xtset zipcode_num year_month
   4. 
 .         merge m:1 zipcode using "`incross'/zipcode_cross.dta", nogen ///
->             keep(3) keepusing(sh_mw_wkrs_statutory)
-  5.         xtset zipcode_num year_month
-  6. 
-.         sum sh_mw_wkrs_statutory, d
-  7.         local median `r(p50)'
-  8. 
-.         gen above_median_sh_mw_wkrs = (sh_mw_wkrs_statutory >= `median') ///
->             if !missing(sh_mw_wkrs_statutory)
-  9.                 
-.         gen below_median_sh_mw_wkrs = (sh_mw_wkrs_statutory < `median') ///
->             if !missing(sh_mw_wkrs_statutory)
- 10. end
+>             keep(3) keepusing(sh_mw_wkrs_statutory sh_workers_under29_2013 //
+> /
+>                 sh_residents_under29_2013 sh_residents_underHS_2013 ///
+>                 sh_residents_under1250_2013 sh_workers_underHS_2013 ///
+>                 sh_workers_under1250_2013 sh_residents_accomm_food_2013 ///
+>                 sh_workers_accomm_food_2013)
+  5.         rename *_2013 *
+  6.         rename *residents* *res*
+  7.         
+.         foreach var in sh_mw_wkrs_statutory sh_workers_accomm_food sh_workers
+> _underHS ///
+>             sh_res_accomm_food sh_res_underHS {
+  8.             bys statefips: egen `var'_med = median(`var')
+  9.             gen `var'_above_med = (`var'   > `var'_med)
+ 10.             drop `var'_med
+ 11. 
+.             gen resint_`var' = mw_res*`var'_above_med
+ 12.             gen wkpint_`var' = mw_wkp_tot_17*`var'_above_med
+ 13.         }
+ 14.         
+.         gen high_mw_wrks = sh_workers_underHS_above_med*sh_workers_accomm_foo
+> d_above_med
+ 15.         gen high_mw_res  = sh_res_underHS_above_med*sh_res_accomm_food_abo
+> ve_med
+ 16. 
+.         xtset zipcode_num year_month
+ 17. end
 
 . 
 . 
@@ -117,152 +127,80 @@ running c:\ado\personal\profile.do ...
     not matched                             0
     matched                           133,600  
     -----------------------------------------
+(922 missing values generated)
        panel variable:  zipcode_num (unbalanced)
         time variable:  year_month, 2010m2 to 2019m12
                 delta:  1 month
-
-                    sh_mw_wkrs_statutory
--------------------------------------------------------------
-      Percentiles      Smallest
- 1%     .0588185       .0114365
- 5%     .0867392       .0114365
-10%     .0960774       .0114365       Obs             125,057
-25%     .1161432       .0114365       Sum of Wgt.     125,057
-
-50%     .1346972                      Mean           .1401641
-                        Largest       Std. Dev.      .0421492
-75%     .1582743       .5270913
-90%     .1895167       .5270913       Variance       .0017766
-95%      .210314       .5270913       Skewness       1.983894
-99%     .2778594       .5270913       Kurtosis       14.53711
-(8,543 missing values generated)
-(8,543 missing values generated)
+(dropped 7 singleton observations)
 (MWFE estimator converged in 1 iterations)
 
-HDFE Linear regression                            Number of obs   =    122,984
-Absorbing 1 HDFE group                            F(  13,     38) =      10.30
-Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.0208
-                                                  Adj R-squared   =     0.0198
+HDFE Linear regression                            Number of obs   =    131,376
+Absorbing 1 HDFE group                            F(  13,     40) =       4.19
+Statistics robust to heteroskedasticity           Prob > F        =     0.0002
+                                                  R-squared       =     0.0240
+                                                  Adj R-squared   =     0.0205
                                                   Within R-sq.    =     0.0002
-Number of clusters (statefips) =         39       Root MSE        =     0.0291
+Number of clusters (statefips) =         41       Root MSE        =     0.0290
 
-                             (Std. Err. adjusted for 39 clusters in statefips)
+                             (Std. Err. adjusted for 41 clusters in statefips)
 ------------------------------------------------------------------------------
              |               Robust
   D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-      mw_res |
-         D1. |  -.0156231   .0145655    -1.07   0.290    -.0451095    .0138633
+high_mw_wrks#|
+   cD.mw_res |
+          0  |  -.0282383   .0186292    -1.52   0.137    -.0658894    .0094127
+          1  |  -.0149332   .0233946    -0.64   0.527    -.0622154    .0323491
              |
-mw_wkp_to~17 |
-         D1. |   .0566391    .020357     2.78   0.008     .0154286    .0978497
-             |
-1.above_me~s |   .0002827   .0001302     2.17   0.036     .0000192    .0005462
-             |
-above_medi~s#|
+ high_mw_res#|
          cD. |
 mw_wkp_to~17 |
-          1  |  -.0150364    .019549    -0.77   0.447    -.0546113    .0245386
+          0  |   .0575495   .0269863     2.13   0.039     .0030082    .1120908
+          1  |   .0616063   .0273582     2.25   0.030     .0063132    .1168993
              |
 ln_emp_biz~v |
-         D1. |    .010658   .0048154     2.21   0.033     .0009097    .0204064
+         D1. |   .0106126   .0051742     2.05   0.047     .0001552      .02107
              |
  ln_emp_info |
-         D1. |   .0002576    .003184     0.08   0.936    -.0061881    .0067032
+         D1. |   .0015616   .0036812     0.42   0.674    -.0058783    .0090016
              |
   ln_emp_fin |
-         D1. |    .009835   .0054975     1.79   0.082    -.0012941    .0209641
+         D1. |   .0089977   .0062858     1.43   0.160    -.0037064    .0217018
              |
 ln_estcoun~v |
-         D1. |  -.0006961   .0162254    -0.04   0.966    -.0335427    .0321505
+         D1. |   .0008596   .0144467     0.06   0.953    -.0283382    .0300574
              |
 ln_estcoun~o |
-         D1. |   .0012399   .0058346     0.21   0.833    -.0105717    .0130516
+         D1. |   .0012444   .0052981     0.23   0.816    -.0094635    .0119522
              |
 ln_estcoun~n |
-         D1. |   .0071029   .0075727     0.94   0.354    -.0082272     .022433
+         D1. |   .0045278   .0070587     0.64   0.525    -.0097384    .0187941
              |
 ln_avgwwag~v |
-         D1. |   .0022838   .0030667     0.74   0.461    -.0039245    .0084921
+         D1. |   .0026696   .0029498     0.90   0.371    -.0032923    .0086315
              |
 ln_avgwwag~o |
-         D1. |   .0001075   .0018015     0.06   0.953    -.0035394    .0037544
+         D1. |   .0000902   .0016529     0.05   0.957    -.0032504    .0034308
              |
 ln_avgwwag~n |
-         D1. |  -.0016956   .0011349    -1.49   0.143    -.0039931    .0006018
+         D1. |  -.0018543   .0010937    -1.70   0.098    -.0040648    .0003562
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
------------------------------------------------------+
- Absorbed FE | Categories  - Redundant  = Num. Coefs |
--------------+---------------------------------------|
-  year_month |       118           0         118     |
------------------------------------------------------+
-(MWFE estimator converged in 1 iterations)
-
-HDFE Linear regression                            Number of obs   =    122,984
-Absorbing 1 HDFE group                            F(  13,     38) =      10.30
-Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.0208
-                                                  Adj R-squared   =     0.0198
-                                                  Within R-sq.    =     0.0002
-Number of clusters (statefips) =         39       Root MSE        =     0.0291
-
-                             (Std. Err. adjusted for 39 clusters in statefips)
-------------------------------------------------------------------------------
-             |               Robust
-  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
--------------+----------------------------------------------------------------
-      mw_res |
-         D1. |  -.0156231   .0145655    -1.07   0.290    -.0451095    .0138633
-             |
-mw_wkp_to~17 |
-         D1. |   .0416027    .029986     1.39   0.173    -.0191008    .1023062
-             |
-1.below_me~s |  -.0002827   .0001302    -2.17   0.036    -.0005462   -.0000192
-             |
-below_medi~s#|
-         cD. |
-mw_wkp_to~17 |
-          1  |   .0150364    .019549     0.77   0.447    -.0245386    .0546113
-             |
-ln_emp_biz~v |
-         D1. |    .010658   .0048154     2.21   0.033     .0009097    .0204064
-             |
- ln_emp_info |
-         D1. |   .0002576    .003184     0.08   0.936    -.0061881    .0067032
-             |
-  ln_emp_fin |
-         D1. |    .009835   .0054975     1.79   0.082    -.0012941    .0209641
-             |
-ln_estcoun~v |
-         D1. |  -.0006961   .0162254    -0.04   0.966    -.0335427    .0321505
-             |
-ln_estcoun~o |
-         D1. |   .0012399   .0058346     0.21   0.833    -.0105717    .0130516
-             |
-ln_estcoun~n |
-         D1. |   .0071029   .0075727     0.94   0.354    -.0082272     .022433
-             |
-ln_avgwwag~v |
-         D1. |   .0022838   .0030667     0.74   0.461    -.0039245    .0084921
-             |
-ln_avgwwag~o |
-         D1. |   .0001075   .0018015     0.06   0.953    -.0035394    .0037544
-             |
-ln_avgwwag~n |
-         D1. |  -.0016956   .0011349    -1.49   0.143    -.0039931    .0006018
-------------------------------------------------------------------------------
-
-Absorbed degrees of freedom:
------------------------------------------------------+
- Absorbed FE | Categories  - Redundant  = Num. Coefs |
--------------+---------------------------------------|
-  year_month |       118           0         118     |
------------------------------------------------------+
+-------------------------------------------------------------------------------
+> --+
+                             Absorbed FE | Categories  - Redundant  = Num. Coef
+> s                                                                            
+>   |
+-----------------------------------------+-------------------------------------
+> --|
+     year_month#high_mw_wrks#high_mw_res |       465           0         465   
+>                                                                              
+>   |
+-------------------------------------------------------------------------------
+> --+
 
 . 
 end of do-file
 
- make.py ended: 2022-03-24 06:59:27
+ make.py ended: 2022-03-24 07:41:49
