@@ -18,11 +18,11 @@ program main
 
 	reghdfe D.ln_rents D.mw_res D.mw_wkp_tot_17 i.above_median_sh_mw_wkrs ///
 	    c.D.mw_wkp_tot_17#i.above_median_sh_mw_wkrs ///
-	    `controls', nocons absorb(year_month) cluster(`cluster_vars')
+	    D.(`controls'), nocons absorb(year_month) cluster(`cluster_vars')
 
 	reghdfe D.ln_rents D.mw_res D.mw_wkp_tot_17 i.below_median_sh_mw_wkrs ///
 	    c.D.mw_wkp_tot_17#i.below_median_sh_mw_wkrs ///
-	    `controls', nocons absorb(year_month) cluster(`cluster_vars')	
+	    D.(`controls'), nocons absorb(year_month) cluster(`cluster_vars')	
 end
 
 
