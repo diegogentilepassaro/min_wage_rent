@@ -1,5 +1,5 @@
 
- make.py started: 2022-03-16 07:02:59 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\fd_baseline\code 
+ make.py started: 2022-03-19 10:57:17 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\fd_baseline\code 
 
 
 
@@ -67,68 +67,90 @@ running c:\ado\personal\profile.do ...
 .     estimate_dist_lag_model if !missing(D.ln_rents), depvar(`mw_wkp_var') ///
 >         dyn_var(mw_res) w(0) stat_var(mw_res) ///
 >         controls(`controls') absorb(`absorb') cluster(`cluster') ///
->         model_name(mw_wkp_on_res_mw) outfolder("../temp")
+>         model_name(mw_wkp_on_res_mw) 
  11. 
 .     estimate_dist_lag_model, depvar(ln_rents) ///
 >         dyn_var(mw_res) w(0) stat_var(mw_res) ///
 >         controls(`controls') absorb(`absorb') cluster(`cluster') ///
->         model_name(static_mw_res) outfolder("../temp")
+>         model_name(static_mw_res)
  12. 
 .     estimate_dist_lag_model, depvar(ln_rents) ///
 >         dyn_var(`mw_wkp_var') w(0) stat_var(`mw_wkp_var') ///
 >         controls(`controls') absorb(`absorb') cluster(`cluster') ///
->         model_name(static_mw_wkp) outfolder("../temp")
+>         model_name(static_mw_wkp)
  13. 
 .     estimate_dist_lag_model, depvar(ln_rents) ///
 >         dyn_var(`mw_wkp_var') w(0) stat_var(mw_res) ///
 >         controls(`controls') absorb(`absorb') cluster(`cluster') ///
->         model_name(static_both) test_equality outfolder("../temp")
+>         model_name(static_both) test_equality
  14. 
-.     use ../temp/estimates_mw_wkp_on_res_mw.dta, clear
+.     use "../temp/estimates_mw_wkp_on_res_mw.dta", clear
  15.     gen p_equality = .
  16.     foreach ff in static_mw_res static_mw_wkp static_both {
  17.         append using ../temp/estimates_`ff'.dta
  18.     }
- 19.     save             `outstub'/estimates_static.dta, replace
- 20.     export delimited `outstub'/estimates_static.csv, replace
+ 19.     save             "`outstub'/estimates_static.dta", replace
+ 20.     export delimited "`outstub'/estimates_static.csv", replace
  21. 
-.     ** DYNAMIC
-.     use "`instub'/zipcode_months.dta" if baseline_sample, clear
+.     ** RESIDUALS UNBALANCED
+.     use "`instub'/zipcode_months.dta", clear
  22.     xtset zipcode_num `absorb'
  23. 
+.     local absorb_res "yr_entry_to_zillow##`absorb'"
+ 24. 
+.     estimate_dist_lag_model if !missing(D.ln_rents), depvar(`mw_wkp_var') ///
+>         dyn_var(mw_res) w(0) stat_var(mw_res) ///
+>         controls(`controls') absorb(`absorb_res') cluster(`cluster') ///
+>         model_name(unbal_mw_wkp_on_res_mw) save_res_zip_month
+ 25. 
+.     estimate_dist_lag_model, depvar(ln_rents) ///
+>         dyn_var(" ") w(0) stat_var(" ") ///
+>         controls(`controls') absorb(`absorb_res') cluster(`cluster') ///
+>         model_name(unbal_static_both) save_res_zip_month
+ 26. 
+.     use "../temp/resid_unbal_mw_wkp_on_res_mw.dta", clear
+ 27.     merge 1:1 zipcode year month using "../temp/resid_unbal_static_both.dt
+> a", nogen
+ 28.     export delimited "`outstub'/estimates_unbal_residuals.csv", replace   
+>  
+ 29. 
+.     ** DYNAMIC
+.     use "`instub'/zipcode_months.dta" if baseline_sample, clear
+ 30.     xtset zipcode_num `absorb'
+ 31. 
 .     estimate_dist_lag_model, depvar(ln_rents) ///
 >         dyn_var(`mw_wkp_var') w(6) stat_var(mw_res) ///
 >         controls(`controls') absorb(`absorb') cluster(`cluster') ///
->         model_name(both_mw_wkp_dynamic) outfolder("../temp")
- 24.         
+>         model_name(both_mw_wkp_dynamic) test_equality
+ 32.         
 .     estimate_dist_lag_model, depvar(ln_rents) ///
 >         dyn_var(mw_res) w(6) stat_var(`mw_wkp_var') ///
 >         controls(`controls') absorb(`absorb') cluster(`cluster') ///
->         model_name(both_mw_res_dynamic) outfolder("../temp")
- 25.         
+>         model_name(both_mw_res_dynamic)
+ 33.         
 .     estimate_dist_lag_model, depvar(ln_rents) ///
 >         dyn_var(`mw_wkp_var') w(6) stat_var(`mw_wkp_var') ///
 >         controls(`controls') absorb(`absorb') cluster(`cluster') ///
->         model_name(mw_wkp_only_dynamic) outfolder("../temp")
- 26.         
+>         model_name(mw_wkp_only_dynamic)
+ 34.         
 .     estimate_dist_lag_model, depvar(ln_rents) ///
 >         dyn_var(mw_res) w(6) stat_var(mw_res) ///
 >         controls(`controls') absorb(`absorb') cluster(`cluster') ///
->         model_name(mw_res_only_dynamic) outfolder("../temp")
- 27.         
+>         model_name(mw_res_only_dynamic)
+ 35.         
 .     estimate_dist_lag_model_two_dyn, depvar(ln_rents) ///
 >         dyn_var1(`mw_wkp_var') w(6) dyn_var2(mw_res) ///
 >         controls(`controls') absorb(`absorb') cluster(`cluster') ///
->         model_name(both_dynamic) outfolder("../temp")
- 28.         
-.     use ../temp/estimates_both_mw_wkp_dynamic.dta, clear
- 29.     foreach ff in both_mw_res_dynamic mw_wkp_only_dynamic ///
+>         model_name(both_dynamic)
+ 36.         
+.     use "../temp/estimates_both_mw_wkp_dynamic.dta", clear
+ 37.     foreach ff in both_mw_res_dynamic mw_wkp_only_dynamic ///
 >         mw_res_only_dynamic both_dynamic {
- 30.         append using ../temp/estimates_`ff'.dta
- 31.     }
- 32.     save             `outstub'/estimates_dynamic.dta, replace
- 33.     export delimited `outstub'/estimates_dynamic.csv, replace
- 34. end
+ 38.         append using ../temp/estimates_`ff'.dta
+ 39.     }
+ 40.     save             "`outstub'/estimates_dynamic.dta", replace
+ 41.     export delimited "`outstub'/estimates_dynamic.csv", replace
+ 42. end
 
 . 
 . main
@@ -477,6 +499,130 @@ file ../output/estimates_static.csv saved
        panel variable:  zipcode_num (unbalanced)
         time variable:  year_month, 2010m2 to 2019m12
                 delta:  1 month
+(dropped 2 singleton observations)
+(MWFE estimator converged in 1 iterations)
+note: D.mw_res omitted because of collinearity
+
+HDFE Linear regression                            Number of obs   =    193,290
+Absorbing 1 HDFE group                            F(  10,     48) =     320.40
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9347
+                                                  Adj R-squared   =     0.9345
+                                                  Within R-sq.    =     0.9149
+Number of clusters (statefips) =         49       Root MSE        =     0.0031
+
+                             (Std. Err. adjusted for 49 clusters in statefips)
+------------------------------------------------------------------------------
+D.           |               Robust
+mw_wkp_to~17 |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+      mw_res |
+         D1. |   .8354463   .0304786    27.41   0.000     .7741649    .8967277
+         D1. |          0  (omitted)
+             |
+ln_emp_biz~v |
+         D1. |  -.0024352   .0012694    -1.92   0.061    -.0049876    .0001171
+             |
+ ln_emp_info |
+         D1. |   .0008031   .0006905     1.16   0.251    -.0005853    .0021915
+             |
+  ln_emp_fin |
+         D1. |  -.0036629   .0026109    -1.40   0.167    -.0089124    .0015866
+             |
+ln_estcoun~v |
+         D1. |  -.0079212   .0077146    -1.03   0.310    -.0234324    .0075899
+             |
+ln_estcoun~o |
+         D1. |   .0004011   .0017825     0.23   0.823    -.0031829    .0039851
+             |
+ln_estcoun~n |
+         D1. |   .0073458   .0060917     1.21   0.234    -.0049025     .019594
+             |
+ln_avgwwag~v |
+         D1. |   -.002116   .0017416    -1.21   0.230    -.0056176    .0013857
+             |
+ln_avgwwag~o |
+         D1. |  -.0008921   .0008979    -0.99   0.325    -.0026974    .0009132
+             |
+ln_avgwwag~n |
+         D1. |   .0022231   .0010423     2.13   0.038     .0001273    .0043189
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-------------------------------------------------------------------------+
+                     Absorbed FE | Categories  - Redundant  = Num. Coefs |
+---------------------------------+---------------------------------------|
+   yr_entry_to_zillow#year_month |       647           0         647     |
+-------------------------------------------------------------------------+
+file ../temp/estimates.dta saved
+(4,688 missing values generated)
+(note: file ../temp/resid_unbal_mw_wkp_on_res_mw.dta not found)
+file ../temp/resid_unbal_mw_wkp_on_res_mw.dta saved
+(dropped 2 singleton observations)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =    193,290
+Absorbing 1 HDFE group                            F(   9,     48) =       2.49
+Statistics robust to heteroskedasticity           Prob > F        =     0.0202
+                                                  R-squared       =     0.0202
+                                                  Adj R-squared   =     0.0169
+                                                  Within R-sq.    =     0.0001
+Number of clusters (statefips) =         49       Root MSE        =     0.0329
+
+                             (Std. Err. adjusted for 49 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+ln_emp_biz~v |
+         D1. |   .0102283   .0079815     1.28   0.206    -.0058196    .0262762
+             |
+ ln_emp_info |
+         D1. |  -.0013643    .004124    -0.33   0.742    -.0096561    .0069276
+             |
+  ln_emp_fin |
+         D1. |   .0124026   .0050729     2.44   0.018     .0022028    .0226023
+             |
+ln_estcoun~v |
+         D1. |   .0188245   .0184951     1.02   0.314    -.0183623    .0560113
+             |
+ln_estcoun~o |
+         D1. |   5.50e-06   .0059313     0.00   0.999    -.0119202    .0119312
+             |
+ln_estcoun~n |
+         D1. |  -.0014215   .0110154    -0.13   0.898    -.0235695    .0207265
+             |
+ln_avgwwag~v |
+         D1. |   .0018673    .002331     0.80   0.427    -.0028195     .006554
+             |
+ln_avgwwag~o |
+         D1. |   .0016385   .0013971     1.17   0.247    -.0011707    .0044476
+             |
+ln_avgwwag~n |
+         D1. |   -.001169   .0013296    -0.88   0.384    -.0038423    .0015044
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-------------------------------------------------------------------------+
+                     Absorbed FE | Categories  - Redundant  = Num. Coefs |
+---------------------------------+---------------------------------------|
+   yr_entry_to_zillow#year_month |       647           0         647     |
+-------------------------------------------------------------------------+
+file ../temp/estimates.dta saved
+(4,688 missing values generated)
+(note: file ../temp/resid_unbal_static_both.dta not found)
+file ../temp/resid_unbal_static_both.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           197,978  
+    -----------------------------------------
+(note: file ../output/estimates_unbal_residuals.csv not found)
+file ../output/estimates_unbal_residuals.csv saved
+       panel variable:  zipcode_num (unbalanced)
+        time variable:  year_month, 2010m2 to 2019m12
+                delta:  1 month
 (MWFE estimator converged in 1 iterations)
 
 HDFE Linear regression                            Number of obs   =    115,423
@@ -544,6 +690,11 @@ Absorbed degrees of freedom:
 -------------+---------------------------------------|
   year_month |       106           0         106     |
 -----------------------------------------------------+
+
+ ( 1)  D.mw_wkp_tot_17 - D.mw_res = 0
+
+       F(  1,    40) =    5.41
+            Prob > F =    0.0251
 
  ( 1)  FD.mw_wkp_tot_17 = 0
  ( 2)  F2D.mw_wkp_tot_17 = 0
@@ -1278,7 +1429,7 @@ Type 'q()' to quit R.
 > 
 > proc.time()
    user  system elapsed 
-   0.50    0.15    0.56 
+   0.53    0.20    0.78 
 
 
 Execute:  StataMP-64 /e do "./figures.do"
@@ -1327,12 +1478,12 @@ running c:\ado\personal\profile.do ...
 
 . 
 . program main
-  1.     local instub "../../fd_baseline/output"
+  1.     local instub "../output"
   2.     
 .     use "`instub'/estimates_dynamic.dta", replace
   3.     make_bounds
   4.     
-.     local y_label    "-0.08(0.02).14"
+.     local y_label    "-0.12(0.02).14"
   5.     local mw_wkp_var "mw_wkp_tot_17"
   6.     sum at
   7.     local w = r(max)
@@ -1417,4 +1568,4 @@ running c:\ado\personal\profile.do ...
 . 
 end of do-file
 
- make.py ended: 2022-03-16 07:04:12
+ make.py ended: 2022-03-19 10:59:08

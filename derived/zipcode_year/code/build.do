@@ -15,13 +15,15 @@ program main
         statutory_mw mw_res mw_wkp* medrent* medlisting* Sale_Counts Monthly* ///
         using  "`in_zip_mth'/zipcode_month_panel.dta"
 
-    make_yearly_data
+    destring_geographies
 
+    make_yearly_data
+    
     clean_safmr_data,  instub(`in_safmr')
     clean_irs_data,    instub(`in_irs')
-    clean_area_shares, instub(`in_lodes_zip')
+    clean_area_shares, instub(`in_lodes_zip')    
     clean_qcew,        instub(`in_qcew')
-
+    
     use "../temp/mw_rents_data.dta", clear
     merge 1:1 zipcode countyfips cbsa year ///
         using "../temp/safmr_2012_2016.dta", nogen keep(1 3)
@@ -32,31 +34,56 @@ program main
     merge 1:1 zipcode    year using "../temp/workplace_shares.dta", nogen keep(1 3)
     merge 1:1 zipcode    year using "../temp/residence_shares.dta", nogen keep(1 3)
     merge m:1 countyfips year using "../temp/qcew_data.dta",        nogen keep(1 3)
-
-    destring_geographies
+	gen ln_wkp_jobs_tot = log(wkp_jobs_tot) 
+	gen ln_res_jobs_tot = log(res_jobs_tot)
 
     save_data "`outstub'/zipcode_year.dta", key(zipcode year) ///
         log(`logfile') replace
 end
 
+program destring_geographies
+
+    destring zipcode,    gen(zipcode_num)
+    destring statefips,  gen(statefips_num)
+    destring cbsa,       gen(cbsa_num)
+    destring countyfips, gen(county_num)
+end
+
 program make_yearly_data
 
-    gen ln_rents        = log(medrentprice_SFCC)
+    gen    day        = 1
+    gen    date       = mdy(month, day, year)
+    gen    year_month = mofd(date)
+    format year_month %tm
+    drop   day date
+
+    gen ln_rents        = log(medrentpricepsqft_SFCC)
     gen ln_price        = log(medlistingpricepsqft_SFCC)
     gen ln_sale_counts  = log(Sale_Counts)
     gen ln_monthly_listings = log(Monthlylistings_NSA_SFCC)
 
-    rename *timevary* *timvar* 
+    rename *timevary*  *tvar*
+    rename *_earn_*    *_e_*
+    rename *_age_*     *_a_*
     qui describe mw_wkp*, varlist
     local mw_wkp_vars = r(varlist)
 
     local vars statutory_mw mw_res ln_rents ln_price ///
         `mw_wkp_vars' ln_sale_counts ln_monthly_listings
 
-    keep zipcode year countyfips cbsa statefips month `vars'
+    keep zipcode zipcode_num year month year_month countyfips cbsa statefips `vars'
     
+    xtset zipcode_num year_month
+	
     foreach var of local vars {
-        bys zipcode year: egen `var'_avg = mean(`var')
+        gen d_`var' = D.`var'
+    }
+    
+    xtset, clear
+    drop year_month
+    foreach var of local vars {
+        bys zipcode year: egen `var'_avg   = mean(`var')
+        bys zipcode year: egen d_`var'_avg = mean(d_`var')
     }
 
     bysort zipcode year (month): keep if _n == 7
@@ -151,24 +178,32 @@ program clean_qcew
     use countyfips year month estcount* avgwwage* emp*            ///
        using `instub'/ind_emp_wage_countymonth.dta, clear
 
+    gen    day        = 1
+    gen    date       = mdy(month, day, year)
+    gen    year_month = mofd(date)
+    format year_month %tm
+    drop   day date
+
+    destring countyfips, gen(county_num)
+    xtset county_num year_month
+
     foreach var of varlist estcount* avgwwage* emp* {
-        gen ln_`var' = log(`var')
+        gen ln_`var'   = log(`var')
+        gen d_ln_`var' = D.ln_`var'
+    }
+
+    xtset, clear
+    drop year_month
+    foreach var of varlist estcount* avgwwage* emp* {
+        bys countyfips year: egen ln_`var'_avg   = mean(ln_`var')
+        bys countyfips year: egen d_ln_`var'_avg = mean(d_ln_`var')
         drop `var'
-        bys countyfips year: egen ln_`var'_avg = mean(ln_`var')
     }
 
 	bysort countyfips year (month): keep if _n == 7
     drop month
 
     save "../temp/qcew_data.dta", replace
-end
-
-program destring_geographies
-
-    destring statefips,  gen(statefips_num)
-    destring cbsa,       gen(cbsa_num)
-    destring countyfips, gen(county_num)
-    destring zipcode,    gen(zipcode_num)
 end
 
 
