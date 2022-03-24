@@ -5,7 +5,7 @@ program estimate_dist_lag_model_two_dyn
         [wgt(str) ab test_equality outfolder(str) w(int 6)]
 
     if "`outfolder'"==""{
-        local outfolder "../output"
+        local outfolder "../temp"
     }
 
     if "`wgt'"=="" {

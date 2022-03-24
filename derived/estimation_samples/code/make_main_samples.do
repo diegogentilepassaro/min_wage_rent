@@ -1,5 +1,6 @@
 set more off
 clear all
+version 15
 adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
@@ -13,22 +14,27 @@ program main
     local start_year_month  "2010m1"
     local end_year_month    "2019m12"
     local target_year_month "2015m1"
-    local target_vars       "sh_white_cens2010 sh_black_cens2010 sh_hhlds_renteroccup_cens2010 med_hhld_inc_acs2011" // n_workers_acs2011 
-        
+    #delimit ;
+    local target_vars  "sh_hhlds_renteroccup_cens2010
+                        sh_mw_wkrs_statutory
+                        sh_workers_under29_2013    sh_workers_accomm_food_2013";
+    #delimit cr
+    
+    * Zipcode-months
     create_unbalanced_panel, instub(`in_zip_mth')                     ///
         geo(zipcode) rent_var(`rent_var')                             ///
         start_ym(`start_year_month') end_ym(`end_year_month')
 
-    gen_vars, rent_var(`rent_var')
+    gen_vars, rent_var(`rent_var') geo(zipcode)
     preserve 
-		collapse (min) ym_entry_to_zillow = year_month ///
-		    if !missing(`rent_var'), by(zipcode)
-		gen yr_entry_to_zillow = year(dofm(ym_entry_to_zillow))
-		drop ym_entry_to_zillow
-		save "../temp/ym_entry_to_zillow.dta", replace
-	restore
-	merge m:1 zipcode using "../temp/ym_entry_to_zillow.dta", ///
-		nogen keep(1 3) assert(1 3)
+        collapse (min) ym_entry_to_zillow = year_month ///
+            if !missing(`rent_var'), by(zipcode)
+        gen yr_entry_to_zillow = year(dofm(ym_entry_to_zillow))
+        drop ym_entry_to_zillow
+        save "../temp/ym_entry_to_zillow.dta", replace
+    restore
+    merge m:1 zipcode using "../temp/ym_entry_to_zillow.dta", ///
+        nogen keep(1 3) assert(1 3)
     flag_samples, instub(`in_zip_mth') geo(zipcode) geo_name(zipcode) ///
         rent_var(`rent_var') target_ym(`target_year_month')
 
@@ -40,11 +46,12 @@ program main
         replace log(`logfile')
     export delimited "`outstub'/zipcode_months.csv", replace
     
+    * County-months
     create_unbalanced_panel, instub(`in_cty_mth')                     ///
         geo(county) rent_var(`rent_var')                             ///
         start_ym(`start_year_month') end_ym(`end_year_month')
 
-    gen_vars, rent_var(`rent_var')
+    gen_vars, rent_var(`rent_var') geo(county)
 
     flag_samples, instub(`in_cty_mth') geo(county) geo_name(countyfips) ///
         rent_var(`rent_var') target_ym(`target_year_month')
@@ -70,9 +77,16 @@ program create_unbalanced_panel
 end
 
 program gen_vars
-    syntax, rent_var(str)
+    syntax, rent_var(str) geo(str)
 
     gen ln_rents = log(`rent_var')
+
+    if "`geo'" == "zipcode"{
+        foreach stub in 1BR 2BR 3BR 4BR 5BR CC MFdxtx Mfr5Plus SF Studio {
+            gen ln_rents_`stub' = log(medrentpricepsqft_`stub')
+            drop medrentpricepsqft_`stub'
+        }
+    }
     
     foreach ctrl_type in emp estcount avgwwage {
         gen ln_`ctrl_type'_bizserv = log(`ctrl_type'_bizserv)
@@ -111,15 +125,16 @@ program flag_samples
 end
 
 program compute_weights
-    syntax, instub(str) target_vars(str)
+    syntax, instub(str) target_vars(str) [thresh(real 0.2)]
     
     preserve
         merge m:1 zipcode using "`instub'/zipcode_cross.dta", ///
-            assert(2 3) keep(2 3) keepusing(`target_vars')
+            assert(2 3) keep(2 3) keepusing(`target_vars' sh_rural_pop_2010)
+
         foreach var of local target_vars {
-            qui sum `var'
-            local mean = r(mean)
-            local target_means "`target_means' `mean'"
+            qui sum `var' if sh_rural_pop_2010 < `thresh'
+            local var_mean = r(mean)
+            local target_means "`target_means' `var_mean'"
         }
                 
         keep if _merge == 3
@@ -143,10 +158,7 @@ program drop_vars
         medlistingprice_top_tier medpctpricereduction_SFCC ///
         medrentprice_1BR medrentprice_4BR medrentprice_5BR ///
         medrentprice_CC medrentprice_MFdxtx medrentprice_Mfr5Plus ///
-        medrentprice_SF medrentprice_Studio medrentpricepsqft_1BR ///
-        medrentpricepsqft_4BR medrentpricepsqft_5BR medrentpricepsqft_CC ///
-        medrentpricepsqft_MFdxtx medrentpricepsqft_Mfr5Plus ///
-        medrentpricepsqft_SF medrentpricepsqft_Studio ///
+        medrentprice_SF medrentprice_Studio ///
         pctlistings_pricedown_SFCC SalesPrevForeclosed_Share ///
         zhvi_2BR zhvi_SFCC zhvi_C zhvi_SF zri_SFCCMF zri_MF {
         cap drop `var'

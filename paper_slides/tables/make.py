@@ -25,6 +25,13 @@ clear_dirs("output/")
 
 start_make_logging()
 
+desc_est_samples_dir = "../../descriptive/estimation_samples/output"
+fd_baseline_dir      = "../../analysis/fd_baseline/output"
+fd_cf_dir            = "../../analysis/counterfactuals/output"
+fd_robust_dir        = "../../analysis/fd_robustness/output"
+fd_wages_dir         = "../../analysis/twfe_wages/output"
+fd_stacked_dir       = "../../analysis/fd_stacked/output"
+fd_geos_times        = "../../analysis/fd_geos_times/output"
 autocorr_dir         = "../../analysis/autocorrelation/output"
 desc_est_samples_dir = "../../descriptive/estimation_samples/output"
 fd_baseline_dir      = "../../analysis/fd_baseline/output"
@@ -58,36 +65,40 @@ tablefill(input    = os.path.join(fd_robust_dir, "robustness.txt"),
           template = "input/robustness.tex",
           output   = "output/robustness.tex")
 
+tablefill(input    = os.path.join(fd_robust_dir, "zillow_categories.txt"),
+          template = "input/zillow_categories.tex",
+          output   = "output/zillow_categories.tex")
+
 tablefill(input    = os.path.join(fd_robust_dir, "static_sample.txt"),
           template = "input/static_sample.tex",
           output   = "output/static_sample.tex")
 
-tablefill(input    = os.path.join(fd_robust_dir, "static_sample.txt"),
-          template = "input/slides_static_sample.tex",
-          output   = "output/slides_static_sample.tex")
+#tablefill(input    = os.path.join(fd_robust_dir, "static_sample.txt"),
+#          template = "input/slides_static_sample.tex",
+#          output   = "output/slides_static_sample.tex")
 
 tablefill(input    = os.path.join(fd_robust_dir, "static_ab.txt"),
           template = "input/static_ab.tex", 
           output   = "output/static_ab.tex")
 
-tablefill(input    = os.path.join(fd_county_dir, "static_county.txt"),
-          template = "input/static_county.tex", 
-          output   = "output/static_county.tex")
+tablefill(input    = os.path.join(fd_geos_times, "static_geos_times.txt"),
+          template = "input/static_geos_times.tex",
+          output   = "output/static_geos_times.tex")
 
-tablefill(input    = os.path.join(fd_wages_dir, "static_wages.txt"), 
-          template = "input/static_wages.tex", 
+tablefill(input    = os.path.join(fd_wages_dir, "static_wages.txt"),
+          template = "input/static_wages.tex",
           output   = "output/static_wages.tex")
 
-tablefill(input    = os.path.join(fd_wages_dir, "static_wages_robustness.txt"), 
-          template = "input/static_wages_robustness.tex", 
+tablefill(input    = os.path.join(fd_wages_dir, "static_wages_robustness.txt"),
+          template = "input/static_wages_robustness.tex",
           output   = "output/static_wages_robustness.tex")
 
-tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals.txt"), 
-          template = "input/counterfactuals.tex", 
+tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals.txt"),
+          template = "input/counterfactuals.tex",
           output   = "output/counterfactuals.tex")
 
-tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals.txt"), 
-          template = "input/slides_counterfactuals.tex", 
+tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals.txt"),
+          template = "input/slides_counterfactuals.tex",
           output   = "output/slides_counterfactuals.tex")
 
 tablefill(input    = os.path.join(autocorr_dir, "autocorrelation.txt"), 
