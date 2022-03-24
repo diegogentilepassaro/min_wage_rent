@@ -18,6 +18,10 @@ program main
 
 	reghdfe D.ln_rents D.mw_res D.mw_wkp_tot_17 i.above_median_sh_mw_wkrs ///
 	    c.D.mw_wkp_tot_17#i.above_median_sh_mw_wkrs ///
+	    `controls', nocons absorb(year_month) cluster(`cluster_vars')
+
+	reghdfe D.ln_rents D.mw_res D.mw_wkp_tot_17 i.below_median_sh_mw_wkrs ///
+	    c.D.mw_wkp_tot_17#i.below_median_sh_mw_wkrs ///
 	    `controls', nocons absorb(year_month) cluster(`cluster_vars')	
 end
 
@@ -35,7 +39,10 @@ program load_and_clean
 	sum sh_mw_wkrs_statutory, d
 	local median `r(p50)'
 
-	gen above_median_sh_mw_wkrs = (sh_mw_wkrs_statutory > `median') ///
+	gen above_median_sh_mw_wkrs = (sh_mw_wkrs_statutory >= `median') ///
+	    if !missing(sh_mw_wkrs_statutory)
+		
+	gen below_median_sh_mw_wkrs = (sh_mw_wkrs_statutory < `median') ///
 	    if !missing(sh_mw_wkrs_statutory)
 end
 
