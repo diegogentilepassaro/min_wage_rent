@@ -16,7 +16,7 @@ main <- function(){
   
   if (file.exists(log_file)) file.remove(log_file)
   
-  start_ym <- c(2010, 12)
+  start_ym <- c(2010, 1)
   end_ym   <- c(2019, 12)
   
   dt_geo <- load_geographies(in_master)
