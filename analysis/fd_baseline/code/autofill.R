@@ -27,17 +27,17 @@ main <- function() {
   
   for (mm in c('WkpOnRes', 'Only', 'Both')) {
     for (vv in c('Gamma', 'Beta', 'Sum')) {
-      b <- data[model == mm & var == vv, b]
+      b <- data[model == mm & var == vv, round(b, 3)]
       
-      t <- data[model == mm & var == vv, .(t = b / se)]$t
+      t <- data[model == mm & var == vv, .(t = round(b / se, 3))]$t
       
       if (length(b) == 0) next
       
-      estim <- write_command(paste0(mm, vv, 'Base'), round(b, 3))
+      estim <- write_command(paste0(mm, vv, 'Base'), b)
       
-      estim10 <- write_command(paste0(mm, vv, 'BaseTen'), round(10 * b, 2))
+      estim10 <- write_command(paste0(mm, vv, 'BaseTen'), 10 * b)
       
-      tstat <- write_command(paste0(mm, vv, 'BasetStat'), round(t, 3))
+      tstat <- write_command(paste0(mm, vv, 'BasetStat'), t)
       
       txt <- paste0(txt, estim, estim10, tstat)
     }
@@ -59,15 +59,17 @@ main <- function() {
   data <- data[model == 'both_mw_wkp_dynamic' & at == 0]
   
   for (vv in c('Gamma', 'Beta', 'Sum')) {
-    b <- data[var == vv, b]
+    b <- data[var == vv, round(b, 4)]
     
-    t <- data[var == vv, .(t = b / se)]$t
+    t <- data[var == vv, .(t = round(b / se, 3))]$t
     
-    estim <- write_command(paste0('BothWkpDyn', vv, 'Base'), round(b, 4))
+    name <- 'BothWkpDyn'
     
-    estim10 <- write_command(paste0('BothWkpDyn', vv, 'BaseTen'), round(10 * b, 3))
+    estim <- write_command(paste0(name, vv, 'Base'), b)
     
-    tstat <- write_command(paste0('BothWkpDyn', vv, 'BasetStat'), round(t, 3))
+    estim10 <- write_command(paste0(name, vv, 'BaseTen'), 10 * b)
+    
+    tstat <- write_command(paste0(name, vv, 'BasetStat'), t)
     
     txt <- paste0(txt, estim, estim10, tstat)
   }
@@ -79,7 +81,7 @@ main <- function() {
   txt <- paste0(txt, comm)
   
   write.table(txt,
-              file.path(out_autofill,'estimates_autofill.tex'),
+              file.path(out_autofill,'baseline_autofill.tex'),
               quote = F, row.names = F, col.names = F)
 }     
 
