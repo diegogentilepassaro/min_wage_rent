@@ -68,21 +68,14 @@ program process_counterfactual_data
     egen statutory_mw_cf = rowmax(statutory_mw fed_mw_cf)
     gen d_mw_res_cf = log(statutory_mw_cf) - log(statutory_mw)
     drop fed_mw_cf statutory_mw_cf mw_wkp_tot_cf
-    preserve
-        keep if counterfactual == "fed_10pc"
-        drop counterfactual
-        save "../temp/counterfactual_fed_10pc.dta", replace
-    restore
-    preserve
-        keep if counterfactual == "fed_15usd"
-        drop counterfactual
-        save "../temp/counterfactual_fed_15usd.dta", replace
-    restore
-    preserve
-        keep if counterfactual == "fed_9usd"
-        drop counterfactual
-        save "../temp/counterfactual_fed_9usd.dta", replace
-    restore
+    
+    foreach stub in "10pc" "9usd" "15usd" {
+        preserve
+            keep if counterfactual == "fed_`stub'"
+            drop counterfactual
+            save "../temp/counterfactual_fed_`stub'.dta", replace
+        restore
+    }
 end
 
 program add_baseline_zipcodes
