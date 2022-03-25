@@ -16,7 +16,7 @@ main <- function(){
   
   if (file.exists(log_file)) file.remove(log_file)
   
-  start_ym <- c(2010, 1)
+  start_ym <- c(2019, 1)
   end_ym   <- c(2019, 12)
   
   dt_geo <- load_geographies(in_master)
@@ -41,13 +41,14 @@ main <- function(){
          | (yy == start_ym[1] & mm %in% c(1, start_ym[2]))      #  or it's the first month of the year
          | (yy == end_ym[1]   & mm == end_ym[2]))          {    #  or it's the last year-month of panel
                                                                 #  then compute MW levels
+        
         dt <- copy(dt_geo)
         
         dt[, c("year", "month") := .(yy, mm)]
         
-        dt <- assemble_statutory_mw(dt, dt_mw)
-        
         print(sprintf("Computing MW for year %s and month %s", yy, mm))
+        
+        dt <- assemble_statutory_mw(dt, dt_mw)
         
         if (yy == end_ym[1] & mm == end_ym[2]) {                # Save block level data for cfs
           dt_blocklevel_last <- copy(dt)
@@ -116,8 +117,15 @@ load_geographies <- function(instub) {
                                           "place_code", "place_name", "zipcode"), 
                             numeric   = "num_house10"))
   
-  dt <- dt[zipcode != ""]  # small % of census blocks do not have a zip code
-    
+  # Drop small % of census blocks do not have a zip code
+  # Thus, we will compute simple mean of statutory MW
+  dt <- dt[zipcode != ""]
+  
+  # Impute num_house10 = 1 for zipcodes that have no housing
+  dt[, sum_houses_zipcode := sum(num_house10), by = .(zipcode)]
+  dt[sum_houses_zipcode == 0, num_house10 := 1]
+  dt[, sum_houses_zipcode := NULL]
+  
   return(dt)
 }
 
@@ -137,14 +145,14 @@ assemble_statutory_mw <- function(dt, dt_mw) {
   dt <- dt_mw$county[dt, on = c("statefips", "county_name", "year", "month")][, event := NULL]
   dt <- dt_mw$local[dt,  on = c("statefips", "place_name",  "year", "month")][, event := NULL]
   
+  ## Assign federal MW to zipcodes under 00199
+  dt[as.numeric(zipcode) <= 199, fed_mw    := 7.25]
+  dt[as.numeric(zipcode) <= 199, state_mw  := NA_real_]
+  dt[as.numeric(zipcode) <= 199, county_mw := NA_real_]
+  
   # Compute statutory MW
   dt[, statutory_mw             := pmax(local_mw, county_mw, state_mw, fed_mw, na.rm = T)]
   dt[, statutory_mw_ignorelocal := pmax(state_mw, fed_mw, na.rm = T)]
-  
-  ## Assign federal MW to zipcodes under 00199 or blocks with missing statutory
-  dt[as.numeric(zipcode) <= 199 | is.na(statutory_mw), state_mw     := NA]
-  dt[as.numeric(zipcode) <= 199 | is.na(statutory_mw), fed_mw       := 7.25]
-  dt[as.numeric(zipcode) <= 199 | is.na(statutory_mw), statutory_mw := 7.25]
   
   # Compute binding MW
   dt[, binding_mw := fcase(
