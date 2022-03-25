@@ -11,12 +11,9 @@ main <- function() {
   
   # From estimates_static
   
-  data <- fread(file.path(in_baseline, 'estimates_static.csv'))
+  data <- load_data(in_baseline, 'static')
   
-  data[, `:=`(var   = fcase(var   == "mw_res", "Gamma",
-                            var   == "mw_wkp_tot_17", "Beta",
-                            var   == "cumsum_from0", "Sum"),
-              model = fcase(model == 'mw_wkp_on_res_mw', 'WkpOnRes',
+  data[, `:=`(model = fcase(model == 'mw_wkp_on_res_mw', 'WkpOnRes',
                             model %in% c('static_mw_res',
                                          'static_mw_wkp'), 'Only', 
                             model == 'static_both', 'Both'))]
@@ -24,22 +21,24 @@ main <- function() {
   data <- data[!(model %in% c('Only', 'WkpOnRes') & var == 'Sum')]
   
   txt <- ''
-  
+
   for (mm in c('WkpOnRes', 'Only', 'Both')) {
     for (vv in c('Gamma', 'Beta', 'Sum')) {
-      b <- data[model == mm & var == vv, round(b, 3)]
       
-      t <- data[model == mm & var == vv, .(t = round(b / se, 3))]$t
+      dt_comb <- data[model == mm & var == vv]
       
-      if (length(b) == 0) next
+      combination_exists <- dim(dt_comb)[1] > 0
       
-      estim <- write_command(paste0(mm, vv, 'Base'), b)
+      if (combination_exists) {
       
-      estim10 <- write_command(paste0(mm, vv, 'BaseTen'), 10 * b)
-      
-      tstat <- write_command(paste0(mm, vv, 'BasetStat'), t)
-      
-      txt <- paste0(txt, estim, estim10, tstat)
+        estim   <- write_command(paste0(mm, vv, 'Base'), round(dt_comb$b,4))
+        
+        estim10 <- write_command(paste0(mm, vv, 'BaseTen'), round(10 * dt_comb$b,3))
+        
+        tstat   <- write_command(paste0(mm, vv, 'BasetStat'), dt_comb$t)
+        
+        txt <- paste0(txt, estim, estim10, tstat)
+      }
     }
   }
   
@@ -51,25 +50,21 @@ main <- function() {
   
   # From estimates_dynamic
   
-  data <- fread(file.path(in_baseline, 'estimates_dynamic.csv'))
+  data <- load_data(in_baseline, 'dynamic')
   
-  data[, `:=`(var = fcase(var == "mw_res", "Gamma",
-                          var == "mw_wkp_tot_17", "Beta",
-                          var == "cumsum_from0", "Sum"))]
   data <- data[model == 'both_mw_wkp_dynamic' & at == 0]
   
   for (vv in c('Gamma', 'Beta', 'Sum')) {
-    b <- data[var == vv, round(b, 4)]
     
-    t <- data[var == vv, .(t = round(b / se, 3))]$t
+    dt_comb <- data[var == vv]
     
     name <- 'BothWkpDyn'
     
-    estim <- write_command(paste0(name, vv, 'Base'), b)
+    estim   <- write_command(paste0(name, vv, 'Base'), round(dt_comb$b, 4))
     
-    estim10 <- write_command(paste0(name, vv, 'BaseTen'), 10 * b)
+    estim10 <- write_command(paste0(name, vv, 'BaseTen'), round(10 * dt_comb$b,3))
     
-    tstat <- write_command(paste0(name, vv, 'BasetStat'), t)
+    tstat   <- write_command(paste0(name, vv, 'BasetStat'), dt_comb$t)
     
     txt <- paste0(txt, estim, estim10, tstat)
   }
@@ -83,6 +78,20 @@ main <- function() {
   write.table(txt,
               file.path(out_autofill,'baseline_autofill.tex'),
               quote = F, row.names = F, col.names = F)
-}     
+}
+
+load_data <- function(path, panel) {
+  
+  name <- paste0('estimates_',panel,'.csv')
+  
+  data <- fread(file.path(path, name))
+  
+  data[, `:=`(var = fcase(var == "mw_res", "Gamma",
+                          var == "mw_wkp_tot_17", "Beta",
+                          var == "cumsum_from0", "Sum"),
+              t   = round(b / se, 3))]
+  
+  return(data)
+}
 
 main()
