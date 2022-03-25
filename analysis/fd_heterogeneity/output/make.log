@@ -1,7 +1,247 @@
 
- make.py started: 2022-03-24 07:41:40 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\fd_heterogeneity\code 
+ make.py started: 2022-03-25 09:49:40 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\fd_heterogeneity\code 
 
 
+
+
+Execute:  StataMP-64 /e do "./preclean.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+
+running c:\ado\personal\profile.do ...
+
+. do ./preclean.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. adopath + ../../../lib/stata/min_wage/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+  [8]              "../../../lib/stata/min_wage/ado"
+
+. set maxvar 32000 
+
+
+.         
+. program main
+  1.         local instub  "../../../drive/derived_large/estimation_samples"
+  2.         local incross "../../../drive/derived_large/zipcode"
+  3.         local in_hud "../../../drive/base_large/hud_housing_assistance"
+  4.         local outstub "../temp"
+  5.         
+.         use "`in_hud'/zipcode.dta", clear
+  6.         keep if program_label == "Public Housing"
+  7.         keep if year == 2017
+  8.         keep zipcode total_units
+  9.         save_data "`outstub'/public_housing_2017.dta", ///
+>             key(zipcode) replace log(none)
+ 10.         
+.         load_and_clean, instub(`instub') incross(`incross')
+ 11.         merge m:1 zipcode using "`outstub'/public_housing_2017.dta", ///
+>             nogen keep(1 3)
+ 12.     save_data "`outstub'/baseline_sample_with_vars_for_het.dta", ///
+>             key(zipcode year_month) replace log(none)
+ 13. end
+
+. 
+. 
+. program load_and_clean
+  1.     syntax, instub(str) incross(str)
+  2. 
+.         define_controls
+  3.         local controls     "`r(economic_controls)'"
+  4. 
+.         use zipcode statefips cbsa year_month zipcode_num ln_rents mw_res ///
+>             mw_wkp_tot_17 baseline_sample `controls' ///
+>                 using "`instub'/zipcode_months.dta" if baseline_sample == 1, 
+> clear
+  5.         drop baseline_sample
+  6.         xtset zipcode_num year_month
+  7. 
+.         merge m:1 zipcode using "`incross'/zipcode_cross.dta", nogen ///
+>             keep(3) keepusing(sh_mw_wkrs_statutory sh_workers_under29_2013 //
+> /
+>                 sh_residents_under29_2013 sh_residents_underHS_2013 ///
+>                 sh_residents_under1250_2013 sh_workers_underHS_2013 ///
+>                 sh_workers_under1250_2013 sh_residents_accomm_food_2013 ///
+>                 sh_workers_accomm_food_2013)
+  8.         rename *_2013 *
+  9.         rename *residents* *res*
+ 10.         
+.         foreach var in sh_mw_wkrs_statutory sh_workers_accomm_food ///
+>             sh_workers_underHS sh_res_accomm_food sh_res_underHS ///
+>                 sh_res_under1250 sh_workers_under1250 {
+ 11.             bys statefips: egen `var'_med = median(`var')
+ 12.             gen `var'_above_med = (`var'   > `var'_med)
+ 13.             drop `var'_med
+ 14. 
+.             gen resint_`var' = mw_res*`var'_above_med
+ 15.             gen wkpint_`var' = mw_wkp_tot_17*`var'_above_med
+ 16.         }
+ 17. end
+
+. 
+. 
+. main
+(310,972 observations deleted)
+(24,164 observations deleted)
+(data now sorted by zipcode)
+  variable total_units was double now int
+  (37,974 bytes saved)
+===============================================================================
+File: ../temp/public_housing_2017.dta
+Key: zipcode
+===============================================================================
+  6329:2(60726):1417201667:2500064492
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+ total_units |      6,329    164.4508    388.0311          0      10966
+
+
+
+
+(note: file ../temp/public_housing_2017.dta not found)
+file ../temp/public_housing_2017.dta saved
+       panel variable:  zipcode_num (unbalanced)
+        time variable:  year_month, 2010m2 to 2019m12
+                delta:  1 month
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           133,600  
+    -----------------------------------------
+(922 missing values generated)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                        89,916
+        from master                    89,916  
+        from using                          0  
+
+    matched                            43,684  
+    -----------------------------------------
+(data now sorted by zipcode year_month)
+  variable sh_mw_wkrs_statutory_above_med was float now byte
+  variable sh_workers_accomm_food_above_med was float now byte
+  variable sh_workers_underHS_above_med was float now byte
+  variable sh_res_accomm_food_above_med was float now byte
+  variable sh_res_underHS_above_med was float now byte
+  variable sh_res_under1250_above_med was float now byte
+  variable sh_workers_under1250_above_med was float now byte
+  (2,805,600 bytes saved)
+===============================================================================
+File: ../temp/baseline_sample_with_vars_for_het.dta
+Key: zipcode year_month
+===============================================================================
+  133600:48(72000):3340233901:3809752333
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+  year_month |    133,600     669.086    29.80335        601        719
+ zipcode_num |    133,600    53322.85    28953.65       2109      99577
+   statefips |          0
+        cbsa |          0
+-------------+---------------------------------------------------------
+      mw_res |    133,600    2.092484    .1440398   1.981001   2.772589
+mw_wkp_to~17 |    133,600    2.094474    .1399356   1.981055    2.69263
+    ln_rents |    133,600    .0763131    .4611457  -.8722227   3.100092
+ln_emp_biz~v |    133,600    11.14873    1.361126   5.796058   13.38876
+ ln_emp_info |    132,909     9.00392    1.531522   2.397895   12.38988
+-------------+---------------------------------------------------------
+  ln_emp_fin |    133,576    10.20114    1.417736    4.75359   12.89542
+ln_estcoun~v |    133,600    8.687532    1.241487   4.127134   10.96353
+ln_estcoun~o |    133,600    6.105153     1.33047   1.386294   9.531191
+ln_estcoun~n |    133,600     7.98384     1.19824   3.496508   10.33748
+ln_avgwwag~v |    133,600    7.092097    .3077541   5.420535   8.432724
+-------------+---------------------------------------------------------
+ln_avgwwag~o |    132,909    7.274275    .3440752   5.891644   8.906665
+ln_avgwwag~n |    133,576    7.248412    .3672322   6.216606   9.163982
+sh_mw_wkrs~y |    125,057    .1401641    .0421492   .0114365   .5270913
+sh_res_un~29 |    133,600    .2209288    .0382978   .1043165   .4475389
+sh_res_~1250 |    133,600    .2281551    .0466076    .081473   .4113271
+-------------+---------------------------------------------------------
+sh_res_und~S |    133,600    .1013298    .0315857    .045693   .2423261
+sh_res_ac~od |    133,600    .1043516    .0429558   .0471225   .4085447
+sh_worker~29 |    133,600    .2444845    .0499765   .1058208   .4565147
+sh_work~1250 |    133,600    .2750239     .079686   .0534571   .5345912
+sh_workers~S |    133,600    .1098003    .0328654   .0450641   .3313758
+-------------+---------------------------------------------------------
+sh_worker~od |    133,600    .1228112    .0727286          0   .7659544
+sh_mw_wkrs~d |    133,600    .5285329    .4991871          0          1
+resint_sh_~y |    133,600     1.10513    1.048832          0   2.772589
+wkpint_sh_~y |    133,600    1.105901    1.049378          0    2.69263
+sh_workers.. |    133,600    .5008458    .5000012          0          1
+-------------+---------------------------------------------------------
+resint_sh_.. |    133,600    1.047734    1.050879          0   2.772589
+wkpint_sh_.. |    133,600    1.048304    1.051154          0   2.688325
+sh_workers.. |    133,600    .5018039    .4999986          0          1
+r~rs_underHS |    133,600    1.050169    1.051288          0    2.74663
+w~rs_underHS |    133,600    1.051135       1.052          0   2.678335
+-------------+---------------------------------------------------------
+sh_res_ac~ed |    133,600    .5026497    .4999949          0          1
+resint_sh_.. |    133,600    1.052024    1.051408          0   2.772589
+wkpint_sh_.. |    133,600    1.052697    1.051836          0    2.69263
+sh_res_und.. |    133,600    .5031437     .499992          0          1
+r~es_underHS |    133,600    1.052212    1.050358          0    2.74663
+-------------+---------------------------------------------------------
+w~es_underHS |    133,600    1.053126    1.051088          0   2.677555
+sh_res_und.. |    133,600    .5030763    .4999924          0          1
+resint_sh_.. |    133,600    1.052112    1.050453          0    2.70805
+wkpint_sh_.. |    133,600    1.052458    1.050577          0   2.674859
+sh_workers.. |    133,600    .5032934     .499991          0          1
+-------------+---------------------------------------------------------
+resint_sh_.. |    133,600     1.05211    1.049941          0   2.772589
+wkpint_sh_.. |    133,600    1.052751    1.050384          0   2.678335
+ total_units |     43,684    217.7783     557.065          0      10966
+
+
+
+
+(note: file ../temp/baseline_sample_with_vars_for_het.dta not found)
+file ../temp/baseline_sample_with_vars_for_het.dta saved
+
+. 
+end of do-file
 
 
 Execute:  StataMP-64 /e do "./estimates.do"
@@ -60,85 +300,34 @@ running c:\ado\personal\profile.do ...
 
 .         
 . program main
-  1.         
-.         local instub  "../../../drive/derived_large/estimation_samples"
-  2.         local incross "../../../drive/derived_large/zipcode"
-  3.         local outstub "../output"
-  4.         
+  1.         local instub  "../temp"
+  2.         local outstub "../output"
+  3.         
 .         define_controls
-  5.         local controls     "`r(economic_controls)'"
-  6.         local cluster_vars "statefips"
-  7. 
-.         load_and_clean, instub(`instub') incross(`incross')
-  8. 
-.         reghdfe D.ln_rents c.D.mw_res#i.high_mw_wrks ///
->             c.D.mw_wkp_tot_17#i.high_mw_res ///
+  4.         local controls     "`r(economic_controls)'"
+  5.         local cluster_vars "statefips"
+  6. 
+.         use "`instub'/baseline_sample_with_vars_for_het.dta", clear
+  7.         xtset zipcode_num year_month
+  8.         
+.         reghdfe D.ln_rents c.D.mw_res#i.sh_workers_under1250_above_med ///
+>             c.D.mw_wkp_tot_17#i.sh_res_under1250_above_med ///
 >             D.(`controls'), nocons ///
->                 absorb(year_month##high_mw_wrks##high_mw_res) cluster(`cluste
-> r_vars')
+>                 absorb(year_month) cluster(`cluster_vars')
   9. end
 
-. 
-. 
-. program load_and_clean
-  1.     syntax, instub(str) incross(str)
-  2. 
-.         use "`instub'/zipcode_months.dta" if baseline_sample == 1, clear
-  3.         xtset zipcode_num year_month
-  4. 
-.         merge m:1 zipcode using "`incross'/zipcode_cross.dta", nogen ///
->             keep(3) keepusing(sh_mw_wkrs_statutory sh_workers_under29_2013 //
-> /
->                 sh_residents_under29_2013 sh_residents_underHS_2013 ///
->                 sh_residents_under1250_2013 sh_workers_underHS_2013 ///
->                 sh_workers_under1250_2013 sh_residents_accomm_food_2013 ///
->                 sh_workers_accomm_food_2013)
-  5.         rename *_2013 *
-  6.         rename *residents* *res*
-  7.         
-.         foreach var in sh_mw_wkrs_statutory sh_workers_accomm_food sh_workers
-> _underHS ///
->             sh_res_accomm_food sh_res_underHS {
-  8.             bys statefips: egen `var'_med = median(`var')
-  9.             gen `var'_above_med = (`var'   > `var'_med)
- 10.             drop `var'_med
- 11. 
-.             gen resint_`var' = mw_res*`var'_above_med
- 12.             gen wkpint_`var' = mw_wkp_tot_17*`var'_above_med
- 13.         }
- 14.         
-.         gen high_mw_wrks = sh_workers_underHS_above_med*sh_workers_accomm_foo
-> d_above_med
- 15.         gen high_mw_res  = sh_res_underHS_above_med*sh_res_accomm_food_abo
-> ve_med
- 16. 
-.         xtset zipcode_num year_month
- 17. end
-
-. 
 . 
 . main
        panel variable:  zipcode_num (unbalanced)
         time variable:  year_month, 2010m2 to 2019m12
                 delta:  1 month
-
-    Result                           # of obs.
-    -----------------------------------------
-    not matched                             0
-    matched                           133,600  
-    -----------------------------------------
-(922 missing values generated)
-       panel variable:  zipcode_num (unbalanced)
-        time variable:  year_month, 2010m2 to 2019m12
-                delta:  1 month
-(dropped 7 singleton observations)
 (MWFE estimator converged in 1 iterations)
 
-HDFE Linear regression                            Number of obs   =    131,376
-Absorbing 1 HDFE group                            F(  13,     40) =       4.19
-Statistics robust to heteroskedasticity           Prob > F        =     0.0002
-                                                  R-squared       =     0.0240
-                                                  Adj R-squared   =     0.0205
+HDFE Linear regression                            Number of obs   =    131,383
+Absorbing 1 HDFE group                            F(  13,     40) =       2.92
+Statistics robust to heteroskedasticity           Prob > F        =     0.0046
+                                                  R-squared       =     0.0209
+                                                  Adj R-squared   =     0.0200
                                                   Within R-sq.    =     0.0002
 Number of clusters (statefips) =         41       Root MSE        =     0.0290
 
@@ -147,60 +336,53 @@ Number of clusters (statefips) =         41       Root MSE        =     0.0290
              |               Robust
   D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-high_mw_wrks#|
+sh_workers..#|
    cD.mw_res |
-          0  |  -.0282383   .0186292    -1.52   0.137    -.0658894    .0094127
-          1  |  -.0149332   .0233946    -0.64   0.527    -.0622154    .0323491
+          0  |  -.0223892   .0170786    -1.31   0.197    -.0569063    .0121279
+          1  |  -.0175122   .0203452    -0.86   0.395    -.0586314    .0236071
              |
- high_mw_res#|
+sh_res_und..#|
          cD. |
 mw_wkp_to~17 |
-          0  |   .0575495   .0269863     2.13   0.039     .0030082    .1120908
-          1  |   .0616063   .0273582     2.25   0.030     .0063132    .1168993
+          0  |   .0498814   .0273819     1.82   0.076    -.0054594    .1052222
+          1  |   .0581963   .0312558     1.86   0.070    -.0049741    .1213667
              |
 ln_emp_biz~v |
-         D1. |   .0106126   .0051742     2.05   0.047     .0001552      .02107
+         D1. |   .0110085   .0052765     2.09   0.043     .0003443    .0216726
              |
  ln_emp_info |
-         D1. |   .0015616   .0036812     0.42   0.674    -.0058783    .0090016
+         D1. |   .0012348   .0038037     0.32   0.747    -.0064527    .0089223
              |
   ln_emp_fin |
-         D1. |   .0089977   .0062858     1.43   0.160    -.0037064    .0217018
+         D1. |   .0095273   .0059825     1.59   0.119    -.0025637    .0216183
              |
 ln_estcoun~v |
-         D1. |   .0008596   .0144467     0.06   0.953    -.0283382    .0300574
+         D1. |   .0015637   .0147803     0.11   0.916    -.0283084    .0314357
              |
 ln_estcoun~o |
-         D1. |   .0012444   .0052981     0.23   0.816    -.0094635    .0119522
+         D1. |   .0009549   .0052741     0.18   0.857    -.0097046    .0116143
              |
 ln_estcoun~n |
-         D1. |   .0045278   .0070587     0.64   0.525    -.0097384    .0187941
+         D1. |   .0041807   .0073619     0.57   0.573    -.0106983    .0190597
              |
 ln_avgwwag~v |
-         D1. |   .0026696   .0029498     0.90   0.371    -.0032923    .0086315
+         D1. |   .0028861   .0029734     0.97   0.338    -.0031234    .0088955
              |
 ln_avgwwag~o |
-         D1. |   .0000902   .0016529     0.05   0.957    -.0032504    .0034308
+         D1. |   .0000121   .0017032     0.01   0.994    -.0034301    .0034544
              |
 ln_avgwwag~n |
-         D1. |  -.0018543   .0010937    -1.70   0.098    -.0040648    .0003562
+         D1. |  -.0019935    .001083    -1.84   0.073    -.0041824    .0001953
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
--------------------------------------------------------------------------------
-> --+
-                             Absorbed FE | Categories  - Redundant  = Num. Coef
-> s                                                                            
->   |
------------------------------------------+-------------------------------------
-> --|
-     year_month#high_mw_wrks#high_mw_res |       465           0         465   
->                                                                              
->   |
--------------------------------------------------------------------------------
-> --+
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |       118           0         118     |
+-----------------------------------------------------+
 
 . 
 end of do-file
 
- make.py ended: 2022-03-24 07:41:49
+ make.py ended: 2022-03-25 09:50:00
