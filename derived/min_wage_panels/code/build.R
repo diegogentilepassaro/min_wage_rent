@@ -1,8 +1,8 @@
 remove(list = ls())
-
 library(data.table)
 library(zoo)
 library(stringr)
+
 source("../../../lib/R/save_data.R")
 source("../../../lib/R/load_mw.R")
 
@@ -16,7 +16,7 @@ main <- function(){
   
   if (file.exists(log_file)) file.remove(log_file)
   
-  start_ym <- c(2010, 1)
+  start_ym <- c(2010, 12)
   end_ym   <- c(2019, 12)
   
   dt_geo <- load_geographies(in_master)
@@ -38,14 +38,20 @@ main <- function(){
     for (mm in month_range){
       
       if ( (mm %in% mm_mw_changes)                              # If there was a MW change
-         | (yy == start_ym[1] & mm %in% c(1, start_ym[2]))) {   #  or the first month of the year
+         | (yy == start_ym[1] & mm %in% c(1, start_ym[2]))      #  or it's the first month of the year
+         | (yy == end_ym[1]   & mm == end_ym[2]))          {    #  or it's the last year-month of panel
                                                                 #  then compute MW levels
-        
         dt <- copy(dt_geo)
         
         dt[, c("year", "month") := .(yy, mm)]
         
         dt <- assemble_statutory_mw(dt, dt_mw)
+        
+        print(sprintf("Computing MW for year %s and month %s", yy, mm))
+        
+        if (yy == end_ym[1] & mm == end_ym[2]) {                # Save block level data for cfs
+          dt_blocklevel_last <- copy(dt)
+        }
         
         dt_year_zip <- rbindlist(
           list(dt_year_zip, 
@@ -71,14 +77,10 @@ main <- function(){
     mw_panel_zip  <- rbindlist(list(mw_panel_zip,  dt_year_zip))
     mw_panel_cnty <- rbindlist(list(mw_panel_cnty, dt_year_cnty))
   }
-  rm(dt, dt_geo, dt_mw)
+  rm(dt, dt_geo, dt_mw, 
+     dt_year_zip, dt_year_zip_prev, dt_year_cnty, dt_year_cnty_prev)
 
-  ## Assign federal MW to zipcodes under 00199 or places with missing statutory
-  ##   Place with missing statutory correspond to states not available in base/min_wage
-  mw_panel_zip[as.numeric(zipcode) <= 199 | is.na(statutory_mw), state_mw     := NA]
-  mw_panel_zip[as.numeric(zipcode) <= 199 | is.na(statutory_mw), fed_mw       := 7.25]
-  mw_panel_zip[as.numeric(zipcode) <= 199 | is.na(statutory_mw), statutory_mw := 7.25]
-
+  ## Save data
   keep_vars <- names(mw_panel_zip)[!grepl("sh_", names(mw_panel_zip))]   
   save_data(mw_panel_zip[, ..keep_vars],   
             key      = c("zipcode", "year", "month"),
@@ -96,14 +98,14 @@ main <- function(){
          file = file.path(outstub, "county_statutory_mw.csv"))
   
   ## MW Counterfactuals
-  dt_cf <- compute_counterfactual(mw_panel_zip)
+  dt_cf <- compute_counterfactual(dt_blocklevel_last)
+  rm(dt_blocklevel_last)
   
   save_data(dt_cf, key = c("zipcode", "year", "month"),
-            filename = file.path(outstub, "zipcode_cfs.csv"),
+            filename = file.path(outstub, "zipcode_cfs.dta"),
             logfile  = log_file)
-  save_data(dt_cf, key = c("zipcode", "year", "month"),
-           filename = file.path(outstub, "zipcode_cfs.dta"),
-           nolog    = TRUE)
+  fwrite(dt_cf, 
+         file = file.path(outstub, "zipcode_cfs.csv"))
 }
 
 load_geographies <- function(instub) {
@@ -136,7 +138,15 @@ assemble_statutory_mw <- function(dt, dt_mw) {
   dt <- dt_mw$local[dt,  on = c("statefips", "place_name",  "year", "month")][, event := NULL]
   
   # Compute statutory MW
-  dt[, statutory_mw := pmax(local_mw, county_mw, state_mw, fed_mw, na.rm = T)]
+  dt[, statutory_mw             := pmax(local_mw, county_mw, state_mw, fed_mw, na.rm = T)]
+  dt[, statutory_mw_ignorelocal := pmax(state_mw, fed_mw, na.rm = T)]
+  
+  ## Assign federal MW to zipcodes under 00199 or blocks with missing statutory
+  dt[as.numeric(zipcode) <= 199 | is.na(statutory_mw), state_mw     := NA]
+  dt[as.numeric(zipcode) <= 199 | is.na(statutory_mw), fed_mw       := 7.25]
+  dt[as.numeric(zipcode) <= 199 | is.na(statutory_mw), statutory_mw := 7.25]
+  
+  # Compute binding MW
   dt[, binding_mw := fcase(
     pmax(local_mw, county_mw, state_mw, fed_mw, na.rm = T) == fed_mw,    1,  # Fed MW
     pmax(local_mw, county_mw, state_mw, fed_mw, na.rm = T) == state_mw,  2,  # State MW
@@ -144,67 +154,71 @@ assemble_statutory_mw <- function(dt, dt_mw) {
     pmax(local_mw, county_mw, state_mw, fed_mw, na.rm = T) == local_mw,  4,  # City MW
     default = NA
   )]
-  
-  dt[, statutory_mw_ignorelocal := pmax(state_mw, fed_mw, na.rm = T)]
   dt[, binding_mw_ignorelocal := fcase(
     pmax(state_mw, fed_mw, na.rm = T) == fed_mw,    1,  # Fed MW
     pmax(state_mw, fed_mw, na.rm = T) == state_mw,  2,  # State MW
     default = NA
   )]
   
-  dt[, binding_mw_less_10pc  := 1*(statutory_mw <= 1.1*fed_mw)]
-  dt[, binding_mw_less_9usd  := 1*(statutory_mw <= 9)]
-  dt[, binding_mw_less_15usd := 1*(statutory_mw <= 15)]
-  
   return(dt)
 }
 
 
 collapse_data <- function(dt, key_vars = c("zipcode", "year", "month")) {
+  
+  dt <- dt[, .(statutory_mw            = weighted.mean(statutory_mw,             num_house10),
+               statutory_mw_ignorelocal = weighted.mean(statutory_mw_ignorelocal, num_house10),
+               local_mw                 = weighted.mean(local_mw,                 num_house10),
+               county_mw                = weighted.mean(county_mw,                num_house10),
+               state_mw                 = weighted.mean(state_mw,                 num_house10),
+               fed_mw                   = weighted.mean(fed_mw,                   num_house10),
+               binding_mw               = weighted.mean(binding_mw,               num_house10),
+               binding_mw_ignorelocal   = weighted.mean(binding_mw_ignorelocal,   num_house10),
+               binding_mw_max           = max(binding_mw)                                     ,
+               binding_mw_min           = min(binding_mw)                                     ),
+          keyby = key_vars]
    
-   dt <- dt[, .(statutory_mw             = weighted.mean(statutory_mw,             num_house10),
-                statutory_mw_ignorelocal = weighted.mean(statutory_mw_ignorelocal, num_house10),
-                local_mw                 = weighted.mean(local_mw,                 num_house10),
-                county_mw                = weighted.mean(county_mw,                num_house10),
-                state_mw                 = weighted.mean(state_mw,                 num_house10),
-                fed_mw                   = weighted.mean(fed_mw,                   num_house10),
-                binding_mw               = weighted.mean(binding_mw,               num_house10),
-                binding_mw_ignorelocal   = weighted.mean(binding_mw_ignorelocal,   num_house10),
-                binding_mw_max           = max(binding_mw),
-                binding_mw_min           = min(binding_mw),
-                sh_houses_w_less_10pc    = weighted.mean(binding_mw_less_10pc,     num_house10),
-                sh_houses_w_less_9usd    = weighted.mean(binding_mw_less_9usd,     num_house10),
-                sh_houses_w_less_15usd   = weighted.mean(binding_mw_less_15usd,    num_house10)),
-            keyby = key_vars]
-   
-   return(dt)
+  return(dt)
 }
+
 
 compute_counterfactual <- function(dt) {
 
-  dt_cf     <- dt[(year == 2019 & month == 12)]
-  dt_cf_dup <- copy(dt_cf)
-  dt_cf_dup <- dt_cf_dup[, year  := 2020]
-  dt_cf_dup <- dt_cf_dup[, month := 1]
-
-  dt_cf <- rbindlist(list(dt_cf, dt_cf_dup))
-
-  dt_cf[, fed_mw_cf_10pc  := fifelse(year == 2019, fed_mw, fed_mw*1.1)]
-  dt_cf[, fed_mw_cf_9usd  := fifelse(year == 2019, fed_mw, 9)]
-  dt_cf[, fed_mw_cf_15usd := fifelse(year == 2019, fed_mw, 15)]
+  dt <- dt[, .(block, zipcode, num_house10,
+               fed_mw, state_mw, county_mw, local_mw, statutory_mw)]
+  
+  dt_cf_2019 <- copy(dt)
+  dt_cf_2020 <- copy(dt)
+  dt_cf_2019[, c("year", "month") := .(2019, 12)]
+  dt_cf_2020[, c("year", "month") := .(2020, 1 )]
+  
+  dt <- rbindlist(list(dt_cf_2019, dt_cf_2020))
+  rm(dt_cf_2019, dt_cf_2020)
+  
+  dt[, fed_mw_cf_10pc  := fifelse(year == 2019, fed_mw, fed_mw*1.1)]
+  dt[, fed_mw_cf_9usd  := fifelse(year == 2019, fed_mw, 9)]
+  dt[, fed_mw_cf_15usd := fifelse(year == 2019, fed_mw, 15)]
+  
   
   for (stub in c("_10pc", "_9usd", "_15usd")) {
     cf_mw_var <- paste0("fed_mw_cf", stub)
     new_var   <- paste0("statutory_mw_cf", stub)
-    share_var <- paste0("sh_houses_w_less", stub)
 
-    dt_cf[, c(new_var) := pmax(local_mw, county_mw, state_mw, get(cf_mw_var), na.rm = T)]
-    dt_cf[year == 2020 & month ==  1, 
-          c(new_var) := get(share_var)*get(cf_mw_var) 
-                      + (1 - get(share_var))*get(new_var)]
+    dt[, c(new_var) := pmax(local_mw, county_mw, state_mw, get(cf_mw_var), na.rm = T)]
   }
-
-  return(dt_cf)
+  
+  dt <- dt[, .(statutory_mw_cf_10pc  = weighted.mean(statutory_mw_cf_10pc,  num_house10),
+               statutory_mw_cf_9usd  = weighted.mean(statutory_mw_cf_9usd,  num_house10),
+               statutory_mw_cf_15usd = weighted.mean(statutory_mw_cf_15usd, num_house10),
+               fed_mw_cf_10pc        = weighted.mean(fed_mw_cf_10pc,        num_house10),
+               fed_mw_cf_9usd        = weighted.mean(fed_mw_cf_9usd,        num_house10),
+               fed_mw_cf_15usd       = weighted.mean(fed_mw_cf_15usd,       num_house10),
+               local_mw              = weighted.mean(local_mw,              num_house10),
+               county_mw             = weighted.mean(county_mw,             num_house10),
+               state_mw              = weighted.mean(state_mw,              num_house10)),
+           by = .(zipcode, year, month)]
+  
+  return(dt)
 }
 
 main()
