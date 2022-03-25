@@ -59,10 +59,8 @@ program main
            (scatter  rho           diff_qts, mcol(navy)),                     ///
         xtitle("Difference between change in wrk. and res. MW (deciles)")     ///
         ytitle("Mean share accruing to landlord on each dollar")              ///
-        xlabel(1(1)10) ylabel(0.02(0.02)0.18)                                 ///
-        graphregion(color(white)) bgcolor(white) legend(off) 
-		
-         /*(rcap     rho_lb rho_ub diff_qts, col(navy))                      /// */
+        xlabel(1(1)10) ylabel(0(0.04)0.2)                                 ///
+        graphregion(color(white)) bgcolor(white) legend(off)
 		
 	graph export "../output/deciles_diff.png", replace
 	graph export "../output/deciles_diff.eps", replace

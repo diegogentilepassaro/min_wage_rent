@@ -43,7 +43,7 @@ end
 program process_counterfactual_data
     syntax, in_cf_mw(str) in_zip_mth(str)
     
-    use zipcode year_month year month counterfactual mw_wkp_tot using ///
+    use zipcode year month counterfactual mw_wkp_tot using ///
         "`in_cf_mw'/zipcode_wkp_mw_cfs.dta", clear
     
     bysort zipcode counterfactual (year month): ///
