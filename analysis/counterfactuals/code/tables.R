@@ -20,7 +20,6 @@ main <- function() {
              paste(dim(dt_sample)[1],
                    mean(dt_sample[["d_mw_res"]],         na.rm = T),
                    mean(dt_sample[["d_mw_wkp_tot_17"]],  na.rm = T),
-                   mean(dt_sample[["ratio_increases"]], na.rm = T),
                    mean(dt_sample[["rho_lb"]],          na.rm = T),
                    mean(dt_sample[["rho_ub"]],          na.rm = T),
                    sep = "\t"))

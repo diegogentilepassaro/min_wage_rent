@@ -47,10 +47,28 @@ main <- function(){
             var_legend ="Counterfactual change \nin log rents", 
             break_values = c(min_break_rents, max_break_rents/2, max_break_rents), 
             map_name = "chicago_d_ln_rents")
+
+  min_break_wagebill    <- round(min(df_chicago$change_ln_wagebill, na.rm = TRUE), digits = 2)
+  max_break_wagebill    <- round(max(df_chicago$change_ln_wagebill, na.rm = TRUE), digits = 2)
+  
+  build_map(data = df_chicago, 
+            var = "change_ln_wagebill", 
+            var_legend ="Counterfactual change \nin log total wages", 
+            break_values = c(min_break_rents, max_break_rents/2, max_break_rents), 
+            map_name = "chicago_d_ln_wagebill")
+
+  min_break_rho   <- round(min(df_chicago$rho, na.rm = TRUE), digits = 2)
+  max_break_rho   <- round(max(df_chicago$rho, na.rm = TRUE), digits = 2)
+  
+  build_map(data = df_chicago, 
+            var = "rho", 
+            var_legend ="Counterfactual rho", 
+            break_values = c(min_break_rents, max_break_rents/2, max_break_rents), 
+            map_name = "chicago_rho")
 }
 
 build_map <- function(data, var, var_legend, break_values,
-                      map_name, .dpi = 300){
+                      map_name, .dpi = 250){
   
   map <- tm_shape(data) + 
     tm_fill(col = var,

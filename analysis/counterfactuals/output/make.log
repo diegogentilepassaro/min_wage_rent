@@ -1,5 +1,5 @@
 
- make.py started: 2022-03-23 19:44:28 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\code 
+ make.py started: 2022-03-25 08:40:40 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\code 
 
 
 
@@ -218,7 +218,7 @@ file ../temp/counterfactual_fed_9usd.dta saved
 zipcode: all characters numeric; zipcode_num generated as long
 (64,378 observations deleted)
 (132,255 observations deleted)
-file C:\Users\diegog\AppData\Local\Temp\2\ST_4fa9c_000003.tmp saved
+file C:\Users\diegog\AppData\Local\Temp\2\ST_699d0_000003.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -362,7 +362,8 @@ running c:\ado\personal\profile.do ...
  16.         
 .         compute_vars, beta(`beta') gamma(`gamma') epsilon(`epsilon')
  17.         preserve
- 18.             keep zipcode cbsa d_mw_res d_mw_wkp_tot_17 change_ln_rents
+ 18.             keep zipcode cbsa d_mw_res d_mw_wkp_tot_17 ///
+>                 change_ln_wagebill change_ln_rents rho
  19.         save_data "../output/predicted_changes_in_rents.dta", ///
 >                     key(zipcode) replace log(none)
  20.                 export delimited "../output/predicted_changes_in_rents.csv
@@ -432,7 +433,7 @@ running c:\ado\personal\profile.do ...
 
 . 
 . program compute_vars
-  1.     syntax, beta(str) gamma(str) epsilon(str) [alpha(real 0.35)]
+  1.     syntax, beta(str) gamma(str) epsilon(str) [s(real 0.35)]
   2. 
 .         keep if rural == 0
   3. 
@@ -451,12 +452,12 @@ running c:\ado\personal\profile.do ...
  11.         gen perc_incr_wagebill = exp(change_ln_wagebill) - 1
  12.         gen ratio_increases    = perc_incr_rent/perc_incr_wagebill
  13. 
-.     local alpha_lb = `alpha' - 0.1
- 14.     local alpha_ub = `alpha' + 0.1
+.     local s_lb = `s' - 0.1
+ 14.     local s_ub = `s' + 0.1
  15. 
-.     gen rho    = `alpha'*ratio_increases
- 16.         gen rho_lb = `alpha_lb'*ratio_increases
- 17.         gen rho_ub = `alpha_ub'*ratio_increases
+.     gen rho    = `s'*ratio_increases
+ 16.         gen rho_lb = `s_lb'*ratio_increases
+ 17.         gen rho_ub = `s_ub'*ratio_increases
  18. end
 
 . 
@@ -514,7 +515,7 @@ Beta, Gamma, and Epsilon: .054515115916729, -.0203621983528137, .10848647356033
 File: ../output/predicted_changes_in_rents.dta
 Key: zipcode
 ===============================================================================
-  14938:5(79324):3177917894:1495301245
+  14938:7(92670):3136071741:3742099774
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -523,6 +524,9 @@ Key: zipcode
 d_mw_wkp_~17 |     14,938    .0898362    .0972172   -.641606   .2162231
         cbsa |          0
 change_ln_~s |     14,938    .0028779    .0034275    -.03938   .0094331
+-------------+---------------------------------------------------------
+change_ln_~l |     14,938     .009746    .0105467  -.0696056   .0234573
+         rho |     14,859    .1291777    .3107507  -26.22378   6.910357
 
 
 
@@ -628,7 +632,6 @@ Type 'q()' to quit R.
 +              paste(dim(dt_sample)[1],
 +                    mean(dt_sample[["d_mw_res"]],         na.rm = T),
 +                    mean(dt_sample[["d_mw_wkp_tot_17"]],  na.rm = T),
-+                    mean(dt_sample[["ratio_increases"]], na.rm = T),
 +                    mean(dt_sample[["rho_lb"]],          na.rm = T),
 +                    mean(dt_sample[["rho_ub"]],          na.rm = T),
 +                    sep = "\t"))
@@ -645,7 +648,7 @@ Type 'q()' to quit R.
 > 
 > proc.time()
    user  system elapsed 
-   0.53    0.14    0.62 
+   0.40    0.23    0.60 
 
 
 Execute:  R CMD BATCH --no-save "./map_cfs.R" map_cfs.Rout
@@ -736,10 +739,28 @@ repos='https://nowosad.github.io/drat/', type='source')`
 +             var_legend ="Counterfactual change \nin log rents", 
 +             break_values = c(min_break_rents, max_break_rents/2, max_break_rents), 
 +             map_name = "chicago_d_ln_rents")
++ 
++   min_break_wagebill    <- round(min(df_chicago$change_ln_wagebill, na.rm = TRUE), digits = 2)
++   max_break_wagebill    <- round(max(df_chicago$change_ln_wagebill, na.rm = TRUE), digits = 2)
++   
++   build_map(data = df_chicago, 
++             var = "change_ln_wagebill", 
++             var_legend ="Counterfactual change \nin log total wages", 
++             break_values = c(min_break_rents, max_break_rents/2, max_break_rents), 
++             map_name = "chicago_d_ln_wagebill")
++ 
++   min_break_rho   <- round(min(df_chicago$rho, na.rm = TRUE), digits = 2)
++   max_break_rho   <- round(max(df_chicago$rho, na.rm = TRUE), digits = 2)
++   
++   build_map(data = df_chicago, 
++             var = "rho", 
++             var_legend ="Counterfactual rho", 
++             break_values = c(min_break_rents, max_break_rents/2, max_break_rents), 
++             map_name = "chicago_rho")
 + }
 > 
 > build_map <- function(data, var, var_legend, break_values,
-+                       map_name, .dpi = 300){
++                       map_name, .dpi = 250){
 +   
 +   map <- tm_shape(data) + 
 +     tm_fill(col = var,
@@ -761,24 +782,34 @@ repos='https://nowosad.github.io/drat/', type='source')`
 > 
 > main()
 Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res.png
-Resolution: 1853.195 by 2379.673 pixels
-Size: 6.177318 by 7.932245 inches (300 dpi)
+Resolution: 1544.33 by 1983.061 pixels
+Size: 6.177318 by 7.932245 inches (250 dpi)
 Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res.eps
 Size: 6.177318 by 7.932245 inches
 Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp_tot_17.png
-Resolution: 1853.195 by 2379.673 pixels
-Size: 6.177318 by 7.932245 inches (300 dpi)
+Resolution: 1544.33 by 1983.061 pixels
+Size: 6.177318 by 7.932245 inches (250 dpi)
 Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp_tot_17.eps
 Size: 6.177318 by 7.932245 inches
 Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents.png
-Resolution: 1853.195 by 2379.673 pixels
-Size: 6.177318 by 7.932245 inches (300 dpi)
+Resolution: 1544.33 by 1983.061 pixels
+Size: 6.177318 by 7.932245 inches (250 dpi)
 Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents.eps
 Size: 6.177318 by 7.932245 inches
-There were 15 warnings (use warnings() to see them)
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill.png
+Resolution: 1544.33 by 1983.061 pixels
+Size: 6.177318 by 7.932245 inches (250 dpi)
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill.eps
+Size: 6.177318 by 7.932245 inches
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_rho.png
+Resolution: 1544.33 by 1983.061 pixels
+Size: 6.177318 by 7.932245 inches (250 dpi)
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_rho.eps
+Size: 6.177318 by 7.932245 inches
+There were 33 warnings (use warnings() to see them)
 > 
 > proc.time()
    user  system elapsed 
-  41.39   37.01   81.39 
+  63.62   46.53  113.59 
 
- make.py ended: 2022-03-23 19:46:59
+ make.py ended: 2022-03-25 08:43:45

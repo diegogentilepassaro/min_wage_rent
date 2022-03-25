@@ -26,7 +26,8 @@ program main
 	
 	compute_vars, beta(`beta') gamma(`gamma') epsilon(`epsilon')
 	preserve
-	    keep zipcode cbsa d_mw_res d_mw_wkp_tot_17 change_ln_rents
+	    keep zipcode cbsa d_mw_res d_mw_wkp_tot_17 ///
+	        change_ln_wagebill change_ln_rents rho
         save_data "../output/predicted_changes_in_rents.dta", ///
 		    key(zipcode) replace log(none)
 		export delimited "../output/predicted_changes_in_rents.csv", replace
@@ -85,7 +86,7 @@ program load_parameters, rclass
 end
 
 program compute_vars
-    syntax, beta(str) gamma(str) epsilon(str) [alpha(real 0.35)]
+    syntax, beta(str) gamma(str) epsilon(str) [s(real 0.35)]
 
 	keep if rural == 0
 
@@ -104,12 +105,12 @@ program compute_vars
 	gen perc_incr_wagebill = exp(change_ln_wagebill) - 1
 	gen ratio_increases    = perc_incr_rent/perc_incr_wagebill
 
-    local alpha_lb = `alpha' - 0.1
-    local alpha_ub = `alpha' + 0.1
+    local s_lb = `s' - 0.1
+    local s_ub = `s' + 0.1
 
-    gen rho    = `alpha'*ratio_increases
-	gen rho_lb = `alpha_lb'*ratio_increases
-	gen rho_ub = `alpha_ub'*ratio_increases
+    gen rho    = `s'*ratio_increases
+	gen rho_lb = `s_lb'*ratio_increases
+	gen rho_ub = `s_ub'*ratio_increases
 end
 
 program get_xlabel, rclass
