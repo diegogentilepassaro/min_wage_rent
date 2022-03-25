@@ -1,13 +1,12 @@
 remove(list = ls())
 
 library(data.table)
-library(stringr)
 
 source('../../../lib/R/write_command.R')
 
 main <- function() {
   
-  in_baseline <- '../../fd_baseline/output'
+  in_baseline <- '../output'
   out_autofill <- '../output'
   
   # From estimates_static
@@ -18,8 +17,8 @@ main <- function() {
                             var   == "mw_wkp_tot_17", "Beta",
                             var   == "cumsum_from0", "Sum"),
               model = fcase(model == 'mw_wkp_on_res_mw', 'WkpOnRes',
-                            model == 'static_mw_res', 'Only',
-                            model == 'static_mw_wkp', 'Only', 
+                            model %in% c('static_mw_res',
+                                         'static_mw_wkp'), 'Only', 
                             model == 'static_both', 'Both'))]
   
   data <- data[!(model %in% c('Only', 'WkpOnRes') & var == 'Sum')]
@@ -44,7 +43,7 @@ main <- function() {
     }
   }
   
-  est <- data[model == 'Both' & var == 'Sum', p_equality]
+  est <- data[model == 'Both', unique(p_equality)]
   
   comm <- write_command('GammaBetaBasePval', round(est, 3))
   
