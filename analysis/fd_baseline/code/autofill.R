@@ -13,11 +13,6 @@ main <- function() {
   
   data <- load_data(in_baseline, 'static')
   
-  data[, `:=`(model = fcase(model == 'mw_wkp_on_res_mw', 'WkpOnRes',
-                            model %in% c('static_mw_res',
-                                         'static_mw_wkp'), 'Only', 
-                            model == 'static_both', 'Both'))]
-  
   data <- data[!(model %in% c('Only', 'WkpOnRes') & var == 'Sum')]
   
   txt <- ''
@@ -37,7 +32,19 @@ main <- function() {
         
         tstat   <- write_command(paste0(mm, vv, 'BasetStat'), dt_comb$t)
         
+        if (dt_comb$b < 0) {
+          
+          estimAbs   <- write_command(paste0(mm, vv, 'BaseAbs'), round(abs(dt_comb$b),4))
+          
+          estimAbs10 <- write_command(paste0(mm, vv, 'BaseTenAbs'), round(10* abs(dt_comb$b),3))
+          
+          txt <- paste0(txt, estim, estimAbs, estim10, estimAbs10, tstat)
+          
+        } else {
+          
         txt <- paste0(txt, estim, estim10, tstat)
+        
+        }
       }
     }
   }
@@ -66,7 +73,19 @@ main <- function() {
     
     tstat   <- write_command(paste0(name, vv, 'BasetStat'), dt_comb$t)
     
+    if (dt_comb$b < 0) {
+      
+      estimAbs   <- write_command(paste0(name, vv, 'BaseAbs'), round(abs(dt_comb$b),4))
+      
+      estimAbs10 <- write_command(paste0(name, vv, 'BaseTenAbs'), round(10* abs(dt_comb$b),3))
+      
+      txt <- paste0(txt, estim, estimAbs, estim10, estimAbs10, tstat)
+    } else {
+      
     txt <- paste0(txt, estim, estim10, tstat)
+      
+    }
+    
   }
   
   est <- data[var == 'Sum', p_equality]
@@ -89,7 +108,15 @@ load_data <- function(path, panel) {
   data[, `:=`(var = fcase(var == "mw_res", "Gamma",
                           var == "mw_wkp_tot_17", "Beta",
                           var == "cumsum_from0", "Sum"),
-              t   = round(b / se, 3))]
+              t   = round(b / se, 2))]
+  
+  if (panel=='static') {
+    
+    data[, `:=`(model = fcase(model == 'mw_wkp_on_res_mw', 'WkpOnRes',
+                              model %in% c('static_mw_res',
+                                           'static_mw_wkp'), 'Only', 
+                              model == 'static_both', 'Both'))]
+  }
   
   return(data)
 }
