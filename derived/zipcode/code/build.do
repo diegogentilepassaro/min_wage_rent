@@ -22,6 +22,8 @@ program main
     merge 1:1 zipcode using "`in_demo'/zipcode.dta", ///
         nogen keep(1 3)
 
+    generate_urban_flags
+
     merge_lodes_shares, instub(`in_lodes_zip')
     merge_lodes_shares, instub(`in_lodes_zip') yy(2017)
     merge_od_shares,    instub(`in_shares_od')
@@ -42,6 +44,27 @@ program build_zillow_zipcode_stats
     tostring zipcode, format(%05.0f) replace
 
     save "../temp/zillow_zipcodes_with_rents.dta", replace
+end
+
+program generate_urban_flags
+    syntax, [urban_thresh(real 0.8)]
+
+    preserve
+        collapse (sum) urb_pop_cens2010 population_cens2010, ///
+            by(cbsa)
+
+        gen share_urban_pop_2010 = urb_pop_cens2010/population_cens2010
+
+        gen  urban_cbsa = (share_urban_pop_2010 >= `urban_thresh')
+
+        keep cbsa urban_cbsa
+        tempfile cbsa_data
+        save    `cbsa_data'
+    restore
+
+    merge m:1 cbsa using `cbsa_data', assert(3) nogen
+
+    gen urban_zip = (sh_urb_pop_cens2010 >= `urban_thresh')
 end
 
 program merge_lodes_shares

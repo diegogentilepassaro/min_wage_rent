@@ -94,7 +94,7 @@ compute_shares <- function(dt) {
   for (var in paste0(c("n_white", "n_black", "n_male", "urb_pop", "rural_pop"), "_cens2010")) {
 
     newvar <- gsub("^n_", "sh_", var)
-    if (grepl("pop", var)) newvar <- paste0("sh_", var, "_cens2010")
+    if (grepl("pop", var)) newvar <- paste0("sh_", var)
 
     dt[, c(newvar) := get(var)/population_cens2010]
   }
