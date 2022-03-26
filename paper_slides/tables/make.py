@@ -89,10 +89,6 @@ tablefill(input    = os.path.join(fd_wages_dir, "static_wages.txt"),
           template = "input/static_wages.tex",
           output   = "output/static_wages.tex")
 
-tablefill(input    = os.path.join(fd_wages_dir, "static_wages_robustness.txt"),
-          template = "input/static_wages_robustness.tex",
-          output   = "output/static_wages_robustness.tex")
-
 tablefill(input    = os.path.join(autocorr_dir, "autocorrelation.txt"), 
           template = "input/autocorrelation.tex", 
           output   = "output/autocorrelation.tex")
