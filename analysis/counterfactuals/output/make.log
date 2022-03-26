@@ -1,5 +1,5 @@
 
- make.py started: 2022-03-26 07:14:14 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\code 
+ make.py started: 2022-03-26 08:43:51 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\code 
 
 
 
@@ -211,7 +211,7 @@ file ../temp/counterfactual_fed_15usd.dta saved
 zipcode: all characters numeric; zipcode_num generated as long
 (64,378 observations deleted)
 (132,255 observations deleted)
-file C:\Users\shermo\AppData\Local\Temp\8\ST_69fc4_000003.tmp saved
+file C:\Users\shermo\AppData\Local\Temp\8\ST_698b8_000003.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -329,147 +329,154 @@ running c:\ado\personal\profile.do ...
 
 . 
 . program main
-  1.         local instub      "../output"
+  1.     local instub      "../output"
   2.     local in_baseline "../../fd_baseline/output"
   3.     local in_wages    "../../twfe_wages/output"
-  4.         local in_zip      "../../../drive/derived_large/zipcode"
-  5.         
+  4.     local in_zip      "../../../drive/derived_large/zipcode"
+  5. 
 .     use "`in_zip'/zipcode_cross.dta", clear
   6.     load_parameters, in_baseline(`in_baseline') in_wages(`in_wages')
   7.     local beta    = r(beta)
   8.     local gamma   = r(gamma)
   9.     local epsilon = r(epsilon)
  10. 
-.         di "Beta, Gamma, and Epsilon: `beta', `gamma', `epsilon'"
- 11.         
-.         use `instub'/d_ln_rents_cf_predictions.dta, clear
- 12.         merge 1:1 zipcode using  `instub'/ln_wagebill_cf_predictions.dta, 
-> ///
->             nogen keep(1 3) keepusing(ln_wagebill_pre n_hhlds_pre)
- 13.         merge 1:1 zipcode using "`in_zip'/zipcode_cross.dta", ///
->            nogen keep(1 3) keepusing(cbsa sh_rural_pop_2010)
- 14.         gen rural = (sh_rural_pop_2010 >= 0.8)
- 15.         drop sh_rural_pop_2010
- 16.         
-.         compute_vars, beta(`beta') gamma(`gamma') epsilon(`epsilon')
- 17.         preserve
- 18.             keep zipcode cbsa d_mw_res d_mw_wkp_tot_17 ///
->                 change_ln_wagebill change_ln_rents rho
+.     di "Beta, Gamma, and Epsilon: `beta', `gamma', `epsilon'"
+ 11. 
+.     use `instub'/d_ln_rents_cf_predictions.dta, clear
+ 12.     merge 1:1 zipcode using  `instub'/ln_wagebill_cf_predictions.dta, ///
+>         nogen keep(1 3) keepusing(ln_wagebill_pre n_hhlds_pre)
+ 13.     merge 1:1 zipcode using "`in_zip'/zipcode_cross.dta", ///
+>         nogen keep(1 3) keepusing(cbsa sh_rural_pop_2010)
+ 14.     gen rural = (sh_rural_pop_2010 >= 0.8)
+ 15.     drop sh_rural_pop_2010
+ 16. 
+.     compute_vars, beta(`beta') gamma(`gamma') epsilon(`epsilon')
+ 17.     preserve
+ 18.         keep zipcode cbsa d_mw_res d_mw_wkp_tot_17 ///
+>             change_ln_wagebill change_ln_rents rho
  19.         save_data "../output/predicted_changes_in_rents.dta", ///
->                     key(zipcode) replace log(none)
- 20.                 export delimited "../output/predicted_changes_in_rents.csv
-> ", replace
- 21.         restore
- 22.         foreach var in d_mw_res d_mw_wkp_tot_17 ///
->                        perc_incr_rent perc_incr_wagebill ///
->                                    ratio_increases rho {
- 23.                 
-.                 get_xlabel, var(`var')
- 24.                 local x_lab = r(x_lab)
- 25.                 
-.                 unique zipcode if !missing(`var')
- 26.                 local n_zip = r(unique)
- 27.         
-.                 hist `var', percent bin(20)                                  
->          ///
->                         xtitle("`x_lab'") ytitle("Percentage") note("ZIP code
-> s: `n_zip'") ///
->                         graphregion(color(white)) bgcolor(white)
- 28.                 
-.                 graph export "../output/`var'.png", replace
- 29.                 graph export "../output/`var'.eps", replace
+>             key(zipcode) replace log(none)
+ 20.         export delimited "../output/predicted_changes_in_rents.csv", repla
+> ce
+ 21.     restore
+ 22.     foreach var in d_mw_res d_mw_wkp_tot_17 ///
+>                     perc_incr_rent perc_incr_wagebill ///
+>                     ratio_increases rho {
+ 23.         
+.         get_xlabel, var(`var')
+ 24.         local x_lab = r(x_lab)
+ 25.         
+.         local scale_opts ""
+ 26.         local bin_opt    ""
+ 27.         if inlist("`var'", "d_mw_res", "d_mw_wkp_tot_17") {
+ 28.             local scale_opts "yscale(r(0 43)) xscale(r(0 0.23))"
+ 29.             local bin_opt    "bin(25)"
  30.         }
- 31. 
+ 31.         if inlist("`var'", "rho", "perc_incr_rent", "perc_incr_wagebill") 
+> {
+ 32.             local bin_opt    "bin(30)"
+ 33.         }
+ 34. 
+.         hist `var', percent `bin_opt'                                   ///
+>             xtitle("`x_lab'") ytitle("Percentage") `scale_opts'         ///
+>             graphregion(color(white)) bgcolor(white)                    ///
+>             plotregion(margin(b = 1.5))
+ 35.         
+.         graph export "../output/`var'.png", replace
+ 36.         graph export "../output/`var'.eps", replace
+ 37.     }
+ 38. 
 .     save             "../output/data_counterfactuals.dta", replace
- 32.     export delimited "../output/data_counterfactuals.csv", replace
- 33. 
-.         collapse (mean) rho_lb rho rho_ub, by(diff_qts)
- 34.         
-.     twoway (line     rho           diff_qts, lcol(navy))                     
->  ///
->            (scatter  rho           diff_qts, mcol(navy)),                    
->  ///
->         xtitle("Difference between change in wrk. and res. MW (deciles)")    
->  ///
->         ytitle("Mean share accruing to landlord on each dollar")             
->  ///
->         xlabel(1(1)10) ylabel(0(0.04)0.2)                                 ///
+ 39.     export delimited "../output/data_counterfactuals.csv", replace
+ 40. 
+.     collapse (mean) rho_lb rho rho_ub, by(diff_qts)
+ 41. 
+.     twoway (line     rho       diff_qts, lcol(navy))                        /
+> //
+>            (scatter  rho       diff_qts, mcol(navy)),                       /
+> //
+>         xtitle("Difference between change in wrk. and res. MW (deciles)")   /
+> //
+>         ytitle("Mean share accruing to landlord on each dollar")            /
+> //
+>         xlabel(1(1)10) ylabel(0(0.04)0.2)                                   /
+> //
 >         graphregion(color(white)) bgcolor(white) legend(off)
- 35.                 
-.         graph export "../output/deciles_diff.png", replace
- 36.         graph export "../output/deciles_diff.eps", replace
- 37. end
+ 42.         
+.     graph export "../output/deciles_diff.png", replace
+ 43.     graph export "../output/deciles_diff.eps", replace
+ 44. end
 
 . 
 . 
 . program load_parameters, rclass
-  1.         syntax, in_baseline(str) in_wages(str)
+  1.     syntax, in_baseline(str) in_wages(str)
   2. 
-.         use `in_baseline'/estimates_static.dta, clear
-  3.         keep if model == "static_both"
+.     use `in_baseline'/estimates_static.dta, clear
+  3.     keep if model == "static_both"
   4. 
-.         qui sum b if var == "mw_res"
-  5.         return local gamma = r(mean)
-  6.         qui sum b if var == "mw_wkp_tot_17"
-  7.         return local beta = r(mean)
+.     qui sum b if var == "mw_res"
+  5.     return local gamma = r(mean)
+  6.     qui sum b if var == "mw_wkp_tot_17"
+  7.     return local beta = r(mean)
   8. 
-.         use `in_wages'/estimates_cbsa_time.dta, clear
-  9.         qui sum b
- 10.         return local epsilon = r(mean)
+.     use `in_wages'/estimates_cbsa_time.dta, clear
+  9.     qui sum b
+ 10.     return local epsilon = r(mean)
  11. end
 
 . 
 . program compute_vars
   1.     syntax, beta(str) gamma(str) epsilon(str) [s(real 0.35)]
   2. 
-.         keep if rural == 0
+.     keep if rural == 0
   3. 
-.         * Predictions with parameters
-.         gen diff_mw    = d_mw_wkp_tot_17 - d_mw_res
-  4.         xtile diff_qts = diff_mw, nquantiles(10)
+.     * Predictions with parameters
+.     gen diff_mw    = d_mw_wkp_tot_17 - d_mw_res
+  4.     xtile diff_qts = diff_mw, nquantiles(10)
   5. 
-.         egen max_d_mw_res = max(d_mw_res)
-  6.         gen no_direct_treatment       = d_mw_res == 0
-  7.         gen fully_affected            = !no_direct_treatment
+.     egen max_d_mw_res = max(d_mw_res)
+  6.     gen no_direct_treatment       = d_mw_res == 0
+  7.     gen fully_affected            = !no_direct_treatment
   8. 
 .     gen change_ln_rents    = `beta'*d_mw_wkp_tot_17 + `gamma'*d_mw_res
   9.     gen change_ln_wagebill = `epsilon'*d_mw_wkp_tot_17
  10. 
-.         gen perc_incr_rent     = exp(change_ln_rents)    - 1
- 11.         gen perc_incr_wagebill = exp(change_ln_wagebill) - 1
- 12.         gen ratio_increases    = perc_incr_rent/perc_incr_wagebill
+.     gen perc_incr_rent     = exp(change_ln_rents)    - 1
+ 11.     gen perc_incr_wagebill = exp(change_ln_wagebill) - 1
+ 12.     gen ratio_increases    = perc_incr_rent/perc_incr_wagebill
  13. 
 .     local s_lb = `s' - 0.1
  14.     local s_ub = `s' + 0.1
  15. 
 .     gen rho    = `s'*ratio_increases
- 16.         gen rho_lb = `s_lb'*ratio_increases
- 17.         gen rho_ub = `s_ub'*ratio_increases
+ 16.     gen rho_lb = `s_lb'*ratio_increases
+ 17.     gen rho_ub = `s_ub'*ratio_increases
  18. end
 
 . 
 . program get_xlabel, rclass
   1.     syntax, var(str)
-  2.         
-.         if inlist("`var'", "p_d_ln_rents", "p_d_ln_rents_with_fe", ///
->                   "p_d_ln_rents_zillow", "p_d_ln_rents_with_fe_zillow") {
-  3.             return local x_lab "Change in log rents"
-  4.         }
-  5.         
-.         if "`var'"=="d_mw_res"            return local x_lab "Change in resid
-> ence log MW"
-  6.         if "`var'"=="d_mw_wkp_tot_17"     return local x_lab "Change in wo
-> rkplace log MW"
-  7.         
-.         if "`var'"=="perc_incr_rent"     return local x_lab "Percent increase
->  in rents per sq. foot"
-  8.         if "`var'"=="perc_incr_wagebill" return local x_lab "Percent incre
-> ase in wage bill"
+  2. 
+.     if inlist("`var'", "p_d_ln_rents", "p_d_ln_rents_with_fe", ///
+>               "p_d_ln_rents_zillow", "p_d_ln_rents_with_fe_zillow") {
+  3.         return local x_lab "Change in log rents"
+  4.     }
+  5. 
+.     if "`var'"=="d_mw_res"           return local x_lab "Change in residence 
+> MW"
+  6.     if "`var'"=="d_mw_wkp_tot_17"    return local x_lab "Change in workpla
+> ce MW"
+  7. 
+.     if "`var'"=="perc_incr_rent"     return local x_lab "Percent increase in 
+> rents per sq. foot"
+  8.     if "`var'"=="perc_incr_wagebill" return local x_lab "Percent increase 
+> in total wages"
   9. 
-.         if "`var'"=="ratio_increases"    return local x_lab "Ratio of percent
->  increases"
- 10.         if "`var'"=="rho"                return local x_lab "Share accruin
-> g to landlord on each dollar" 
+.     if "`var'"=="ratio_increases"    return local x_lab "Ratio of percent inc
+> reases"
+ 10.     if "`var'"=="rho"                return local x_lab "Landlord share"  
+>       
  11. 
 . end
 
@@ -522,44 +529,32 @@ change_ln_~l |     14,938     .010556     .010252          0   .0234274
 file ../output/predicted_changes_in_rents.dta saved
 (note: file ../output/predicted_changes_in_rents.csv not found)
 file ../output/predicted_changes_in_rents.csv saved
-Number of unique values of zipcode is  14938
-Number of records is  14938
-(bin=20, start=-5.199e-08, width=.01081116)
+(bin=25, start=-5.199e-08, width=.00864893)
 (note: file ../output/d_mw_res.png not found)
 (file ../output/d_mw_res.png written in PNG format)
 (note: file ../output/d_mw_res.eps not found)
 (file ../output/d_mw_res.eps written in EPS format)
-Number of unique values of zipcode is  14938
-Number of records is  14938
-(bin=20, start=0, width=.01081116)
+(bin=25, start=0, width=.00864892)
 (note: file ../output/d_mw_wkp_tot_17.png not found)
 (file ../output/d_mw_wkp_tot_17.png written in PNG format)
 (note: file ../output/d_mw_wkp_tot_17.eps not found)
 (file ../output/d_mw_wkp_tot_17.eps written in EPS format)
-Number of unique values of zipcode is  14938
-Number of records is  14938
-(bin=20, start=-.00088456, width=.00042101)
+(bin=30, start=-.00088456, width=.00028067)
 (note: file ../output/perc_incr_rent.png not found)
 (file ../output/perc_incr_rent.png written in PNG format)
 (note: file ../output/perc_incr_rent.eps not found)
 (file ../output/perc_incr_rent.eps written in EPS format)
-Number of unique values of zipcode is  14938
-Number of records is  14938
-(bin=20, start=0, width=.0011852)
+(bin=30, start=0, width=.00079013)
 (note: file ../output/perc_incr_wagebill.png not found)
 (file ../output/perc_incr_wagebill.png written in PNG format)
 (note: file ../output/perc_incr_wagebill.eps not found)
 (file ../output/perc_incr_wagebill.eps written in EPS format)
-Number of unique values of zipcode is  14837
-Number of records is  14837
-(bin=20, start=-.17008531, width=.03370118)
+(bin=41, start=-.17008531, width=.0164396)
 (note: file ../output/ratio_increases.png not found)
 (file ../output/ratio_increases.png written in PNG format)
 (note: file ../output/ratio_increases.eps not found)
 (file ../output/ratio_increases.eps written in EPS format)
-Number of unique values of zipcode is  14837
-Number of records is  14837
-(bin=20, start=-.05952986, width=.01179541)
+(bin=30, start=-.05952986, width=.00786361)
 (note: file ../output/rho.png not found)
 (file ../output/rho.png written in PNG format)
 (note: file ../output/rho.eps not found)
@@ -622,7 +617,6 @@ Type 'q()' to quit R.
 +                    mean(dt_sample[["rho_lb"]],          na.rm = T),
 +                    mean(dt_sample[["rho_ub"]],          na.rm = T),
 +                    sep = "\t"))
-+     
 +   }
 +   
 +   fileConn <- file(file.path(outstub, "counterfactuals.txt"))
@@ -635,7 +629,7 @@ Type 'q()' to quit R.
 > 
 > proc.time()
    user  system elapsed 
-   0.50    0.17    0.67 
+   0.32    0.23    0.53 
 
 
 Execute:  R CMD BATCH --no-save "./map_cfs.R" map_cfs.Rout
@@ -740,7 +734,7 @@ repos='https://nowosad.github.io/drat/', type='source')`
 +   
 +   build_map(data = df_chicago, 
 +             var = "rho", 
-+             var_legend ="Landlord\nShare", 
++             var_legend ="Landlord\nshare", 
 +             break_values = c(min_break_rho, max_break_rho/2, max_break_rho), 
 +             map_name = "chicago_rho")
 + }
@@ -796,6 +790,6 @@ There were 13 warnings (use warnings() to see them)
 > 
 > proc.time()
    user  system elapsed 
-  57.15   41.76  102.32 
+  60.70   42.84  106.18 
 
- make.py ended: 2022-03-26 07:17:07
+ make.py ended: 2022-03-26 08:46:44

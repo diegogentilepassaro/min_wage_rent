@@ -61,7 +61,7 @@ main <- function(){
   
   build_map(data = df_chicago, 
             var = "rho", 
-            var_legend ="Landlord\nShare", 
+            var_legend ="Landlord\nshare", 
             break_values = c(min_break_rho, max_break_rho/2, max_break_rho), 
             map_name = "chicago_rho")
 }

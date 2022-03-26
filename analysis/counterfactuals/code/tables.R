@@ -23,7 +23,6 @@ main <- function() {
                    mean(dt_sample[["rho_lb"]],          na.rm = T),
                    mean(dt_sample[["rho_ub"]],          na.rm = T),
                    sep = "\t"))
-    
   }
   
   fileConn <- file(file.path(outstub, "counterfactuals.txt"))
