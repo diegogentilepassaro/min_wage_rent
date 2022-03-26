@@ -11,6 +11,21 @@ housing market across metropolitan areas.
    - Create a juncture link to the datastore in the root of the repo. In windows, run `mklink /J "<Root of repo>/drive/" "<Local Google Drive folder>"` from the command line.
    - A python 2 compiler is required to run the code in this repo. We recommend to install [Anaconda](https://www.anaconda.com/products/individual) and create a python2 environment.
 
+## Repository structure
+
+This repository is organized in stages:
+
+- `drive/raw_data` hosts large raw files in datastore, and `source/raw` hosts light raw files
+- `base` makes a base cleaning of the raw data
+- `derived` constructs panels at different geographicals levels
+- `analysis` conducts estimations and counterfactuals
+- `descriptive` makes graphics and tables that describe
+
+Steps within each of these folders can be run separately, provided that dependencies have been compiled.
+
+- To do so, go to the `/code/` folder and run `python make.py` in your Anaconda 2 environment
+
+There is also a `run.py` file in some of the folders that can be used to run steps in parallel.
 
 ## Writing the paper
 
