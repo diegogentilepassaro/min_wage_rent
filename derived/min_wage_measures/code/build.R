@@ -31,9 +31,9 @@ main <- function(paquetes, n_cores){
     
     dt[, mw_res := NULL]
     
-    periods <- unique(dt$year_month)[1:5]
+    periods <- unique(dt$year_month)
     
-    for (yy in c(2017)) {
+    for (yy in 2009:2018) {
       
       print(sprintf("Computing workplace MW for %s using shares from year %s.",
                     geo, yy))

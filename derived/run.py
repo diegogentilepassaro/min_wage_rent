@@ -3,7 +3,12 @@ import time
 import subprocess
 
 folders_to_run = ["min_wage_panels",
-                  "min_wage_measures"]
+                  "min_wage_measures",
+                  "zipcode_month",
+                  "county_month",
+                  "cbsa_month",
+                  "estimation_samples",
+                  "zipcode_year"]
 
 log_file = open("run.log", 'w')
 log_file.write("Started at " + time.strftime('%I:%M:%S%p %Z on %b %d, %Y\n\n'))

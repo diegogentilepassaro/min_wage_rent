@@ -6,7 +6,7 @@ library(stringr)
 source("../../../lib/R/save_data.R")
 source("../../../lib/R/load_mw.R")
 
-setDTthreads(20)
+setDTthreads(18)
 
 main <- function(){
   in_master   <- "../../../drive/base_large/census_block_master"
@@ -16,7 +16,7 @@ main <- function(){
   
   if (file.exists(log_file)) file.remove(log_file)
   
-  start_ym <- c(2019, 1)
+  start_ym <- c(2010, 1)
   end_ym   <- c(2019, 12)
   
   dt_geo <- load_geographies(in_master)
@@ -120,12 +120,7 @@ load_geographies <- function(instub) {
   # Drop small % of census blocks do not have a zip code
   # Thus, we will compute simple mean of statutory MW
   dt <- dt[zipcode != ""]
-  
-  # Impute num_house10 = 1 for zipcodes that have no housing
-  dt[, sum_houses_zipcode := sum(num_house10), by = .(zipcode)]
-  dt[sum_houses_zipcode == 0, num_house10 := 1]
-  dt[, sum_houses_zipcode := NULL]
-  
+    
   return(dt)
 }
 
@@ -174,6 +169,15 @@ assemble_statutory_mw <- function(dt, dt_mw) {
 
 collapse_data <- function(dt, key_vars = c("zipcode", "year", "month")) {
   
+  # Impute num_house10 = 1 for locations that have no housing, eg, university zip codes
+  if ("zipcode" %in% key_vars) {
+    dt[, sum_houses_geo := sum(num_house10), by = .(zipcode)]
+  } else {
+    dt[, sum_houses_geo := sum(num_house10), by = .(countyfips)]
+  }
+  dt[sum_houses_geo == 0, num_house10 := 1]
+  dt[, sum_houses_geo := NULL]
+
   dt <- dt[, .(statutory_mw            = weighted.mean(statutory_mw,             num_house10),
                statutory_mw_ignorelocal = weighted.mean(statutory_mw_ignorelocal, num_house10),
                local_mw                 = weighted.mean(local_mw,                 num_house10),
