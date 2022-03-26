@@ -60,6 +60,7 @@ program main
     * Panel
     use zipcode countyfips cbsa statefips year_month year month    ///
         statutory_mw mw_wkp_tot_17 mw_res  *_SFCC  ln_rent*        ///
+        mw_wkp_earn_under1250_17 mw_wkp_age_under29_17             ///
         ln_emp_bizserv ln_emp_info ln_emp_fin                      ///
         ln_estcount_bizserv ln_estcount_info ln_estcount_fin       ///
         ln_avgwwage_bizserv ln_avgwwage_info ln_avgwwage_fin baseline_sample ///

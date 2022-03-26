@@ -28,6 +28,7 @@ main <- function() {
   baseline_panel <- load_data("baseline_zillow_rents_zipcode_months.csv")
   
   vars_for_table <- c("statutory_mw", "mw_res", "mw_wkp_tot_17",
+                      "mw_wkp_earn_under1250_17", "mw_wkp_age_under29_17",
                       "medrentprice_SFCC", "medrentpricepsqft_SFCC", "ln_rents", 
                       paste0("ln_rents_", c("SF", "CC", "Studio", "1BR", "2BR", "3BR", "Mfr5Plus")), 
                       "ln_emp_bizserv", "ln_estcount_bizserv", "ln_avgwwage_bizserv", 
