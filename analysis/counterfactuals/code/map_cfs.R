@@ -18,11 +18,13 @@ main <- function(){
     rename(zipcode = ZIP_CODE, zipcode_name = PO_NAME,
            state_name = STATE)
   
-  df_all <- fread(file.path(in_data, "predicted_changes_in_rents.csv"),
-                  colClasses = c(zipcode = "character"))
+  df_all <- fread(file.path(in_data, "data_counterfactuals.csv"),
+                  colClasses = c(zipcode = "character")) %>%
+    filter(counterfactual == "fed_9usd")
+
   df_all <- left_join(USPS_zipcodes, df_all, by = "zipcode")
-  df_chicago <- df_all %>%
-    filter(cbsa == 16980)
+
+  df_chicago <- df_all %>% filter(cbsa == 16980)
 
   max_break_mw <- round(max(df_chicago$d_mw_res, na.rm = TRUE), digits = 2)
   
@@ -33,10 +35,10 @@ main <- function(){
             map_name = "chicago_d_mw_res")
   
   build_map(data = df_chicago, 
-            var = "d_mw_wkp_tot_17", 
+            var = "d_mw_wkp", 
             var_legend ="Counterfactual change\nin workplace MW", 
             break_values = c(0, max_break_mw/2, max_break_mw), 
-            map_name = "chicago_d_mw_wkp_tot_17")
+            map_name = "chicago_d_mw_wkp")
   
   min_break_rents <- round(min(df_chicago$change_ln_rents, na.rm = TRUE), digits = 2)
   max_break_rents <- round(max(df_chicago$change_ln_rents, na.rm = TRUE), digits = 2)

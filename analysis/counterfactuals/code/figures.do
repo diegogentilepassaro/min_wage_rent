@@ -4,35 +4,14 @@ set maxvar 32000
 
 program main
     local instub      "../output"
-    local in_baseline "../../fd_baseline/output"
     local in_wages    "../../twfe_wages/output"
     local in_zip      "../../../drive/derived_large/zipcode"
 
-    use "`in_zip'/zipcode_cross.dta", clear
-    load_parameters, in_baseline(`in_baseline') in_wages(`in_wages')
-    local beta    = r(beta)
-    local gamma   = r(gamma)
-    local epsilon = r(epsilon)
+    use "`instub'/data_counterfactuals.dta", clear
 
-    di "Beta, Gamma, and Epsilon: `beta', `gamma', `epsilon'"
+    keep if counterfactual == "fed_9usd"
 
-    use `instub'/d_ln_rents_cf_predictions.dta, clear
-    merge 1:1 zipcode using  `instub'/ln_wagebill_cf_predictions.dta, ///
-        nogen keep(1 3) keepusing(ln_wagebill_pre n_hhlds_pre)
-    merge 1:1 zipcode using "`in_zip'/zipcode_cross.dta", ///
-        nogen keep(1 3) keepusing(cbsa sh_rural_pop_2010)
-    gen rural = (sh_rural_pop_2010 >= 0.8)
-    drop sh_rural_pop_2010
-
-    compute_vars, beta(`beta') gamma(`gamma') epsilon(`epsilon')
-    preserve
-        keep zipcode cbsa d_mw_res d_mw_wkp_tot_17 ///
-            change_ln_wagebill change_ln_rents rho
-        save_data "../output/predicted_changes_in_rents.dta", ///
-            key(zipcode) replace log(none)
-        export delimited "../output/predicted_changes_in_rents.csv", replace
-    restore
-    foreach var in d_mw_res d_mw_wkp_tot_17 ///
+    foreach var in d_mw_res d_mw_wkp                  ///
                     perc_incr_rent perc_incr_wagebill ///
                     ratio_increases rho {
         
@@ -41,7 +20,7 @@ program main
         
         local scale_opts ""
         local bin_opt    ""
-        if inlist("`var'", "d_mw_res", "d_mw_wkp_tot_17") {
+        if inlist("`var'", "d_mw_res", "d_mw_wkp") {
             local scale_opts "yscale(r(0 43)) xscale(r(0 0.23))"
             local bin_opt    "bin(25)"
         }
@@ -54,17 +33,14 @@ program main
             graphregion(color(white)) bgcolor(white)                    ///
             plotregion(margin(b = 1.5))
         
-        graph export "../output/`var'.png", replace
-        graph export "../output/`var'.eps", replace
+        graph export "../output/hist_`var'.png", replace
+        graph export "../output/hist_`var'.eps", replace
     }
-
-    save             "../output/data_counterfactuals.dta", replace
-    export delimited "../output/data_counterfactuals.csv", replace
 
     collapse (mean) rho_lb rho rho_ub, by(diff_qts)
 
-    twoway (line     rho       diff_qts, lcol(navy))                        ///
-           (scatter  rho       diff_qts, mcol(navy)),                       ///
+    twoway (line     rho  diff_qts, lcol(navy))                             ///
+           (scatter  rho  diff_qts, mcol(navy)),                            ///
         xtitle("Difference between change in wrk. and res. MW (deciles)")   ///
         ytitle("Mean share accruing to landlord on each dollar")            ///
         xlabel(1(1)10) ylabel(0(0.04)0.2)                                   ///
@@ -128,7 +104,7 @@ program get_xlabel, rclass
     }
 
     if "`var'"=="d_mw_res"           return local x_lab "Change in residence MW"
-    if "`var'"=="d_mw_wkp_tot_17"    return local x_lab "Change in workplace MW"
+    if "`var'"=="d_mw_wkp"           return local x_lab "Change in workplace MW"
 
     if "`var'"=="perc_incr_rent"     return local x_lab "Percent increase in rents per sq. foot"
     if "`var'"=="perc_incr_wagebill" return local x_lab "Percent increase in total wages"
