@@ -1,5 +1,5 @@
 
- make.py started: 2022-03-26 12:26:46 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\code 
+ make.py started: 2022-03-26 15:53:19 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\code 
 
 
 
@@ -299,9 +299,8 @@ running c:\ado\personal\profile.do ...
   5. 
 .     keep if counterfactual == "fed_9usd"
   6. 
-.     foreach var in d_mw_res d_mw_wkp                  ///
->                     perc_incr_rent perc_incr_wagebill ///
->                     ratio_increases rho {
+.     foreach var in d_mw_res d_mw_wkp rho                   ///
+>                    change_ln_rents change_ln_wagebill  {
   7.         
 .         get_xlabel, var(`var')
   8.         local x_lab = r(x_lab)
@@ -312,8 +311,8 @@ running c:\ado\personal\profile.do ...
  12.             local scale_opts "yscale(r(0 43)) xscale(r(0 0.23))"
  13.             local bin_opt    "bin(25)"
  14.         }
- 15.         if inlist("`var'", "rho", "perc_incr_rent", "perc_incr_wagebill") 
-> {
+ 15.         if inlist("`var'", "rho", "change_ln_rents", "change_ln_wagebill")
+>  {
  16.             local bin_opt    "bin(30)"
  17.         }
  18. 
@@ -405,17 +404,13 @@ running c:\ado\personal\profile.do ...
   6.     if "`var'"=="d_mw_wkp"           return local x_lab "Change in workpla
 > ce MW"
   7. 
-.     if "`var'"=="perc_incr_rent"     return local x_lab "Percent increase in 
-> rents per sq. foot"
-  8.     if "`var'"=="perc_incr_wagebill" return local x_lab "Percent increase 
-> in total wages"
+.     if "`var'"=="change_ln_rents"    return local x_lab "Change in log rents 
+> per sq. foot"
+  8.     if "`var'"=="change_ln_wagebill" return local x_lab "Change in log tot
+> al wages"
   9. 
-.     if "`var'"=="ratio_increases"    return local x_lab "Ratio of percent inc
-> reases"
- 10.     if "`var'"=="rho"                return local x_lab "Landlord share"  
->       
- 11. 
-. end
+.     if "`var'"=="rho"                return local x_lab "Landlord share"
+ 10. end
 
 . 
 . 
@@ -431,26 +426,21 @@ running c:\ado\personal\profile.do ...
 (file ../output/hist_d_mw_wkp.png written in PNG format)
 (note: file ../output/hist_d_mw_wkp.eps not found)
 (file ../output/hist_d_mw_wkp.eps written in EPS format)
-(bin=30, start=-.00447566, width=.00040037)
-(note: file ../output/hist_perc_incr_rent.png not found)
-(file ../output/hist_perc_incr_rent.png written in PNG format)
-(note: file ../output/hist_perc_incr_rent.eps not found)
-(file ../output/hist_perc_incr_rent.eps written in EPS format)
-(bin=30, start=0, width=.00079013)
-(note: file ../output/hist_perc_incr_wagebill.png not found)
-(file ../output/hist_perc_incr_wagebill.png written in PNG format)
-(note: file ../output/hist_perc_incr_wagebill.eps not found)
-(file ../output/hist_perc_incr_wagebill.eps written in EPS format)
-(bin=40, start=-.44616261, width=.02375239)
-(note: file ../output/hist_ratio_increases.png not found)
-(file ../output/hist_ratio_increases.png written in PNG format)
-(note: file ../output/hist_ratio_increases.eps not found)
-(file ../output/hist_ratio_increases.eps written in EPS format)
 (bin=30, start=-.15615691, width=.01108445)
 (note: file ../output/hist_rho.png not found)
 (file ../output/hist_rho.png written in PNG format)
 (note: file ../output/hist_rho.eps not found)
 (file ../output/hist_rho.eps written in EPS format)
+(bin=30, start=-.00448571, width=.00039977)
+(note: file ../output/hist_change_ln_rents.png not found)
+(file ../output/hist_change_ln_rents.png written in PNG format)
+(note: file ../output/hist_change_ln_rents.eps not found)
+(file ../output/hist_change_ln_rents.eps written in EPS format)
+(bin=30, start=0, width=.00078091)
+(note: file ../output/hist_change_ln_wagebill.png not found)
+(file ../output/hist_change_ln_wagebill.png written in PNG format)
+(note: file ../output/hist_change_ln_wagebill.eps not found)
+(file ../output/hist_change_ln_wagebill.eps written in EPS format)
 (note: file ../output/deciles_diff.png not found)
 (file ../output/deciles_diff.png written in PNG format)
 (note: file ../output/deciles_diff.eps not found)
@@ -490,17 +480,38 @@ Type 'q()' to quit R.
 +   dt <- fread(file.path(instub, "data_counterfactuals.csv"))
 +   
 +   alpha = 0.35
++ 
++   dt_cf <- dt[counterfactual == "fed_9usd"]
++ 
++   txt <- c("<tab:counterfactuals_fed_9usd>",
++             paste(alpha - 0.1, alpha + 0.1, sep = "\t"))
++ 
++   for (sample in c("fully_affected", "no_direct_treatment")) {
++     
++     dt_sample <- dt_cf[get(sample) == 1]
++     
++     txt <- c(txt, 
++             paste(dim(dt_sample)[1],
++                   mean(dt_sample[["d_mw_res"]],  na.rm = T),
++                   mean(dt_sample[["d_mw_wkp"]],  na.rm = T),
++                   mean(dt_sample[["rho_lb"]],    na.rm = T),
++                   mean(dt_sample[["rho_ub"]],    na.rm = T),
++                   sep = "\t"))
++   }
 +   
-+   for (cf in unique(dt$counterfactual)) {
++   fileConn <- file(file.path(outstub, "counterfactuals_fed_9usd.txt"))
++   writeLines(txt, fileConn)
++   close(fileConn)
++ 
++   txt <- c("<tab:counterfactuals_other>",
++             paste(alpha - 0.1, alpha + 0.1, sep = "\t"))
++ 
++   for (cf in c("fed_10pc", "fed_15usd")) {
 +     dt_cf <- dt[counterfactual == cf]
 + 
-+     txt <- c(sprintf("<tab:counterfactuals_%s>", cf),
-+               paste(alpha - 0.1, alpha + 0.1, sep = "\t"))
-+   
 +     for (sample in c("fully_affected", "no_direct_treatment")) {
 +       
-+       dt_sample <- dt_cf[get(sample) == 1]
-+       
++       dt_sample <- dt_cf[get(sample) == 1]      
 +       txt <- c(txt, 
 +               paste(dim(dt_sample)[1],
 +                     mean(dt_sample[["d_mw_res"]],  na.rm = T),
@@ -508,12 +519,12 @@ Type 'q()' to quit R.
 +                     mean(dt_sample[["rho_lb"]],    na.rm = T),
 +                     mean(dt_sample[["rho_ub"]],    na.rm = T),
 +                     sep = "\t"))
-+     }
-+     
-+     fileConn <- file(file.path(outstub, sprintf("counterfactuals_%s.txt", cf)))
-+     writeLines(txt, fileConn)
-+     close(fileConn)
++     }    
 +   }
++   
++   fileConn <- file(file.path(outstub, "counterfactuals_other.txt"))
++   writeLines(txt, fileConn)
++   close(fileConn)
 + }
 > 
 > 
@@ -521,7 +532,7 @@ Type 'q()' to quit R.
 > 
 > proc.time()
    user  system elapsed 
-   0.54    0.20    0.65 
+   0.57    0.28    0.68 
 
 
 Execute:  R CMD BATCH --no-save "./map_cfs.R" map_cfs.Rout
@@ -610,7 +621,7 @@ repos='https://nowosad.github.io/drat/', type='source')`
 +   
 +   build_map(data = df_chicago, 
 +             var = "change_ln_rents", 
-+             var_legend ="Counterfactual change \nin log rents", 
++             var_legend ="Counterfactual change\nin log rents", 
 +             break_values = c(min_break_rents, max_break_rents/2, max_break_rents), 
 +             map_name = "chicago_d_ln_rents")
 + 
@@ -698,6 +709,6 @@ Warning messages:
 > 
 > proc.time()
    user  system elapsed 
- 112.78   89.59  202.57 
+ 114.21   91.96  209.29 
 
- make.py ended: 2022-03-26 12:30:25
+ make.py ended: 2022-03-26 15:57:09

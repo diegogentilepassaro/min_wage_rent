@@ -11,9 +11,8 @@ program main
 
     keep if counterfactual == "fed_9usd"
 
-    foreach var in d_mw_res d_mw_wkp                  ///
-                    perc_incr_rent perc_incr_wagebill ///
-                    ratio_increases rho {
+    foreach var in d_mw_res d_mw_wkp rho                   ///
+                   change_ln_rents change_ln_wagebill  {
         
         get_xlabel, var(`var')
         local x_lab = r(x_lab)
@@ -24,7 +23,7 @@ program main
             local scale_opts "yscale(r(0 43)) xscale(r(0 0.23))"
             local bin_opt    "bin(25)"
         }
-        if inlist("`var'", "rho", "perc_incr_rent", "perc_incr_wagebill") {
+        if inlist("`var'", "rho", "change_ln_rents", "change_ln_wagebill") {
             local bin_opt    "bin(30)"
         }
 
@@ -106,12 +105,10 @@ program get_xlabel, rclass
     if "`var'"=="d_mw_res"           return local x_lab "Change in residence MW"
     if "`var'"=="d_mw_wkp"           return local x_lab "Change in workplace MW"
 
-    if "`var'"=="perc_incr_rent"     return local x_lab "Percent increase in rents per sq. foot"
-    if "`var'"=="perc_incr_wagebill" return local x_lab "Percent increase in total wages"
+    if "`var'"=="change_ln_rents"    return local x_lab "Change in log rents per sq. foot"
+    if "`var'"=="change_ln_wagebill" return local x_lab "Change in log total wages"
 
-    if "`var'"=="ratio_increases"    return local x_lab "Ratio of percent increases"
-    if "`var'"=="rho"                return local x_lab "Landlord share"	
-
+    if "`var'"=="rho"                return local x_lab "Landlord share"
 end
 
 

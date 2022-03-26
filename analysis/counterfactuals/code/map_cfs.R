@@ -45,7 +45,7 @@ main <- function(){
   
   build_map(data = df_chicago, 
             var = "change_ln_rents", 
-            var_legend ="Counterfactual change \nin log rents", 
+            var_legend ="Counterfactual change\nin log rents", 
             break_values = c(min_break_rents, max_break_rents/2, max_break_rents), 
             map_name = "chicago_d_ln_rents")
 
