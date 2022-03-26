@@ -16,7 +16,7 @@ main <- function(){
                                 numeric   = c("num_house10")))
 
   dt_zip_demo  <- block_to_zip(in_demo, copy(dt_geo))
-  dt_zip_mwers <- tract_to_zip(in_demo, copy(dt_geo))
+  dt_zip_mwers <- tract_to_zip(in_demo, dt_geo)
   rm(dt_geo)
 
   dt <- merge(dt_zip_demo, dt_zip_mwers, by = c("zipcode"), all = T)
@@ -48,8 +48,9 @@ block_to_zip <- function(instub, dt_geo) {
                n_hhlds_urban_cens2010       = sum(n_hhlds_urban,           na.rm = T),
                n_hhlds_renteroccup_cens2010 = sum(n_hhlds_renter_occupied, na.rm = T)),
            by = .(zipcode)]
-  dt <- dt[, sh_rural_pop_2010 := 1 - (urb_pop_cens2010/population_cens2010)]
 
+  dt <- dt[, rural_pop_cens2010 := population_cens2010 - urb_pop_cens2010]
+  
   return(dt)
 }
 
@@ -90,8 +91,11 @@ tract_to_zip <- function(instub, dt_geo) {
 compute_shares <- function(dt) {
   
   # Census 2010
-  for (var in paste0(c("n_white", "n_black", "n_male", "urb_pop"), "_cens2010")) {
+  for (var in paste0(c("n_white", "n_black", "n_male", "urb_pop", "rural_pop"), "_cens2010")) {
+
     newvar <- gsub("^n_", "sh_", var)
+    if (grepl("pop", var)) newvar <- paste0("sh_", var, "_cens2010")
+
     dt[, c(newvar) := get(var)/population_cens2010]
   }
   for (var in paste0(c("n_hhlds_urban", "n_hhlds_renteroccup"), "_cens2010")) {
