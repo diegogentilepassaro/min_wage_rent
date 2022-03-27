@@ -40,8 +40,8 @@ program main
 
     twoway (line     rho  diff_qts, lcol(navy))                             ///
            (scatter  rho  diff_qts, mcol(navy)),                            ///
-        xtitle("Difference between change in wrk. and res. MW (deciles)")   ///
-        ytitle("Mean share accruing to landlord on each dollar")            ///
+        xtitle("Difference between change in wrk. MW and change in res. MW (deciles)")   ///
+        ytitle("Mean landlord share")                                       ///
         xlabel(1(1)10) ylabel(0(0.04)0.2)                                   ///
         graphregion(color(white)) bgcolor(white) legend(off)
         
