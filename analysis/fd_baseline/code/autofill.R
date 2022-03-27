@@ -28,7 +28,7 @@ main <- function() {
       
         estim   <- write_command(paste0(mm, vv, 'Base'), round(dt_comb$b,4))
         
-        estim10 <- write_command(paste0(mm, vv, 'BaseTen'), round(10 * dt_comb$b,3))
+        estim10 <- write_command(paste0(mm, vv, 'BaseTen'), round(10 * dt_comb$b,2))
         
         tstat   <- write_command(paste0(mm, vv, 'BasetStat'), dt_comb$t)
         
@@ -36,7 +36,7 @@ main <- function() {
           
           estimAbs   <- write_command(paste0(mm, vv, 'BaseAbs'), round(abs(dt_comb$b),4))
           
-          estimAbs10 <- write_command(paste0(mm, vv, 'BaseTenAbs'), round(10* abs(dt_comb$b),3))
+          estimAbs10 <- write_command(paste0(mm, vv, 'BaseTenAbs'), round(10* abs(dt_comb$b),2))
           
           txt <- paste0(txt, estim, estimAbs, estim10, estimAbs10, tstat)
           
@@ -69,7 +69,7 @@ main <- function() {
     
     estim   <- write_command(paste0(name, vv, 'Base'), round(dt_comb$b, 4))
     
-    estim10 <- write_command(paste0(name, vv, 'BaseTen'), round(10 * dt_comb$b,3))
+    estim10 <- write_command(paste0(name, vv, 'BaseTen'), round(10 * dt_comb$b,2))
     
     tstat   <- write_command(paste0(name, vv, 'BasetStat'), dt_comb$t)
     
@@ -77,7 +77,7 @@ main <- function() {
       
       estimAbs   <- write_command(paste0(name, vv, 'BaseAbs'), round(abs(dt_comb$b),4))
       
-      estimAbs10 <- write_command(paste0(name, vv, 'BaseTenAbs'), round(10* abs(dt_comb$b),3))
+      estimAbs10 <- write_command(paste0(name, vv, 'BaseTenAbs'), round(10* abs(dt_comb$b),2))
       
       txt <- paste0(txt, estim, estimAbs, estim10, estimAbs10, tstat)
     } else {
@@ -90,7 +90,13 @@ main <- function() {
   
   est <- data[var == 'Sum', p_equality]
   
-  comm <- write_command('GammaBetaDynBasePval', round(est, 3))
+  comm <- write_command('GammaBetaDynBasePVal', round(est, 3))
+  
+  txt <- paste0(txt, comm)
+  
+  est <- data[var == 'Sum', p_pretrend]
+  
+  comm <- write_command('GammaBetaDynBasePPreTrend', round(est, 3))
   
   txt <- paste0(txt, comm)
   
