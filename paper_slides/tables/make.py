@@ -89,21 +89,18 @@ tablefill(input    = os.path.join(fd_wages_dir, "static_wages.txt"),
           template = "input/static_wages.tex",
           output   = "output/static_wages.tex")
 
-tablefill(input    = os.path.join(fd_wages_dir, "static_wages_robustness.txt"),
-          template = "input/static_wages_robustness.tex",
-          output   = "output/static_wages_robustness.tex")
-
-tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals.txt"),
-          template = "input/counterfactuals.tex",
-          output   = "output/counterfactuals.tex")
-
-tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals.txt"),
-          template = "input/slides_counterfactuals.tex",
-          output   = "output/slides_counterfactuals.tex")
-
 tablefill(input    = os.path.join(autocorr_dir, "autocorrelation.txt"), 
           template = "input/autocorrelation.tex", 
           output   = "output/autocorrelation.tex")
+
+tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals_fed_9usd.txt"),
+          template = "input/counterfactuals_fed_9usd.tex",
+          output   = "output/counterfactuals_fed_9usd.tex")
+
+tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals_other.txt"),
+          template = "input/counterfactuals_other.tex",
+          output   = "output/counterfactuals_other.tex")
+
 
 end_make_logging()
 

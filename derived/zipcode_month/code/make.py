@@ -32,16 +32,6 @@ if "StataSE" in envir_vars:
 
 start_make_logging()
 
-t = time.localtime()
-current_time = time.strftime("%H:%M:%S", t)
-print("Going to sleep at ", current_time)
-
-time.sleep(6600)
-
-t = time.localtime()
-current_time = time.strftime("%H:%M:%S", t)
-print("Waking up at ", current_time)
-
 run_stata(program = 'build.do', executable = stata)
 
 end_make_logging()
