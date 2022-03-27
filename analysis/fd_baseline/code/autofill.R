@@ -17,8 +17,13 @@ main <- function() {
   
   txt <- ''
 
-  for (mm in c('WkpOnRes', 'Only', 'Both')) {
-    for (vv in c('Gamma', 'Beta', 'Sum')) {
+  for (mm in c('WkpOnRes', 'OnlyRes', 'OnlyWkp', 'Both')) {
+    
+    if (mm == 'Both')          parameters <- c('Gamma', 'Beta', 'Sum')
+    else if (mm == 'WkpOnRes') parameters <- c('Coeff')
+    else                       parameters <- c('Gamma', 'Beta')
+    
+    for (vv in parameters) {
       
       dt_comb <- dt[model == mm & var == vv]
       
@@ -106,9 +111,12 @@ load_data <- function(path, panel) {
   
   if (panel=='static') {
     
-    data[, `:=`(model = fcase(model == 'mw_wkp_on_res_mw',                   'WkpOnRes',
-                              model %in% c('static_mw_res','static_mw_wkp'), 'Only', 
-                              model == 'static_both',                        'Both'))]
+    data[, `:=`(model = fcase(model == 'mw_wkp_on_res_mw',  'WkpOnRes',
+                              model == 'static_mw_res',     'OnlyRes',
+                              model == 'static_mw_wkp',     'OnlyWkp',
+                              model == 'static_both',       'Both'))]
+    
+    data[, var := fifelse(model == "WkpOnRes" & var == "Gamma", "Coeff", var)]
   }
   
   return(data)
