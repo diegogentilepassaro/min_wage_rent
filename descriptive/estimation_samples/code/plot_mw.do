@@ -17,17 +17,18 @@ end
 program plot_mw_dist
     syntax, outstub(str)
 
-    twoway (hist pct_ch_MW if pct_ch_MW>0, color(navy%80) lcolor(white) lw(vthin)), ///
-        xtitle("Minimum wage changes (%)") ytitle("Relative frequency") ///
-        xlabel(, labsize(small)) ylabel(, labsize(small)) ///
+    keep if pct_ch_MW > 0
+    twoway (hist pct_ch_MW, color(navy%80) lcolor(white) lw(vthin)),       ///
+        xtitle("Minimum wage increase (%)") ytitle("Relative frequency")   ///
+        xlabel(, labsize(small)) ylabel(, labsize(small))                  ///
         graphregion(color(white)) bgcolor(white)
     graph export `outstub'/pct_ch_mw_dist.png, replace 
     graph export `outstub'/pct_ch_mw_dist.eps, replace
 
-    keep if pct_ch_MW > 0
-    twoway (hist year_month, color(navy%80) lcolor(white) lw(vthin)), ///
-        xtitle("Monthly date") ytitle("Relative frequency") ///
-        xlabel(`=mofd(td(01jun2010))'(6)`=mofd(td(01dec2019))', labsize(small) angle(45)) ///
+    twoway (hist year_month, color(navy%80) lcolor(white) lw(vthin)),       ///
+        xtitle("Monthly date") ytitle("Relative frequency")                 ///
+        xlabel(`=mofd(td(01jun2010))'(6)`=mofd(td(01dec2019))',             ///
+               labsize(small) angle(45))                                    ///
         graphregion(color(white)) bgcolor(white)
     graph export `outstub'/pct_ch_mw_date_dist.png, replace 
     graph export `outstub'/pct_ch_mw_date_dist.eps, replace 

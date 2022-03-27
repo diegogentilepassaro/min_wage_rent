@@ -38,7 +38,7 @@ program build_entry_plot
     
     label var nbr_entrant        "Number of entrants"
     label var cum_share_entrant  "Cumulative share of entrants"
-    label var min_year_month     "Year-month"
+    label var min_year_month     "Monthly date"
     
     twoway (line nbr_entrant min_year_month, yaxis(1)) ///
            (line cum_share_entrant min_year_month, yaxis(2)), ///

@@ -5,7 +5,7 @@ program estimate_stacked_model
         [controls(str) wgt(str) outfolder(str)]
 
     if "`outfolder'"==""{
-        local outfolder "../output"
+        local outfolder "../temp"
     }
 
     if "`wgt'"=="" {

@@ -1,21 +1,16 @@
 clear all
 set more off
 adopath + ../../../lib/stata/gslab_misc/ado
-adopath + ../../../lib/stata/min_wage/ado
 set maxvar 32000
 
 program main
-    local instub_demo      "../../../drive/derived_large/demographics_at_baseline"
+    local instub_zipcode   "../../../drive/derived_large/zipcode"
     local instub_irs       "../../../drive/base_large/irs_soi"
     local instub_safmr     "../../../base/safmr/output"
     local instub_zip_mth   "../../../drive/derived_large/zipcode_month"   
     local instub_est_samp  "../../../drive/derived_large/estimation_samples"    
 
-
-    clean_demo, instub(`instub_demo')
-    save_data "../temp/demo_clean.dta",  log(none)      ///
-        key(zipcode) replace
-    
+    * Cross-sections    
     clean_irs, instub(`instub_irs')
     save_data "../temp/irs_2010_clean.dta",  log(none)      ///
         key(zipcode) replace
@@ -30,11 +25,11 @@ program main
         key(zipcode countyfips cbsa)  replace
     
     use zipcode countyfips cbsa statefips year_month year  ///
-        month medrentprice_SFCC medrentpricepsqft_SFCC            ///
-        medrentprice_2BR medrentpricepsqft_2BR ///
-        statutory_mw ///
+        month medrentprice_SFCC medrentprice_2BR           ///
+        medrentpricepsqft_* statutory_mw                   ///
         using "`instub_zip_mth'/zipcode_month_panel.dta", clear
-    merge m:1 zipcode using "../temp/demo_clean.dta", nogen ///
+    
+    merge m:1 zipcode using "`instub_zipcode'/zipcode_cross.dta", nogen ///
         assert(2 3)
     merge 1:1 zipcode year_month using "`instub_est_samp'/zipcode_months.dta", ///
         nogen assert(1 3) keepusing(baseline_sample)
@@ -44,7 +39,7 @@ program main
                     "all_zillow_rents" "baseline" {
         
         use "../temp/`data'_zipcodes.dta", clear
-        merge 1:1 zipcode using "../temp/demo_clean.dta", nogen ///
+        merge 1:1 zipcode using "`instub_zipcode'/zipcode_cross.dta", nogen ///
             assert(2 3) keep(3)
         merge 1:1 zipcode using "../temp/statutory_mw_feb2010.dta",  ///
             nogen keep(1 3)
@@ -57,35 +52,28 @@ program main
         merge 1:1 zipcode countyfips cbsa                       ///
             using "../temp/safmr_2012_clean.dta", nogen keep(1 3)
         
-        drop countyfips cbsa statefips
-
         save_data "../output/`data'_zipcode_lvl_data.dta",        ///
             key(zipcode) replace
         export delimited "../output/`data'_zipcode_lvl_data.csv", replace
     }
     
-    use zipcode countyfips cbsa statefips year_month year month  ///
-        statutory_mw mw_wkp_tot_17 mw_res                               ///
-        medrentpricepsqft_SFCC medrentprice_SFCC                   ///
-        ln_rents medrentpricepsqft_2BR medrentprice_2BR            ///
+    * Panel
+    use zipcode countyfips cbsa statefips year_month year month    ///
+        statutory_mw mw_wkp_tot_17 mw_res  *_SFCC  ln_rent*        ///
+        mw_wkp_earn_under1250_17 mw_wkp_age_under29_17             ///
         ln_emp_bizserv ln_emp_info ln_emp_fin                      ///
         ln_estcount_bizserv ln_estcount_info ln_estcount_fin       ///
         ln_avgwwage_bizserv ln_avgwwage_info ln_avgwwage_fin baseline_sample ///
-        using "`instub_est_samp'/zipcode_months.dta" ///
-        if baseline_sample == 1, clear
+        using "`instub_est_samp'/zipcode_months.dta", clear
+    
+    keep if baseline_sample == 1
+
     merge m:1 zipcode countyfips cbsa year using "../temp/safmr_clean.dta", ///
         nogen keep(1 3)
+    
     save_data "../output/baseline_zillow_rents_zipcode_months.dta", ///
             key(zipcode year_month) replace
     export delimited "../output/baseline_zillow_rents_zipcode_months.csv", replace
-end
-
-program clean_demo
-    syntax, instub(str)
-    
-    use "`instub'/zipcode.dta", clear
-    gen sh_urban_pop_2010 = 1 - sh_rural_pop_2010 if !missing(sh_rural_pop_2010)
-    gen rural = (sh_rural_pop_2010 >= 0.6) if !missing(sh_rural_pop_2010)
 end
 
 program clean_irs 
@@ -97,7 +85,7 @@ program clean_irs
     keep if year == 2010
     
     keep zipcode statefips share_wage_hhlds share_bussiness_hhlds /// 
-         share_farmer_hhlds agi_per_hhld wage_per_wage_hhld ///
+         share_farmer_hhlds agi_per_hhld wage_per_wage_hhld       ///
          wage_per_hhld bussines_rev_per_owner
 end
 
@@ -114,7 +102,7 @@ program build_zip_lvl_samples
     preserve
         keep if year == 2015 & month == 1
         keep zipcode medrentprice_SFCC medrentpricepsqft_SFCC     ///
-        medrentprice_2BR medrentpricepsqft_2BR
+            medrentprice_2BR medrentpricepsqft_2BR
         save "../temp/rents_jan2015.dta", replace
     restore
     
@@ -133,28 +121,28 @@ program build_zip_lvl_samples
     restore
     
     preserve
-        keep zipcode countyfips cbsa statefips rural
+        keep zipcode countyfips cbsa statefips urban_cbsa urban_zip
         duplicates drop zipcode, force
         save "../temp/all_zipcodes.dta", replace
     restore 
     
     preserve
-        keep if rural == 0
-        keep zipcode countyfips cbsa statefips rural
+        keep if urban_cbsa == 1
+        keep zipcode countyfips cbsa statefips urban_cbsa urban_zip
         duplicates drop zipcode, force
         save "../temp/all_urban_zipcodes.dta", replace
     restore 
     
     preserve
         keep if !missing(medrentpricepsqft_SFCC)
-        keep zipcode countyfips cbsa statefips rural
+        keep zipcode countyfips cbsa statefips urban_cbsa urban_zip
         duplicates drop zipcode, force
         save "../temp/all_zillow_rents_zipcodes.dta", replace
     restore 
 
     preserve
         keep if baseline_sample == 1
-        keep zipcode  countyfips cbsa statefips rural
+        keep zipcode countyfips cbsa statefips urban_cbsa urban_zip
         duplicates drop zipcode, force
         save "../temp/baseline_zipcodes.dta", replace
     restore 

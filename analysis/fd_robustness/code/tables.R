@@ -6,18 +6,31 @@ main <- function() {
   outstub <- "../output/"
   
   est <- fread(file.path(instub, "estimates_static.csv"))
-  
+
+  # Robustness Table
   names <- c("baseline", 
              "nocontrols", "countytime_fe", "cbsatime_fe", "statefipstime_fe", "ziptrend",
              paste0("mw_wkp_", c("tot_14", "tot_18", "tot_timevary", "earn_under1250_17", "age_under29_17")))
 
-  # Robustness Table
   txt <- c("<tab:robustness>")
   for (name in names) {
     txt <- c(txt, make_row_robustness(est, name))
   }
   
   fileConn <- file(file.path(outstub, "robustness.txt"))
+  writeLines(txt, fileConn)
+  close(fileConn)
+
+  # Alternative Zillow categories Table
+  names <- c("baseline", 
+             "SF", "CC", "Studio", "1BR", "2BR", "3BR", "Mfr5Plus")
+  
+  txt <- c("<tab:zillow_categories>")
+  for (name in names) {
+    txt <- c(txt, make_row_robustness(est, name))
+  }
+  
+  fileConn <- file(file.path(outstub, "zillow_categories.txt"))
   writeLines(txt, fileConn)
   close(fileConn)
   
@@ -27,31 +40,31 @@ main <- function() {
   txt <- c("<tab:static_sample>")
   for (xvar in c("mw_res", "mw_wkp_tot_17")) {
     txt  <- c(txt, 
-              paste(est[model == "baseline"              & var == xvar,]$b,
-                    est[model == "baseline_wgt"          & var == xvar,]$b,
-                    est[model == "unbal_by_entry"        & var == xvar,]$b,
-                    est[model == "unbal_by_entry_wgt"    & var == xvar,]$b,
-                    est[model == "fullbal"               & var == xvar,]$b,
-                    est[model == "fullbal_wgt"           & var == xvar,]$b,
+              paste(est[model == "baseline"           & var == xvar,]$b,
+                    est[model == "baseline_wgt"       & var == xvar,]$b,
+                    est[model == "fullbal"            & var == xvar,]$b,
+                    est[model == "fullbal_wgt"        & var == xvar,]$b,
+                    est[model == "unbal_by_entry"     & var == xvar,]$b,
+                    est[model == "unbal_by_entry_wgt" & var == xvar,]$b,
                     sep = "\t"))
     txt  <- c(txt, 
-              paste(est[model == "baseline"              & var == xvar,]$se,
-                    est[model == "baseline_wgt"          & var == xvar,]$se,
-                    est[model == "unbal_by_entry"        & var == xvar,]$se,
-                    est[model == "unbal_by_entry_wgt"    & var == xvar,]$se,
-                    est[model == "fullbal"               & var == xvar,]$se,
-                    est[model == "fullbal_wgt"           & var == xvar,]$se,
+              paste(est[model == "baseline"           & var == xvar,]$se,
+                    est[model == "baseline_wgt"       & var == xvar,]$se,
+                    est[model == "fullbal"            & var == xvar,]$se,
+                    est[model == "fullbal_wgt"        & var == xvar,]$se,
+                    est[model == "unbal_by_entry"     & var == xvar,]$se,
+                    est[model == "unbal_by_entry_wgt" & var == xvar,]$se,
                     sep = "\t"))
   }
 
   for (stat in c("p_equality", "r2", "N")) {
     txt  <- c(txt, 
-              paste(est[model == "baseline"              & var == "cumsum_from0",][[stat]],
-                    est[model == "baseline_wgt"          & var == "cumsum_from0",][[stat]],
-                    est[model == "unbal_by_entry"        & var == "cumsum_from0",][[stat]],
-                    est[model == "unbal_by_entry_wgt"    & var == "cumsum_from0",][[stat]],
-                    est[model == "fullbal"               & var == "cumsum_from0",][[stat]],
-                    est[model == "fullbal_wgt"           & var == "cumsum_from0",][[stat]],
+              paste(est[model == "baseline"           & var == "cumsum_from0",][[stat]],
+                    est[model == "baseline_wgt"       & var == "cumsum_from0",][[stat]],
+                    est[model == "fullbal"            & var == "cumsum_from0",][[stat]],
+                    est[model == "fullbal_wgt"        & var == "cumsum_from0",][[stat]],
+                    est[model == "unbal_by_entry"     & var == "cumsum_from0",][[stat]],
+                    est[model == "unbal_by_entry_wgt" & var == "cumsum_from0",][[stat]],
                     sep = "\t"))
   }
 
@@ -79,7 +92,7 @@ main <- function() {
               paste(est[model == "AB" & var == "L_ln_rents",]$se,
                     sep = "\t"))
   
-  for (stat in c("p_equality", "r2", "N")) {
+  for (stat in c("p_equality", "N")) {
     txt_ab <- c(txt_ab, 
                 paste(est[model == "baseline" & var == "mw_wkp_tot_17",][[stat]],
                       est[model == "AB"       & var == "mw_wkp_tot_17",][[stat]],

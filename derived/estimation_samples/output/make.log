@@ -1,5 +1,5 @@
 
- make.py started: 2022-03-16 06:14:31 C:\Users\diegog\Desktop\Diego\min_wage_rent\derived\estimation_samples\code 
+ make.py started: 2022-03-26 12:50:18 C:\Users\shermo\Documents\GitHub\min_wage_rent\derived\estimation_samples\code 
 
 
 
@@ -36,6 +36,8 @@ running c:\ado\personal\profile.do ...
 
 . clear all
 
+. version 15
+
 . adopath + ../../../lib/stata/gslab_misc/ado
   [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
   [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
@@ -57,23 +59,30 @@ running c:\ado\personal\profile.do ...
   7.     local start_year_month  "2010m1"
   8.     local end_year_month    "2019m12"
   9.     local target_year_month "2015m1"
- 10.     local target_vars       "sh_white_cens2010 sh_black_cens2010 sh_hhlds_
-> renteroccup_cens2010 med_hhld_inc_acs2011" // n_workers_acs2011 
- 11.         
+ 10.     #delimit ;
+delimiter now ;
+.     local target_vars  "sh_hhlds_renteroccup_cens2010
+>                         sh_mw_wkrs_statutory
+>                         sh_workers_under29_2013    sh_workers_accomm_food_201
+> 3";
+ 11.     #delimit cr
+delimiter now cr
+.     
+.     * Zipcode-months
 .     create_unbalanced_panel, instub(`in_zip_mth')                     ///
 >         geo(zipcode) rent_var(`rent_var')                             ///
 >         start_ym(`start_year_month') end_ym(`end_year_month')
  12. 
-.     gen_vars, rent_var(`rent_var')
+.     gen_vars, rent_var(`rent_var') geo(zipcode)
  13.     preserve 
- 14.                 collapse (min) ym_entry_to_zillow = year_month ///
->                     if !missing(`rent_var'), by(zipcode)
- 15.                 gen yr_entry_to_zillow = year(dofm(ym_entry_to_zillow))
- 16.                 drop ym_entry_to_zillow
- 17.                 save "../temp/ym_entry_to_zillow.dta", replace
- 18.         restore
- 19.         merge m:1 zipcode using "../temp/ym_entry_to_zillow.dta", ///
->                 nogen keep(1 3) assert(1 3)
+ 14.         collapse (min) ym_entry_to_zillow = year_month ///
+>             if !missing(`rent_var'), by(zipcode)
+ 15.         gen yr_entry_to_zillow = year(dofm(ym_entry_to_zillow))
+ 16.         drop ym_entry_to_zillow
+ 17.         save "../temp/ym_entry_to_zillow.dta", replace
+ 18.     restore
+ 19.     merge m:1 zipcode using "../temp/ym_entry_to_zillow.dta", ///
+>         nogen keep(1 3) assert(1 3)
  20.     flag_samples, instub(`in_zip_mth') geo(zipcode) geo_name(zipcode) ///
 >         rent_var(`rent_var') target_ym(`target_year_month')
  21. 
@@ -85,11 +94,12 @@ running c:\ado\personal\profile.do ...
 >         replace log(`logfile')
  24.     export delimited "`outstub'/zipcode_months.csv", replace
  25.     
+.     * County-months
 .     create_unbalanced_panel, instub(`in_cty_mth')                     ///
 >         geo(county) rent_var(`rent_var')                             ///
 >         start_ym(`start_year_month') end_ym(`end_year_month')
  26. 
-.     gen_vars, rent_var(`rent_var')
+.     gen_vars, rent_var(`rent_var') geo(county)
  27. 
 .     flag_samples, instub(`in_cty_mth') geo(county) geo_name(countyfips) ///
 >         rent_var(`rent_var') target_ym(`target_year_month')
@@ -117,17 +127,24 @@ running c:\ado\personal\profile.do ...
 
 . 
 . program gen_vars
-  1.     syntax, rent_var(str)
+  1.     syntax, rent_var(str) geo(str)
   2. 
 .     gen ln_rents = log(`rent_var')
-  3.     
-.     foreach ctrl_type in emp estcount avgwwage {
-  4.         gen ln_`ctrl_type'_bizserv = log(`ctrl_type'_bizserv)
-  5.         gen ln_`ctrl_type'_info    = log(`ctrl_type'_info)
-  6.         gen ln_`ctrl_type'_fin     = log(`ctrl_type'_fin)
-  7.         drop `ctrl_type'_*
+  3. 
+.     if "`geo'" == "zipcode"{
+  4.         foreach stub in 1BR 2BR 3BR 4BR 5BR CC MFdxtx Mfr5Plus SF Studio {
+  5.             gen ln_rents_`stub' = log(medrentpricepsqft_`stub')
+  6.             drop medrentpricepsqft_`stub'
+  7.         }
   8.     }
-  9. end
+  9.     
+.     foreach ctrl_type in emp estcount avgwwage {
+ 10.         gen ln_`ctrl_type'_bizserv = log(`ctrl_type'_bizserv)
+ 11.         gen ln_`ctrl_type'_info    = log(`ctrl_type'_info)
+ 12.         gen ln_`ctrl_type'_fin     = log(`ctrl_type'_fin)
+ 13.         drop `ctrl_type'_*
+ 14.     }
+ 15. end
 
 . 
 . program flag_samples
@@ -160,15 +177,16 @@ running c:\ado\personal\profile.do ...
 
 . 
 . program compute_weights
-  1.     syntax, instub(str) target_vars(str)
+  1.     syntax, instub(str) target_vars(str) [thresh(real 0.2)]
   2.     
 .     preserve
   3.         merge m:1 zipcode using "`instub'/zipcode_cross.dta", ///
->             assert(2 3) keep(2 3) keepusing(`target_vars')
-  4.         foreach var of local target_vars {
-  5.             qui sum `var'
-  6.             local mean = r(mean)
-  7.             local target_means "`target_means' `mean'"
+>             assert(2 3) keep(2 3) keepusing(`target_vars' urban_cbsa)
+  4. 
+.         foreach var of local target_vars {
+  5.             qui sum `var' if urban_cbsa == 1
+  6.             local var_mean = r(mean)
+  7.             local target_means "`target_means' `var_mean'"
   8.         }
   9.                 
 .         keep if _merge == 3
@@ -196,10 +214,7 @@ running c:\ado\personal\profile.do ...
 >         medlistingprice_top_tier medpctpricereduction_SFCC ///
 >         medrentprice_1BR medrentprice_4BR medrentprice_5BR ///
 >         medrentprice_CC medrentprice_MFdxtx medrentprice_Mfr5Plus ///
->         medrentprice_SF medrentprice_Studio medrentpricepsqft_1BR ///
->         medrentpricepsqft_4BR medrentpricepsqft_5BR medrentpricepsqft_CC ///
->         medrentpricepsqft_MFdxtx medrentpricepsqft_Mfr5Plus ///
->         medrentpricepsqft_SF medrentpricepsqft_Studio ///
+>         medrentprice_SF medrentprice_Studio ///
 >         pctlistings_pricedown_SFCC SalesPrevForeclosed_Share ///
 >         zhvi_2BR zhvi_SFCC zhvi_C zhvi_SF zri_SFCCMF zri_MF {
   2.         cap drop `var'
@@ -224,6 +239,16 @@ running c:\ado\personal\profile.do ...
        panel variable:  zipcode_num (unbalanced)
         time variable:  year_month, 2010m2 to 2019m12
                 delta:  1 month
+(156,932 missing values generated)
+(128,357 missing values generated)
+(135,361 missing values generated)
+(189,781 missing values generated)
+(197,473 missing values generated)
+(168,113 missing values generated)
+(189,705 missing values generated)
+(108,047 missing values generated)
+(55,852 missing values generated)
+(177,150 missing values generated)
 (12 missing values generated)
 (1,132 missing values generated)
 (24 missing values generated)
@@ -283,146 +308,143 @@ file ../temp/baseline_zipcode.dta saved
 
 
 Data Setup
-Covariate adjustment: sh_white_cens2010 sh_black_cens2010 sh_hhlds_renteroccup_
-> cens2010 med_hhld_inc_acs2011
+Covariate adjustment: sh_hhlds_renteroccup_cens2010 sh_mw_wkrs_statutory sh_wor
+> kers_under29_2013 sh_workers_accomm_food_2013
 
 
 Optimizing...
-Iteration 1: Max Difference = 1110309.74
-Iteration 2: Max Difference = 408458.693
-Iteration 3: Max Difference = 150262.122
-Iteration 4: Max Difference = 55276.9112
-Iteration 5: Max Difference = 20333.8052
-Iteration 6: Max Difference = 7478.95507
-Iteration 7: Max Difference = 2749.9205
-Iteration 8: Max Difference = 1010.2073
-Iteration 9: Max Difference = 370.206361
-Iteration 10: Max Difference = 134.773408
-Iteration 11: Max Difference = 48.189977
-Iteration 12: Max Difference = 16.4101999
-Iteration 13: Max Difference = 4.89908825
-Iteration 14: Max Difference = 1.03799254
-Iteration 15: Max Difference = .097847052
-Iteration 16: Max Difference = .001519102
+Iteration 1: Max Difference = 186319
+Iteration 2: Max Difference = 68542.6654
+Iteration 3: Max Difference = 25215.1732
+Iteration 4: Max Difference = 9275.87959
+Iteration 5: Max Difference = 3412.14118
+Iteration 6: Max Difference = 1254.9924
+Iteration 7: Max Difference = 461.421811
+Iteration 8: Max Difference = 169.483758
+Iteration 9: Max Difference = 62.0864391
+Iteration 10: Max Difference = 22.5790388
+Iteration 11: Max Difference = 8.05010007
+Iteration 12: Max Difference = 2.71848496
+Iteration 13: Max Difference = .790424558
+Iteration 14: Max Difference = .151969365
+Iteration 15: Max Difference = .009846252
 maximum difference smaller than the tolerance level; convergence achieved
 
 
-No. of units adjusted: 189718 total of weights: 189718
+No. of units adjusted: 186320 total of weights: 186320
 
 
 Before: without weighting
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_whit~2010 |     .6766     .04093     -1.139 
-sh_blac~2010 |     .1558     .03753      2.218 
-sh_hhld~2010 |     .3326     .02033      .6726 
-med_hhl~2011 |     58525   5.01e+08      .9945 
+sh_hhld~2010 |     .3316     .02013      .6576 
+sh_mw_wkrs~y |     .1463    .002156      1.851 
+sh_wo~9_2013 |     .2422     .00249      .5144 
+sh_wo~d_2013 |     .1194    .005298      2.442 
 
 
 After:  _webal as the weighting variable
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_whit~2010 |     .6971     .03703     -1.208 
-sh_blac~2010 |     .1456     .03163      2.354 
-sh_hhld~2010 |     .3189     .01874      .7012 
-med_hhl~2011 |     54278   3.77e+08      .9428 
+sh_hhld~2010 |     .3296     .01995      .6477 
+sh_mw_wkrs~y |     .1437    .001934      1.612 
+sh_wo~9_2013 |      .239    .002409      .5136 
+sh_wo~d_2013 |     .1179    .005424       2.55 
 
 
 Data Setup
-Covariate adjustment: sh_white_cens2010 sh_black_cens2010 sh_hhlds_renteroccup_
-> cens2010 med_hhld_inc_acs2011
+Covariate adjustment: sh_hhlds_renteroccup_cens2010 sh_mw_wkrs_statutory sh_wor
+> kers_under29_2013 sh_workers_accomm_food_2013
 
 
 Optimizing...
-Iteration 1: Max Difference = 763842.206
-Iteration 2: Max Difference = 281000.41
-Iteration 3: Max Difference = 103372.84
-Iteration 4: Max Difference = 38027.3084
-Iteration 5: Max Difference = 13988.031
-Iteration 6: Max Difference = 5144.47537
-Iteration 7: Max Difference = 1891.11385
-Iteration 8: Max Difference = 694.271178
-Iteration 9: Max Difference = 253.983177
-Iteration 10: Max Difference = 92.0259683
-Iteration 11: Max Difference = 32.4871313
-Iteration 12: Max Difference = 10.692159
-Iteration 13: Max Difference = 2.9270829
-Iteration 14: Max Difference = .513459762
-Iteration 15: Max Difference = .033605183
-Iteration 16: Max Difference = .000213625
+Iteration 1: Max Difference = 125056
+Iteration 2: Max Difference = 46005.2672
+Iteration 3: Max Difference = 16924.1277
+Iteration 4: Max Difference = 6225.77442
+Iteration 5: Max Difference = 2290.0702
+Iteration 6: Max Difference = 842.205588
+Iteration 7: Max Difference = 309.566103
+Iteration 8: Max Difference = 113.61937
+Iteration 9: Max Difference = 41.5356337
+Iteration 10: Max Difference = 15.0203173
+Iteration 11: Max Difference = 5.27339717
+Iteration 12: Max Difference = 1.70728953
+Iteration 13: Max Difference = .442216683
+Iteration 14: Max Difference = .062649955
+Iteration 15: Max Difference = .002023184
 maximum difference smaller than the tolerance level; convergence achieved
 
 
-No. of units adjusted: 127628 total of weights: 127628
+No. of units adjusted: 125057 total of weights: 125057
 
 
 Before: without weighting
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_whit~2010 |     .6709     .03834     -1.188 
-sh_blac~2010 |     .1603     .03674      2.254 
-sh_hhld~2010 |     .3273     .01924      .7662 
-med_hhl~2011 |     59850   4.65e+08      .9078 
+sh_hhld~2010 |      .326     .01895      .7375 
+sh_mw_wkrs~y |     .1402    .001777      1.984 
+sh_wo~9_2013 |     .2452    .002485       .496 
+sh_wo~d_2013 |     .1231    .005354      2.493 
 
 
 After:  _webal as the weighting variable
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_whit~2010 |     .6971     .03279     -1.246 
-sh_blac~2010 |     .1456     .02827      2.434 
-sh_hhld~2010 |     .3189     .01821      .7962 
-med_hhl~2011 |     54274   3.29e+08       .891 
+sh_hhld~2010 |     .3295     .01924      .7266 
+sh_mw_wkrs~y |     .1436    .002076      2.251 
+sh_wo~9_2013 |      .239    .002333      .4783 
+sh_wo~d_2013 |     .1179    .005127      2.622 
 
 
 Data Setup
-Covariate adjustment: sh_white_cens2010 sh_black_cens2010 sh_hhlds_renteroccup_
-> cens2010 med_hhld_inc_acs2011
+Covariate adjustment: sh_hhlds_renteroccup_cens2010 sh_mw_wkrs_statutory sh_wor
+> kers_under29_2013 sh_workers_accomm_food_2013
 
 
 Optimizing...
-Iteration 1: Max Difference = 454814.258
-Iteration 2: Max Difference = 167315.381
-Iteration 3: Max Difference = 61550.4548
-Iteration 4: Max Difference = 22641.7129
-Iteration 5: Max Difference = 8327.98685
-Iteration 6: Max Difference = 3062.26181
-Iteration 7: Max Difference = 1125.11116
-Iteration 8: Max Difference = 412.476894
-Iteration 9: Max Difference = 150.323231
-Iteration 10: Max Difference = 53.9087133
-Iteration 11: Max Difference = 18.5093752
-Iteration 12: Max Difference = 5.65934248
-Iteration 13: Max Difference = 1.29072458
-Iteration 14: Max Difference = .151797354
-Iteration 15: Max Difference = .003852066
+Iteration 1: Max Difference = 74221
+Iteration 2: Max Difference = 27304.1158
+Iteration 3: Max Difference = 10044.3586
+Iteration 4: Max Difference = 3694.84881
+Iteration 5: Max Difference = 1358.99473
+Iteration 6: Max Difference = 499.682118
+Iteration 7: Max Difference = 183.558913
+Iteration 8: Max Difference = 67.2643316
+Iteration 9: Max Difference = 24.4836954
+Iteration 10: Max Difference = 8.75029124
+Iteration 11: Max Difference = 2.97477735
+Iteration 12: Max Difference = .881541369
+Iteration 13: Max Difference = .179292514
+Iteration 14: Max Difference = .013733266
 maximum difference smaller than the tolerance level; convergence achieved
 
 
-No. of units adjusted: 75874 total of weights: 75874
+No. of units adjusted: 74222 total of weights: 74222
 
 
 Before: without weighting
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_whit~2010 |     .6699      .0387       -1.2 
-sh_blac~2010 |     .1594     .03701      2.277 
-sh_hhld~2010 |     .3308     .02006      .7589 
-med_hhl~2011 |     59944   4.70e+08       .904 
+sh_hhld~2010 |     .3289     .01958       .723 
+sh_mw_wkrs~y |     .1402    .001795      1.876 
+sh_wo~9_2013 |     .2453    .002478       .499 
+sh_wo~d_2013 |     .1222     .00535      2.597 
 
 
 After:  _webal as the weighting variable
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_whit~2010 |     .6971     .03324     -1.272 
-sh_blac~2010 |     .1456     .02878      2.454 
-sh_hhld~2010 |     .3189     .01864      .7892 
-med_hhl~2011 |     54285   3.31e+08      .8855 
+sh_hhld~2010 |     .3295     .01951      .7182 
+sh_mw_wkrs~y |     .1435    .002035      2.108 
+sh_wo~9_2013 |     .2392     .00233      .4806 
+sh_wo~d_2013 |      .118    .005385      2.811 
 (note: file ../temp/weights.dta not found)
 file ../temp/weights.dta saved
 
@@ -439,7 +461,7 @@ file ../temp/weights.dta saved
 File: ../../../drive/derived_large/estimation_samples/zipcode_months.dta
 Key: zipcode year_month
 ===============================================================================
-  197978:161(81192):2932853786:1250127618
+  197978:169(23960):4211010538:2547596330
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -465,177 +487,186 @@ statutory_mw |    197,978    8.490077    1.653734       7.25         16
 binding_mw~l |    197,978    1.616025    .4863517          1          2
 binding_mw~x |    197,978    1.726672      .70234          1          4
 binding_mw~n |    197,978    1.685278    .6312945          1          4
-mw_wkp_to~09 |    197,766    2.123243    .1693365   1.981001   2.694495
+mw_wkp_to~09 |    197,766    2.124111    .1706009   1.981001   2.696221
 -------------+---------------------------------------------------------
-mw_wkp_~9_09 |    197,766    2.122811     .168503   1.981001   2.696938
-mw_wkp_~4_09 |    197,766    2.123427     .169677   1.981001   2.691663
-mw_wkp_~5_09 |    197,766    2.123135    .1691745   1.981001   2.705675
-mw_wkp_~0_09 |    197,766    2.122353     .167875   1.981001   2.687359
-mw_~_3333_09 |    197,766    2.122536    .1683535   1.981001   2.689563
+mw_wkp_~9_09 |    197,766    2.123415    .1694179   1.981001   2.696938
+mw_wkp_~4_09 |    197,766    2.124342    .1710081   1.981001   2.693757
+mw_wkp_~5_09 |    197,766    2.124189    .1706464   1.981001   2.708926
+mw_wkp_~0_09 |    197,766    2.123103    .1690392   1.981001   2.689965
+mw_~_3333_09 |    197,766    2.123122    .1691333   1.981001   2.690221
 -------------+---------------------------------------------------------
-mw_~e3333_09 |    197,766    2.123935    .1703546   1.981001   2.702281
-mw_wkp_go~09 |    197,766    2.121821    .1650806   1.981001   2.675497
-mw_wkp_tr~09 |    197,766    2.122424    .1680084   1.981001   2.677551
-mw_wkp_ot~09 |    197,766    2.123524     .170074   1.981001   2.706358
-mw_wkp_to~10 |    197,766    2.125306    .1695086   1.981001   2.699268
+mw_~e3333_09 |    197,766     2.12507    .1719826   1.981001   2.703647
+mw_wkp_go~09 |    197,766    2.121886    .1651784   1.981001   2.675497
+mw_wkp_tr~09 |    197,766    2.122952    .1685583   1.981001   2.679887
+mw_wkp_ot~09 |    197,766    2.124594    .1716685   1.981001   2.708008
+mw_wkp_to~10 |    197,766    2.126151     .170739   1.981001   2.702564
 -------------+---------------------------------------------------------
-mw_wkp_~9_10 |    197,766    2.124597    .1683255   1.981001   2.697745
-mw_wkp_~4_10 |    197,766    2.125495    .1699451   1.981001   2.699518
-mw_wkp_~5_10 |    197,766    2.125541    .1694606   1.981001   2.701672
-mw_wkp_~0_10 |    197,766    2.123404      .16773   1.981001    2.69007
-mw_~_3333_10 |    197,766    2.123847    .1683338   1.981001   2.688642
+mw_wkp_~9_10 |    197,766    2.125187    .1691945   1.981001   2.700264
+mw_wkp_~4_10 |    197,766    2.126387    .1712421   1.981001   2.703563
+mw_wkp_~5_10 |    197,766    2.126539    .1708801   1.981001   2.701672
+mw_wkp_~0_10 |    197,766    2.124133     .168867   1.981001   2.691651
+mw_~_3333_10 |    197,766    2.124429    .1691295   1.981001   2.692726
 -------------+---------------------------------------------------------
-mw_~e3333_10 |    197,766    2.126674    .1708354   1.981001   2.705684
-mw_wkp_go~10 |    197,766    2.122404     .164957   1.981001    2.68284
-mw_wkp_tr~10 |    197,766    2.123001    .1679104   1.981001   2.676319
-mw_wkp_ot~10 |    197,766    2.125943    .1703091   1.981001   2.709149
-mw_wkp_to~11 |    197,978    2.125343    .1692426   1.981001   2.720518
+mw_~e3333_10 |    197,766    2.127753     .172367   1.981001   2.707738
+mw_wkp_go~10 |    197,766    2.122467    .1650463   1.981001    2.68284
+mw_wkp_tr~10 |    197,766    2.123563    .1684631   1.981001   2.678595
+mw_wkp_ot~10 |    197,766    2.126958    .1718377   1.981001   2.710505
+mw_wkp_to~11 |    197,978    2.126256    .1706206   1.981001   2.723764
 -------------+---------------------------------------------------------
-mw_wkp_~9_11 |    197,978     2.12468    .1681548   1.981001   2.734102
-mw_wkp_~4_11 |    197,978    2.125541    .1696932   1.981001   2.716562
-mw_wkp_~5_11 |    197,978    2.125514    .1690715   1.981001   2.718991
-mw_wkp_~0_11 |    197,978    2.123336    .1672829   1.981001    2.72465
-mw_~_3333_11 |    197,978    2.123926    .1680803   1.981001   2.708974
+mw_wkp_~9_11 |    197,978    2.125348    .1691269   1.981001    2.73539
+mw_wkp_~4_11 |    197,978    2.126487     .171126   1.981001   2.720158
+mw_wkp_~5_11 |    197,978    2.126598    .1706986   1.981001   2.723767
+mw_wkp_~0_11 |    197,978    2.124253     .168736   1.981001   2.727513
+mw_~_3333_11 |    197,978    2.124532    .1689585   1.981001   2.718271
 -------------+---------------------------------------------------------
-mw_~e3333_11 |    197,978    2.126767    .1706691   1.981001   2.722214
-mw_wkp_go~11 |    197,978    2.122682      .16487   1.981001   2.688559
-mw_wkp_tr~11 |    197,978    2.122962    .1676119   1.981001    2.70805
-mw_wkp_ot~11 |    197,978    2.125999    .1700566   1.981001   2.729677
-mw_wkp_to~12 |    197,978     2.12556    .1695374   1.981001   2.724803
+mw_~e3333_11 |    197,978    2.127848    .1722599   1.981001   2.724349
+mw_wkp_go~11 |    197,978    2.122748    .1649588   1.981001   2.688559
+mw_wkp_tr~11 |    197,978    2.123648    .1684546   1.981001    2.70805
+mw_wkp_ot~11 |    197,978    2.127065    .1717038   1.981001   2.730948
+mw_wkp_to~12 |    197,978     2.12635    .1707141   1.981001   2.726933
 -------------+---------------------------------------------------------
-mw_wkp_~9_12 |    197,978    2.124727    .1685668   1.981001   2.727893
-mw_wkp_~4_12 |    197,978    2.125804    .1699339   1.981001   2.724168
-mw_wkp_~5_12 |    197,978    2.125676     .169326   1.981001   2.723834
-mw_wkp_~0_12 |    197,978    2.123618    .1676371   1.981001   2.724959
-mw_~_3333_12 |    197,978    2.124037    .1682003   1.981001   2.722779
+mw_wkp_~9_12 |    197,978    2.125312      .16945   1.981001   2.732237
+mw_wkp_~4_12 |    197,978    2.126619    .1711437   1.981001   2.725364
+mw_wkp_~5_12 |    197,978    2.126593    .1706816   1.981001   2.727421
+mw_wkp_~0_12 |    197,978    2.124418    .1689475   1.981001   2.727923
+mw_~_3333_12 |    197,978    2.124533    .1689034   1.981001   2.725009
 -------------+---------------------------------------------------------
-mw_~e3333_12 |    197,978    2.127007    .1710064   1.981001   2.725091
-mw_wkp_go~12 |    197,978    2.122869    .1646907   1.981001    2.69106
-mw_wkp_tr~12 |    197,978     2.12328    .1680398   1.981001   2.703494
-mw_wkp_ot~12 |    197,978    2.126207    .1703692   1.981001   2.730624
-mw_wkp_to~13 |    197,978    2.125673    .1694741   1.981001   2.728209
+mw_~e3333_12 |    197,978    2.127949    .1723403   1.981001   2.727111
+mw_wkp_go~12 |    197,978    2.122939    .1647861   1.981001    2.69106
+mw_wkp_tr~12 |    197,978    2.123932    .1688334   1.981001    2.70865
+mw_wkp_ot~12 |    197,978    2.127109    .1717553   1.981001   2.731859
+mw_wkp_to~13 |    197,978    2.126464    .1706572   1.981001   2.729451
 -------------+---------------------------------------------------------
-mw_wkp_~9_13 |    197,978    2.124834    .1685472   1.981001   2.735872
-mw_wkp_~4_13 |    197,978    2.125941    .1698912   1.981001   2.727209
-mw_wkp_~5_13 |    197,978    2.125747    .1692116   1.981001   2.722742
-mw_wkp_~0_13 |    197,978    2.123654    .1674366   1.981001   2.728561
-mw_~_3333_13 |    197,978    2.124115    .1680655   1.981001   2.723724
+mw_wkp_~9_13 |    197,978    2.125407    .1694019   1.981001   2.735872
+mw_wkp_~4_13 |    197,978    2.126755    .1711111   1.981001   2.728685
+mw_wkp_~5_13 |    197,978    2.126669    .1705758   1.981001   2.724522
+mw_wkp_~0_13 |    197,978    2.124444    .1687472   1.981001   2.728561
+mw_~_3333_13 |    197,978    2.124592     .168751   1.981001   2.725964
 -------------+---------------------------------------------------------
-mw_~e3333_13 |    197,978    2.127119    .1709688   1.981001   2.728793
-mw_wkp_go~13 |    197,978    2.122643    .1642503   1.981001   2.688457
-mw_wkp_tr~13 |    197,978    2.123308    .1680126   1.981001   2.710284
-mw_wkp_ot~13 |    197,978    2.126372     .170359   1.981001   2.732606
-mw_wkp_to~14 |    197,978    2.125708    .1693633   1.981001   2.728408
+mw_~e3333_13 |    197,978    2.128075    .1723149   1.981001   2.730041
+mw_wkp_go~13 |    197,978    2.122721    .1643612   1.981001   2.688457
+mw_wkp_tr~13 |    197,978    2.123952    .1687873   1.981001   2.715977
+mw_wkp_ot~13 |    197,978    2.127275    .1717513   1.981001   2.733458
+mw_wkp_to~14 |    197,978    2.126532    .1706021   1.981001   2.729872
 -------------+---------------------------------------------------------
-mw_wkp_~9_14 |    197,978     2.12483    .1684026   1.981001   2.736814
-mw_wkp_~4_14 |    197,978    2.126017    .1698285   1.981001   2.727216
-mw_wkp_~5_14 |    197,978    2.125704    .1689861   1.981001   2.723008
-mw_wkp_~0_14 |    197,978    2.123606    .1671853   1.981001   2.735022
-mw_~_3333_14 |    197,978    2.124118    .1678851   1.981001   2.725421
+mw_wkp_~9_14 |    197,978    2.125423    .1692701   1.981001   2.736814
+mw_wkp_~4_14 |    197,978    2.126855    .1710885   1.981001   2.729049
+mw_wkp_~5_14 |    197,978    2.126696    .1704862   1.981001   2.724677
+mw_wkp_~0_14 |    197,978    2.124531    .1687049   1.981001   2.735022
+mw_~_3333_14 |    197,978    2.124595    .1685796   1.981001   2.727722
 -------------+---------------------------------------------------------
-mw_~e3333_14 |    197,978    2.127172    .1708901   1.981001   2.728144
-mw_wkp_go~14 |    197,978    2.122704    .1638334   1.981001    2.70805
-mw_wkp_tr~14 |    197,978    2.123311     .167847   1.981001   2.706707
-mw_wkp_ot~14 |    197,978    2.126423    .1703057   1.981001   2.735748
-mw_wkp_to~15 |    197,978    2.125504    .1693765   1.981066     2.6884
+mw_~e3333_14 |    197,978    2.128118    .1722229   1.981001   2.729643
+mw_wkp_go~14 |    197,978    2.122777    .1639387   1.981001    2.70805
+mw_wkp_tr~14 |    197,978    2.123994    .1686807   1.981001   2.713008
+mw_wkp_ot~14 |    197,978    2.127364    .1717615   1.981001    2.73603
+mw_wkp_to~15 |    197,978    2.126411    .1706431   1.981066   2.690024
 -------------+---------------------------------------------------------
-mw_wkp_~9_15 |    197,978    2.124596    .1685907   1.981001   2.698925
-mw_wkp_~4_15 |    197,978    2.125825    .1698305   1.981025   2.687279
-mw_wkp_~5_15 |    197,978     2.12549    .1688564   1.981001   2.688482
-mw_wkp_~0_15 |    197,978    2.123118    .1669206   1.981001   2.693822
-mw_~_3333_15 |    197,978    2.123844    .1677783   1.981001   2.692459
+mw_wkp_~9_15 |    197,978    2.125318    .1695629   1.981001   2.699935
+mw_wkp_~4_15 |    197,978    2.126737    .1711102   1.981025   2.688502
+mw_wkp_~5_15 |    197,978     2.12654    .1703292   1.981001   2.691492
+mw_wkp_~0_15 |    197,978     2.12419    .1684786   1.981001   2.695126
+mw_~_3333_15 |    197,978    2.124407    .1685084   1.981001   2.693136
 -------------+---------------------------------------------------------
-mw_~e3333_15 |    197,978    2.127012     .170912   1.981001   2.696926
-mw_wkp_go~15 |    197,978    2.122818    .1639895   1.981001   2.670858
-mw_wkp_tr~15 |    197,978    2.123488    .1682498   1.981001   2.721279
-mw_wkp_ot~15 |    197,978    2.126112    .1702241   1.981022   2.696624
-mw_wkp_to~16 |    197,978    2.125543    .1694033    1.98104   2.691985
+mw_~e3333_15 |    197,978    2.128061    .1723211   1.981001   2.698339
+mw_wkp_go~15 |    197,978    2.122885    .1640899   1.981001   2.671106
+mw_wkp_tr~15 |    197,978    2.124132    .1690419   1.981001   2.723306
+mw_wkp_ot~15 |    197,978    2.127163    .1717213   1.981022   2.697262
+mw_wkp_to~16 |    197,978    2.126502    .1707413   1.981049   2.693834
 -------------+---------------------------------------------------------
-mw_wkp_~9_16 |    197,978      2.1246    .1687366   1.981001   2.703307
-mw_wkp_~4_16 |    197,978    2.125899    .1698832   1.981001   2.689102
-mw_wkp_~5_16 |    197,978    2.125508    .1687087   1.981001   2.686232
-mw_wkp_~0_16 |    197,978    2.123039    .1667397   1.981001   2.695856
-mw_~_3333_16 |    197,978    2.123807     .167708   1.981008   2.691586
+mw_wkp_~9_16 |    197,978    2.125377     .169784   1.981001   2.703966
+mw_wkp_~4_16 |    197,978    2.126851    .1712143   1.981016   2.691873
+mw_wkp_~5_16 |    197,978    2.126627    .1702915   1.981001   2.689187
+mw_wkp_~0_16 |    197,978    2.124253    .1685374   1.981001   2.696961
+mw_~_3333_16 |    197,978    2.124418    .1685051   1.981008   2.694405
 -------------+---------------------------------------------------------
-mw_~e3333_16 |    197,978    2.127093    .1710104   1.981009    2.69855
-mw_wkp_go~16 |    197,978    2.122939    .1639609   1.981001   2.671271
-mw_wkp_tr~16 |    197,978     2.12341    .1682173   1.981001   2.727584
-mw_wkp_ot~16 |    197,978    2.126171    .1702791   1.981024   2.696959
-mw_wkp_to~17 |    197,978    2.125596    .1692788   1.981055    2.69263
+mw_~e3333_16 |    197,978    2.128144    .1723922   1.981009   2.701021
+mw_wkp_go~16 |    197,978    2.123013    .1640729   1.981001   2.671271
+mw_wkp_tr~16 |    197,978    2.124188      .16911   1.981001   2.732279
+mw_wkp_ot~16 |    197,978    2.127255    .1718346   1.981024   2.699198
+mw_wkp_to~17 |    197,978    2.126509     .170538    1.98106   2.694137
 -------------+---------------------------------------------------------
-mw_wkp_~9_17 |    197,978    2.124587    .1683685   1.981009   2.706579
-mw_wkp_~4_17 |    197,978    2.125994     .169826   1.981034   2.689579
-mw_wkp_~5_17 |    197,978    2.125509    .1686532   1.981001   2.687583
-mw_wkp_~0_17 |    197,978    2.123015    .1664612   1.981001   2.686317
-mw_~_3333_17 |    197,978    2.123767    .1673911   1.981029   2.687233
+mw_wkp_~9_17 |    197,978    2.125348     .169373   1.981009   2.707357
+mw_wkp_~4_17 |    197,978    2.126899    .1710758   1.981034   2.690996
+mw_wkp_~5_17 |    197,978    2.126562    .1701351   1.981001   2.691312
+mw_wkp_~0_17 |    197,978    2.124143    .1680978   1.981001   2.687496
+mw_~_3333_17 |    197,978    2.124379    .1681745   1.981029   2.689518
 -------------+---------------------------------------------------------
-mw_~e3333_17 |    197,978    2.127134    .1708862   1.981026   2.697704
-mw_wkp_go~17 |    197,978    2.122911    .1639174   1.981001   2.666676
-mw_wkp_tr~17 |    197,978    2.123476    .1680816   1.981001   2.730728
-mw_wkp_ot~17 |    197,978    2.126225    .1701306   1.981029   2.696334
-mw_wkp_to~18 |    197,978    2.125728    .1693621   1.981076   2.697445
+mw_~e3333_17 |    197,978     2.12813    .1722049   1.981026   2.699259
+mw_wkp_go~17 |    197,978    2.122973    .1640143   1.981001   2.667079
+mw_wkp_tr~17 |    197,978    2.124198    .1689134   1.981001   2.734492
+mw_wkp_ot~17 |    197,978    2.127261    .1715973   1.981037   2.698904
+mw_wkp_to~18 |    197,978    2.126548    .1705825   1.981076   2.699071
 -------------+---------------------------------------------------------
-mw_wkp_~9_18 |    197,978     2.12476    .1685626    1.98102   2.710953
-mw_wkp_~4_18 |    197,978     2.12615     .169945   1.981028   2.693761
-mw_wkp_~5_18 |    197,978    2.125541    .1685528   1.981001   2.689731
-mw_wkp_~0_18 |    197,978     2.12311    .1663024   1.981012   2.687384
-mw_~_3333_18 |    197,978    2.123876    .1674687   1.981049   2.690197
+mw_wkp_~9_18 |    197,978    2.125362    .1694366    1.98102   2.712028
+mw_wkp_~4_18 |    197,978    2.126969    .1711567   1.981028   2.695188
+mw_wkp_~5_18 |    197,978    2.126546    .1700716   1.981001   2.693004
+mw_wkp_~0_18 |    197,978     2.12415    .1680278   1.981012   2.689319
+mw_~_3333_18 |    197,978    2.124354    .1681455   1.981058   2.693606
 -------------+---------------------------------------------------------
-mw_~e3333_18 |    197,978    2.127251    .1709804   1.981024   2.703458
-mw_wkp_go~18 |    197,978    2.122792    .1637159   1.981001   2.667329
-mw_wkp_tr~18 |    197,978     2.12356    .1681724   1.981001   2.737473
-mw_wkp_ot~18 |    197,978    2.126384    .1702292   1.981056    2.70223
-mw_wkp_tot~y |    158,186    2.104011    .1458462   1.981001   2.660686
+mw_~e3333_18 |    197,978    2.128132     .172211   1.981024   2.705203
+mw_wkp_go~18 |    197,978    2.122865    .1638314   1.981001   2.667329
+mw_wkp_tr~18 |    197,978    2.124287    .1690483   1.981001    2.74121
+mw_wkp_ot~18 |    197,978      2.1273    .1716275   1.981056   2.704008
+mw_wkp_tot~y |    158,186    2.104751    .1469083   1.981001   2.662255
 -------------+---------------------------------------------------------
-m~9_timevary |    158,186    2.103214    .1451069   1.981001   2.674388
-m~4_timevary |    158,186    2.104323     .146336   1.981001   2.656921
-m~5_timevary |    158,186    2.103943    .1452289   1.981001    2.65289
-m~0_timevary |    158,186    2.101854    .1432892   1.981001   2.647096
-mw_wkp_ear.. |    158,186     2.10254     .144235   1.981001   2.653519
+m~9_timevary |    158,186    2.103793    .1459024   1.981001   2.675424
+m~4_timevary |    158,186     2.10506    .1473884   1.981001   2.658298
+m~5_timevary |    158,186    2.104826    .1465241   1.981001   2.656047
+m~0_timevary |    158,186    2.102772    .1447471   1.981001   2.648687
+mw_wkp_ear.. |    158,186    2.103004      .14486   1.981001   2.656807
 -------------+---------------------------------------------------------
-mw_wkp_ear.. |    158,186    2.105269    .1472462   1.981001   2.666855
-mw_wkp_goo~y |    158,186    2.101557    .1407721   1.981001   2.605124
-mw_wkp_tra~y |    158,186     2.10213     .144847   1.981001   2.701982
-mw_wkp_oth~y |    158,186    2.104564    .1466341   1.981001   2.655951
+mw_wkp_ear.. |    158,186    2.106081    .1483279   1.981001   2.668538
+mw_wkp_goo~y |    158,186    2.101615    .1408613   1.981001   2.605971
+mw_wkp_tra~y |    158,186    2.102734    .1456106   1.981001   2.705586
+mw_wkp_oth~y |    158,186    2.105402    .1478514   1.981001   2.656079
 medDailyli~C |    148,860    179.1121    128.9684         12       2234
 -------------+---------------------------------------------------------
 medli~e_SFCC |    170,893    379874.6      372217      17800    6995000
 medli~t_SFCC |    187,318    212.6468    208.2763   15.76577   2695.917
 medli~w_tier |     94,049    132.8645    99.42843   15.82222   1672.388
 medli~p_tier |    129,092    253.8545    245.4021   62.48275   2729.885
-medren~e_2BR |     71,382     1774.83     916.481        475      19500
+medrentp~2BR |     71,382     1774.83     916.481        475      19500
 -------------+---------------------------------------------------------
-medren~e_3BR |     65,676    1874.471    1501.986        595      40000
+medrentp~3BR |     65,676    1874.471    1501.986        595      40000
 medre~e_SFCC |    170,424    1766.822    1557.824        500      50000
-medren~t_2BR |     69,621    1.703064    .8434015   .5015198   12.55461
-medren~t_3BR |     62,617     1.21819    .8192677   .5060225       17.5
 medre~t_SFCC |    197,978    1.303812    1.033133   .1091193   23.96932
--------------+---------------------------------------------------------
 Monthlylis~C |    154,730     231.081    153.6402         13       2540
 NewMonthly~C |     56,926    62.24103    34.77379         11        609
+-------------+---------------------------------------------------------
  Sale_Counts |    178,604    60.58495    33.17106          0        382
      quarter |    197,978    2.542101    1.116308          1          4
 year_quarter |    197,978    226.2799     9.87255        200        239
--------------+---------------------------------------------------------
     ln_rents |    197,978    .1260564    .4678614  -2.215314   3.176775
+ln_rents_1BR |     41,046    .7164504    .3907797  -.4480247   1.899293
+-------------+---------------------------------------------------------
+ln_rents_2BR |     69,621    .4353367    .4266835  -.6901123   2.530088
+ln_rents_3BR |     62,617     .090562    .4123318  -.6811742   2.862201
+ln_rents_4BR |      8,197    .0115073    .6285575  -.5992154   3.084265
+ln_rents_5BR |        505    1.186913    1.427766  -.9867982   3.091043
+ ln_rents_CC |     29,865    .6563441    .4685581  -.5386367   2.559361
+-------------+---------------------------------------------------------
+ln_rents_M~x |      8,273    .7878276    .5592001  -.6632233    1.93684
+ln_rents_M~s |     89,931    .4584986    .4342857  -.6719947   2.530067
+ ln_rents_SF |    142,126    .0105987    .4108514   -2.26426   3.198047
+ln_rents_S~o |     20,828    .3346214    .7130985  -.8465384   1.994406
 ln_emp_biz~v |    197,966    11.03427    1.381873   5.659482   13.38876
+-------------+---------------------------------------------------------
  ln_emp_info |    196,846    8.890655    1.580753   2.397895   12.38988
   ln_emp_fin |    197,954     10.0722    1.420266   2.944439   12.89542
 ln_estcoun~v |    197,978    8.569249    1.254155   1.098612   10.96353
--------------+---------------------------------------------------------
 ln_estcoun~o |    197,966    6.003222     1.36842          0   9.531191
 ln_estcoun~n |    197,978    7.875171    1.205097   2.197225   10.33748
+-------------+---------------------------------------------------------
 ln_avgwwag~v |    197,966    7.120423    .3153675   5.420535   8.461046
 ln_avgwwag~o |    196,846    7.301237     .375169   5.891644   9.004791
 ln_avgwwag~n |    197,954    7.274049    .3634351   6.061457   9.163982
--------------+---------------------------------------------------------
 yr_entry_t~w |    197,978    2013.084      2.7304       2010       2019
 baseline_s~e |    197,978    .6748225    .4684423          0          1
-fullbal_sa~e |    197,978    .4008274    .4900673          0          1
-weights_un~l |    189,718           1    .3035103   .1664966   3.365455
-weights_ba~e |    127,628           1    .3792118   .1488978   3.870539
 -------------+---------------------------------------------------------
-weights_fu~l |     75,874           1    .3920062   .1435048   4.084836
+fullbal_sa~e |    197,978    .4008274    .4900673          0          1
+weights_un~l |    186,320           1    .0881611   .5267732   1.292564
+weights_ba~e |    125,057           1    .1475313   .5441687   1.716116
+weights_fu~l |     74,222           1    .1483292   .5526548   1.762773
 
 
 
@@ -695,7 +726,7 @@ file ../temp/baseline_county.dta saved
 File: ../../../drive/derived_large/estimation_samples/county_months.dta
 Key: countyfips year_month
 ===============================================================================
-  56716:154(85909):757811386:287098200
+  56716:155(52299):2985903800:3398903346
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -726,159 +757,160 @@ sh_blac~2010 |     56,597    .1280459    .1302171   .0022105   .7910549
 sh_male~2010 |     56,597     .491266    .0107367   .4588652   .5895433
 sh_hhlds_u~0 |     56,597    .8249587    .1541533   .1604094          1
 sh_hhlds_r~0 |     56,597    .2975012    .0870243   .0811995   .7625533
-statutory_mw |     56,716    8.024767    1.202293       7.25      15.59
-      mw_res |     56,716    2.072885    .1339691   1.981001    2.74663
+statutory_mw |     56,716    8.024622    1.202107       7.25      15.59
+      mw_res |     56,716     2.07287    .1339494   1.981001    2.74663
 -------------+---------------------------------------------------------
-  binding_mw |     56,716     1.49492    .5659775          1          4
-binding_mw~l |     56,716    1.465407    .4988063          1          2
+  binding_mw |     56,716    1.494836    .5659038          1          4
+binding_mw~l |     56,716    1.465322    .4987176          1          2
 binding_mw~x |     56,716    1.512712    .6190122          1          4
-binding_mw~n |     56,716    1.484643    .5458381          1          4
-mw_wkp_to~09 |     56,716    2.075072     .133256   1.767212   2.673318
+binding_mw~n |     56,716    1.434868    .5421558          1          4
+mw_wkp_to~09 |     56,716    2.075273    .1330895   1.981049   2.673317
 -------------+---------------------------------------------------------
-mw_wkp_~9_09 |     56,716    2.074701    .1328199   1.839891    2.66908
-mw_wkp_~4_09 |     56,716    2.075244    .1334851   1.764553   2.674276
-mw_wkp_~5_09 |     56,716    2.074974    .1330609    1.71073   2.682501
-mw_wkp_~0_09 |     56,716    2.074319     .132628   1.700987   2.679018
-mw_~_3333_09 |     56,716    2.074394    .1325752   1.761385   2.673706
+mw_wkp_~9_09 |     56,716    2.074884     .132694   1.981017   2.669079
+mw_wkp_~4_09 |     56,716    2.075448    .1333178   1.981023   2.674275
+mw_wkp_~5_09 |     56,716    2.075182    .1328533   1.981029     2.6825
+mw_wkp_~0_09 |     56,716    2.074513    .1324142   1.981044   2.679017
+mw_~_3333_09 |     56,716    2.074618    .1323963   1.981036   2.673706
 -------------+---------------------------------------------------------
-mw_~e3333_09 |     56,716    2.076012    .1341161   1.826203   2.676492
-mw_wkp_go~09 |     56,716    2.074301     .130581    1.84392   2.644641
-mw_wkp_tr~09 |     56,716    2.074963    .1327513   1.905992   2.659792
-mw_wkp_ot~09 |     56,716     2.07522    .1338737   1.688757   2.683148
-mw_wkp_to~10 |     56,716     2.07648    .1333447   1.756176   2.673454
+mw_~e3333_09 |     56,716    2.076196    .1339844   1.981017   2.676491
+mw_wkp_go~09 |     56,716     2.07442    .1304709   1.981001    2.64464
+mw_wkp_tr~09 |     56,716     2.07509    .1326665   1.981025   2.659792
+mw_wkp_ot~09 |     56,716    2.075469    .1336327   1.981036   2.683147
+mw_wkp_to~10 |     56,716    2.076645     .133159   1.981062   2.673454
 -------------+---------------------------------------------------------
-mw_wkp_~9_10 |     56,716    2.075955    .1326923     1.8518   2.668698
-mw_wkp_~4_10 |     56,716    2.076651    .1336374   1.745656   2.675307
-mw_wkp_~5_10 |     56,716    2.076586    .1332356   1.700608   2.682528
-mw_wkp_~0_10 |     56,716    2.075014    .1324011   1.700283   2.678897
-mw_~_3333_10 |     56,716    2.075251    .1325373   1.721776    2.67404
+mw_wkp_~9_10 |     56,716    2.076095    .1325637   1.981063   2.668698
+mw_wkp_~4_10 |     56,716    2.076816     .133445   1.981048   2.675307
+mw_wkp_~5_10 |     56,716    2.076768    .1330057   1.981038   2.682527
+mw_wkp_~0_10 |     56,716    2.075185    .1321764   1.981054   2.678896
+mw_~_3333_10 |     56,716    2.075439    .1323083   1.981054    2.67404
 -------------+---------------------------------------------------------
-mw_~e3333_10 |     56,716     2.07791    .1344233   1.837362   2.678398
-mw_wkp_go~10 |     56,716    2.074666     .130338   1.798767   2.643801
-mw_wkp_tr~10 |     56,716     2.07536    .1325965   1.922663   2.659332
-mw_wkp_ot~10 |     56,716    2.076927    .1340404   1.679497   2.683053
-mw_wkp_to~11 |     56,716    2.076814    .1332997   1.723396   2.674503
+mw_~e3333_10 |     56,716     2.07805    .1342976   1.981016   2.678397
+mw_wkp_go~10 |     56,716    2.074787    .1302144   1.981028     2.6438
+mw_wkp_tr~10 |     56,716    2.075452    .1325182   1.981033   2.659331
+mw_wkp_ot~10 |     56,716    2.077132    .1337736    1.98106   2.683053
+mw_wkp_to~11 |     56,716    2.077003    .1330778   1.981001   2.674502
 -------------+---------------------------------------------------------
-mw_wkp_~9_11 |     56,716    2.076245    .1325926   1.817656   2.666739
-mw_wkp_~4_11 |     56,716    2.077012    .1336221   1.718313   2.675206
-mw_wkp_~5_11 |     56,716    2.076902    .1331813   1.665809   2.681895
-mw_wkp_~0_11 |     56,716    2.075252    .1323454    1.65234   2.678855
-mw_~_3333_11 |     56,716    2.075496    .1324965   1.685239   2.672731
+mw_wkp_~9_11 |     56,716    2.076405    .1324446   1.981001   2.666738
+mw_wkp_~4_11 |     56,716    2.077205    .1333928   1.981001    2.67521
+mw_wkp_~5_11 |     56,716    2.077106    .1329081   1.981001   2.681895
+mw_wkp_~0_11 |     56,716    2.075446    .1320658   1.981001   2.678854
+mw_~_3333_11 |     56,716    2.075717    .1322215   1.981001   2.672739
 -------------+---------------------------------------------------------
-mw_~e3333_11 |     56,716    2.078343    .1343733   1.818429   2.678303
-mw_wkp_go~11 |     56,716    2.075211     .130266    1.80739   2.644087
-mw_wkp_tr~11 |     56,716      2.0756    .1325775   1.894371    2.65919
-mw_wkp_ot~11 |     56,716    2.077264    .1340155   1.631829   2.683813
-mw_wkp_to~12 |     56,716    2.076904     .133243   1.746059   2.675264
+mw_~e3333_11 |     56,716    2.078498    .1342303   1.981001   2.678303
+mw_wkp_go~11 |     56,716    2.075324    .1301356   1.981001   2.644101
+mw_wkp_tr~11 |     56,716    2.075712    .1324791   1.981001   2.659204
+mw_wkp_ot~11 |     56,716    2.077503    .1336893   1.981001   2.683812
+mw_wkp_to~12 |     56,716    2.077057    .1330598   1.981001   2.675263
 -------------+---------------------------------------------------------
-mw_wkp_~9_12 |     56,716    2.076199    .1325979   1.844784   2.671233
-mw_wkp_~4_12 |     56,716    2.077158    .1335616   1.740758   2.675226
-mw_wkp_~5_12 |     56,716    2.076951    .1330791   1.688328   2.679814
-mw_wkp_~0_12 |     56,716    2.075366    .1323406   1.682079   2.680649
-mw_~_3333_12 |     56,716    2.075566    .1323871   1.714264   2.673525
+mw_wkp_~9_12 |     56,716    2.076317    .1324845   1.981001   2.671231
+mw_wkp_~4_12 |     56,716    2.077314    .1333747   1.981001   2.675225
+mw_wkp_~5_12 |     56,716    2.077126    .1328413   1.981001   2.679813
+mw_wkp_~0_12 |     56,716    2.075524    .1321066   1.981001   2.680648
+mw_~_3333_12 |     56,716    2.075737    .1321702   1.981001   2.673532
 -------------+---------------------------------------------------------
-mw_~e3333_12 |     56,716    2.078418    .1343362   1.826751   2.677715
-mw_wkp_go~12 |     56,716    2.075361    .1302187   1.833494   2.644558
-mw_wkp_tr~12 |     56,716    2.075777    .1325228   1.919904   2.662265
-mw_wkp_ot~12 |     56,716    2.077333    .1339505   1.653786   2.684213
-mw_wkp_to~13 |     56,716     2.07697    .1331385   1.772226   2.675533
+mw_~e3333_12 |     56,716    2.078554    .1342083   1.981001   2.677715
+mw_wkp_go~12 |     56,716    2.075443     .130122   1.981001   2.644557
+mw_wkp_tr~12 |     56,716     2.07582    .1324752   1.981001   2.662264
+mw_wkp_ot~12 |     56,716    2.077543     .133663   1.981001   2.684213
+mw_wkp_to~13 |     56,716     2.07712     .132986   1.981001   2.675532
 -------------+---------------------------------------------------------
-mw_wkp_~9_13 |     56,716    2.076241    .1324992   1.860587   2.671281
-mw_wkp_~4_13 |     56,716     2.07723    .1334628   1.769584   2.675372
-mw_wkp_~5_13 |     56,716    2.077035    .1329764   1.714748   2.680664
-mw_wkp_~0_13 |     56,716    2.075387     .132174   1.715969   2.680937
-mw_~_3333_13 |     56,716    2.075621    .1322607   1.743664   2.672683
+mw_wkp_~9_13 |     56,716    2.076357    .1324112   1.981001    2.67128
+mw_wkp_~4_13 |     56,716    2.077384    .1333053   1.981001   2.675371
+mw_wkp_~5_13 |     56,716      2.0772    .1327746   1.981001   2.680664
+mw_wkp_~0_13 |     56,716    2.075547    .1319867   1.981001   2.680935
+mw_~_3333_13 |     56,716    2.075778    .1320803   1.981001   2.672682
 -------------+---------------------------------------------------------
-mw_~e3333_13 |     56,716    2.078468    .1342713   1.839899   2.676799
-mw_wkp_go~13 |     56,716    2.075269    .1300104   1.845106   2.642219
-mw_wkp_tr~13 |     56,716    2.075762    .1324383   1.933986   2.662298
-mw_wkp_ot~13 |     56,716    2.077444    .1338506   1.691967   2.684771
-mw_wkp_to~14 |     56,716     2.07697    .1330492   1.787261   2.674315
+mw_~e3333_13 |     56,716    2.078608    .1341576   1.981001   2.676805
+mw_wkp_go~13 |     56,716    2.075356    .1299223   1.981001   2.642217
+mw_wkp_tr~13 |     56,716    2.075815    .1323958   1.981001   2.662325
+mw_wkp_ot~13 |     56,716    2.077643    .1336174   1.981001    2.68477
+mw_wkp_to~14 |     56,716     2.07712    .1329049   1.981091   2.674314
 -------------+---------------------------------------------------------
-mw_wkp_~9_14 |     56,716    2.076205    .1324139   1.867806   2.669058
-mw_wkp_~4_14 |     56,716    2.077237     .133378   1.781692   2.674515
-mw_wkp_~5_14 |     56,716    2.077052     .132879   1.737471   2.679431
-mw_wkp_~0_14 |     56,716     2.07541    .1320948    1.75168   2.679024
-mw_~_3333_14 |     56,716    2.075587    .1321353   1.762766   2.672637
+mw_wkp_~9_14 |     56,716    2.076335    .1323103   1.981086   2.669057
+mw_wkp_~4_14 |     56,716    2.077391    .1332297   1.981089   2.674515
+mw_wkp_~5_14 |     56,716    2.077205    .1327039   1.981095   2.679431
+mw_wkp_~0_14 |     56,716    2.075557    .1319225   1.981096   2.679023
+mw_~_3333_14 |     56,716    2.075745    .1319709   1.981087   2.672636
 -------------+---------------------------------------------------------
-mw_~e3333_14 |     56,716    2.078434    .1341529   1.835876   2.677142
-mw_wkp_go~14 |     56,716    2.075338    .1299223   1.834706    2.64277
-mw_wkp_tr~14 |     56,716    2.075765     .132319   1.926277   2.662407
-mw_wkp_ot~14 |     56,716    2.077445    .1337786   1.722501   2.683967
-mw_wkp_to~15 |     56,716     2.07685    .1330596   1.804057   2.677661
+mw_~e3333_14 |     56,716    2.078579    .1340367   1.981052   2.677141
+mw_wkp_go~14 |     56,716    2.075427    .1298207   1.981093   2.642769
+mw_wkp_tr~14 |     56,716    2.075817    .1322802   1.981072   2.662407
+mw_wkp_ot~14 |     56,716    2.077641    .1335696    1.98109   2.683966
+mw_wkp_to~15 |     56,716    2.077008    .1329243   1.981097    2.67766
 -------------+---------------------------------------------------------
-mw_wkp_~9_15 |     56,716    2.076048    .1325014   1.864553   2.677964
-mw_wkp_~4_15 |     56,716    2.077138    .1333856   1.803332   2.677102
-mw_wkp_~5_15 |     56,716    2.076915    .1328306   1.760512   2.679005
-mw_wkp_~0_15 |     56,716    2.075165    .1319588   1.758676   2.681641
-mw_~_3333_15 |     56,716    2.075423    .1321223   1.785358   2.673208
+mw_wkp_~9_15 |     56,716     2.07617     .132421     1.9811   2.677963
+mw_wkp_~4_15 |     56,716    2.077302    .1332462   1.981073   2.677102
+mw_wkp_~5_15 |     56,716     2.07709    .1326505   1.981098   2.679005
+mw_wkp_~0_15 |     56,716    2.075312    .1318045   1.981091   2.681639
+mw_~_3333_15 |     56,716      2.0756    .1319659   1.981099   2.673207
 -------------+---------------------------------------------------------
-mw_~e3333_15 |     56,716    2.078361    .1342018   1.851701   2.679329
-mw_wkp_go~15 |     56,716    2.075367    .1300499   1.839877   2.645193
-mw_wkp_tr~15 |     56,716    2.075735    .1324193   1.936651   2.662762
-mw_wkp_ot~15 |     56,716    2.077269    .1337389     1.7417   2.686969
-mw_wkp_to~16 |     56,716    2.076929    .1331319   1.796936   2.677874
+mw_~e3333_15 |     56,716    2.078511     .134089   1.981067   2.679329
+mw_wkp_go~15 |     56,716    2.075447    .1299511    1.98108   2.645191
+mw_wkp_tr~15 |     56,716    2.075793    .1323779   1.981039   2.662762
+mw_wkp_ot~15 |     56,716    2.077478    .1335422    1.98108   2.686969
+mw_wkp_to~16 |     56,716    2.077082    .1330013   1.981093   2.677902
 -------------+---------------------------------------------------------
-mw_wkp_~9_16 |     56,716    2.076078    .1326241   1.863026   2.678297
-mw_wkp_~4_16 |     56,716    2.077233    .1334657   1.792837   2.677664
-mw_wkp_~5_16 |     56,716    2.077036    .1328567    1.75558   2.678014
-mw_wkp_~0_16 |     56,716     2.07519    .1320107   1.760052   2.680584
-mw_~_3333_16 |     56,716    2.075478    .1321312   1.780974   2.673457
+mw_wkp_~9_16 |     56,716    2.076207    .1325425   1.981095   2.678372
+mw_wkp_~4_16 |     56,716    2.077388    .1333336   1.981086   2.677683
+mw_wkp_~5_16 |     56,716    2.077207    .1326833     1.9811   2.678013
+mw_wkp_~0_16 |     56,716     2.07534    .1318648   1.981095   2.680583
+mw_~_3333_16 |     56,716    2.075633    .1319933   1.981094   2.673457
 -------------+---------------------------------------------------------
-mw_~e3333_16 |     56,716    2.078427    .1342818   1.833863   2.680042
-mw_wkp_go~16 |     56,716     2.07556    .1301809   1.829601    2.64476
-mw_wkp_tr~16 |     56,716    2.075757    .1324353   1.943506   2.663773
-mw_wkp_ot~16 |     56,716    2.077341    .1338161   1.735083    2.68691
-mw_wkp_to~17 |     56,716    2.076979    .1330263   1.803181   2.676347
+mw_~e3333_16 |     56,716    2.078587     .134157   1.981072   2.680042
+mw_wkp_go~16 |     56,716     2.07565    .1300751   1.981079    2.64476
+mw_wkp_tr~16 |     56,716    2.075799    .1324036   1.981047   2.663772
+mw_wkp_ot~16 |     56,716    2.077545    .1336269   1.981101   2.686946
+mw_wkp_to~17 |     56,716     2.07714    .1328953   1.981112   2.676363
 -------------+---------------------------------------------------------
-mw_wkp_~9_17 |     56,716    2.076175    .1323627   1.874778    2.67487
-mw_wkp_~4_17 |     56,716    2.077284    .1334119   1.798185   2.676626
-mw_wkp_~5_17 |     56,716    2.077033    .1327889   1.760156   2.677277
-mw_wkp_~0_17 |     56,716    2.075243    .1317289   1.774734   2.677591
-mw_~_3333_17 |     56,716    2.075512    .1320123   1.781541   2.671695
+mw_wkp_~9_17 |     56,716    2.076308    .1322853   1.981088    2.67487
+mw_wkp_~4_17 |     56,716    2.077447    .1332778   1.981085   2.676625
+mw_wkp_~5_17 |     56,716    2.077215    .1326137   1.981086   2.677365
+mw_wkp_~0_17 |     56,716    2.075395    .1315915   1.981055   2.677589
+mw_~_3333_17 |     56,716     2.07568    .1318636   1.981097   2.671695
 -------------+---------------------------------------------------------
-mw_~e3333_17 |     56,716    2.078396    .1341814   1.837396   2.678596
-mw_wkp_go~17 |     56,716    2.075567    .1301497   1.828998   2.641855
-mw_wkp_tr~17 |     56,716    2.075798    .1323144   1.937671   2.661642
-mw_wkp_ot~17 |     56,716    2.077407    .1336878   1.749226   2.685144
-mw_wkp_to~18 |     56,716    2.076982    .1330325   1.800375   2.676707
+mw_~e3333_17 |     56,716    2.078564    .1340601   1.981089   2.678596
+mw_wkp_go~17 |     56,716    2.075662    .1300368   1.981093   2.641855
+mw_wkp_tr~17 |     56,716    2.075851    .1322765    1.98105   2.661642
+mw_wkp_ot~17 |     56,716    2.077618    .1335051   1.981099   2.685165
+mw_wkp_to~18 |     56,716     2.07714    .1329042   1.981122    2.67674
 -------------+---------------------------------------------------------
-mw_wkp_~9_18 |     56,716    2.076148    .1323662   1.876205   2.676239
-mw_wkp_~4_18 |     56,716    2.077296    .1334279   1.797753   2.676779
-mw_wkp_~5_18 |     56,716    2.077043    .1327799   1.749979    2.67704
-mw_wkp_~0_18 |     56,716    2.075226    .1316486   1.784507   2.676484
-mw_~_3333_18 |     56,716    2.075505    .1319899   1.772296   2.672052
+mw_wkp_~9_18 |     56,716    2.076272    .1322923   1.981109   2.676238
+mw_wkp_~4_18 |     56,716    2.077461    .1332949   1.981109   2.676836
+mw_wkp_~5_18 |     56,716    2.077215    .1326095    1.98113   2.677039
+mw_wkp_~0_18 |     56,716    2.075383    .1315122   1.981096   2.676482
+mw_~_3333_18 |     56,716    2.075666    .1318494   1.981119   2.672051
 -------------+---------------------------------------------------------
-mw_~e3333_18 |     56,716    2.078351     .134173   1.830591   2.679114
-mw_wkp_go~18 |     56,716    2.075478    .1300413   1.824958   2.641039
-mw_wkp_tr~18 |     56,716    2.075809    .1322831    1.93341   2.661368
-mw_wkp_ot~18 |     56,716     2.07743    .1337167   1.748498   2.685539
-mw_wkp_tot~y |     48,280    2.064496    .1160348   1.800375   2.617626
+mw_~e3333_18 |     56,716    2.078513    .1340493   1.981086   2.679148
+mw_wkp_go~18 |     56,716    2.075577    .1299251   1.981117   2.641038
+mw_wkp_tr~18 |     56,716    2.075865    .1322439   1.981064   2.661368
+mw_wkp_ot~18 |     56,716    2.077632    .1335424   1.981118   2.685581
+mw_wkp_tot~y |     48,280    2.064615    .1159468   1.981001   2.617658
 -------------+---------------------------------------------------------
-m~9_timevary |     48,280    2.063783    .1154408   1.876205   2.616814
-m~4_timevary |     48,280    2.064737    .1163538   1.797753   2.617357
-m~5_timevary |     48,280    2.064612    .1158776   1.749979   2.619372
-m~0_timevary |     48,280    2.063021    .1149264   1.784507   2.620184
-mw_wkp_ear.. |     48,280     2.06329    .1152046   1.772296   2.610292
+m~9_timevary |     48,280    2.063888    .1153819   1.981001   2.616814
+m~4_timevary |     48,280     2.06486    .1162632   1.981001   2.617414
+m~5_timevary |     48,280    2.064736    .1157672   1.981001   2.619371
+m~0_timevary |     48,280    2.063128    .1148441   1.981001   2.620183
+mw_wkp_ear.. |     48,280    2.063415    .1151044   1.981001   2.610345
 -------------+---------------------------------------------------------
-mw_wkp_ear.. |     48,280    2.065705    .1169831   1.830591    2.61933
-mw_wkp_goo~y |     48,280    2.063169    .1134695   1.824958   2.550193
-mw_wkp_tra~y |     48,280    2.063366    .1154081    1.93341   2.589816
-mw_wkp_oth~y |     48,280      2.0649    .1166193   1.748498   2.628648
+mw_wkp_ear.. |     48,280     2.06583    .1168947   1.981001   2.619364
+mw_wkp_goo~y |     48,280    2.063232     .113395   1.981001   2.550191
+mw_wkp_tra~y |     48,280    2.063414    .1153743   1.981001   2.589816
+mw_wkp_oth~y |     48,280    2.065053    .1165012   1.981001   2.628689
 medrentpri~C |     56,716    1.022075    .6342662   .4472472   17.05931
 -------------+---------------------------------------------------------
+medrentpri~F |     53,028    .9858412    .5953457   .4589161   17.14286
      quarter |     56,716    2.535193    1.115753          1          4
 year_quarter |     56,716     223.357    10.65642        200        239
     ln_rents |     56,716   -.0538467    .3387556  -.8046438   2.836696
 ln_emp_biz~v |     56,704    9.384538    1.356228   5.659482   13.38876
- ln_emp_info |     56,106    7.172064    1.513023   2.079442   12.38988
 -------------+---------------------------------------------------------
+ ln_emp_info |     56,106    7.172064    1.513023   2.079442   12.38988
   ln_emp_fin |     56,694     8.44444    1.355711   2.944439   12.89542
 ln_estcoun~v |     56,716    7.055585    1.169002   1.098612   10.96353
 ln_estcoun~o |     56,704    4.453565    1.220389          0   9.531191
 ln_estcoun~n |     56,716    6.446967    1.079483   2.197225   10.33748
-ln_avgwwag~v |     56,704    6.933836    .3180453   5.420535   9.135509
 -------------+---------------------------------------------------------
+ln_avgwwag~v |     56,704    6.933836    .3180453   5.420535   9.135509
 ln_avgwwag~o |     56,106    7.037167    .3495051   5.365976   9.584453
 ln_avgwwag~n |     56,694    7.043474    .3164056   6.061457   9.163982
 baseline_s~e |     56,716    .8632132    .3436252          0          1
@@ -1062,7 +1094,7 @@ running c:\ado\personal\profile.do ...
 File: ../temp/all_zipcodes.dta
 Key: zipcode year_month
 ===============================================================================
-  197946:30(58324):2366177649:3186946841
+  197946:30(58324):4264370570:3156398760
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -1075,19 +1107,19 @@ Key: zipcode year_month
         cbsa |          0
 statutory_mw |    197,946    8.490278    1.653792       7.25         16
       mw_res |    197,946    2.122723    .1733482   1.981001   2.772589
-mw_wkp_to~09 |    197,734    2.123262    .1693439   1.981001   2.694495
-mw_wkp_to~10 |    197,734    2.125319     .169519   1.981001   2.699268
+mw_wkp_to~09 |    197,734     2.12413    .1706083   1.981001   2.696221
+mw_wkp_to~10 |    197,734    2.126164    .1707494   1.981001   2.702564
 -------------+---------------------------------------------------------
-mw_wkp_to~11 |    197,946    2.125354    .1692538   1.981001   2.720518
-mw_wkp_to~12 |    197,946    2.125571    .1695489   1.981001   2.724803
-mw_wkp_to~13 |    197,946    2.125684    .1694855   1.981001   2.728209
-mw_wkp_to~14 |    197,946     2.12572    .1693745   1.981001   2.728408
-mw_wkp_to~15 |    197,946    2.125516    .1693876   1.981066     2.6884
+mw_wkp_to~11 |    197,946    2.126268     .170632   1.981001   2.723764
+mw_wkp_to~12 |    197,946    2.126361    .1707257   1.981001   2.726933
+mw_wkp_to~13 |    197,946    2.126475    .1706687   1.981001   2.729451
+mw_wkp_to~14 |    197,946    2.126543    .1706133   1.981001   2.729872
+mw_wkp_to~15 |    197,946    2.126423    .1706543   1.981066   2.690024
 -------------+---------------------------------------------------------
-mw_wkp_to~16 |    197,946    2.125555    .1694144    1.98104   2.691985
-mw_wkp_to~17 |    197,946    2.125608    .1692897   1.981055    2.69263
-mw_wkp_to~18 |    197,946    2.125741     .169373   1.981076   2.697445
-mw_wkp_tot~y |    158,166    2.104018    .1458539   1.981001   2.660686
+mw_wkp_to~16 |    197,946    2.126514    .1707526   1.981049   2.693834
+mw_wkp_to~17 |    197,946    2.126521    .1705489    1.98106   2.694137
+mw_wkp_to~18 |    197,946     2.12656    .1705935   1.981076   2.699071
+mw_wkp_tot~y |    158,166    2.104758    .1469161   1.981001   2.662255
 medrentpri~C |    197,946    1.303871    1.033206   .1091193   23.96932
 -------------+---------------------------------------------------------
     ln_rents |    197,946     .126087    .4678929  -2.215314   3.176775
@@ -1156,7 +1188,7 @@ File: ../../../drive/derived_large/estimation_samples/stacked_sample_window3.dt
 > a
 Key: zipcode event_id year_month
 ===============================================================================
-  69020:52(61205):1417094214:1287534642
+  69020:52(61205):3458706558:1339007013
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -1169,8 +1201,8 @@ Key: zipcode event_id year_month
    statefips |          0
 statutory_mw |     69,020    9.518746    1.958583       7.25         16
       mw_res |     69,020    2.233583    .1951367   1.981001   2.772589
-mw_wkp_to~17 |     69,020    2.238378    .1846297   1.981055   2.692421
-mw_wkp_tot~r |     69,020    2.238498     .184609   1.981001   2.697218
+mw_wkp_to~17 |     69,020    2.240306    .1863787    1.98106   2.693929
+mw_wkp_tot~r |     69,020    2.240395    .1864438   1.981001   2.698844
 -------------+---------------------------------------------------------
     ln_rents |     69,020    .3653062    .5447265  -.8414373   3.132185
 ln_emp_biz~v |     69,020    11.39976    1.244901   6.198479    13.3753
@@ -1187,8 +1219,8 @@ ln_avgwwag~n |     69,018    7.408091    .4160513   6.318968   9.163982
 zipcode_ev~d |     69,020    42.18955    37.95841          1        168
   d_ln_rents |     68,923    .0028578    .0342863  -.1955121   .1651244
     d_mw_res |     68,923    .0062456    .0231363  -.2903381   .2412502
-d_mw_wkp_~17 |     68,923    .0062828    .0205233  -.0877486   .2143087
-d_mw_wkp_t~r |     68,923    .0062882    .0205373  -.0862174   .2143087
+d_mw_wkp_~17 |     68,923    .0063235    .0206538  -.0877486   .2146293
+d_mw_wkp_t~r |     68,923    .0063269    .0206655  -.0862174   .2146294
 -------------+---------------------------------------------------------
 d_ln_emp_b~v |     68,923    .0025875     .016669    -.25245   .3948364
 d_ln_emp_i~o |     68,837    .0006735    .0320256  -.7435412   .6737289
@@ -1208,20 +1240,20 @@ d_ln_avgww~n |     68,921    .0028509    .1391815  -.9973412    .756268
  L3_d_mw_res |     67,482    .0073476    .0247776          0   .2412502
  F3_d_mw_res |     68,261    .0071879    .0246542  -.2903381   .2412502
 -------------+---------------------------------------------------------
-L1_d_mw_w~17 |     68,673    .0060893    .0203495  -.0877486   .2143087
-F1_d_mw_w~17 |     69,020    .0060967    .0203939  -.0877486   .2143087
-L2_d_mw_w~17 |     68,218    .0061457    .0204036  -.0002345   .2143087
-F2_d_mw_w~17 |     69,020     .006099    .0203949  -.0877486   .2143087
-L3_d_mw_w~17 |     67,482    .0074087    .0218393  -.0002345   .2143087
+L1_d_mw_w~17 |     68,673    .0061297     .020481  -.0877486   .2146293
+F1_d_mw_w~17 |     69,020    .0061337    .0205185  -.0877486   .2146293
+L2_d_mw_w~17 |     68,218    .0061865    .0205355  -.0002502   .2146293
+F2_d_mw_w~17 |     69,020     .006136    .0205195  -.0877486   .2146293
+L3_d_mw_w~17 |     67,482    .0074662    .0220134  -.0002502   .2146293
 -------------+---------------------------------------------------------
-F3_d_mw_w~17 |     68,261    .0071856    .0215794  -.0878919   .2143087
-L1_d_mw_wk~r |     68,673    .0060954    .0203646  -.0862174   .2143087
-F1_d_mw_wk~r |     69,020    .0060997    .0204042  -.0862174   .2143087
-L2_d_mw_wk~r |     68,218    .0061515    .0204191  -.0002344   .2143087
-F2_d_mw_wk~r |     69,020    .0061021    .0204053  -.0862174   .2143087
+F3_d_mw_w~17 |     68,261    .0072367     .021732  -.0878985   .2146293
+L1_d_mw_wk~r |     68,673    .0061337    .0204936  -.0862174   .2146294
+F1_d_mw_wk~r |     69,020    .0061355    .0205282  -.0862174   .2146294
+L2_d_mw_wk~r |     68,218    .0061901    .0205485  -.0002503   .2146294
+F2_d_mw_wk~r |     69,020    .0061379    .0205294  -.0862174   .2146294
 -------------+---------------------------------------------------------
-L3_d_mw_wk~r |     67,482    .0074141    .0218539  -.0002344   .2143087
-F3_d_mw_wk~r |     68,261    .0071884    .0215896  -.0899099   .2143087
+L3_d_mw_wk~r |     67,482    .0074711    .0220312  -.0002503   .2146294
+F3_d_mw_wk~r |     68,261    .0072393    .0217446  -.0899221   .2146294
 
 
 
@@ -1312,7 +1344,7 @@ File: ../../../drive/derived_large/estimation_samples/stacked_sample_window6.dt
 > a
 Key: zipcode event_id year_month
 ===============================================================================
-  112398:70(87837):726549779:3748723953
+  112398:70(87837):2318667281:1581920039
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -1325,8 +1357,8 @@ Key: zipcode event_id year_month
    statefips |          0
 statutory_mw |    112,398    9.368027    1.806734       7.25         16
       mw_res |    112,398    2.220091    .1822799   1.981001   2.772589
-mw_wkp_to~17 |    112,398    2.224582    .1735864   1.981101   2.692626
-mw_wkp_tot~r |    112,398    2.224715     .173579   1.981001    2.69742
+mw_wkp_to~17 |    112,398    2.226306    .1751281   1.981101   2.694133
+mw_wkp_tot~r |    112,398    2.226413    .1751891   1.981001   2.699045
 -------------+---------------------------------------------------------
     ln_rents |    112,398    .3434195    .5359402  -.8414373   3.100092
 ln_emp_biz~v |    112,398    11.38165    1.236177   6.198479   13.36667
@@ -1343,8 +1375,8 @@ ln_avgwwag~n |    112,392    7.364987    .4025806   6.318968   9.163982
 zipcode_ev~d |    112,398    41.66227    37.78618          1        168
   d_ln_rents |    112,132    .0025859     .033513  -.1955121   .1653653
     d_mw_res |    112,132     .004737    .0203362  -.2903381   .2412502
-d_mw_wkp_~17 |    112,132    .0048136    .0178173  -.0878919   .2143087
-d_mw_wkp_t~r |    112,132    .0048162    .0178295  -.0899099   .2143087
+d_mw_wkp_~17 |    112,132    .0048523    .0179639  -.0878985   .2146293
+d_mw_wkp_t~r |    112,132    .0048552    .0179798  -.0899221   .2146294
 -------------+---------------------------------------------------------
 d_ln_emp_b~v |    112,132    .0019814    .0158718  -.2854004   .3948364
 d_ln_emp_i~o |    111,995    .0002043     .030834  -.7435412   .6737289
@@ -1371,34 +1403,34 @@ d_ln_avgww~n |    112,124    .0027981    .1182514  -.9973412   1.088082
  L6_d_mw_res |    107,275     .006259    .0231941          0   .2412502
 -------------+---------------------------------------------------------
  F6_d_mw_res |    110,624    .0059855    .0219213  -.2903381   .2412502
-L1_d_mw_w~17 |    111,738    .0041781    .0168817  -.0877486   .2143087
-F1_d_mw_w~17 |    112,398    .0042181    .0168633  -.0878919   .2143087
-L2_d_mw_w~17 |    111,211    .0042002    .0169221  -.0877486   .2143087
-F2_d_mw_w~17 |    112,398    .0042242    .0168749  -.0878919   .2143087
+L1_d_mw_w~17 |    111,738    .0042087    .0170102  -.0877486   .2146293
+F1_d_mw_w~17 |    112,398    .0042475    .0169787  -.0878985   .2146293
+L2_d_mw_w~17 |    111,211     .004231    .0170507  -.0877486   .2146293
+F2_d_mw_w~17 |    112,398    .0042536    .0169902  -.0878985   .2146293
 -------------+---------------------------------------------------------
-L3_d_mw_w~17 |    110,552    .0043287    .0170765  -.0877486   .2143087
-F3_d_mw_w~17 |    112,398    .0043308    .0169741  -.0878919   .2143087
-L4_d_mw_w~17 |    109,794    .0042436    .0169945  -.0877486   .2143087
-F4_d_mw_w~17 |    112,335    .0042259    .0168794  -.0878919   .2143087
-L5_d_mw_w~17 |    108,793    .0044093    .0174069  -.0002345   .2143087
+L3_d_mw_w~17 |    110,552    .0043598    .0172048  -.0877486   .2146293
+F3_d_mw_w~17 |    112,398    .0043619    .0170922  -.0878985   .2146293
+L4_d_mw_w~17 |    109,794    .0042747    .0171239  -.0877486   .2146293
+F4_d_mw_w~17 |    112,335    .0042549     .016993  -.0878985   .2146293
+L5_d_mw_w~17 |    108,793    .0044409    .0175352  -.0002502   .2146293
 -------------+---------------------------------------------------------
-F5_d_mw_w~17 |    112,272    .0042484    .0168995  -.0878919   .2143087
-L6_d_mw_w~17 |    107,275    .0063176    .0207108  -.0002345   .2143087
-F6_d_mw_w~17 |    110,624    .0060158    .0192517  -.0878919   .2143087
-L1_d_mw_wk~r |    111,738    .0041814    .0168947  -.0862174   .2143087
-F1_d_mw_wk~r |    112,398    .0042209    .0168754  -.0899099   .2143087
+F5_d_mw_w~17 |    112,272    .0042775    .0170131  -.0878985   .2146293
+L6_d_mw_w~17 |    107,275    .0063621    .0208627  -.0002502   .2146293
+F6_d_mw_w~17 |    110,624    .0060567    .0193812  -.0878985   .2146293
+L1_d_mw_wk~r |    111,738    .0042116    .0170248  -.0862174   .2146294
+F1_d_mw_wk~r |    112,398    .0042496    .0169904  -.0899221   .2146294
 -------------+---------------------------------------------------------
-L2_d_mw_wk~r |    111,211    .0042035    .0169351  -.0862174   .2143087
-F2_d_mw_wk~r |    112,398    .0042273    .0168874  -.0899099   .2143087
-L3_d_mw_wk~r |    110,552    .0043316    .0170892  -.0862174   .2143087
-F3_d_mw_wk~r |    112,398    .0043346    .0169874  -.0899099   .2143087
-L4_d_mw_wk~r |    109,794    .0042469    .0170084  -.0862174   .2143087
+L2_d_mw_wk~r |    111,211    .0042339    .0170654  -.0862174   .2146294
+F2_d_mw_wk~r |    112,398     .004256    .0170023  -.0899221   .2146294
+L3_d_mw_wk~r |    110,552    .0043623    .0172193  -.0862174   .2146294
+F3_d_mw_wk~r |    112,398    .0043648    .0171045  -.0899221   .2146294
+L4_d_mw_wk~r |    109,794    .0042776    .0171394  -.0862174   .2146294
 -------------+---------------------------------------------------------
-F4_d_mw_wk~r |    112,335    .0042285    .0168904  -.0899099   .2143087
-L5_d_mw_wk~r |    108,793    .0044127    .0174219  -.0002684   .2143087
-F5_d_mw_wk~r |    112,272    .0042508    .0169104  -.0899099   .2143087
-L6_d_mw_wk~r |    107,275     .006323    .0207329  -.0002684   .2147717
-F6_d_mw_wk~r |    110,624    .0060203    .0192661  -.0899099   .2143087
+F4_d_mw_wk~r |    112,335    .0042569    .0170044  -.0899221   .2146294
+L5_d_mw_wk~r |    108,793    .0044439    .0175518  -.0002684   .2146294
+F5_d_mw_wk~r |    112,272    .0042793    .0170244  -.0899221   .2146294
+L6_d_mw_wk~r |    107,275    .0063656    .0208769  -.0002684   .2147717
+F6_d_mw_wk~r |    110,624      .00606    .0193955  -.0899221   .2146294
 
 
 
@@ -1511,7 +1543,7 @@ File: ../../../drive/derived_large/estimation_samples/stacked_sample_window9.dt
 > a
 Key: zipcode event_id year_month
 ===============================================================================
-  154261:88(70284):2641164887:2962696816
+  154261:88(70284):491896001:4224143156
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -1524,8 +1556,8 @@ Key: zipcode event_id year_month
    statefips |          0
 statutory_mw |    154,261    9.350794    1.811299       7.25         16
       mw_res |    154,261    2.218199     .182298   1.981001   2.772589
-mw_wkp_to~17 |    154,261    2.222369    .1737798   1.981055   2.692626
-mw_wkp_tot~r |    154,261    2.222503    .1737734   1.981001   2.697426
+mw_wkp_to~17 |    154,261    2.224059    .1753098    1.98106   2.694133
+mw_wkp_tot~r |    154,261    2.224165    .1753719   1.981001   2.699052
 -------------+---------------------------------------------------------
     ln_rents |    154,261    .3438918    .5389177  -.8414373   3.118553
 ln_emp_biz~v |    154,261    11.39339    1.231365   6.198479    13.3753
@@ -1542,8 +1574,8 @@ ln_avgwwag~n |    154,253    7.353719    .3973397   6.318968   9.163982
 zipcode_ev~d |    154,261    42.09533    37.97528          1        168
   d_ln_rents |    154,129    .0023417     .033074  -.1955121   .1645665
     d_mw_res |    154,129    .0034335    .0174831  -.2903381   .2412502
-d_mw_wkp_~17 |    154,129    .0035008    .0152556  -.0878919   .2143087
-d_mw_wkp_t~r |    154,129    .0035028    .0152665  -.0899099   .2143087
+d_mw_wkp_~17 |    154,129    .0035285    .0153759  -.0878985   .2146293
+d_mw_wkp_t~r |    154,129    .0035305    .0153894  -.0899221   .2146294
 -------------+---------------------------------------------------------
 d_ln_emp_b~v |    154,129    .0027115    .0149394  -.2854004   .3948364
 d_ln_emp_i~o |    153,951    .0001279     .029767  -.7435412   .5844231
@@ -1577,49 +1609,49 @@ d_ln_avgww~n |    154,119   -.0028305    .1242909  -.9973412   1.088082
 -------------+---------------------------------------------------------
  L9_d_mw_res |    143,974    .0050017    .0209984          0   .2412502
  F9_d_mw_res |    141,615    .0049053    .0202892  -.2903381   .2412502
-L1_d_mw_w~17 |    153,898    .0034414    .0152042  -.0878919   .2143087
-F1_d_mw_w~17 |    154,201    .0034256    .0151623  -.0878919   .2143087
-L2_d_mw_w~17 |    153,424    .0035307     .015495  -.0878919   .2143087
+L1_d_mw_w~17 |    153,898    .0034679    .0153223  -.0878985   .2146293
+F1_d_mw_w~17 |    154,201    .0034532    .0152831  -.0878985   .2146293
+L2_d_mw_w~17 |    153,424    .0035575     .015612  -.0878985   .2146293
 -------------+---------------------------------------------------------
-F2_d_mw_w~17 |    154,141    .0034384    .0151717  -.0878919   .2143087
-L3_d_mw_w~17 |    152,433    .0049326    .0184073  -.0878919   .2143087
-F3_d_mw_w~17 |    152,553    .0046456    .0170745  -.0878919   .2143087
-L4_d_mw_w~17 |    151,306    .0045591    .0179137  -.0877486   .2143087
-F4_d_mw_w~17 |    150,866    .0043125    .0166188  -.0878919   .2143087
+F2_d_mw_w~17 |    154,141    .0034661    .0152925  -.0878985   .2146293
+L3_d_mw_w~17 |    152,433    .0049683    .0185418  -.0878985   .2146293
+F3_d_mw_w~17 |    152,553    .0046809    .0172038  -.0878985   .2146293
+L4_d_mw_w~17 |    151,306    .0045895    .0180354  -.0877486   .2146293
+F4_d_mw_w~17 |    150,866    .0043415    .0167242  -.0878985   .2146293
 -------------+---------------------------------------------------------
-L5_d_mw_w~17 |    150,074    .0046128    .0179952  -.0877486   .2143087
-F5_d_mw_w~17 |    149,179    .0043624    .0167123  -.0878919   .2143087
-L6_d_mw_w~17 |    148,746    .0046989    .0181075  -.0877486   .2143087
-F6_d_mw_w~17 |    147,430    .0044625     .016869  -.0878919   .2143087
-L7_d_mw_w~17 |    147,309    .0046799    .0181297  -.0877486   .2143087
+L5_d_mw_w~17 |    150,074    .0046434    .0181174  -.0877486   .2146293
+F5_d_mw_w~17 |    149,179    .0043918    .0168182  -.0878985   .2146293
+L6_d_mw_w~17 |    148,746    .0047313     .018233  -.0877486   .2146293
+F6_d_mw_w~17 |    147,430    .0044922    .0169753  -.0878985   .2146293
+L7_d_mw_w~17 |    147,309    .0047125    .0182564  -.0877486   .2146293
 -------------+---------------------------------------------------------
-F7_d_mw_w~17 |    145,681    .0044455    .0168991  -.0878919   .2143087
-L8_d_mw_w~17 |    145,758    .0047369    .0182167  -.0002345   .2143087
-F8_d_mw_w~17 |    143,932    .0044988    .0169944  -.0878919   .2143087
-L9_d_mw_w~17 |    143,974     .005076    .0187941  -.0002345   .2143087
-F9_d_mw_w~17 |    141,615    .0049342    .0177913  -.0878919   .2143087
+F7_d_mw_w~17 |    145,681     .004474    .0170026  -.0878985   .2146293
+L8_d_mw_w~17 |    145,758    .0047699    .0183443  -.0002502   .2146293
+F8_d_mw_w~17 |    143,932    .0045276    .0170984  -.0878985   .2146293
+L9_d_mw_w~17 |    143,974    .0051145    .0189419  -.0002502   .2146293
+F9_d_mw_w~17 |    141,615    .0049684    .0179089  -.0878985   .2146293
 -------------+---------------------------------------------------------
-L1_d_mw_wk~r |    153,898    .0034429    .0152146  -.0899099   .2143087
-F1_d_mw_wk~r |    154,201    .0034282    .0151739  -.0899099   .2143087
-L2_d_mw_wk~r |    153,424    .0035322    .0155059  -.0899099   .2143087
-F2_d_mw_wk~r |    154,141    .0034408    .0151832  -.0899099   .2143087
-L3_d_mw_wk~r |    152,433    .0049358    .0184257  -.0899099   .2147717
+L1_d_mw_wk~r |    153,898    .0034696    .0153359  -.0899221   .2146294
+F1_d_mw_wk~r |    154,201    .0034557    .0152974  -.0899221   .2146294
+L2_d_mw_wk~r |    153,424    .0035592    .0156259  -.0899221   .2146294
+F2_d_mw_wk~r |    154,141    .0034684    .0153066  -.0899221   .2146294
+L3_d_mw_wk~r |    152,433    .0049707    .0185553  -.0899221   .2147717
 -------------+---------------------------------------------------------
-F3_d_mw_wk~r |    152,553    .0046491    .0170887  -.0899099   .2143087
-L4_d_mw_wk~r |    151,306    .0045625    .0179327  -.0862174   .2147717
-F4_d_mw_wk~r |    150,866    .0043166    .0166361  -.0899099   .2143087
-L5_d_mw_wk~r |    150,074    .0046162    .0180143  -.0862174   .2147717
-F5_d_mw_wk~r |    149,179    .0043668    .0167296  -.0899099   .2143087
+F3_d_mw_wk~r |    152,553    .0046839    .0172198  -.0899221   .2146294
+L4_d_mw_wk~r |    151,306    .0045915    .0180477  -.0862174   .2147717
+F4_d_mw_wk~r |    150,866    .0043444    .0167402  -.0899221   .2146294
+L5_d_mw_wk~r |    150,074    .0046455    .0181298  -.0862174   .2147717
+F5_d_mw_wk~r |    149,179    .0043949    .0168341  -.0899221   .2146294
 -------------+---------------------------------------------------------
-L6_d_mw_wk~r |    148,746     .004703    .0181276  -.0862174   .2147717
-F6_d_mw_wk~r |    147,430    .0044666    .0168854  -.0899099   .2143087
-L7_d_mw_wk~r |    147,309    .0046842    .0181504  -.0862174   .2147717
-F7_d_mw_wk~r |    145,681    .0044487    .0169139  -.0899099   .2143087
-L8_d_mw_wk~r |    145,758    .0047411    .0182378  -.0002684   .2147717
+L6_d_mw_wk~r |    148,746     .004734    .0182465  -.0862174   .2147717
+F6_d_mw_wk~r |    147,430    .0044951    .0169903  -.0899221   .2146294
+L7_d_mw_wk~r |    147,309    .0047155    .0182706  -.0862174   .2147717
+F7_d_mw_wk~r |    145,681    .0044763     .017017  -.0899221   .2146294
+L8_d_mw_wk~r |    145,758    .0047728    .0183587  -.0002684   .2147717
 -------------+---------------------------------------------------------
-F8_d_mw_wk~r |    143,932     .004502    .0170093  -.0899099   .2143087
-L9_d_mw_wk~r |    143,974    .0050798    .0188131  -.0002684   .2147717
-F9_d_mw_wk~r |    141,615    .0049371    .0178055  -.0899099   .2143087
+F8_d_mw_wk~r |    143,932      .00453    .0171129  -.0899221   .2146294
+L9_d_mw_wk~r |    143,974    .0051174    .0189565  -.0002684   .2147717
+F9_d_mw_wk~r |    141,615    .0049707    .0179246  -.0899221   .2146294
 
 
 
@@ -1632,4 +1664,4 @@ file ../../../drive/derived_large/estimation_samples/stacked_sample_window9.dta
 . 
 end of do-file
 
- make.py ended: 2022-03-16 06:28:36
+ make.py ended: 2022-03-26 13:05:40
