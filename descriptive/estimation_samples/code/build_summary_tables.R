@@ -28,6 +28,7 @@ main <- function() {
   baseline_panel <- load_data("baseline_zillow_rents_zipcode_months.csv")
   
   vars_for_table <- c("statutory_mw", "mw_res", "mw_wkp_tot_17",
+                      "mw_wkp_earn_under1250_17", "mw_wkp_age_under29_17",
                       "medrentprice_SFCC", "medrentpricepsqft_SFCC", "ln_rents", 
                       paste0("ln_rents_", c("SF", "CC", "Studio", "1BR", "2BR", "3BR", "Mfr5Plus")), 
                       "ln_emp_bizserv", "ln_estcount_bizserv", "ln_avgwwage_bizserv", 
@@ -55,7 +56,7 @@ build_basic_stats <- function(df) {
               tot_hhlds_cens2010            = sum(n_hhlds_cens2010, na.rm = T)/1000,
               mean_pop_cens2010             = mean(population_cens2010, na.rm = T),
               mean_hhlds_cens2010           = mean(n_hhlds_cens2010, na.rm = T),
-              sh_urban_pop_2010             = mean(sh_urban_pop_2010, na.rm = T),
+              sh_urb_pop_cens2010           = mean(sh_urb_pop_cens2010, na.rm = T),
               sh_hhlds_renteroccup_cens2010 = mean(sh_hhlds_renteroccup_cens2010, na.rm = T),
               sh_black_cens2010             = mean(sh_black_cens2010, na.rm = T),
               sh_white_cens2010             = mean(sh_white_cens2010, na.rm = T),
