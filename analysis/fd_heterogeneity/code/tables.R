@@ -1,50 +1,54 @@
 remove(list = ls())
 
-
 main <- function() {
-  
-  instub  <- "../output/"
+  instub  <- "../temp/"
   outstub <- "../output/"
   
-  est <- read.csv(file.path(instub, "estimates_static.csv"))
-  est_var <- est[est$var != "cumsum_from0", ]
+  est <- read.csv(file.path(instub, "estimates.csv"))
   
-  
-  txt <- c("<tab:static>")
+  txt <- c("<tab:heterogeneity>")
   txt <- c(txt, 
-           paste(est_var[est_var$model == "exp_mw_on_mw",]$b,
-                 est_var[est_var$model == "static_statutory",]$b, 
-                 est_var[est_var$model == "static_both" & est_var$var == "ln_mw",]$b, sep = "\t"))
-  
+           paste(est[est$model == "static_both"  & est$var == "mw_res",]$b,
+                 est[est$model == "heterogeneity"& est$var == "mw_res_high_work_mw" & est$at == 0,]$b, 
+                 sep = "\t"))
   txt <- c(txt, 
-           paste(est_var[est_var$model == "exp_mw_on_mw",]$se,
-                 est_var[est_var$model == "static_statutory",]$se, 
-                 est_var[est_var$model == "static_both" & est_var$var == "ln_mw",]$se, sep = "\t"))
-  
+           paste(est[est$model == "static_both"  & est$var == "mw_res",]$se,
+                 est[est$model == "heterogeneity"& est$var == "mw_res_high_work_mw" & est$at == 0,]$se, 
+                 sep = "\t"))
+
   txt <- c(txt, 
-           paste(est_var[est_var$model == "static_experienced",]$b, 
-                 est_var[est_var$model == "static_both" & est_var$var == "exp_ln_mw",]$b, sep = "\t"))
+           paste(est[est$model == "heterogeneity"& est$var == "mw_res_high_work_mw" & est$at == 1,]$b, 
+                 sep = "\t"))
   txt <- c(txt, 
-           paste(est_var[est_var$model == "static_experienced",]$se, 
-                 est_var[est_var$model == "static_both" & est_var$var == "exp_ln_mw",]$se, sep = "\t"))
-  
-  txt <- c(txt, paste0(est[est$model == "static_both" & est$var == "cumsum_from0",]$b))
-  txt <- c(txt, paste0(est[est$model == "static_both" & est$var == "cumsum_from0",]$se))
-  txt <- c(txt, paste0(est[est$model == "static_both" & est$var == "cumsum_from0",]$p_equality))
+           paste(est[est$model == "heterogeneity"& est$var == "mw_res_high_work_mw" & est$at == 1,]$se, 
+                 sep = "\t"))
   
   txt <- c(txt, 
-           paste(est_var[est_var$model == "exp_mw_on_mw",]$r2,
-                 est_var[est_var$model == "static_statutory",]$r2, 
-                 est_var[est_var$model == "static_experienced",]$r2, 
-                 est_var[est_var$model == "static_both",]$r2[1], sep = "\t"))
+           paste(est[est$model == "static_both"  & est$var == "mw_wkp_tot_17",]$b,
+                 est[est$model == "heterogeneity"& est$var == "mw_wkp_high_res_mw" & est$at == 0,]$b, 
+                 sep = "\t"))
+  txt <- c(txt, 
+           paste(est[est$model == "static_both"  & est$var == "mw_wkp_tot_17",]$se,
+                 est[est$model == "heterogeneity"& est$var == "mw_wkp_high_res_mw" & est$at == 0,]$se, 
+                 sep = "\t"))
   
   txt <- c(txt, 
-           paste(est_var[est_var$model == "exp_mw_on_mw",]$N,
-                 est_var[est_var$model == "static_statutory",]$N, 
-                 est_var[est_var$model == "static_experienced",]$N, 
-                 est_var[est_var$model == "static_both",]$N[1], sep = "\t"))
+           paste(est[est$model == "heterogeneity"& est$var == "mw_wkp_high_res_mw" & est$at == 1,]$b, 
+                 sep = "\t"))
+  txt <- c(txt, 
+           paste(est[est$model == "heterogeneity"& est$var == "mw_wkp_high_res_mw" & est$at == 1,]$se, 
+                 sep = "\t"))
   
-  fileConn <- file(file.path(outstub, "static.txt"))
+  txt <- c(txt, 
+           paste(est[est$model == "static_both"  & est$var == "mw_wkp_tot_17",]$r2,
+                 est[est$model == "heterogeneity"& est$var == "mw_wkp_high_res_mw" & est$at == 0,]$r2, 
+                 sep = "\t"))
+  txt <- c(txt, 
+           paste(est[est$model == "static_both"  & est$var == "mw_wkp_tot_17",]$N,
+                 est[est$model == "heterogeneity"& est$var == "mw_wkp_high_res_mw" & est$at == 0,]$N, 
+                 sep = "\t"))
+ 
+  fileConn <- file(file.path(outstub, "heterogeneity.txt"))
   writeLines(txt, fileConn)
   close(fileConn)
 }

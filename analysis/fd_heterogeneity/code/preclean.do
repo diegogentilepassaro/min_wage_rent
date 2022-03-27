@@ -20,10 +20,12 @@ program main
 	load_and_clean, instub(`instub') incross(`incross')
 	gen high_res_mw = sh_res_underHS_above_med*sh_res_under1250_above_med
 	gen high_work_mw = sh_workers_underHS_above_med*sh_workers_under1250_above_med
+	
 	merge m:1 zipcode using "`outstub'/public_housing_2017.dta", ///
 	    nogen keep(1 3)
 	gen public_housing = (total_units > 0) if !missing(total_units)
 	replace public_housing = 0 if missing(total_units)
+	
     save_data "`outstub'/baseline_sample_with_vars_for_het.dta", ///
 	    key(zipcode year_month) replace log(none)
 end
