@@ -6,78 +6,69 @@ source('../../../lib/R/write_command.R')
 
 main <- function() {
   
-  in_baseline <- '../output'
+  in_baseline  <- '../output'
   out_autofill <- '../output'
   
   # From estimates_static
   
-  data <- load_data(in_baseline, 'static')
+  dt <- load_data(in_baseline, 'static')
   
-  data <- data[!(model %in% c('Only', 'WkpOnRes') & var == 'Sum')]
+  dt <- dt[!(model %in% c('Only', 'WkpOnRes') & var == 'Sum')]
   
   txt <- ''
 
   for (mm in c('WkpOnRes', 'Only', 'Both')) {
     for (vv in c('Gamma', 'Beta', 'Sum')) {
       
-      dt_comb <- data[model == mm & var == vv]
+      dt_comb <- dt[model == mm & var == vv]
       
       combination_exists <- dim(dt_comb)[1] > 0
       
       if (combination_exists) {
       
-        estim   <- write_command(paste0(mm, vv, 'Base'), round(dt_comb$b,4))
-        
-        estim10 <- write_command(paste0(mm, vv, 'BaseTen'), round(10 * dt_comb$b,2))
-        
-        tstat   <- write_command(paste0(mm, vv, 'BasetStat'), dt_comb$t)
+        estim   <- write_command(paste0(mm, vv, 'Base'),      round(dt_comb$b,    4))        
+        estim10 <- write_command(paste0(mm, vv, 'BaseTen'),   round(10*dt_comb$b, 2))        
+        tstat   <- write_command(paste0(mm, vv, 'BasetStat'), round(dt_comb$t,    2))
         
         if (dt_comb$b < 0) {
           
-          estimAbs   <- write_command(paste0(mm, vv, 'BaseAbs'), round(abs(dt_comb$b),4))
-          
-          estimAbs10 <- write_command(paste0(mm, vv, 'BaseTenAbs'), round(10* abs(dt_comb$b),2))
-          
+          estimAbs   <- write_command(paste0(mm, vv, 'BaseAbs'),    round(abs(dt_comb$b),    4))          
+          estimAbs10 <- write_command(paste0(mm, vv, 'BaseTenAbs'), round(10*abs(dt_comb$b), 2))
+
           txt <- paste0(txt, estim, estimAbs, estim10, estimAbs10, tstat)
           
-        } else {
-          
-        txt <- paste0(txt, estim, estim10, tstat)
-        
+        } else {          
+          txt <- paste0(txt, estim, estim10, tstat)        
         }
       }
     }
   }
   
-  est <- data[model == 'Both', unique(p_equality)]
-  
-  comm <- write_command('GammaBetaBasePval', round(est, 3))
+  est  <- dt[model == 'Both', unique(p_equality)]  
+  comm <- write_command('GammaEqBetaBasePval', round(est, 3))
   
   txt <- paste0(txt, comm)
   
   # From estimates_dynamic
   
-  data <- load_data(in_baseline, 'dynamic')
+  dt <- load_data(in_baseline, 'dynamic')
   
-  data <- data[model == 'both_mw_wkp_dynamic' & at == 0]
+  dt <- dt[model == 'both_mw_wkp_dynamic' & at == 0]
   
   for (vv in c('Gamma', 'Beta', 'Sum')) {
     
-    dt_comb <- data[var == vv]
+    dt_comb <- dt[var == vv]
     
     name <- 'BothWkpDyn'
     
-    estim   <- write_command(paste0(name, vv, 'Base'), round(dt_comb$b, 4))
-    
-    estim10 <- write_command(paste0(name, vv, 'BaseTen'), round(10 * dt_comb$b,2))
-    
-    tstat   <- write_command(paste0(name, vv, 'BasetStat'), dt_comb$t)
+    estim   <- write_command(paste0(name, vv, 'Base'),      round(dt_comb$b,    4))    
+    estim10 <- write_command(paste0(name, vv, 'BaseTen'),   round(10*dt_comb$b, 2))    
+    tstat   <- write_command(paste0(name, vv, 'BasetStat'), round(dt_comb$t,    2))
     
     if (dt_comb$b < 0) {
       
-      estimAbs   <- write_command(paste0(name, vv, 'BaseAbs'), round(abs(dt_comb$b),4))
-      
-      estimAbs10 <- write_command(paste0(name, vv, 'BaseTenAbs'), round(10* abs(dt_comb$b),2))
+      estimAbs   <- write_command(paste0(name, vv, 'BaseAbs'),    round(abs(dt_comb$b),    4))      
+      estimAbs10 <- write_command(paste0(name, vv, 'BaseTenAbs'), round(10*abs(dt_comb$b), 2))
       
       txt <- paste0(txt, estim, estimAbs, estim10, estimAbs10, tstat)
     } else {
@@ -85,18 +76,15 @@ main <- function() {
     txt <- paste0(txt, estim, estim10, tstat)
       
     }
-    
   }
   
-  est <- data[var == 'Sum', p_equality]
+  est  <- dt[var == 'Sum', p_equality]  
+  comm <- write_command('GammaEqBetaBaseDynPval', round(est, 3))
   
-  comm <- write_command('GammaBetaDynBasePVal', round(est, 3))
+  txt  <- paste0(txt, comm)
   
-  txt <- paste0(txt, comm)
-  
-  est <- data[var == 'Sum', p_pretrend]
-  
-  comm <- write_command('GammaBetaDynBasePPreTrend', round(est, 3))
+  est  <- dt[var == 'Sum', p_pretrend]  
+  comm <- write_command('BetaPretrendDynBasePVal', round(est, 3))
   
   txt <- paste0(txt, comm)
   
@@ -111,17 +99,16 @@ load_data <- function(path, panel) {
   
   data <- fread(file.path(path, name))
   
-  data[, `:=`(var = fcase(var == "mw_res", "Gamma",
+  data[, `:=`(var = fcase(var == "mw_res",        "Gamma",
                           var == "mw_wkp_tot_17", "Beta",
-                          var == "cumsum_from0", "Sum"),
-              t   = round(b / se, 2))]
+                          var == "cumsum_from0",  "Sum"),
+              t   = b / se)]
   
   if (panel=='static') {
     
-    data[, `:=`(model = fcase(model == 'mw_wkp_on_res_mw', 'WkpOnRes',
-                              model %in% c('static_mw_res',
-                                           'static_mw_wkp'), 'Only', 
-                              model == 'static_both', 'Both'))]
+    data[, `:=`(model = fcase(model == 'mw_wkp_on_res_mw',                   'WkpOnRes',
+                              model %in% c('static_mw_res','static_mw_wkp'), 'Only', 
+                              model == 'static_both',                        'Both'))]
   }
   
   return(data)
