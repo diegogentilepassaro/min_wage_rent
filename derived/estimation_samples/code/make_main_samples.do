@@ -129,10 +129,10 @@ program compute_weights
     
     preserve
         merge m:1 zipcode using "`instub'/zipcode_cross.dta", ///
-            assert(2 3) keep(2 3) keepusing(`target_vars' sh_rural_pop_2010)
+            assert(2 3) keep(2 3) keepusing(`target_vars' urban_cbsa)
 
         foreach var of local target_vars {
-            qui sum `var' if sh_rural_pop_2010 < `thresh'
+            qui sum `var' if urban_cbsa == 1
             local var_mean = r(mean)
             local target_means "`target_means' `var_mean'"
         }

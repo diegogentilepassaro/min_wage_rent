@@ -1,10 +1,10 @@
 
- make.py started: 2021-11-05 12:39:26 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\code 
+ make.py started: 2022-03-26 17:06:46 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\code 
 
 
 
 
-Execute:  StataMP-64 /e do "./prepare.do"
+Execute:  StataMP-64 /e do "./compute.do"
 
   ___  ____  ____  ____  ____ (R)
  /__    /   ____/   /   ____/
@@ -27,7 +27,10 @@ Notes:
       3.  More than 2 billion observations are allowed; see help obs_advice.
       4.  Maximum number of variables is set to 5000; see help set_maxvar.
 
-. do ./prepare.do 
+
+running c:\ado\personal\profile.do ...
+
+. do ./compute.do 
 
 . clear all
 
@@ -38,255 +41,214 @@ Notes:
 
 . 
 . program main
-  1.     local in_est      "../../../drive/derived_large/estimation_samples"
-  2.     local in_cf_mw    "../../../drive/derived_large/min_wage"
-  3.         local in_zip_year "../../../drive/derived_large/zipcode_year"
-  4.     
-.     local cluster = "statefips"
-  5.     local absorb  = "year_month"
-  6.     
-.     local exp_ln_mw_var "exp_ln_mw_17"
-  7. 
-.     process_counterfactual_data, in_cf_mw(`in_cf_mw') in_est(`in_est')
-  8.     
-.     use zipcode zipcode_num statefips year_month year month ///
->         ln_rents ln_mw `exp_ln_mw_var' ///
->         using "`in_est'/all_zipcode_months.dta", clear
-  9.     add_baseline_zipcodes, instub(`in_est')
- 10.     build_rents_for_cf
- 11.         
-.     keep zipcode year month d_ln_mw d_exp_ln_mw_17 ///
->         ln_rents_pre
- 12.         order zipcode year month d_ln_mw d_exp_ln_mw_17 ///
->         ln_rents_pre
- 13.     save_data "../output/d_ln_rents_cf_predictions.dta", ///
->         key(zipcode year month) replace
- 14.                 
-.     use "`in_zip_year'/zipcode_year.dta", clear
- 15.         build_wagebill_for_cf
- 16.         
-.         keep zipcode year ln_wagebill ln_wagebill_pre n_hhlds_pre
- 17.         order zipcode year ln_wagebill ln_wagebill_pre n_hhlds_pre
- 18.         save_data "../output/ln_wagebill_cf_predictions.dta", ///
->             key(zipcode year) replace
- 19. end
+  1.     local in_cf_mw    "../../../drive/derived_large/min_wage_measures"
+  2.     local in_baseline "../../fd_baseline/output"
+  3.     local in_wages    "../../twfe_wages/output"
+  4.     local in_zip      "../../../drive/derived_large/zipcode"
+  5. 
+.     load_parameters, in_baseline(`in_baseline') in_wages(`in_wages')
+  6.     local beta    = r(beta)
+  7.     local gamma   = r(gamma)
+  8.     local epsilon = r(epsilon)
+  9. 
+.     di "Beta, Gamma, and Epsilon: `beta', `gamma', `epsilon'"
+ 10. 
+.     load_counterfactuals,  instub(`in_cf_mw')
+ 11.     select_urban_zipcodes, instub(`in_zip')
+ 12.     
+.     compute_vars, beta(`beta') gamma(`gamma') epsilon(`epsilon')
+ 13. 
+.     list if rho < -1
+ 14.     drop if rho < -1
+ 15. 
+.     sum rho, detail
+ 16. 
+.     save             "../output/data_counterfactuals.dta", replace
+ 17.     export delimited "../output/data_counterfactuals.csv", replace
+ 18. end
 
 . 
-. program process_counterfactual_data
-  1.     syntax, in_cf_mw(str) in_est(str)
-  2.     
-.     use zipcode year_month year month counterfactual exp_ln_mw_tot using ///
->         "`in_cf_mw'/zipcode_experienced_mw_cfs.dta", clear
-  3.     
-.     bysort zipcode counterfactual (year month): ///
->     gen d_exp_ln_mw_cf = exp_ln_mw_tot[_n] - exp_ln_mw_tot[_n - 1]
-  4.     keep if (year == 2020 & month == 1)
-  5.     rename exp_ln_mw_tot exp_ln_mw_tot_18_cf
-  6.     gen fed_mw_cf = 7.25*1.1 if counterfactual == "fed_10pc"
-  7.     replace fed_mw_cf = 15 if counterfactual == "fed_15usd"
-  8.     replace fed_mw_cf = 9 if counterfactual == "fed_9usd"
-  9.     save "../temp/counterfactual.dta", replace
- 10.     
-.     use "`in_est'/all_zipcode_months.dta", clear
- 11.     keep if (year == 2019 & month == 12)
- 12.     keep zipcode actual_mw
- 13.     expand 3
- 14.     bysort zipcode: gen counterfactual = "fed_10pc" if _n == 1
- 15.     bysort zipcode: replace counterfactual = "fed_15usd" if _n == 2
- 16.     bysort zipcode: replace counterfactual = "fed_9usd" if _n == 3
- 17.     merge 1:1 zipcode counterfactual using "../temp/counterfactual.dta", /
-> //
->         nogen keep(3)
- 18.     egen actual_mw_cf = rowmax(actual_mw fed_mw_cf)
- 19.     gen d_ln_mw_cf = log(actual_mw_cf) - log(actual_mw)
- 20.     drop fed_mw_cf actual_mw_cf exp_ln_mw_tot_18_cf
- 21.     preserve
- 22.         keep if counterfactual == "fed_10pc"
- 23.         drop counterfactual
- 24.         save "../temp/counterfactual_fed_10pc.dta", replace
- 25.     restore
- 26.     preserve
- 27.         keep if counterfactual == "fed_15usd"
- 28.         drop counterfactual
- 29.         save "../temp/counterfactual_fed_15usd.dta", replace
- 30.     restore
- 31.     preserve
- 32.         keep if counterfactual == "fed_9usd"
- 33.         drop counterfactual
- 34.         save "../temp/counterfactual_fed_9usd.dta", replace
- 35.     restore
- 36. end
+. program load_parameters, rclass
+  1.     syntax, in_baseline(str) in_wages(str)
+  2. 
+.     use `in_baseline'/estimates_static.dta, clear
+  3.     keep if model == "static_both"
+  4. 
+.     qui sum b if var == "mw_res"
+  5.     return local gamma = r(mean)
+  6.     qui sum b if var == "mw_wkp_tot_17"
+  7.     return local beta = r(mean)
+  8. 
+.     use `in_wages'/estimates_cbsa_time.dta, clear
+  9.     qui sum b
+ 10.     return local epsilon = r(mean)
+ 11. end
 
 . 
-. program add_baseline_zipcodes
+. program load_counterfactuals
   1.     syntax, instub(str)
   2. 
-.     preserve
-  3.         use `instub'/baseline_zipcode_months.dta, clear
+.     clear
+  3.     use zipcode year month counterfactual mw_wkp_tot mw_res statutory_mw /
+> //
+>         using "`instub'/zipcode_wkp_mw_cfs.dta"
   4. 
-.         keep if !missing(ln_rents)
-  5.         bys  zipcode: keep if _n == 1
-  6.         keep zipcode
-  7.         gen baseline_sample = 1
-  8. 
-.         tempfile zipcode_years_baseline
-  9.         save    `zipcode_years_baseline'
- 10.     restore
- 11. 
-.     merge m:1 zipcode using `zipcode_years_baseline', keep(1 3) nogen
- 12. 
-.     replace baseline_sample = 0 if baseline_sample != 1
- 13. end
-
-. 
-. program build_rents_for_cf
-  1.     local exp_ln_mw_var "exp_ln_mw_17"
-  2. 
-.     gen d_ln_rents = ln_rents[_n] - ln_rents[_n-1]
-  3.     gen d_ln_mw = ln_mw[_n] - ln_mw[_n-1]
-  4.     gen d_`exp_ln_mw_var' = `exp_ln_mw_var'[_n] - `exp_ln_mw_var'[_n-1]
-  5.         
-.     append using "../temp/counterfactual_fed_9usd.dta"
+.     bysort zipcode counterfactual (year month): ///
+>         gen d_mw_wkp = mw_wkp_tot[_n] - mw_wkp_tot[_n - 1]
+  5.     bysort zipcode counterfactual (year month): ///
+>         gen d_mw_res = mw_res[_n] - mw_res[_n - 1]
   6.     
-.     replace d_ln_mw = d_ln_mw_cf if (year == 2020 & month == 1)
-  7.     replace d_exp_ln_mw_17 = d_exp_ln_mw_cf if (year == 2020 & month == 1)
-  8.     
-.     bysort zipcode (year month): gen ln_rents_pre = ///
->             ln_rents[_n-1] if (year == 2020 & month == 1)
-  9.     gen counterfactual = 0
- 10.     replace counterfactual = 1 if (year == 2020 & month == 1) 
- 11.     replace year_month = `=tm(2019m12)' if year_month == 2020
- 12. 
-.     keep if counterfactual == 1
- 13. end
+.     * Predictions with parameters
+.     gen   diff_mw  = d_mw_wkp - d_mw_res
+  7.     xtile diff_qts = diff_mw, nquantiles(10)
+  8. end
 
 . 
-. program build_wagebill_for_cf
-  1.     keep if year < 2020
-  2.     append using "../temp/counterfactual_fed_9usd.dta"
-  3.         gen counterfactual = 0
-  4.         replace counterfactual = 1 if year == 2020 
-  5.         replace exp_ln_mw_tot_18_avg = exp_ln_mw_tot if year == 2020
-  6.         replace year = 2018 if year == 2020
-  7.         keep if year == 2018 | year == 2020
-  8.         bysort zipcode (counterfactual): gen d_exp_ln_mw_tot_18_avg = ///
->             exp_ln_mw_tot_18_avg[_n] - exp_ln_mw_tot_18_avg[_n - 1]
-  9.         bysort zipcode (year): carryforward ln_wagebill, replace
- 10.         gen n_hhlds = exp(ln_n_hhdls)
- 11.         bysort zipcode (year): carryforward n_hhlds, replace
- 12.         keep if counterfactual == 1
- 13.         rename (ln_wagebill n_hhlds) (ln_wagebill_pre n_hhlds_pre)
+. program select_urban_zipcodes
+  1.     syntax, instub(str)
+  2. 
+.     merge m:1 zipcode using `instub'/zipcode_cross.dta,  ///
+>         assert(2 3) keep(3) nogen keepusing(cbsa urban_cbsa)
+  3. 
+.     keep if urban_cbsa
+  4. end
+
+. 
+. program compute_vars
+  1.     syntax, beta(str) gamma(str) epsilon(str) [s(real 0.35)]
+  2. 
+.     gen  no_direct_treatment  = d_mw_res == 0
+  3.     gen  fully_affected       = !no_direct_treatment
+  4. 
+.     gen change_ln_rents    = `beta'*d_mw_wkp + `gamma'*d_mw_res
+  5.     gen change_ln_wagebill = `epsilon'*d_mw_wkp
+  6. 
+.     gen perc_incr_rent     = exp(change_ln_rents)    - 1
+  7.     gen perc_incr_wagebill = exp(change_ln_wagebill) - 1
+  8.     gen ratio_increases    = perc_incr_rent/perc_incr_wagebill
+  9. 
+.     local s_lb = `s' - 0.1
+ 10.     local s_ub = `s' + 0.1
+ 11. 
+.     gen rho    = `s'*ratio_increases
+ 12.     gen rho_lb = `s_lb'*ratio_increases
+ 13.     gen rho_ub = `s_ub'*ratio_increases
  14. end
 
 . 
+. 
 . main
-(117,423 missing values generated)
-(117,423 observations deleted)
-(78,282 missing values generated)
-(39,141 real changes made)
-(39,141 real changes made)
-file ../temp/counterfactual.dta saved
-(4,817,953 observations deleted)
-(80,974 observations created)
-(80,974 missing values generated)
-(40,487 real changes made)
-(40,487 real changes made)
+(6 observations deleted)
+Beta, Gamma, and Epsilon: .0546001419425011, -.0207457412034273, .1083480641245
+> 842
+(94,839 missing values generated)
+(95,157 missing values generated)
+(95,157 missing values generated)
 
     Result                           # of obs.
     -----------------------------------------
     not matched                             0
-    matched                           116,316  
+    matched                           189,678  
     -----------------------------------------
-(77,544 observations deleted)
-file ../temp/counterfactual_fed_10pc.dta saved
-(77,544 observations deleted)
-file ../temp/counterfactual_fed_15usd.dta saved
-(77,544 observations deleted)
-file ../temp/counterfactual_fed_9usd.dta saved
-(27,800 observations deleted)
-(132,255 observations deleted)
-file C:\Users\diegog\AppData\Local\Temp\3\ST_8ec4_000003.tmp saved
+(122,154 observations deleted)
+(33,933 missing values generated)
+(33,762 missing values generated)
+(33,933 missing values generated)
+(33,762 missing values generated)
+(34,415 missing values generated)
+(34,415 missing values generated)
+(34,415 missing values generated)
+(34,415 missing values generated)
 
-    Result                           # of obs.
-    -----------------------------------------
-    not matched                     4,697,040
-        from master                 4,697,040  
-        from using                          0  
+       +----------------------------------------------------------------------+
+    6. | zipcode | year | month | counte~l | mw_wkp_~t | statut~w |    mw_res |
+       | 00006   | 2020 |     1 | fed_9usd | 2.2871381 |        9 | 2.1972246 |
+       |----------------------------------------------------------------------|
+       | d_mw_wkp  | d_mw_res  |   diff_mw  | diff_qts  |  cbsa  |  urban_~a  |
+       | .0028779  | .2162231  | -.2133452  |        1  | 11260  |         1  |
+       |----------------------------------------------------------------------|
+       | no_dir~t | fully_~d | change_~s | change~l  | perc_in~t  | perc_i~l  |
+       |        0 |        1 | -.0043286 | .0003118  | -.0043192  | .0003119  |
+       |----------------------------------------------------------------------|
+       |   ratio_i~s    |          rho    |       rho_lb    |       rho_ub    |
+       |   -13.84958    |    -4.847354    |    -3.462396    |    -6.232313    |
+       +----------------------------------------------------------------------+
 
-    matched                           161,400  
-    -----------------------------------------
-(4,697,040 real changes made)
-(4,663,778 missing values generated)
-(1 missing value generated)
-(207,039 missing values generated)
-(note: variable year was int, now double to accommodate using data's values)
-(note: variable month was byte, now double to accommodate using data's
-       values)
-(note: variable year_month was int, now double to accommodate using data's
-       values)
-(38,772 real changes made)
-(38,772 real changes made)
-(4,893,896 missing values generated)
-(38,772 real changes made)
-(38,772 real changes made)
-(4,858,440 observations deleted)
-(data already sorted by zipcode year month)
-  variable year was double now int
-  variable month was double now byte
-  (504,036 bytes saved)
-===============================================================================
-File: ../output/d_ln_rents_cf_predictions.dta
-Key: zipcode year month
-===============================================================================
-  38772:6(56080):2582760011:1057659717
+       +----------------------------------------------------------------------+
+   50. | zipcode | year | month | counte~l | mw_wkp_~t | statut~w |    mw_res |
+       | 00041   | 2020 |     1 | fed_10pc | 2.1346546 |    7.975 | 2.0763116 |
+       |----------------------------------------------------------------------|
+       | d_mw_wkp  | d_mw_res  |   diff_mw  | diff_qts  |  cbsa  |  urban_~a  |
+       | .0011213  | .0953102  | -.0941889  |        1  | 33100  |         1  |
+       |----------------------------------------------------------------------|
+       | no_dir~t | fully_~d | change_~s | change~l  | perc_in~t  | perc_i~l  |
+       |        0 |        1 | -.0019161 | .0001215  | -.0019142  | .0001215  |
+       |----------------------------------------------------------------------|
+       |   ratio_i~s    |          rho    |       rho_lb    |       rho_ub    |
+       |   -15.75523    |    -5.514329    |    -3.938807    |    -7.089852    |
+       +----------------------------------------------------------------------+
 
-    Variable |        Obs        Mean    Std. Dev.       Min        Max
--------------+---------------------------------------------------------
-     zipcode |          0
-        year |     38,772        2020           0       2020       2020
-       month |     38,772           1           0          1          1
-     d_ln_mw |     38,772    .1081078    .1006091  -4.68e-08   .2162231
-d_exp_ln_~17 |     38,772    .0956258    .0952016          0   .2162231
--------------+---------------------------------------------------------
-ln_rents_pre |      3,316     .240916    .4561595  -2.087003   2.741863
+       +----------------------------------------------------------------------+
+   62. | zipcode | year | month | counte~l | mw_wkp_~t | statut~w |    mw_res |
+       | 00043   | 2020 |     1 | fed_10pc | 2.1186618 |    7.975 | 2.0763116 |
+       |----------------------------------------------------------------------|
+       | d_mw_wkp  | d_mw_res  |   diff_mw  | diff_qts  |  cbsa  |  urban_~a  |
+       | .0007248  | .0953102  | -.0945854  |        1  | 33100  |         1  |
+       |----------------------------------------------------------------------|
+       | no_dir~t | fully_~d | change_~s | change~l  | perc_in~t  | perc_i~l  |
+       |        0 |        1 | -.0019377 | .0000785  | -.0019358  | .0000785  |
+       |----------------------------------------------------------------------|
+       |   ratio_i~s    |          rho    |       rho_lb    |       rho_ub    |
+       |   -24.64992    |    -8.627473    |     -6.16248    |    -11.09246    |
+       +----------------------------------------------------------------------+
 
+       +----------------------------------------------------------------------+
+  152. | zipcode | year | month | counte~l | mw_wkp_~t | statut~w |    mw_res |
+       | 00198   | 2020 |     1 | fed_10pc |  2.280196 |    7.975 | 2.0763116 |
+       |----------------------------------------------------------------------|
+       | d_mw_wkp  | d_mw_res  |   diff_mw  | diff_qts  |  cbsa  |  urban_~a  |
+       | .0049017  | .0953102  | -.0904085  |        1  | 11260  |         1  |
+       |----------------------------------------------------------------------|
+       | no_dir~t | fully_~d | change_~s | change~l  | perc_in~t  | perc_i~l  |
+       |        0 |        1 | -.0017096 | .0005311  | -.0017082  | .0005312  |
+       |----------------------------------------------------------------------|
+       |   ratio_i~s    |          rho    |       rho_lb    |       rho_ub    |
+       |   -3.215551    |    -1.125443    |    -.8038878    |    -1.446998    |
+       +----------------------------------------------------------------------+
 
+       +----------------------------------------------------------------------+
+  156. | zipcode | year | month | counte~l | mw_wkp_~t | statut~w |    mw_res |
+       | 00198   | 2020 |     1 | fed_9usd | 2.2864144 |        9 | 2.1972246 |
+       |----------------------------------------------------------------------|
+       | d_mw_wkp  | d_mw_res  |   diff_mw  | diff_qts  |  cbsa  |  urban_~a  |
+       |   .01112  | .2162231  | -.2051031  |        1  | 11260  |         1  |
+       |----------------------------------------------------------------------|
+       | no_dir~t | fully_~d | change_~s | change~l  | perc_in~t  | perc_i~l  |
+       |        0 |        1 | -.0038786 | .0012048  |  -.003871  | .0012056  |
+       |----------------------------------------------------------------------|
+       |   ratio_i~s    |          rho    |       rho_lb    |       rho_ub    |
+       |   -3.210986    |    -1.123845    |    -.8027464    |    -1.444944    |
+       +----------------------------------------------------------------------+
+(5 observations deleted)
 
+                             rho
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%     .0670046      -.3534612
+ 5%     .0942271      -.1561569
+10%     .1018798      -.1159852       Obs              33,104
+25%      .106162      -.0611275       Sum of Wgt.      33,104
 
-(note: file ../output/d_ln_rents_cf_predictions.dta not found)
-file ../output/d_ln_rents_cf_predictions.dta saved
-(40,487 observations deleted)
-(note: variable year was int, now double to accommodate using data's values)
-(38,772 real changes made)
-(0 real changes made)
-(38,772 real changes made)
-(364,383 observations deleted)
-(79,259 missing values generated)
-ln_wagebill:  (27550 real changes made)
-(51,709 missing values generated)
-n_hhlds:  (27550 real changes made)
-(40,487 observations deleted)
-(data already sorted by zipcode year)
-  variable year was double now int
-  (232,632 bytes saved)
-===============================================================================
-File: ../output/ln_wagebill_cf_predictions.dta
-Key: zipcode year
-===============================================================================
-  38772:4(86785):2532934548:3632517410
-
-    Variable |        Obs        Mean    Std. Dev.       Min        Max
--------------+---------------------------------------------------------
-     zipcode |          0
-        year |     38,772        2018           0       2018       2018
-ln_wagebil~e |     27,550    11.33193    1.702037   6.892642   15.67136
- n_hhlds_pre |     27,550    5378.083    7123.172   90.00001      54510
-
-
-
-
-(note: file ../output/ln_wagebill_cf_predictions.dta not found)
-file ../output/ln_wagebill_cf_predictions.dta saved
+50%     .1084814                      Mean           .1321038
+                        Largest       Std. Dev.      .0361519
+75%     .1763702       .1763765
+90%     .1763742       .1763765       Variance        .001307
+95%      .176375       .1763765       Skewness       .0709384
+99%     .1763756       .1763765       Kurtosis       3.148656
+(note: file ../output/data_counterfactuals.dta not found)
+file ../output/data_counterfactuals.dta saved
+(note: file ../output/data_counterfactuals.csv not found)
+file ../output/data_counterfactuals.csv saved
 
 . 
 end of do-file
@@ -315,6 +277,9 @@ Notes:
       3.  More than 2 billion observations are allowed; see help obs_advice.
       4.  Maximum number of variables is set to 5000; see help set_maxvar.
 
+
+running c:\ado\personal\profile.do ...
+
 . do ./figures.do 
 
 . clear all
@@ -326,255 +291,156 @@ Notes:
 
 . 
 . program main
-  1.         local instub      "../output"
-  2.         local insizes     "../../../derived/zipcode_rent_sqft_income_preds
-> /output"
-  3.     local in_baseline "../../fd_baseline/output"
-  4.     local in_wages    "../../twfe_wages/output"
-  5.         local geo         "../../../base/geo_master/output"
-  6.     use "`geo'/zip_county_place_usps_master.dta", clear
-  7. 
-.     load_parameters, in_baseline(`in_baseline') in_wages(`in_wages')
-  8.     local beta    = r(beta)
-  9.     local gamma   = r(gamma)
- 10.     local epsilon = r(epsilon)
- 11. 
-.         di "Beta, Gamma, and Epsilon: `beta', `gamma', `epsilon'"
- 12.         
-.         use `instub'/d_ln_rents_cf_predictions.dta, clear
- 13.         merge 1:1 zipcode using  `instub'/ln_wagebill_cf_predictions.dta, 
-> ///
->             nogen keepusing(ln_wagebill_pre n_hhlds_pre)
- 14.         merge 1:1 zipcode using "`insizes'/housing_sqft_per_zipcode.dta", 
-> ///
->             nogen keep(1 3) keepusing(sqft_from_listings sqft_from_rents)
- 15.         merge 1:1 zipcode using "`geo'/zip_county_place_usps_master.dta", 
-> ///
->            nogen keep(1 3) keepusing(cbsa10 rural)
- 16.         
-.         compute_vars, beta(`beta') gamma(`gamma') epsilon(`epsilon')
- 17.         preserve
- 18.             keep zipcode cbsa10 d_ln_mw d_exp_ln_mw_17 change_ln_rents
- 19.         save_data "../output/predicted_changes_in_rents.dta", ///
->                     key(zipcode) replace log(none)
- 20.                 export delimited "../output/predicted_changes_in_rents.csv
-> ", replace
- 21.         restore
- 22.         foreach var in d_ln_mw d_exp_ln_mw_17 ///
->                        perc_incr_rent perc_incr_wagebill ///
->                                    ratio_increases rho {
- 23.                 
-.                 get_xlabel, var(`var')
- 24.                 local x_lab = r(x_lab)
- 25.                 
-.                 unique zipcode if !missing(`var')
- 26.                 local n_zip = r(unique)
- 27.         
-.                 hist `var', percent bin(20)                                  
->          ///
->                         xtitle("`x_lab'") ytitle("Percentage") note("ZIP code
-> s: `n_zip'") ///
->                         graphregion(color(white)) bgcolor(white)
- 28.                 
-.                 graph export "../output/`var'.png", replace
- 29.                 graph export "../output/`var'.eps", replace
- 30.         }
- 31. 
-.     save             "../output/data_counterfactuals.dta", replace
- 32.     export delimited "../output/data_counterfactuals.csv", replace
- 33. 
-.         collapse (mean) rho_lb rho rho_ub, by(diff_qts)
- 34.         
-.     twoway (line     rho           diff_qts, lcol(navy))                     
->  ///
->            (scatter  rho           diff_qts, mcol(navy)),                    
->  ///
->         xtitle("Difference between change in wrk. and res. MW (deciles)")    
->  ///
->         ytitle("Mean share accruing to landlord on each dollar")             
->  ///
->         xlabel(1(1)10) ylabel(0.02(0.02)0.14)                                
->  ///
->         graphregion(color(white)) bgcolor(white) legend(off) 
- 35.                 
-.          /*(rcap     rho_lb rho_ub diff_qts, col(navy))                      
-> /// */
-.                 
-.         graph export "../output/deciles_diff.png", replace
- 36.         graph export "../output/deciles_diff.eps", replace
- 37. end
+  1.     local instub      "../output"
+  2.     local in_wages    "../../twfe_wages/output"
+  3.     local in_zip      "../../../drive/derived_large/zipcode"
+  4. 
+.     use "`instub'/data_counterfactuals.dta", clear
+  5. 
+.     keep if counterfactual == "fed_9usd"
+  6. 
+.     foreach var in d_mw_res d_mw_wkp rho                   ///
+>                    change_ln_rents change_ln_wagebill  {
+  7.         
+.         get_xlabel, var(`var')
+  8.         local x_lab = r(x_lab)
+  9.         
+.         local scale_opts ""
+ 10.         local bin_opt    ""
+ 11.         if inlist("`var'", "d_mw_res", "d_mw_wkp") {
+ 12.             local scale_opts "yscale(r(0 43)) xscale(r(0 0.23))"
+ 13.             local bin_opt    "bin(25)"
+ 14.         }
+ 15.         if inlist("`var'", "rho", "change_ln_rents", "change_ln_wagebill")
+>  {
+ 16.             local bin_opt    "bin(30)"
+ 17.         }
+ 18. 
+.         hist `var', percent `bin_opt'                                   ///
+>             xtitle("`x_lab'") ytitle("Percentage") `scale_opts'         ///
+>             graphregion(color(white)) bgcolor(white)                    ///
+>             plotregion(margin(b = 1.5))
+ 19.         
+.         graph export "../output/hist_`var'.png", replace
+ 20.         graph export "../output/hist_`var'.eps", replace
+ 21.     }
+ 22. 
+.     collapse (mean) rho_lb rho rho_ub, by(diff_qts)
+ 23. 
+.     twoway (line     rho  diff_qts, lcol(navy))                             /
+> //
+>            (scatter  rho  diff_qts, mcol(navy)),                            /
+> //
+>         xtitle("Difference between change in wrk. MW and change in res. MW (d
+> eciles)")   ///
+>         ytitle("Mean landlord share")                                       /
+> //
+>         xlabel(1(1)10) ylabel(0(0.04)0.2)                                   /
+> //
+>         graphregion(color(white)) bgcolor(white) legend(off)
+ 24.         
+.     graph export "../output/deciles_diff.png", replace
+ 25.     graph export "../output/deciles_diff.eps", replace
+ 26. end
 
 . 
 . 
 . program load_parameters, rclass
-  1.         syntax, in_baseline(str) in_wages(str)
+  1.     syntax, in_baseline(str) in_wages(str)
   2. 
-.         use `in_baseline'/estimates_static.dta, clear
-  3.         keep if model == "static_both"
+.     use `in_baseline'/estimates_static.dta, clear
+  3.     keep if model == "static_both"
   4. 
-.         qui sum b if var == "ln_mw"
-  5.         return local gamma = r(mean)
-  6.         qui sum b if var == "exp_ln_mw_17"
-  7.         return local beta = r(mean)
+.     qui sum b if var == "mw_res"
+  5.     return local gamma = r(mean)
+  6.     qui sum b if var == "mw_wkp_tot_17"
+  7.     return local beta = r(mean)
   8. 
-.         use `in_wages'/estimates_cbsa_time_baseline.dta, clear
-  9.         qui sum b
- 10.         return local epsilon = r(mean)
+.     use `in_wages'/estimates_cbsa_time.dta, clear
+  9.     qui sum b
+ 10.     return local epsilon = r(mean)
  11. end
 
 . 
 . program compute_vars
-  1.     syntax, beta(str) gamma(str) epsilon(str) [alpha(real 0.35)]
+  1.     syntax, beta(str) gamma(str) epsilon(str) [s(real 0.35)]
   2. 
-.         keep if rural == 0
+.     keep if rural == 0
   3. 
-.         * Predictions with parameters
-.         gen diff_mw    = d_exp_ln_mw_17 - d_ln_mw
-  4.         xtile diff_qts = diff_mw, nquantiles(10)
+.     * Predictions with parameters
+.     gen diff_mw    = d_mw_wkp_tot_17 - d_mw_res
+  4.     xtile diff_qts = diff_mw, nquantiles(10)
   5. 
-.         egen max_d_ln_mw = max(d_ln_mw)
-  6.         gen no_direct_treatment       = d_ln_mw == 0
-  7.         gen fully_affected            = !no_direct_treatment
+.     egen max_d_mw_res = max(d_mw_res)
+  6.     gen no_direct_treatment       = d_mw_res == 0
+  7.     gen fully_affected            = !no_direct_treatment
   8. 
-.     gen change_ln_rents    = `beta'*d_exp_ln_mw_17 + `gamma'*d_ln_mw
-  9.     gen change_ln_wagebill = `epsilon'*d_exp_ln_mw_17
+.     gen change_ln_rents    = `beta'*d_mw_wkp_tot_17 + `gamma'*d_mw_res
+  9.     gen change_ln_wagebill = `epsilon'*d_mw_wkp_tot_17
  10. 
-.         gen perc_incr_rent     = exp(change_ln_rents)    - 1
- 11.         gen perc_incr_wagebill = exp(change_ln_wagebill) - 1
- 12.         gen ratio_increases    = perc_incr_rent/perc_incr_wagebill
+.     gen perc_incr_rent     = exp(change_ln_rents)    - 1
+ 11.     gen perc_incr_wagebill = exp(change_ln_wagebill) - 1
+ 12.     gen ratio_increases    = perc_incr_rent/perc_incr_wagebill
  13. 
-.     local alpha_lb = `alpha' - 0.1
- 14.     local alpha_ub = `alpha' + 0.1
+.     local s_lb = `s' - 0.1
+ 14.     local s_ub = `s' + 0.1
  15. 
-.     gen rho    = `alpha'*ratio_increases
- 16.         gen rho_lb = `alpha_lb'*ratio_increases
- 17.         gen rho_ub = `alpha_ub'*ratio_increases
+.     gen rho    = `s'*ratio_increases
+ 16.     gen rho_lb = `s_lb'*ratio_increases
+ 17.     gen rho_ub = `s_ub'*ratio_increases
  18. end
 
 . 
 . program get_xlabel, rclass
   1.     syntax, var(str)
-  2.         
-.         if inlist("`var'", "p_d_ln_rents", "p_d_ln_rents_with_fe", ///
->                   "p_d_ln_rents_zillow", "p_d_ln_rents_with_fe_zillow") {
-  3.             return local x_lab "Change in log rents"
-  4.         }
-  5.         
-.         if "`var'"=="d_ln_mw"            return local x_lab "Change in reside
-> nce log MW"
-  6.         if "`var'"=="d_exp_ln_mw_17"     return local x_lab "Change in wor
-> kplace log MW"
-  7.         
-.         if "`var'"=="perc_incr_rent"     return local x_lab "Percent increase
->  in rents per sq. foot"
-  8.         if "`var'"=="perc_incr_wagebill" return local x_lab "Percent incre
-> ase in wage bill"
+  2. 
+.     if inlist("`var'", "p_d_ln_rents", "p_d_ln_rents_with_fe", ///
+>               "p_d_ln_rents_zillow", "p_d_ln_rents_with_fe_zillow") {
+  3.         return local x_lab "Change in log rents"
+  4.     }
+  5. 
+.     if "`var'"=="d_mw_res"           return local x_lab "Change in residence 
+> MW"
+  6.     if "`var'"=="d_mw_wkp"           return local x_lab "Change in workpla
+> ce MW"
+  7. 
+.     if "`var'"=="change_ln_rents"    return local x_lab "Change in log rents 
+> per sq. foot"
+  8.     if "`var'"=="change_ln_wagebill" return local x_lab "Change in log tot
+> al wages"
   9. 
-.         if "`var'"=="ratio_increases"    return local x_lab "Ratio of percent
->  increases"
- 10.         if "`var'"=="rho"                return local x_lab "Share accruin
-> g to landlord on each dollar" 
- 11. 
-. end
+.     if "`var'"=="rho"                return local x_lab "Landlord share"
+ 10. end
 
 . 
 . 
 . main
-(6 observations deleted)
-Beta, Gamma, and Epsilon: .0644643232226372, -.0302469059824944, .1802860200405
-> 121
-
-    Result                           # of obs.
-    -----------------------------------------
-    not matched                             0
-    matched                            38,772  
-    -----------------------------------------
-
-    Result                           # of obs.
-    -----------------------------------------
-    not matched                             0
-    matched                            38,772  
-    -----------------------------------------
-
-    Result                           # of obs.
-    -----------------------------------------
-    not matched                             0
-    matched                            38,772  
-    -----------------------------------------
-(17,575 observations deleted)
-(2,599 missing values generated)
-(2,599 missing values generated)
-(2,599 missing values generated)
-(2,599 missing values generated)
-(data already sorted by zipcode)
-  (0 bytes saved)
-===============================================================================
-File: ../output/predicted_changes_in_rents.dta
-Key: zipcode
-===============================================================================
-  21197:5(33699):3400711790:3027433588
-
-    Variable |        Obs        Mean    Std. Dev.       Min        Max
--------------+---------------------------------------------------------
-     zipcode |          0
-     d_ln_mw |     21,197    .1018756    .0998546  -4.68e-08   .2162231
-d_exp_ln_~17 |     21,197    .0887501    .0941924          0   .2162231
-      cbsa10 |          0
-change_ln_~s |     21,197    .0026398    .0037702  -.0065401   .0131499
-
-
-
-
-(note: file ../output/predicted_changes_in_rents.dta not found)
-file ../output/predicted_changes_in_rents.dta saved
-(note: file ../output/predicted_changes_in_rents.csv not found)
-file ../output/predicted_changes_in_rents.csv saved
-Number of unique values of zipcode is  21197
-Number of records is  21197
-(bin=20, start=-4.681e-08, width=.01081116)
-(note: file ../output/d_ln_mw.png not found)
-(file ../output/d_ln_mw.png written in PNG format)
-(note: file ../output/d_ln_mw.eps not found)
-(file ../output/d_ln_mw.eps written in EPS format)
-Number of unique values of zipcode is  21197
-Number of records is  21197
-(bin=20, start=0, width=.01081116)
-(note: file ../output/d_exp_ln_mw_17.png not found)
-(file ../output/d_exp_ln_mw_17.png written in PNG format)
-(note: file ../output/d_exp_ln_mw_17.eps not found)
-(file ../output/d_exp_ln_mw_17.eps written in EPS format)
-Number of unique values of zipcode is  21197
-Number of records is  21197
-(bin=20, start=-.00651874, width=.00098777)
-(note: file ../output/perc_incr_rent.png not found)
-(file ../output/perc_incr_rent.png written in PNG format)
-(note: file ../output/perc_incr_rent.eps not found)
-(file ../output/perc_incr_rent.eps written in EPS format)
-Number of unique values of zipcode is  21197
-Number of records is  21197
-(bin=20, start=0, width=.00198759)
-(note: file ../output/perc_incr_wagebill.png not found)
-(file ../output/perc_incr_wagebill.png written in PNG format)
-(note: file ../output/perc_incr_wagebill.eps not found)
-(file ../output/perc_incr_wagebill.eps written in EPS format)
-Number of unique values of zipcode is  18598
-Number of records is  18598
-(bin=20, start=-.8883096, width=.06229426)
-(note: file ../output/ratio_increases.png not found)
-(file ../output/ratio_increases.png written in PNG format)
-(note: file ../output/ratio_increases.eps not found)
-(file ../output/ratio_increases.eps written in EPS format)
-Number of unique values of zipcode is  18598
-Number of records is  18598
-(bin=20, start=-.31090835, width=.02180299)
-(note: file ../output/rho.png not found)
-(file ../output/rho.png written in PNG format)
-(note: file ../output/rho.eps not found)
-(file ../output/rho.eps written in EPS format)
-(note: file ../output/data_counterfactuals.dta not found)
-file ../output/data_counterfactuals.dta saved
-(note: file ../output/data_counterfactuals.csv not found)
-file ../output/data_counterfactuals.csv saved
+(45,013 observations deleted)
+(bin=25, start=0, width=.00864892)
+(note: file ../output/hist_d_mw_res.png not found)
+(file ../output/hist_d_mw_res.png written in PNG format)
+(note: file ../output/hist_d_mw_res.eps not found)
+(file ../output/hist_d_mw_res.eps written in EPS format)
+(bin=25, start=0, width=.00864892)
+(note: file ../output/hist_d_mw_wkp.png not found)
+(file ../output/hist_d_mw_wkp.png written in PNG format)
+(note: file ../output/hist_d_mw_wkp.eps not found)
+(file ../output/hist_d_mw_wkp.eps written in EPS format)
+(bin=30, start=-.15615691, width=.01108445)
+(note: file ../output/hist_rho.png not found)
+(file ../output/hist_rho.png written in PNG format)
+(note: file ../output/hist_rho.eps not found)
+(file ../output/hist_rho.eps written in EPS format)
+(bin=30, start=-.00448571, width=.00039977)
+(note: file ../output/hist_change_ln_rents.png not found)
+(file ../output/hist_change_ln_rents.png written in PNG format)
+(note: file ../output/hist_change_ln_rents.eps not found)
+(file ../output/hist_change_ln_rents.eps written in EPS format)
+(bin=30, start=0, width=.00078091)
+(note: file ../output/hist_change_ln_wagebill.png not found)
+(file ../output/hist_change_ln_wagebill.png written in PNG format)
+(note: file ../output/hist_change_ln_wagebill.eps not found)
+(file ../output/hist_change_ln_wagebill.eps written in EPS format)
 (note: file ../output/deciles_diff.png not found)
 (file ../output/deciles_diff.png written in PNG format)
 (note: file ../output/deciles_diff.eps not found)
@@ -614,26 +480,49 @@ Type 'q()' to quit R.
 +   dt <- fread(file.path(instub, "data_counterfactuals.csv"))
 +   
 +   alpha = 0.35
-+   
-+   txt <- c("<tab:counterfactuals>",
-+            paste(alpha - 0.1, alpha + 0.1, sep = "\t"))
-+   
++ 
++   dt_cf <- dt[counterfactual == "fed_9usd"]
++ 
++   txt <- c("<tab:counterfactuals_fed_9usd>",
++             paste(alpha - 0.1, alpha + 0.1, sep = "\t"))
++ 
 +   for (sample in c("fully_affected", "no_direct_treatment")) {
 +     
-+     dt_sample <- dt[get(sample) == 1]
++     dt_sample <- dt_cf[get(sample) == 1]
 +     
 +     txt <- c(txt, 
-+              paste(dim(dt_sample)[1],
-+                    mean(dt_sample[["d_ln_mw"]],         na.rm = T),
-+                    mean(dt_sample[["d_exp_ln_mw_17"]],  na.rm = T),
-+                    mean(dt_sample[["ratio_increases"]], na.rm = T),
-+                    mean(dt_sample[["rho_lb"]],          na.rm = T),
-+                    mean(dt_sample[["rho_ub"]],          na.rm = T),
-+                    sep = "\t"))
-+     
++             paste(dim(dt_sample)[1],
++                   mean(dt_sample[["d_mw_res"]],  na.rm = T),
++                   mean(dt_sample[["d_mw_wkp"]],  na.rm = T),
++                   mean(dt_sample[["rho_lb"]],    na.rm = T),
++                   mean(dt_sample[["rho_ub"]],    na.rm = T),
++                   sep = "\t"))
 +   }
 +   
-+   fileConn <- file(file.path(outstub, "counterfactuals.txt"))
++   fileConn <- file(file.path(outstub, "counterfactuals_fed_9usd.txt"))
++   writeLines(txt, fileConn)
++   close(fileConn)
++ 
++   txt <- c("<tab:counterfactuals_other>",
++             paste(alpha - 0.1, alpha + 0.1, sep = "\t"))
++ 
++   for (cf in c("fed_10pc", "fed_15usd")) {
++     dt_cf <- dt[counterfactual == cf]
++ 
++     for (sample in c("fully_affected", "no_direct_treatment")) {
++       
++       dt_sample <- dt_cf[get(sample) == 1]      
++       txt <- c(txt, 
++               paste(dim(dt_sample)[1],
++                     mean(dt_sample[["d_mw_res"]],  na.rm = T),
++                     mean(dt_sample[["d_mw_wkp"]],  na.rm = T),
++                     mean(dt_sample[["rho_lb"]],    na.rm = T),
++                     mean(dt_sample[["rho_ub"]],    na.rm = T),
++                     sep = "\t"))
++     }    
++   }
++   
++   fileConn <- file(file.path(outstub, "counterfactuals_other.txt"))
 +   writeLines(txt, fileConn)
 +   close(fileConn)
 + }
@@ -643,7 +532,7 @@ Type 'q()' to quit R.
 > 
 > proc.time()
    user  system elapsed 
-   0.46    0.23    1.32 
+   0.56    0.25    0.65 
 
 
 Execute:  R CMD BATCH --no-save "./map_cfs.R" map_cfs.Rout
@@ -693,52 +582,70 @@ package with: `install.packages('spDataLarge',
 repos='https://nowosad.github.io/drat/', type='source')`
 > library(tmap)
 > library(tmaptools)
-> library(leaflet)
 > library(ggplot2)
 > 
 > main <- function(){
 +   in_map  <- "../../../drive/raw_data/shapefiles/USPS_zipcodes"
 +   in_data <- "../output/"
-+   
++ 
 +   USPS_zipcodes <- read_sf(dsn = in_map, 
 +                            layer = "USPS_zipcodes_July2020") %>%
 +     select(ZIP_CODE, PO_NAME, STATE, POPULATION, SQMI, POP_SQMI) %>%
 +     rename(zipcode = ZIP_CODE, zipcode_name = PO_NAME,
-+            state_name = STATE, pop2020 = POPULATION, 
-+            area_sq_miles = SQMI, pop2020_per_sq_miles = POP_SQMI)
++            state_name = STATE)
 +   
-+   df_all <- fread(file.path(in_data, "predicted_changes_in_rents.csv"),
-+                   colClasses = c(zipcode = "character"))
-+   df_all <- left_join(USPS_zipcodes, df_all, by = "zipcode")
-+   df_chicago <- df_all %>%
-+     filter(cbsa10 == 16980)
++   df_all <- fread(file.path(in_data, "data_counterfactuals.csv"),
++                   colClasses = c(zipcode = "character")) %>%
++     filter(counterfactual == "fed_9usd")
 + 
-+   max_break_mw    <- round(max(df_chicago$d_ln_mw, na.rm = TRUE), digits = 2)
++   df_all <- left_join(USPS_zipcodes, df_all, by = "zipcode")
++ 
++   df_chicago <- df_all %>% filter(cbsa == 16980)
++ 
++   max_break_mw <- round(max(df_chicago$d_mw_res, na.rm = TRUE), digits = 2)
 +   
 +   build_map(data = df_chicago, 
-+             var = "d_ln_mw", 
-+             var_legend ="Counterfactual change \nin residence MW", 
++             var = "d_mw_res", 
++             var_legend ="Counterfactual change\nin residence MW", 
 +             break_values = c(0, max_break_mw/2, max_break_mw), 
-+             map_name = "chicago_d_ln_mw")
++             map_name = "chicago_d_mw_res")
 +   
 +   build_map(data = df_chicago, 
-+             var = "d_exp_ln_mw_17", 
-+             var_legend ="Counterfactual change \nin workplace MW", 
++             var = "d_mw_wkp", 
++             var_legend ="Counterfactual change\nin workplace MW", 
 +             break_values = c(0, max_break_mw/2, max_break_mw), 
-+             map_name = "chicago_d_exp_ln_mw")
++             map_name = "chicago_d_mw_wkp")
 +   
-+   min_break_rents    <- round(min(df_chicago$change_ln_rents, na.rm = TRUE), digits = 2)
-+   max_break_rents    <- round(max(df_chicago$change_ln_rents, na.rm = TRUE), digits = 2)
++   min_break_rents <- round(min(df_chicago$change_ln_rents, na.rm = TRUE), digits = 2)
++   max_break_rents <- round(max(df_chicago$change_ln_rents, na.rm = TRUE), digits = 2)
 +   
 +   build_map(data = df_chicago, 
 +             var = "change_ln_rents", 
-+             var_legend ="Counterfactual change \nin log rents", 
++             var_legend ="Counterfactual change\nin log rents", 
 +             break_values = c(min_break_rents, max_break_rents/2, max_break_rents), 
 +             map_name = "chicago_d_ln_rents")
++ 
++   min_break_wagebill <- round(min(df_chicago$change_ln_wagebill, na.rm = TRUE), digits = 2)
++   max_break_wagebill <- round(max(df_chicago$change_ln_wagebill, na.rm = TRUE), digits = 2)
++   
++   build_map(data = df_chicago, 
++             var = "change_ln_wagebill", 
++             var_legend ="Counterfactual change\nin log total wages", 
++             break_values = c(min_break_wagebill, max_break_wagebill/2, max_break_wagebill), 
++             map_name = "chicago_d_ln_wagebill")
++ 
++   min_break_rho <- round(min(df_chicago$rho, na.rm = TRUE), digits = 2)
++   max_break_rho <- round(max(df_chicago$rho, na.rm = TRUE), digits = 2)
++   
++   build_map(data = df_chicago, 
++             var = "rho", 
++             var_legend ="Landlord\nshare", 
++             break_values = c(min_break_rho, max_break_rho/2, max_break_rho), 
++             map_name = "chicago_rho")
 + }
 > 
 > build_map <- function(data, var, var_legend, break_values,
-+                       map_name, .dpi = 250){
++                       map_name, .dpi = 250) {
 +   
 +   map <- tm_shape(data) + 
 +     tm_fill(col = var,
@@ -748,7 +655,8 @@ repos='https://nowosad.github.io/drat/', type='source')`
 +             breaks = break_values,
 +             textNA = "NA") +
 +     tm_borders(col = "white", lwd = .01, alpha = 0.7) +
-+     tm_layout(legend.position = c("left", "bottom"))
++     tm_layout(legend.position = c("left", "bottom"),
++             frame = FALSE)
 +   
 +   tmap_save(map, 
 +             paste0("../output/", map_name, ".png"),
@@ -758,35 +666,49 @@ repos='https://nowosad.github.io/drat/', type='source')`
 + }
 > 
 > main()
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_mw.png
-Resolution: 1472.134 by 2080.313 pixels
-Size: 5.888537 by 8.321252 inches (250 dpi)
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_mw.eps
-Size: 5.888537 by 8.321252 inches
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_exp_ln_mw.png
-Resolution: 1472.134 by 2080.313 pixels
-Size: 5.888537 by 8.321252 inches (250 dpi)
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_exp_ln_mw.eps
-Size: 5.888537 by 8.321252 inches
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents.png
-Resolution: 1472.134 by 2080.313 pixels
-Size: 5.888537 by 8.321252 inches (250 dpi)
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents.eps
-Size: 5.888537 by 8.321252 inches
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res.png
+Resolution: 1529.333 by 2002.507 pixels
+Size: 6.117331 by 8.010029 inches (250 dpi)
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res.eps
+Size: 6.117331 by 8.010029 inches
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp.png
+Resolution: 1529.333 by 2002.507 pixels
+Size: 6.117331 by 8.010029 inches (250 dpi)
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp.eps
+Size: 6.117331 by 8.010029 inches
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents.png
+Resolution: 1529.333 by 2002.507 pixels
+Size: 6.117331 by 8.010029 inches (250 dpi)
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents.eps
+Size: 6.117331 by 8.010029 inches
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill.png
+Resolution: 1529.333 by 2002.507 pixels
+Size: 6.117331 by 8.010029 inches (250 dpi)
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill.eps
+Size: 6.117331 by 8.010029 inches
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_rho.png
+Resolution: 1529.333 by 2002.507 pixels
+Size: 6.117331 by 8.010029 inches (250 dpi)
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_rho.eps
+Size: 6.117331 by 8.010029 inches
 Warning messages:
 1: In grid.Call.graphics(C_path, x$x, x$y, index, switch(x$rule, winding = 1L,  :
   semi-transparency is not supported on this device: reported only once per page
 2: In grid.Call.graphics(C_path, x$x, x$y, index, switch(x$rule, winding = 1L,  :
   semi-transparency is not supported on this device: reported only once per page
-3: Breaks contains positive and negative values. Better is to use diverging scale instead, or set auto.palette.mapping to FALSE. 
-4: Breaks contains positive and negative values. Better is to use diverging scale instead, or set auto.palette.mapping to FALSE. 
-5: Breaks contains positive and negative values. Better is to use diverging scale instead, or set auto.palette.mapping to FALSE. 
-6: Breaks contains positive and negative values. Better is to use diverging scale instead, or set auto.palette.mapping to FALSE. 
-7: In grid.Call.graphics(C_path, x$x, x$y, index, switch(x$rule, winding = 1L,  :
+3: In grid.Call.graphics(C_path, x$x, x$y, index, switch(x$rule, winding = 1L,  :
+  semi-transparency is not supported on this device: reported only once per page
+4: Values have found that are higher than the highest break 
+5: Values have found that are higher than the highest break 
+6: Values have found that are higher than the highest break 
+7: Values have found that are higher than the highest break 
+8: In grid.Call.graphics(C_path, x$x, x$y, index, switch(x$rule, winding = 1L,  :
+  semi-transparency is not supported on this device: reported only once per page
+9: In grid.Call.graphics(C_path, x$x, x$y, index, switch(x$rule, winding = 1L,  :
   semi-transparency is not supported on this device: reported only once per page
 > 
 > proc.time()
    user  system elapsed 
-  36.34   25.70   76.14 
+ 112.53   89.85  202.98 
 
- make.py ended: 2021-11-05 12:42:20
+ make.py ended: 2022-03-26 17:10:25
