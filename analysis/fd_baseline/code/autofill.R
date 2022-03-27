@@ -31,19 +31,21 @@ main <- function() {
       
       if (combination_exists) {
       
-        estim   <- write_command(paste0(mm, vv, 'Base'),      round(dt_comb$b,    4))        
-        estim10 <- write_command(paste0(mm, vv, 'BaseTen'),   round(10*dt_comb$b, 2))        
-        tstat   <- write_command(paste0(mm, vv, 'BasetStat'), round(dt_comb$t,    2))
+        estim     <- write_command(paste0(mm, vv, 'Base'),      round(dt_comb$b,     4))
+        estim10   <- write_command(paste0(mm, vv, 'BaseTen'),   round(10*dt_comb$b,  2))
+        estimSE   <- write_command(paste0(mm, vv, 'BaseSE'),    round(dt_comb$se,    4))
+        estimSE10 <- write_command(paste0(mm, vv, 'BaseTenSE'), round(10*dt_comb$se, 2))
+        tstat     <- write_command(paste0(mm, vv, 'BasetStat'), round(dt_comb$t,     2))
         
         if (dt_comb$b < 0) {
           
           estimAbs   <- write_command(paste0(mm, vv, 'BaseAbs'),    round(abs(dt_comb$b),    4))          
           estimAbs10 <- write_command(paste0(mm, vv, 'BaseTenAbs'), round(10*abs(dt_comb$b), 2))
 
-          txt <- paste0(txt, estim, estimAbs, estim10, estimAbs10, tstat)
+          txt <- paste0(txt, estim, estimAbs, estimSE, estim10, estimAbs10, estimSE10, tstat)
           
         } else {          
-          txt <- paste0(txt, estim, estim10, tstat)        
+          txt <- paste0(txt, estim, estimSE, estim10, estimSE10, tstat)        
         }
       }
     }
@@ -66,9 +68,11 @@ main <- function() {
     
     name <- 'BothWkpDyn'
     
-    estim   <- write_command(paste0(name, vv, 'Base'),      round(dt_comb$b,    4))    
-    estim10 <- write_command(paste0(name, vv, 'BaseTen'),   round(10*dt_comb$b, 2))    
-    tstat   <- write_command(paste0(name, vv, 'BasetStat'), round(dt_comb$t,    2))
+    estim   <- write_command(paste0(name, vv, 'Base'),      round(dt_comb$b,     4))
+    estim10 <- write_command(paste0(name, vv, 'BaseTen'),   round(10*dt_comb$b,  2))
+    estimSE <- write_command(paste0(mm, vv,   'BaseSE'),    round(dt_comb$se,    4))
+    estimSE <- write_command(paste0(mm, vv,   'BaseTenSE'), round(10*dt_comb$se, 2)) 
+    tstat   <- write_command(paste0(name, vv, 'BasetStat'), round(dt_comb$t,     2))
     
     if (dt_comb$b < 0) {
       
