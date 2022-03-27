@@ -68,7 +68,7 @@ count_events <- function(data, panel, geographies) {
 
   events <- sum(dt_sample$event_mw, na.rm = T)
   
-  text <- write_command(paste0("ZIPMWevents", short_name), events)
+  text <- write_command(paste0("ZIPMWevents", short_name), format(events, big.mark = ','))
   
   output_events <- text
   
@@ -83,7 +83,7 @@ count_events <- function(data, panel, geographies) {
     
     name <- paste0(toupper_first_letter(gg), "MWevents", short_name)
     
-    text <- write_command(name,events)
+    text <- write_command(name, format(events, big.mark = ','))
     
     output_events <- paste0(output_events, text)    
   }
@@ -104,7 +104,7 @@ count_local <- function(data, panel) {
   
   events <- sum(data_agg$event_local, na.rm = T)
     
-  return(write_command(paste0("CityCountyMWevents", short_name), events))
+  return(write_command(paste0("CityCountyMWevents", short_name), format(events, big.mark = ',')))
 }
 
 filter_data <- function(data, panel) {
