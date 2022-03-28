@@ -17,7 +17,7 @@ program main
     #delimit ;
     local target_vars  "sh_hhlds_renteroccup_cens2010
                         sh_workers_under1250_2013     sh_residents_under1250_2013
-						sh_workers_underHS_2013       sh_residents_underHS_2013";
+                        sh_workers_underHS_2013       sh_residents_underHS_2013";
     #delimit cr
     
     * Zipcode-months
