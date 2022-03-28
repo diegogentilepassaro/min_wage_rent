@@ -72,10 +72,6 @@ tablefill(input    = os.path.join(fd_robust_dir, "static_sample.txt"),
           template = "input/static_sample.tex",
           output   = "output/static_sample.tex")
 
-#tablefill(input    = os.path.join(fd_robust_dir, "static_sample.txt"),
-#          template = "input/slides_static_sample.tex",
-#          output   = "output/slides_static_sample.tex")
-
 tablefill(input    = os.path.join(fd_robust_dir, "static_ab.txt"),
           template = "input/static_ab.tex", 
           output   = "output/static_ab.tex")
@@ -100,9 +96,13 @@ tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals_other.txt"),
           template = "input/counterfactuals_other.tex",
           output   = "output/counterfactuals_other.tex")
 
-tablefill(input    = os.path.join(fd_het, "heterogeneity.txt"), 
-          template = "input/heterogeneity.tex", 
-          output   = "output/heterogeneity.tex")
+tablefill(input    = os.path.join(fd_het, "het_mw_shares.txt"), 
+          template = "input/het_mw_shares.tex", 
+          output   = "output/het_mw_shares.tex")
+
+tablefill(input    = os.path.join(fd_het, "het_public_hous.txt"), 
+          template = "input/het_public_hous.tex", 
+          output   = "output/het_public_hous.tex")
 
 end_make_logging()
 

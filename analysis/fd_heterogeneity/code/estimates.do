@@ -16,11 +16,6 @@ program main
 	use "`instub'/baseline_sample_with_vars_for_het.dta", clear
 	xtset zipcode_num year_month
 	
-	/*reghdfe D.ln_rents c.D.mw_res#i.public_housing ///
-	    c.D.mw_wkp_tot_17#i.public_housing ///
-	    D.(`controls'), nocons ///
-		absorb(year_month##public_housing) cluster(`cluster_vars')*/
-	
     estimate_dist_lag_model, depvar(ln_rents) ///
         dyn_var(mw_wkp_tot_17) w(0) stat_var(mw_res) ///
         controls(`controls') absorb(`absorb') cluster(`cluster_vars') ///
@@ -31,30 +26,44 @@ program main
 	    D.(`controls'), nocons ///
 		absorb(`absorb'##high_work_mw##high_res_mw) ///
 		cluster(`cluster_vars')
-    process_estimates
-	save "../temp/estimates_het.dta", replace
+    process_estimates, res_var(mw_res_high_work_mw) ///
+	    wkp_var(mw_wkp_high_res_mw) model(het_mw_shares)
+	
+	reghdfe D.ln_rents c.D.mw_res#i.public_housing ///
+	    c.D.mw_wkp_tot_17#i.public_housing ///
+	    D.(`controls'), nocons ///
+		absorb(year_month##public_housing) cluster(`cluster_vars')
+    process_estimates, res_var(mw_res_high_public_hous) ///
+	    wkp_var(mw_wkp_high_public_hous) model(het_public_hous)
 	
 	use "../temp/estimates_static_both.dta", clear
-	append using "../temp/estimates_het.dta"
-	export delimited "../temp/estimates.csv", replace
+	append using "../temp/estimates_het_mw_shares.dta"
+	append using "../temp/estimates_het_public_hous.dta"
+	export delimited "../temp/estimates_het.csv", replace
 end
 
 program process_estimates
-	local N = e(N)
-	local r2 = e(r2)
+    syntax, res_var(str) wkp_var(str) model(str)
 	
-	qui coefplot, vertical base gen
-	keep __at __b __se
-	rename (__at __b __se) (at b se)
-	keep if _n <= 4
-	keep if !missing(at)
-	replace at = 0
-	replace at = 1 if inlist(_n, 2, 4)
-	gen var     = "mw_res_high_work_mw"    
-	replace var = "mw_wkp_high_res_mw" if _n >= 3
-	gen N = `N'
-	gen r2 = `r2'
-	gen model = "heterogeneity"
+	preserve
+	    local N = e(N)
+	    local r2 = e(r2)
+	
+	    qui coefplot, vertical base gen
+	    keep __at __b __se
+	    rename (__at __b __se) (at b se)
+	    keep if _n <= 4
+	    keep if !missing(at)
+	    replace at = 0
+	    replace at = 1 if inlist(_n, 2, 4)
+	    gen var     = "`res_var'"  
+	    replace var = "`wkp_var'" if _n >= 3
+	    gen N = `N'
+	    gen r2 = `r2'
+	    gen model = "`model'"
+
+	    save "../temp/estimates_`model'.dta", replace
+	restore
 end
 
 main
