@@ -9,13 +9,17 @@ main <- function() {
   txt <- c("<tab:heterogeneity>")
   txt <- c(txt, 
            paste(est[est$model == "static_both"  & est$var == "mw_res",]$b,
-                 est[est$model == "heterogeneity"& est$var == "mw_res_high_work_mw" & est$at == 0,]$b, 
                  sep = "\t"))
   txt <- c(txt, 
            paste(est[est$model == "static_both"  & est$var == "mw_res",]$se,
-                 est[est$model == "heterogeneity"& est$var == "mw_res_high_work_mw" & est$at == 0,]$se, 
                  sep = "\t"))
-
+  
+  txt <- c(txt, 
+           paste(est[est$model == "heterogeneity"& est$var == "mw_res_high_work_mw" & est$at == 0,]$b,
+                 sep = "\t"))
+  txt <- c(txt, 
+           paste(est[est$model == "heterogeneity"& est$var == "mw_res_high_work_mw" & est$at == 0,]$se,
+                 sep = "\t"))
   txt <- c(txt, 
            paste(est[est$model == "heterogeneity"& est$var == "mw_res_high_work_mw" & est$at == 1,]$b, 
                  sep = "\t"))
@@ -25,13 +29,17 @@ main <- function() {
   
   txt <- c(txt, 
            paste(est[est$model == "static_both"  & est$var == "mw_wkp_tot_17",]$b,
-                 est[est$model == "heterogeneity"& est$var == "mw_wkp_high_res_mw" & est$at == 0,]$b, 
                  sep = "\t"))
   txt <- c(txt, 
            paste(est[est$model == "static_both"  & est$var == "mw_wkp_tot_17",]$se,
-                 est[est$model == "heterogeneity"& est$var == "mw_wkp_high_res_mw" & est$at == 0,]$se, 
                  sep = "\t"))
   
+  txt <- c(txt, 
+           paste(est[est$model == "heterogeneity"& est$var == "mw_wkp_high_res_mw" & est$at == 0,]$b,
+                 sep = "\t"))
+  txt <- c(txt, 
+           paste(est[est$model == "heterogeneity"& est$var == "mw_wkp_high_res_mw" & est$at == 0,]$se,
+                 sep = "\t"))
   txt <- c(txt, 
            paste(est[est$model == "heterogeneity"& est$var == "mw_wkp_high_res_mw" & est$at == 1,]$b, 
                  sep = "\t"))

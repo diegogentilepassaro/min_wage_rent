@@ -26,8 +26,8 @@ program main
         controls(`controls') absorb(`absorb') cluster(`cluster_vars') ///
         model_name(static_both)
 		
-    reghdfe D.ln_rents c.D.mw_res#i.high_work_mw ///
-	    c.D.mw_wkp_tot_17#i.high_res_mw ///
+    reghdfe D.ln_rents c.D.mw_res#ib0.high_work_mw ///
+	    c.D.mw_wkp_tot_17#ib0.high_res_mw ///
 	    D.(`controls'), nocons ///
 		absorb(`absorb'##high_work_mw##high_res_mw) ///
 		cluster(`cluster_vars')
