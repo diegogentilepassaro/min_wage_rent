@@ -38,8 +38,7 @@ fd_baseline_dir      = "../../analysis/fd_baseline/output"
 fd_cf_dir            = "../../analysis/counterfactuals/output"
 fd_robust_dir        = "../../analysis/fd_robustness/output"
 fd_county_dir        = "../../analysis/fd_county/output"
-fd_wages_dir         = "../../analysis/twfe_wages/output"
-fd_stacked_dir       = "../../analysis/fd_stacked/output"
+fd_het_dir           = "../../analysis/fd_heterogeneity/output"
 
 tablefill(input    = os.path.join(desc_est_samples_dir, "stats_zip_samples.txt"), 
           template = "input/stats_zip_samples.tex", 
@@ -73,10 +72,6 @@ tablefill(input    = os.path.join(fd_robust_dir, "static_sample.txt"),
           template = "input/static_sample.tex",
           output   = "output/static_sample.tex")
 
-#tablefill(input    = os.path.join(fd_robust_dir, "static_sample.txt"),
-#          template = "input/slides_static_sample.tex",
-#          output   = "output/slides_static_sample.tex")
-
 tablefill(input    = os.path.join(fd_robust_dir, "static_ab.txt"),
           template = "input/static_ab.tex", 
           output   = "output/static_ab.tex")
@@ -101,6 +96,9 @@ tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals_other.txt"),
           template = "input/counterfactuals_other.tex",
           output   = "output/counterfactuals_other.tex")
 
+tablefill(input    = os.path.join(fd_het_dir, "heterogeneity.txt"), 
+          template = "input/heterogeneity.tex", 
+          output   = "output/heterogeneity.tex")
 
 end_make_logging()
 

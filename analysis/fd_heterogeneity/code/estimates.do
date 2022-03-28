@@ -3,48 +3,67 @@ set more off
 adopath + ../../../lib/stata/gslab_misc/ado
 adopath + ../../../lib/stata/min_wage/ado
 set maxvar 32000 
-
+	
 program main
-	local instub  "../../../drive/derived_large/estimation_samples"
-	local outstub "../output"
-	
-	define_controls
-	local controls     "`r(economic_controls)'"
-	local cluster_vars "statefips"
-	
-	** STATIC
-	load_and_clean, instub(`instub')
+    local instub  "../temp"
+    local outstub "../output"
 
-	xtset zipcode_num year_month
-	eststo clear
-	foreach var in under29 30to54 under1250 above3333 underHS College {
-	eststo: reghdfe D.ln_rents D.ln_mw D.ln_mw_times_wrks_`var' ///
-	     D.exp_ln_mw_17 D.exp_ln_mw_times_res_`var', nocons ///
-		absorb(year_month) cluster(`cluster_vars')	
-	}
-    esttab *, se r2
+    define_controls
+    local controls     "`r(economic_controls)'"
+    local cluster_vars "statefips"
+    local absorb "year_month"
+
+    use "`instub'/baseline_sample_with_vars_for_het.dta", clear
+    xtset zipcode_num year_month
+
+    estimate_dist_lag_model, depvar(ln_rents) ///
+        dyn_var(mw_wkp_tot_17) w(0) stat_var(mw_res) ///
+        controls(`controls') absorb(`absorb') cluster(`cluster_vars') ///
+        model_name(static_both)
+        
+    reghdfe D.ln_rents c.D.mw_res#ib0.high_work_mw ///
+        c.D.mw_wkp_tot_17#ib0.high_res_mw ///
+        D.(`controls'), nocons ///
+        absorb(`absorb'##high_work_mw##high_res_mw) ///
+        cluster(`cluster_vars')
+    process_estimates, res_var(mw_res_high_work_mw) ///
+        wkp_var(mw_wkp_high_res_mw) model(het_mw_shares)
+
+    reghdfe D.ln_rents c.D.mw_res#ib0.public_housing ///
+        c.D.mw_wkp_tot_17#ib0.public_housing ///
+        D.(`controls'), nocons ///
+        absorb(year_month##public_housing) cluster(`cluster_vars')
+    process_estimates, res_var(mw_res_high_public_hous) ///
+        wkp_var(mw_wkp_high_public_hous) model(het_public_hous)
+
+    use "../temp/estimates_static_both.dta", clear
+    append using "../temp/estimates_het_mw_shares.dta"
+    append using "../temp/estimates_het_public_hous.dta"
+    export delimited "../temp/estimates_het.csv", replace
 end
 
+program process_estimates
+    syntax, res_var(str) wkp_var(str) model(str)
 
-program load_and_clean
-    syntax, instub(str)
+    preserve
+        local N = e(N)
+        local r2 = e(r2)
 
-	use "`instub'/baseline_zipcode_months.dta", clear
-	
-	xtset zipcode_num year_month
-		
-	foreach var in under29 30to54 under1250 above3333 underHS College {
-	    bys statefips: egen sh_res_`var'_med = median(sh_residents_`var'_2014)
-	    bys statefips: egen sh_ws_`var'_med  = median(sh_workers_`var'_2014)	
-	    
-		gen above_med_st_res_`var'  = (sh_residents_`var'_2014 > sh_res_`var'_med)
-	    gen above_med_st_wrks_`var' = (sh_workers_`var'_2014   > sh_ws_`var'_med)
-	    drop *_med
-		
-	    gen ln_mw_times_wrks_`var'    = ln_mw*above_med_st_wrks_`var'
-	    gen exp_ln_mw_times_res_`var' = exp_ln_mw_17*above_med_st_res_`var'
-	}
+        qui coefplot, vertical base gen
+        keep __at __b __se
+        rename (__at __b __se) (at b se)
+        keep if _n <= 4
+        keep if !missing(at)
+        replace at = 0
+        replace at = 1 if inlist(_n, 2, 4)
+        gen var     = "`res_var'"  
+        replace var = "`wkp_var'" if _n >= 3
+        gen N = `N'
+        gen r2 = `r2'
+        gen model = "`model'"
+
+        save "../temp/estimates_`model'.dta", replace
+    restore
 end
-
 
 main
