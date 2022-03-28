@@ -108,7 +108,7 @@ program get_xlabel, rclass
     if "`var'"=="change_ln_rents"    return local x_lab "Change in log rents per sq. foot"
     if "`var'"=="change_ln_wagebill" return local x_lab "Change in log total wages"
 
-    if "`var'"=="rho"                return local x_lab "Landlord share"
+    if "`var'"=="rho"                return local x_lab "Share pocketed by landlords"
 end
 
 

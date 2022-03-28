@@ -30,13 +30,13 @@ main <- function(){
   
   build_map(data = df_chicago, 
             var = "d_mw_res", 
-            var_legend ="Counterfactual change\nin residence MW", 
+            var_legend ="Change\nin residence MW", 
             break_values = c(0, max_break_mw/2, max_break_mw), 
             map_name = "chicago_d_mw_res")
   
   build_map(data = df_chicago, 
             var = "d_mw_wkp", 
-            var_legend ="Counterfactual change\nin workplace MW", 
+            var_legend ="Change\nin workplace MW", 
             break_values = c(0, max_break_mw/2, max_break_mw), 
             map_name = "chicago_d_mw_wkp")
   
@@ -45,7 +45,7 @@ main <- function(){
   
   build_map(data = df_chicago, 
             var = "change_ln_rents", 
-            var_legend ="Counterfactual change\nin log rents", 
+            var_legend ="Change in log rents\nper sq. foot", 
             break_values = c(min_break_rents, max_break_rents/2, max_break_rents), 
             map_name = "chicago_d_ln_rents")
 
@@ -54,7 +54,7 @@ main <- function(){
   
   build_map(data = df_chicago, 
             var = "change_ln_wagebill", 
-            var_legend ="Counterfactual change\nin log total wages", 
+            var_legend ="Change in log\ntotal wages", 
             break_values = c(min_break_wagebill, max_break_wagebill/2, max_break_wagebill), 
             map_name = "chicago_d_ln_wagebill")
 
@@ -63,7 +63,7 @@ main <- function(){
   
   build_map(data = df_chicago, 
             var = "rho", 
-            var_legend ="Landlord\nshare", 
+            var_legend ="Share pocketed\nby landlords", 
             break_values = c(min_break_rho, max_break_rho/2, max_break_rho), 
             map_name = "chicago_rho")
 }
