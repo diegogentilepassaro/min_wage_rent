@@ -96,13 +96,9 @@ tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals_other.txt"),
           template = "input/counterfactuals_other.tex",
           output   = "output/counterfactuals_other.tex")
 
-tablefill(input    = os.path.join(fd_het, "het_mw_shares.txt"), 
-          template = "input/het_mw_shares.tex", 
-          output   = "output/het_mw_shares.tex")
-
-tablefill(input    = os.path.join(fd_het, "het_public_hous.txt"), 
-          template = "input/het_public_hous.tex", 
-          output   = "output/het_public_hous.tex")
+tablefill(input    = os.path.join(fd_het, "heterogeneity.txt"), 
+          template = "input/heterogeneity.tex", 
+          output   = "output/heterogeneity.tex")
 
 end_make_logging()
 
