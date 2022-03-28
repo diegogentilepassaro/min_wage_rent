@@ -1,55 +1,73 @@
 remove(list = ls())
-
+library(data.table)
 
 main <- function() {
-  
-  instub  <- "../output/"
+  instub  <- "../temp/"
   outstub <- "../output/"
   
-  est <- read.csv(file.path(instub, "estimates_static.csv"))
-  est_var <- est[est$var != "cumsum_from0", ]
+  est <- fread(file.path(instub, "estimates_het.csv"))
   
-  
-  txt <- c("<tab:static>")
+  txt <- c("<tab:heterogeneity>")
   txt <- c(txt, 
-           paste(est_var[est_var$model == "exp_mw_on_mw",]$b,
-                 est_var[est_var$model == "static_statutory",]$b, 
-                 est_var[est_var$model == "static_both" & est_var$var == "ln_mw",]$b, sep = "\t"))
-  
+           paste(est[model == "static_both"    & var == "mw_res",]$b,
+                 est[model == "het_mw_shares"  & var == "mw_res_high_work_mw" & at == 0,]$b,
+                 est[model == "het_public_hous"& var == "mw_res_high_public_hous" & at == 0,]$b,
+                 sep = "\t"))
   txt <- c(txt, 
-           paste(est_var[est_var$model == "exp_mw_on_mw",]$se,
-                 est_var[est_var$model == "static_statutory",]$se, 
-                 est_var[est_var$model == "static_both" & est_var$var == "ln_mw",]$se, sep = "\t"))
-  
+           paste(est[model == "static_both"    & var == "mw_res",]$se,
+                 est[model == "het_mw_shares"  & var == "mw_res_high_work_mw" & at == 0,]$se,
+                 est[model == "het_public_hous"& var == "mw_res_high_public_hous" & at == 0,]$se,
+                 sep = "\t"))
+
   txt <- c(txt, 
-           paste(est_var[est_var$model == "static_experienced",]$b, 
-                 est_var[est_var$model == "static_both" & est_var$var == "exp_ln_mw",]$b, sep = "\t"))
-  txt <- c(txt, 
-           paste(est_var[est_var$model == "static_experienced",]$se, 
-                 est_var[est_var$model == "static_both" & est_var$var == "exp_ln_mw",]$se, sep = "\t"))
-  
-  txt <- c(txt, paste0(est[est$model == "static_both" & est$var == "cumsum_from0",]$b))
-  txt <- c(txt, paste0(est[est$model == "static_both" & est$var == "cumsum_from0",]$se))
-  txt <- c(txt, paste0(est[est$model == "static_both" & est$var == "cumsum_from0",]$p_equality))
+           paste(est[model == "het_mw_shares" & var == "mw_res_high_work_mw" & at == 1,]$b, 
+                 sep = "\t"),
+            paste(est[model == "het_mw_shares" & var == "mw_res_high_work_mw" & at == 1,]$se, 
+                 sep = "\t"))
   
   txt <- c(txt, 
-           paste(est_var[est_var$model == "exp_mw_on_mw",]$r2,
-                 est_var[est_var$model == "static_statutory",]$r2, 
-                 est_var[est_var$model == "static_experienced",]$r2, 
-                 est_var[est_var$model == "static_both",]$r2[1], sep = "\t"))
+           paste(est[model == "het_public_hous" & var == "mw_res_high_public_hous" & at == 1,]$b, 
+                 sep = "\t"),
+            paste(est[model == "het_public_hous" & var == "mw_res_high_public_hous" & at == 1,]$se, 
+                 sep = "\t"))
+
+  txt <- c(txt, 
+           paste(est[model == "static_both"    & var == "mw_wkp_tot_17",]$b,
+                 est[model == "het_mw_shares"  & var == "mw_wkp_high_res_mw" & at == 0,]$b,
+                 est[model == "het_public_hous"& var == "mw_wkp_high_public_hous" & at == 0,]$b,
+                 sep = "\t"))
+  txt <- c(txt, 
+           paste(est[model == "static_both"    & var == "mw_wkp_tot_17",]$se,
+                 est[model == "het_mw_shares"  & var == "mw_wkp_high_res_mw" & at == 0,]$se,
+                 est[model == "het_public_hous"& var == "mw_wkp_high_public_hous" & at == 0,]$se,
+                 sep = "\t"))
+
+  txt <- c(txt, 
+           paste(est[model == "het_mw_shares" & var == "mw_wkp_high_res_mw" & at == 1,]$b, 
+                 sep = "\t"),
+            paste(est[model == "het_mw_shares" & var == "mw_wkp_high_res_mw" & at == 1,]$se, 
+                 sep = "\t"))
+  
+   txt <- c(txt, 
+           paste(est[model == "het_public_hous" & var == "mw_wkp_high_public_hous" & at == 1,]$b, 
+                 sep = "\t"),
+            paste(est[model == "het_public_hous" & var == "mw_wkp_high_public_hous" & at == 1,]$se, 
+                 sep = "\t"))
   
   txt <- c(txt, 
-           paste(est_var[est_var$model == "exp_mw_on_mw",]$N,
-                 est_var[est_var$model == "static_statutory",]$N, 
-                 est_var[est_var$model == "static_experienced",]$N, 
-                 est_var[est_var$model == "static_both",]$N[1], sep = "\t"))
-  
-  fileConn <- file(file.path(outstub, "static.txt"))
+           paste(est[model == "static_both"    & var == "mw_wkp_tot_17",]$r2,
+                 est[model == "het_mw_shares"  & var == "mw_wkp_high_res_mw" & at == 0,]$r2,
+                 est[model == "het_public_hous"& var == "mw_wkp_high_public_hous" & at == 0,]$r2, 
+                 sep = "\t"))
+  txt <- c(txt, 
+           paste(est[model == "static_both"    & var == "mw_wkp_tot_17",]$N,
+                 est[model == "het_mw_shares"  & var == "mw_wkp_high_res_mw" & at == 0,]$N,
+                 est[model == "het_public_hous"& var == "mw_wkp_high_public_hous" & at == 0,]$N, 
+                 sep = "\t"))
+
+  fileConn <- file(file.path(outstub, "heterogeneity.txt"))
   writeLines(txt, fileConn)
   close(fileConn)
 }
-
-
-
 
 main()
