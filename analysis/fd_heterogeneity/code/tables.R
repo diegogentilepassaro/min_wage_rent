@@ -1,79 +1,73 @@
 remove(list = ls())
+library(data.table)
 
 main <- function() {
   instub  <- "../temp/"
   outstub <- "../output/"
   
-  est <- read.csv(file.path(instub, "estimates_het.csv"))
+  est <- fread(file.path(instub, "estimates_het.csv"))
   
   txt <- c("<tab:heterogeneity>")
   txt <- c(txt, 
-           paste(est[est$model == "static_both"  & est$var == "mw_res",]$b,
-                 est[est$model == "het_mw_shares"& est$var == "mw_res_high_work_mw" & est$at == 0,]$b,
-                 est[est$model == "het_public_hous"& est$var == "mw_res_high_public_hous" & est$at == 0,]$b,
+           paste(est[model == "static_both"    & var == "mw_res",]$b,
+                 est[model == "het_mw_shares"  & var == "mw_res_high_work_mw" & at == 0,]$b,
+                 est[model == "het_public_hous"& var == "mw_res_high_public_hous" & at == 0,]$b,
                  sep = "\t"))
   txt <- c(txt, 
-           paste(est[est$model == "static_both"  & est$var == "mw_res",]$se,
-                 est[est$model == "het_mw_shares"& est$var == "mw_res_high_work_mw" & est$at == 0,]$se,
-                 est[est$model == "het_public_hous"& est$var == "mw_res_high_public_hous" & est$at == 0,]$se,
+           paste(est[model == "static_both"    & var == "mw_res",]$se,
+                 est[model == "het_mw_shares"  & var == "mw_res_high_work_mw" & at == 0,]$se,
+                 est[model == "het_public_hous"& var == "mw_res_high_public_hous" & at == 0,]$se,
                  sep = "\t"))
 
   txt <- c(txt, 
-           paste(est[est$model == "het_mw_shares"& est$var == "mw_res_high_work_mw" & est$at == 1,]$b, 
-                 sep = "\t"))
-  txt <- c(txt, 
-           paste(est[est$model == "het_mw_shares"& est$var == "mw_res_high_work_mw" & est$at == 1,]$se, 
+           paste(est[model == "het_mw_shares" & var == "mw_res_high_work_mw" & at == 1,]$b, 
+                 sep = "\t"),
+            paste(est[model == "het_mw_shares" & var == "mw_res_high_work_mw" & at == 1,]$se, 
                  sep = "\t"))
   
   txt <- c(txt, 
-           paste(est[est$model == "het_public_hous"& est$var == "mw_res_high_public_hous" & est$at == 1,]$b, 
-                 sep = "\t"))
-  txt <- c(txt, 
-           paste(est[est$model == "het_public_hous"& est$var == "mw_res_high_public_hous" & est$at == 1,]$se, 
-                 sep = "\t"))
-
-  txt <- c(txt, 
-           paste(est[est$model == "static_both"  & est$var == "mw_wkp_tot_17",]$b,
-                 est[est$model == "het_mw_shares"& est$var == "mw_wkp_high_res_mw" & est$at == 0,]$b,
-                 est[est$model == "het_public_hous"& est$var == "mw_wkp_high_public_hous" & est$at == 0,]$b,
-                 sep = "\t"))
-  txt <- c(txt, 
-           paste(est[est$model == "static_both"  & est$var == "mw_wkp_tot_17",]$se,
-                 est[est$model == "het_mw_shares"& est$var == "mw_wkp_high_res_mw" & est$at == 0,]$se,
-                 est[est$model == "het_public_hous"& est$var == "mw_wkp_high_public_hous" & est$at == 0,]$se,
+           paste(est[model == "het_public_hous" & var == "mw_res_high_public_hous" & at == 1,]$b, 
+                 sep = "\t"),
+            paste(est[model == "het_public_hous" & var == "mw_res_high_public_hous" & at == 1,]$se, 
                  sep = "\t"))
 
   txt <- c(txt, 
-           paste(est[est$model == "het_mw_shares"& est$var == "mw_wkp_high_res_mw" & est$at == 1,]$b, 
+           paste(est[model == "static_both"    & var == "mw_wkp_tot_17",]$b,
+                 est[model == "het_mw_shares"  & var == "mw_wkp_high_res_mw" & at == 0,]$b,
+                 est[model == "het_public_hous"& var == "mw_wkp_high_public_hous" & at == 0,]$b,
                  sep = "\t"))
   txt <- c(txt, 
-           paste(est[est$model == "het_mw_shares"& est$var == "mw_wkp_high_res_mw" & est$at == 1,]$se, 
+           paste(est[model == "static_both"    & var == "mw_wkp_tot_17",]$se,
+                 est[model == "het_mw_shares"  & var == "mw_wkp_high_res_mw" & at == 0,]$se,
+                 est[model == "het_public_hous"& var == "mw_wkp_high_public_hous" & at == 0,]$se,
+                 sep = "\t"))
+
+  txt <- c(txt, 
+           paste(est[model == "het_mw_shares" & var == "mw_wkp_high_res_mw" & at == 1,]$b, 
+                 sep = "\t"),
+            paste(est[model == "het_mw_shares" & var == "mw_wkp_high_res_mw" & at == 1,]$se, 
                  sep = "\t"))
   
    txt <- c(txt, 
-           paste(est[est$model == "het_public_hous"& est$var == "mw_wkp_high_public_hous" & est$at == 1,]$b, 
-                 sep = "\t"))
-  txt <- c(txt, 
-           paste(est[est$model == "het_public_hous"& est$var == "mw_wkp_high_public_hous" & est$at == 1,]$se, 
+           paste(est[model == "het_public_hous" & var == "mw_wkp_high_public_hous" & at == 1,]$b, 
+                 sep = "\t"),
+            paste(est[model == "het_public_hous" & var == "mw_wkp_high_public_hous" & at == 1,]$se, 
                  sep = "\t"))
   
   txt <- c(txt, 
-           paste(est[est$model == "static_both"  & est$var == "mw_wkp_tot_17",]$r2,
-                 est[est$model == "het_mw_shares"& est$var == "mw_wkp_high_res_mw" & est$at == 0,]$r2,
-                 est[est$model == "het_public_hous"& est$var == "mw_wkp_high_public_hous" & est$at == 0,]$r2, 
+           paste(est[model == "static_both"    & var == "mw_wkp_tot_17",]$r2,
+                 est[model == "het_mw_shares"  & var == "mw_wkp_high_res_mw" & at == 0,]$r2,
+                 est[model == "het_public_hous"& var == "mw_wkp_high_public_hous" & at == 0,]$r2, 
                  sep = "\t"))
   txt <- c(txt, 
-           paste(est[est$model == "static_both"  & est$var == "mw_wkp_tot_17",]$N,
-                 est[est$model == "het_mw_shares"& est$var == "mw_wkp_high_res_mw" & est$at == 0,]$N,
-                 est[est$model == "het_public_hous"& est$var == "mw_wkp_high_public_hous" & est$at == 0,]$N, 
+           paste(est[model == "static_both"    & var == "mw_wkp_tot_17",]$N,
+                 est[model == "het_mw_shares"  & var == "mw_wkp_high_res_mw" & at == 0,]$N,
+                 est[model == "het_public_hous"& var == "mw_wkp_high_public_hous" & at == 0,]$N, 
                  sep = "\t"))
 
   fileConn <- file(file.path(outstub, "heterogeneity.txt"))
   writeLines(txt, fileConn)
   close(fileConn)
 }
-
-
-
 
 main()
