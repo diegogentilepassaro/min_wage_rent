@@ -29,8 +29,8 @@ program main
     process_estimates, res_var(mw_res_high_work_mw) ///
         wkp_var(mw_wkp_high_res_mw) model(het_mw_shares)
 
-    reghdfe D.ln_rents c.D.mw_res#i.public_housing ///
-        c.D.mw_wkp_tot_17#i.public_housing ///
+    reghdfe D.ln_rents c.D.mw_res#ib0.public_housing ///
+        c.D.mw_wkp_tot_17#ib0.public_housing ///
         D.(`controls'), nocons ///
         absorb(year_month##public_housing) cluster(`cluster_vars')
     process_estimates, res_var(mw_res_high_public_hous) ///
