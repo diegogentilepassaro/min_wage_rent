@@ -15,10 +15,10 @@ program main
 
     local mw_wkp_var "mw_wkp_tot_17"
 
+	** STATIC	
     use "`instub'/zipcode_months.dta", clear
     xtset zipcode_num `absorb'
-
-	** STATIC
+	
     estimate_baseline_ctrls, mw_wkp_var(`mw_wkp_var') controls(`controls')      ///
         absorb(`absorb') cluster(`cluster')
     local specifications "`r(specifications)'"
@@ -75,6 +75,27 @@ program main
     estimate_alt_zillow_cats_dyn, mw_wkp_var(`mw_wkp_var') controls(`controls') ///
 	    absorb(`absorb') cluster(`cluster')
     local specifications "`r(specifications)'"
+
+	gen ln_monthly_listings = log(Monthlylistings_NSA_SFCC)
+
+	estimate_dist_lag_model if baseline_sample,   ///
+		depvar(ln_monthly_listings) dyn_var(`mw_wkp_var') w(6) stat_var(mw_res) ///
+		controls(`controls') absorb(`absorb') cluster(`cluster')          ///
+		model_name(monthly_listings)
+		
+	estimate_dist_lag_model if fullbal_sample,   ///
+		depvar(ln_monthly_listings) dyn_var(`mw_wkp_var') w(6) stat_var(mw_res) ///
+		controls(`controls') absorb(`absorb') cluster(`cluster')          ///
+		model_name(monthly_listings_fullbal)
+		
+	estimate_dist_lag_model,   ///
+		depvar(ln_monthly_listings) dyn_var(`mw_wkp_var') w(6) stat_var(mw_res) ///
+		controls(`controls') absorb(`absorb'##yr_entry_to_zillow) cluster(`cluster')          ///
+		model_name(monthly_listings_unbal)
+		
+    local specifications "`specifications' monthly_listings monthly_listings_fullbal"
+    local specifications "`specifications' monthly_listings_unbal"
+
 
     clear
     foreach ff in `specifications' {        
