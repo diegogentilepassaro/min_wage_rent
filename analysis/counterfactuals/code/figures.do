@@ -9,7 +9,8 @@ program main
 
     use "`instub'/data_counterfactuals.dta", clear
 
-    keep if counterfactual == "fed_9usd"
+    keep if counterfactual == "fed_9usd" & year == 2020
+    keep if !cbsa_low_inc_increase
 
     foreach var in d_mw_res d_mw_wkp rho                   ///
                    change_ln_rents change_ln_wagebill  {
@@ -25,6 +26,9 @@ program main
         }
         if inlist("`var'", "rho", "change_ln_rents", "change_ln_wagebill") {
             local bin_opt    "bin(30)"
+            if "`var'"!="rho" {
+                local scale_opts "yscale(r(0 40))"
+            }
         }
 
         hist `var', percent `bin_opt'                                   ///
@@ -40,7 +44,7 @@ program main
 
     twoway (line     rho  diff_qts, lcol(navy))                             ///
            (scatter  rho  diff_qts, mcol(navy)),                            ///
-        xtitle("Difference between change in wrk. MW and change in res. MW (deciles)")   ///
+        xtitle("Difference between change in wrk. MW and change in res. MW (deciles)")  ///
         ytitle("Mean landlord share")                                       ///
         xlabel(1(1)10) ylabel(0(0.04)0.2)                                   ///
         graphregion(color(white)) bgcolor(white) legend(off)

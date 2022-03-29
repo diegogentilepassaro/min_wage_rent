@@ -20,10 +20,24 @@ program main
     
     compute_vars, beta(`beta') gamma(`gamma') epsilon(`epsilon')
 
-    list if rho < -1
-    drop if rho < -1
+    flag_unaffected_cbsas
 
-    sum rho, detail
+    foreach cf in fed_10pc fed_9usd fed_15usd {
+
+        qui unique cbsa if counterfactual == "`cf'"
+        local n_cbsas           = `r(unique)'
+        qui unique cbsa if !cbsa_low_inc_increase & counterfactual == "`cf'"
+        local n_cbsas_affected = `r(unique)'
+
+        di "{bf: Counterfactual: `cf'}"
+        di "    Unique CBAs: `n_cbsas'"
+        di "    Unique CBAs strongly affected: `n_cbsas_affected'"
+
+        di "    Distribution of rho"
+        sum rho if counterfactual == "`cf'" & year == 2020, detail
+        di "    Distribution of rho for strongly affected CBAs"
+        sum rho if counterfactual == "`cf'" & !cbsa_low_inc_increase & year == 2020, detail
+    }
 
     save             "../output/data_counterfactuals.dta", replace
     export delimited "../output/data_counterfactuals.csv", replace
@@ -90,6 +104,22 @@ program compute_vars
     gen rho    = `s'*ratio_increases
     gen rho_lb = `s_lb'*ratio_increases
     gen rho_ub = `s_ub'*ratio_increases
+end
+
+program flag_unaffected_cbsas
+    syntax, [thresh(real 0.001)]
+
+    preserve
+        collapse (mean) perc_incr_wagebill perc_incr_rent,       ///
+            by(cbsa counterfactual)
+
+        gen cbsa_low_inc_increase = perc_incr_wagebill < `thresh'
+
+        save "../output/cbsa_averages.dta", replace
+    restore
+
+    merge m:1 cbsa counterfactual using "../output/cbsa_averages.dta", ///
+        assert(3) nogen
 end
 
 
