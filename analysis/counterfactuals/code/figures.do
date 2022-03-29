@@ -21,7 +21,7 @@ program main
         local scale_opts ""
         local bin_opt    ""
         if inlist("`var'", "d_mw_res", "d_mw_wkp") {
-            local scale_opts "yscale(r(0 43)) xscale(r(0 0.23))"
+            local scale_opts "yscale(r(0 53.5)) xscale(r(0 0.23))"
             local bin_opt    "bin(25)"
         }
         if inlist("`var'", "rho", "change_ln_rents", "change_ln_wagebill") {
