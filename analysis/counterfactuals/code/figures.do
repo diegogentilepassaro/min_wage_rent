@@ -9,7 +9,8 @@ program main
 
     use "`instub'/data_counterfactuals.dta", clear
 
-    keep if counterfactual == "fed_9usd"
+    keep if counterfactual == "fed_9usd" & year == 2020
+    keep if !cbsa_low_inc_increase
 
     foreach var in d_mw_res d_mw_wkp rho                   ///
                    change_ln_rents change_ln_wagebill  {
@@ -20,11 +21,14 @@ program main
         local scale_opts ""
         local bin_opt    ""
         if inlist("`var'", "d_mw_res", "d_mw_wkp") {
-            local scale_opts "yscale(r(0 43)) xscale(r(0 0.23))"
+            local scale_opts "yscale(r(0 53.5)) xscale(r(0 0.23))"
             local bin_opt    "bin(25)"
         }
         if inlist("`var'", "rho", "change_ln_rents", "change_ln_wagebill") {
             local bin_opt    "bin(30)"
+            if "`var'"!="rho" {
+                local scale_opts "yscale(r(0 40))"
+            }
         }
 
         hist `var', percent `bin_opt'                                   ///
@@ -40,8 +44,8 @@ program main
 
     twoway (line     rho  diff_qts, lcol(navy))                             ///
            (scatter  rho  diff_qts, mcol(navy)),                            ///
-        xtitle("Difference between change in wrk. MW and change in res. MW (deciles)")   ///
-        ytitle("Mean landlord share")                                       ///
+        xtitle("Difference between change in wrk. MW and change in res. MW (deciles)")  ///
+        ytitle("Mean share pocketed")                                       ///
         xlabel(1(1)10) ylabel(0(0.04)0.2)                                   ///
         graphregion(color(white)) bgcolor(white) legend(off)
         
@@ -108,7 +112,7 @@ program get_xlabel, rclass
     if "`var'"=="change_ln_rents"    return local x_lab "Change in log rents per sq. foot"
     if "`var'"=="change_ln_wagebill" return local x_lab "Change in log total wages"
 
-    if "`var'"=="rho"                return local x_lab "Landlord share"
+    if "`var'"=="rho"                return local x_lab "Share pocketed by landlords"
 end
 
 

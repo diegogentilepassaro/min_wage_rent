@@ -24,6 +24,27 @@ program main
             color_stat_var(maroon) symbol_stat_var(square) ///
             x_label(-6(1)6) name(fd_`model'_both_mw_wkp_only_dyn)
 	}
+	
+	plot_dynamics_both, model(monthly_listings) dyn_var(`mw_wkp_var') ///
+		legend_dyn_var(Workplace MW) y_label(-1(0.2)1) ///
+		color_dyn_var(navy) symbol_dyn_var(cirlce) ///
+		stat_var(mw_res) legend_stat_var(Residence MW) ///
+		color_stat_var(maroon) symbol_stat_var(square) ///
+		x_label(-6(1)6) name(fd_monthly_listings_both_mw_wkp_only_dyn)
+		
+	plot_dynamics_both, model(monthly_listings_fullbal) dyn_var(`mw_wkp_var') ///
+		legend_dyn_var(Workplace MW) y_label(-1(0.2)1) ///
+		color_dyn_var(navy) symbol_dyn_var(cirlce) ///
+		stat_var(mw_res) legend_stat_var(Residence MW) ///
+		color_stat_var(maroon) symbol_stat_var(square) ///
+		x_label(-6(1)6) name(fd_monthly_listings_both_mw_wkp_only_dyn_fullbal)
+		
+	plot_dynamics_both, model(monthly_listings_unbal) dyn_var(`mw_wkp_var') ///
+		legend_dyn_var(Workplace MW) y_label(-1(0.2)1) ///
+		color_dyn_var(navy) symbol_dyn_var(cirlce) ///
+		stat_var(mw_res) legend_stat_var(Residence MW) ///
+		color_stat_var(maroon) symbol_stat_var(square) ///
+		x_label(-6(1)6) name(fd_monthly_listings_both_mw_wkp_only_dyn_unbal)
 end
 
 main

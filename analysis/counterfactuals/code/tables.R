@@ -9,7 +9,9 @@ main <- function() {
   
   alpha = 0.35
 
-  dt_cf <- dt[counterfactual == "fed_9usd"]
+  dt_cf <- dt[counterfactual == "fed_9usd" 
+             & year == 2020 
+             & cbsa_low_inc_increase == 0]
 
   txt <- c("<tab:counterfactuals_fed_9usd>",
             paste(alpha - 0.1, alpha + 0.1, sep = "\t"))
@@ -35,7 +37,9 @@ main <- function() {
             paste(alpha - 0.1, alpha + 0.1, sep = "\t"))
 
   for (cf in c("fed_10pc", "fed_15usd")) {
-    dt_cf <- dt[counterfactual == cf]
+    dt_cf <- dt[counterfactual == cf
+               & year == 2020 
+               & cbsa_low_inc_increase == 0]
 
     for (sample in c("fully_affected", "no_direct_treatment")) {
       

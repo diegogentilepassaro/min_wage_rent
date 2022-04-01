@@ -20,7 +20,8 @@ main <- function(){
   
   df_all <- fread(file.path(in_data, "data_counterfactuals.csv"),
                   colClasses = c(zipcode = "character")) %>%
-    filter(counterfactual == "fed_9usd")
+    filter(counterfactual == "fed_9usd",
+           year           == 2020)
 
   df_all <- left_join(USPS_zipcodes, df_all, by = "zipcode")
 
@@ -30,13 +31,13 @@ main <- function(){
   
   build_map(data = df_chicago, 
             var = "d_mw_res", 
-            var_legend ="Counterfactual change\nin residence MW", 
+            var_legend ="Change in\nresidence MW", 
             break_values = c(0, max_break_mw/2, max_break_mw), 
             map_name = "chicago_d_mw_res")
   
   build_map(data = df_chicago, 
             var = "d_mw_wkp", 
-            var_legend ="Counterfactual change\nin workplace MW", 
+            var_legend ="Change in\nworkplace MW", 
             break_values = c(0, max_break_mw/2, max_break_mw), 
             map_name = "chicago_d_mw_wkp")
   
@@ -45,7 +46,7 @@ main <- function(){
   
   build_map(data = df_chicago, 
             var = "change_ln_rents", 
-            var_legend ="Counterfactual change\nin log rents", 
+            var_legend ="Change in log rents\nper sq. foot", 
             break_values = c(min_break_rents, max_break_rents/2, max_break_rents), 
             map_name = "chicago_d_ln_rents")
 
@@ -54,7 +55,7 @@ main <- function(){
   
   build_map(data = df_chicago, 
             var = "change_ln_wagebill", 
-            var_legend ="Counterfactual change\nin log total wages", 
+            var_legend ="Change in\nlog total wages", 
             break_values = c(min_break_wagebill, max_break_wagebill/2, max_break_wagebill), 
             map_name = "chicago_d_ln_wagebill")
 
@@ -63,7 +64,7 @@ main <- function(){
   
   build_map(data = df_chicago, 
             var = "rho", 
-            var_legend ="Landlord\nshare", 
+            var_legend ="Share pocketed\nby landlords", 
             break_values = c(min_break_rho, max_break_rho/2, max_break_rho), 
             map_name = "chicago_rho")
 }
