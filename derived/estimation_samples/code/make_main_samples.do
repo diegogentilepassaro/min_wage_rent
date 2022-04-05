@@ -30,6 +30,9 @@ program main
         collapse (min) ym_entry_to_zillow = year_month ///
             if !missing(`rent_var'), by(zipcode)
         gen yr_entry_to_zillow = year(dofm(ym_entry_to_zillow))
+        gen qtr_entry_to_zillow = quarter(dofm(ym_entry_to_zillow))
+		replace qtr_entry_to_zillow = yq(yr_entry_to_zillow, qtr_entry_to_zillow)
+		format qtr_entry_to_zillow %tq
         drop ym_entry_to_zillow
         save "../temp/ym_entry_to_zillow.dta", replace
     restore
@@ -170,7 +173,6 @@ program destring_geographies
     cap destring statefips,  gen(statefips_num)
     cap destring cbsa,       gen(cbsa_num)
     cap destring place_code, gen(place_code_num)
-    cap destring county,     gen(county_num)
     cap destring countyfips, gen(county_num)
     cap destring zipcode,    gen(zipcode_num)
 end
