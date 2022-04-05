@@ -26,20 +26,24 @@ program main
         start_ym(`start_year_month') end_ym(`end_year_month')
 
     gen_vars, rent_var(`rent_var') geo(zipcode)
-    preserve 
-        collapse (min) ym_entry_to_zillow = year_month ///
-            if !missing(`rent_var'), by(zipcode)
-        gen yr_entry_to_zillow = year(dofm(ym_entry_to_zillow))
-        gen qtr_entry_to_zillow = quarter(dofm(ym_entry_to_zillow))
-		replace qtr_entry_to_zillow = yq(yr_entry_to_zillow, qtr_entry_to_zillow)
-		format qtr_entry_to_zillow %tq
-        drop ym_entry_to_zillow
-        save "../temp/ym_entry_to_zillow.dta", replace
-    restore
-    merge m:1 zipcode using "../temp/ym_entry_to_zillow.dta", ///
-        nogen keep(1 3) assert(1 3)
-    flag_samples, instub(`in_zip_mth') geo(zipcode) geo_name(zipcode) ///
-        rent_var(`rent_var') target_ym(`target_year_month')
+	
+	foreach stub in 1BR 2BR 3BR 4BR 5BR CC MFdxtx Mfr5Plus SF Studio SFCC {
+		preserve 
+			collapse (min) ym_entry_to_zillow_`stub' = year_month ///
+				if !missing(medrentpricepsqft_`stub'), by(zipcode)
+			gen yr_entry_to_zillow_`stub' = year(dofm(ym_entry_to_zillow))
+			gen qtr_entry_to_zillow_`stub' = quarter(dofm(ym_entry_to_zillow))
+			replace qtr_entry_to_zillow_`stub' = yq(yr_entry_to_zillow, qtr_entry_to_zillow)
+
+			drop ym_entry_to_zillow_`stub'
+			save "../temp/ym_entry_to_zillow_`stub'.dta", replace
+		restore
+		merge m:1 zipcode using "../temp/ym_entry_to_zillow_`stub'.dta", ///
+			nogen keep(1 3) assert(1 3)
+
+		flag_samples, instub(`in_zip_mth') geo(zipcode) geo_name(zipcode) ///
+			rent_var(medrentpricepsqft_`stub') target_ym(`target_year_month')
+	}
 
     compute_weights, instub(`in_zipcode') target_vars(`target_vars')
     merge 1:1 zipcode year_month using "../temp/weights.dta", ///
