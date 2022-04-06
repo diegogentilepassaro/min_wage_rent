@@ -1,5 +1,5 @@
 
- make.py started: 2022-04-05 09:25:22 C:\Users\diegog\Desktop\Diego\min_wage_rent\derived\estimation_samples\code 
+ make.py started: 2022-04-06 06:30:59 C:\Users\shermo\Documents\GitHub\min_wage_rent\derived\estimation_samples\code 
 
 
 
@@ -55,176 +55,219 @@ running c:\ado\personal\profile.do ...
   4.     local outstub      "../../../drive/derived_large/estimation_samples"
   5.     local logfile      "../output/data_file_manifest.log"
   6.     
-.     local rent_var          "medrentpricepsqft_SFCC"
-  7.     local start_year_month  "2010m1"
-  8.     local end_year_month    "2019m12"
-  9.     local target_year_month "2015m1"
- 10.     #delimit ;
+.     local rent_var          "medrentpricepsqft"
+  7.     local rentvar_stubs     "SFCC 1BR 2BR 3BR 4BR 5BR CC MFdxtx Mfr5Plus S
+> F Studio"
+  8. 
+.     local start_year_month  "2010m1"
+  9.     local end_year_month    "2019m12"
+ 10.     local target_year_month "2015m1"
+ 11.     #delimit ;
 delimiter now ;
 .     local target_vars  "sh_hhlds_renteroccup_cens2010
 >                         sh_workers_under1250_2013     sh_residents_under1250_
 > 2013
 >                         sh_workers_underHS_2013       sh_residents_underHS_20
 > 13";
- 11.     #delimit cr
+ 12.     #delimit cr
 delimiter now cr
-.     
+. 
 .     * Zipcode-months
-.     create_unbalanced_panel, instub(`in_zip_mth')                     ///
->         geo(zipcode) rent_var(`rent_var')                             ///
+.     create_unbalanced_panel, instub(`in_zip_mth')                       ///
+>         geo(zipcode) rent_var(`rent_var') stubs(`rentvar_stubs')        ///
 >         start_ym(`start_year_month') end_ym(`end_year_month')
- 12. 
-.     gen_vars, rent_var(`rent_var') geo(zipcode)
- 13.     preserve 
- 14.         collapse (min) ym_entry_to_zillow = year_month ///
->             if !missing(`rent_var'), by(zipcode)
- 15.         gen yr_entry_to_zillow = year(dofm(ym_entry_to_zillow))
- 16.         gen qtr_entry_to_zillow = quarter(dofm(ym_entry_to_zillow))
- 17.                 replace qtr_entry_to_zillow = yq(yr_entry_to_zillow, qtr_e
-> ntry_to_zillow)
- 18.                 format qtr_entry_to_zillow %tq
- 19.         drop ym_entry_to_zillow
- 20.         save "../temp/ym_entry_to_zillow.dta", replace
- 21.     restore
- 22.     merge m:1 zipcode using "../temp/ym_entry_to_zillow.dta", ///
->         nogen keep(1 3) assert(1 3)
- 23.     flag_samples, instub(`in_zip_mth') geo(zipcode) geo_name(zipcode) ///
->         rent_var(`rent_var') target_ym(`target_year_month')
- 24. 
+ 13. 
+.     gen_vars, rent_var(`rent_var') stubs(`rentvar_stubs') geo(zipcode)
+ 14. 
+.     foreach stub of local rentvar_stubs {
+ 15. 
+.         gen_date_of_entry, rent_var(`rent_var') stub(`stub')
+ 16. 
+.         flag_samples, instub(`in_zip_mth') geo(zipcode) geo_name(zipcode) ///
+>             rent_var(`rent_var') stub(`stub') target_ym(`target_year_month')
+ 17.     }
+ 18. 
 .     compute_weights, instub(`in_zipcode') target_vars(`target_vars')
- 25.     merge 1:1 zipcode year_month using "../temp/weights.dta", ///
+ 19.     merge 1:1 zipcode year_month using "../temp/weights.dta", ///
 >        nogen assert(2 3) keep(3)
- 26. 
+ 20. 
 .     save_data "`outstub'/zipcode_months.dta", key(zipcode year_month) ///
 >         replace log(`logfile')
- 27.     export delimited "`outstub'/zipcode_months.csv", replace
- 28.     
+ 21.     export delimited "`outstub'/zipcode_months.csv", replace
+ 22. 
 .     * County-months
 .     create_unbalanced_panel, instub(`in_cty_mth')                     ///
 >         geo(county) rent_var(`rent_var')                             ///
 >         start_ym(`start_year_month') end_ym(`end_year_month')
- 29. 
+ 23. 
 .     gen_vars, rent_var(`rent_var') geo(county)
- 30. 
+ 24. 
 .     flag_samples, instub(`in_cty_mth') geo(county) geo_name(countyfips) ///
->         rent_var(`rent_var') target_ym(`target_year_month')
- 31. 
+>         rent_var(`rent_var') stub(SFCC) target_ym(`target_year_month')
+ 25. 
 .     save_data "`outstub'/county_months.dta", key(countyfips year_month) ///
 >         replace log(`logfile')
- 32.     export delimited "`outstub'/county_months.csv", replace
- 33. end
+ 26.     export delimited "`outstub'/county_months.csv", replace
+ 27. end
 
 . 
 . program create_unbalanced_panel
-  1.     syntax, instub(str) geo(str) rent_var(str)        ///
+  1.     syntax, instub(str) geo(str) rent_var(str) [stubs(str)]      ///
 >             start_ym(str) end_ym(str)
   2.        
 .     use "`instub'/`geo'_month_panel.dta" ///
->         if !missing(`rent_var'), clear
+>         if inrange(year_month, `=tm(`start_ym')', `=tm(`end_ym')'), clear
   3.     
-.     keep if inrange(year_month, `=tm(`start_ym')', `=tm(`end_ym')')
-  4. 
+.     if "`geo'"=="county" {
+  4.         keep if !missing(`rent_var'_SFCC)
+  5.     }
+  6.     else {
+  7.         local i = 1
+  8.         foreach stub of local stubs {
+  9.             if `i' == 1 {
+ 10.                 local if_statement "if !missing(`rent_var'_`stub')"
+ 11.             }
+ 12.             local if_statement "`if_statement' | !missing(`rent_var'_`stub
+> ')"
+ 13. 
+.             local i = `i' + 1
+ 14.         }
+ 15. 
+.         keep `if_statement'
+ 16.     }
+ 17. 
 .     drop_vars
-  5.     destring_geographies
-  6. 
+ 18.     destring_geographies
+ 19. 
 .     xtset `geo'_num year_month
-  7. end
+ 20. end
 
 . 
 . program gen_vars
-  1.     syntax, rent_var(str) geo(str)
+  1.     syntax, rent_var(str) [stubs(str)] geo(str)
   2. 
-.     gen ln_rents = log(`rent_var')
+.     gen ln_rents = log(`rent_var'_SFCC)
   3. 
 .     if "`geo'" == "zipcode"{
-  4.         foreach stub in 1BR 2BR 3BR 4BR 5BR CC MFdxtx Mfr5Plus SF Studio {
-  5.             gen ln_rents_`stub' = log(medrentpricepsqft_`stub')
-  6.             drop medrentpricepsqft_`stub'
-  7.         }
-  8.     }
-  9.     
+  4.         foreach stub of local stubs {
+  5.             if "`stub'"!="SFCC" {
+  6.                 gen ln_rents_`stub' = log(medrentpricepsqft_`stub')
+  7.             }
+  8.         }
+  9.     }
+ 10. 
 .     foreach ctrl_type in emp estcount avgwwage {
- 10.         gen ln_`ctrl_type'_bizserv = log(`ctrl_type'_bizserv)
- 11.         gen ln_`ctrl_type'_info    = log(`ctrl_type'_info)
- 12.         gen ln_`ctrl_type'_fin     = log(`ctrl_type'_fin)
- 13.         drop `ctrl_type'_*
- 14.     }
- 15. end
+ 11.         gen ln_`ctrl_type'_bizserv = log(`ctrl_type'_bizserv)
+ 12.         gen ln_`ctrl_type'_info    = log(`ctrl_type'_info)
+ 13.         gen ln_`ctrl_type'_fin     = log(`ctrl_type'_fin)
+ 14.         drop `ctrl_type'_*
+ 15.     }
+ 16. end
+
+. 
+. program gen_date_of_entry
+  1.     syntax, rent_var(str) stub(str)
+  2. 
+.     preserve
+  3.         keep if !missing(`rent_var'_`stub')
+  4.         collapse (min) ym_entry_to_zillow_`stub' = year_month, by(zipcode)
+  5. 
+.         gen     yr_entry_to_zillow_`stub'  = year(dofm(ym_entry_to_zillow_`st
+> ub'))
+  6.         gen     qtr_entry_to_zillow_`stub' = quarter(dofm(ym_entry_to_zill
+> ow_`stub'))
+  7.         replace qtr_entry_to_zillow_`stub' = yq(yr_entry_to_zillow_`stub',
+>  qtr_entry_to_zillow_`stub')
+  8. 
+.         drop ym_entry_to_zillow_`stub'
+  9.         save "../temp/ym_entry_to_zillow_`stub'.dta", replace
+ 10.     restore
+ 11.     merge m:1 zipcode using "../temp/ym_entry_to_zillow_`stub'.dta", ///
+>         nogen assert(1 3)
+ 12. end
 
 . 
 . program flag_samples
   1.     syntax, instub(str) geo(str) geo_name(str) ///
->         rent_var(str) target_ym(str)
+>         rent_var(str) stub(str) target_ym(str)
   2. 
 .     preserve
-  3.         use year_month `geo_name' medrentpricepsqft_SFCC   ///
->             using "`instub'/`geo'_month_panel.dta"         ///
->             if !missing(`rent_var'), clear
-  4.         
+  3.         clear
+  4.         use year_month `geo_name' `rent_var'_`stub'    ///
+>             using "`instub'/`geo'_month_panel.dta"     ///
+>             if !missing(`rent_var'_`stub')
+  5.         
 .         gcollapse (min) min_year_month = year_month, by(`geo_name')
-  5.         keep if min_year_month <= `=tm(`target_ym')'
-  6.         
+  6.         keep if min_year_month <= `=tm(`target_ym')'
+  7.         
 .         keep `geo_name'
-  7.         gen baseline_sample = 1
-  8.         
+  8.         gen baseline_sample_`stub' = 1
+  9.         
 .         save_data "../temp/baseline_`geo'.dta", key(`geo_name') ///
 >             replace log(none)
-  9.     restore
- 10.     
+ 10.     restore
+ 11.     
 .     merge m:1 `geo_name' using "../temp/baseline_`geo'.dta", ///
 >         nogen assert(1 3) keep(1 3)
- 11.     
-.     replace baseline_sample = 0 if missing(baseline_sample)
  12.     
-.     gen     fullbal_sample = baseline_sample
- 13.     replace fullbal_sample = 0 if year_month <= `=tm(`target_ym')'
- 14. end
+.     replace baseline_sample_`stub' = 0 if missing(baseline_sample_`stub')
+ 13.     
+.     gen     fullbal_sample_`stub' = baseline_sample_`stub'
+ 14.     replace fullbal_sample_`stub' = 0 if year_month <= `=tm(`target_ym')'
+ 15. 
+.     gen unbalanced_sample_`stub' = !missing(`rent_var'_`stub')
+ 16. end
 
 . 
 . program compute_weights
-  1.     syntax, instub(str) target_vars(str) [thresh(real 0.2)]
+  1.     syntax, instub(str) target_vars(str) [thresh(real 0.2) stub(str)]
   2.     
+.     if "`stub'"=="" {
+  3.         local stub "SFCC"
+  4.     }
+  5. 
 .     preserve
-  3.         merge m:1 zipcode using "`instub'/zipcode_cross.dta", ///
+  6.         merge m:1 zipcode using "`instub'/zipcode_cross.dta", ///
 >             assert(2 3) keep(2 3) keepusing(`target_vars' urban_cbsa)
-  4. 
+  7. 
 .         foreach var of local target_vars {
-  5.             qui sum `var' if urban_cbsa == 1
-  6.             local var_mean = r(mean)
-  7.             local target_means "`target_means' `var_mean'"
-  8.         }
-  9.                 
+  8.             qui sum `var' if urban_cbsa == 1
+  9.             local var_mean = r(mean)
+ 10.             local target_means "`target_means' `var_mean'"
+ 11.         }
+ 12.                 
 .         keep if _merge == 3
- 10.         
-.         ebalance `target_vars', manualtargets(`target_means')
- 11.         rename _webal weights_unbal
- 12.         
-.         ebalance `target_vars' if baseline_sample, manualtargets(`target_mean
-> s')
- 13.         rename _webal weights_baseline
- 14.         
-.         ebalance `target_vars' if fullbal_sample, manualtargets(`target_means
-> ')
- 15.         rename _webal weights_fullbal
- 16.         
+ 13.         
+.         ebalance `target_vars' if unbalanced_sample_`stub', manualtargets(`ta
+> rget_means')
+ 14.         rename _webal weights_unbal
+ 15.         
+.         ebalance `target_vars' if baseline_sample_`stub', manualtargets(`targ
+> et_means')
+ 16.         rename _webal weights_baseline
+ 17.         
+.         ebalance `target_vars' if fullbal_sample_`stub', manualtargets(`targe
+> t_means')
+ 18.         rename _webal weights_fullbal
+ 19.         
 .         keep zipcode year_month weights_unbal weights_baseline weights_fullba
 > l
- 17.         save "../temp/weights.dta", replace
- 18.     restore
- 19. end
+ 20.         save "../temp/weights.dta", replace
+ 21.     restore
+ 22. end
 
 . 
 . program drop_vars
-  1.     foreach var in medlistingprice_low_tier ///
->         medlistingprice_top_tier medpctpricereduction_SFCC ///
->         medrentprice_1BR medrentprice_4BR medrentprice_5BR ///
->         medrentprice_CC medrentprice_MFdxtx medrentprice_Mfr5Plus ///
->         medrentprice_SF medrentprice_Studio ///
->         pctlistings_pricedown_SFCC SalesPrevForeclosed_Share ///
->         zhvi_2BR zhvi_SFCC zhvi_C zhvi_SF zri_SFCCMF zri_MF {
+  1.     foreach var in pctlistings_pricedown_SFCC SalesPrevForeclosed_Share //
+> /
+>                    zhvi_2BR zhvi_SFCC zhvi_C zhvi_SF zri_SFCCMF zri_MF {
   2.         cap drop `var'
   3.     }
-  4. end
+  4. 
+.     cap drop medlistingprice*
+  5.     cap drop medrentprice_*
+  6.     cap drop medDailyli*
+  7. end
 
 . 
 . program destring_geographies
@@ -239,50 +282,55 @@ delimiter now cr
 . 
 . 
 . main
-(0 observations deleted)
+(3,558,400 observations deleted)
        panel variable:  zipcode_num (unbalanced)
         time variable:  year_month, 2010m2 to 2019m12
                 delta:  1 month
-(156,932 missing values generated)
-(128,357 missing values generated)
-(135,361 missing values generated)
-(189,781 missing values generated)
-(197,473 missing values generated)
-(168,113 missing values generated)
-(189,705 missing values generated)
-(108,047 missing values generated)
-(55,852 missing values generated)
-(177,150 missing values generated)
+(62,742 missing values generated)
+(205,315 missing values generated)
+(167,942 missing values generated)
+(193,581 missing values generated)
+(252,350 missing values generated)
+(260,183 missing values generated)
+(230,112 missing values generated)
+(248,771 missing values generated)
+(113,897 missing values generated)
+(116,127 missing values generated)
+(237,229 missing values generated)
 (12 missing values generated)
-(1,132 missing values generated)
+(1,488 missing values generated)
 (24 missing values generated)
 (12 missing values generated)
 (12 missing values generated)
-(1,132 missing values generated)
+(1,488 missing values generated)
 (24 missing values generated)
+(62,742 observations deleted)
 (3,316 real changes made)
-(note: file ../temp/ym_entry_to_zillow.dta not found)
-file ../temp/ym_entry_to_zillow.dta saved
+(note: file ../temp/ym_entry_to_zillow_SFCC.dta not found)
+file ../temp/ym_entry_to_zillow_SFCC.dta saved
 
     Result                           # of obs.
     -----------------------------------------
-    not matched                             0
-    matched                           197,978  
+    not matched                        44,693
+        from master                    44,693  
+        from using                          0  
+
+    matched                           216,027  
     -----------------------------------------
 (1,971 observations deleted)
 (data already sorted by zipcode)
-  variable baseline_sample was float now byte
+  variable baseline_sample_SFCC was float now byte
   (4,035 bytes saved)
 ===============================================================================
 File: ../temp/baseline_zipcode.dta
 Key: zipcode
 ===============================================================================
-  1345:2(90900):3789710260:1235100634
+  1345:2(61629):3789710260:1235100634
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
      zipcode |          0
-baseline_s~e |      1,345           1           0          1          1
+baseline_s~C |      1,345           1           0          1          1
 
 
 
@@ -292,24 +340,454 @@ file ../temp/baseline_zipcode.dta saved
 
     Result                           # of obs.
     -----------------------------------------
-    not matched                        64,378
-        from master                    64,378  
+    not matched                       125,559
+        from master                   125,559  
         from using                          0  
 
-    matched                           133,600  
+    matched                           135,161  
     -----------------------------------------
-(64,378 real changes made)
-(54,245 real changes made)
+(125,559 real changes made)
+(55,806 real changes made)
+(205,315 observations deleted)
+(1,521 real changes made)
+(note: file ../temp/ym_entry_to_zillow_1BR.dta not found)
+file ../temp/ym_entry_to_zillow_1BR.dta saved
 
     Result                           # of obs.
     -----------------------------------------
-    not matched                        28,510
-        from master                         0  (_merge==1)
-        from using                     28,510  (_merge==2)
+    not matched                       151,388
+        from master                   151,388  
+        from using                          0  
 
-    matched                           197,978  (_merge==3)
+    matched                           109,332  
     -----------------------------------------
-(28,510 observations deleted)
+(1,313 observations deleted)
+(data already sorted by zipcode)
+  variable baseline_sample_1BR was float now byte
+  (624 bytes saved)
+===============================================================================
+File: ../temp/baseline_zipcode.dta
+Key: zipcode
+===============================================================================
+  208:2(62925):3014941223:1161051191
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+baseline_s~R |        208           1           0          1          1
+
+
+
+
+file ../temp/baseline_zipcode.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       240,227
+        from master                   240,227  
+        from using                          0  
+
+    matched                            20,493  
+    -----------------------------------------
+(240,227 real changes made)
+(8,221 real changes made)
+(167,942 observations deleted)
+(2,390 real changes made)
+(note: file ../temp/ym_entry_to_zillow_2BR.dta not found)
+file ../temp/ym_entry_to_zillow_2BR.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       103,368
+        from master                   103,368  
+        from using                          0  
+
+    matched                           157,352  
+    -----------------------------------------
+(2,022 observations deleted)
+(data already sorted by zipcode)
+  variable baseline_sample_2BR was float now byte
+  (1,104 bytes saved)
+===============================================================================
+File: ../temp/baseline_zipcode.dta
+Key: zipcode
+===============================================================================
+  368:2(64941):3486827325:126225190
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+baseline_s~R |        368           1           0          1          1
+
+
+
+
+file ../temp/baseline_zipcode.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       223,472
+        from master                   223,472  
+        from using                          0  
+
+    matched                            37,248  
+    -----------------------------------------
+(223,472 real changes made)
+(15,536 real changes made)
+(193,581 observations deleted)
+(1,473 real changes made)
+(note: file ../temp/ym_entry_to_zillow_3BR.dta not found)
+file ../temp/ym_entry_to_zillow_3BR.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       143,685
+        from master                   143,685  
+        from using                          0  
+
+    matched                           117,035  
+    -----------------------------------------
+(1,134 observations deleted)
+(data already sorted by zipcode)
+  variable baseline_sample_3BR was float now byte
+  (1,017 bytes saved)
+===============================================================================
+File: ../temp/baseline_zipcode.dta
+Key: zipcode
+===============================================================================
+  339:2(64973):21572539:2242297360
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+baseline_s~R |        339           1           0          1          1
+
+
+
+
+file ../temp/baseline_zipcode.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       225,775
+        from master                   225,775  
+        from using                          0  
+
+    matched                            34,945  
+    -----------------------------------------
+(225,775 real changes made)
+(14,944 real changes made)
+(252,350 observations deleted)
+(201 real changes made)
+(note: file ../temp/ym_entry_to_zillow_4BR.dta not found)
+file ../temp/ym_entry_to_zillow_4BR.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       241,953
+        from master                   241,953  
+        from using                          0  
+
+    matched                            18,767  
+    -----------------------------------------
+(164 observations deleted)
+(data already sorted by zipcode)
+  variable baseline_sample_4BR was float now byte
+  (111 bytes saved)
+===============================================================================
+File: ../temp/baseline_zipcode.dta
+Key: zipcode
+===============================================================================
+  37:2(62894):1884022295:1440958700
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+baseline_s~R |         37           1           0          1          1
+
+
+
+
+file ../temp/baseline_zipcode.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       256,972
+        from master                   256,972  
+        from using                          0  
+
+    matched                             3,748  
+    -----------------------------------------
+(256,972 real changes made)
+(1,565 real changes made)
+(260,183 observations deleted)
+(13 real changes made)
+(note: file ../temp/ym_entry_to_zillow_5BR.dta not found)
+file ../temp/ym_entry_to_zillow_5BR.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       259,841
+        from master                   259,841  
+        from using                          0  
+
+    matched                               879  
+    -----------------------------------------
+(12 observations deleted)
+(data already sorted by zipcode)
+  variable baseline_sample_5BR was float now byte
+  (3 bytes saved)
+===============================================================================
+File: ../temp/baseline_zipcode.dta
+Key: zipcode
+===============================================================================
+  1:2(62926):3057537564:1287912091
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+baseline_s~R |          1           1           .          1          1
+
+
+
+
+file ../temp/baseline_zipcode.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       260,613
+        from master                   260,613  
+        from using                          0  
+
+    matched                               107  
+    -----------------------------------------
+(260,613 real changes made)
+(48 real changes made)
+(230,112 observations deleted)
+(556 real changes made)
+(note: file ../temp/ym_entry_to_zillow_CC.dta not found)
+file ../temp/ym_entry_to_zillow_CC.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       211,273
+        from master                   211,273  
+        from using                          0  
+
+    matched                            49,447  
+    -----------------------------------------
+(365 observations deleted)
+(data already sorted by zipcode)
+  variable baseline_sample_CC was float now byte
+  (573 bytes saved)
+===============================================================================
+File: ../temp/baseline_zipcode.dta
+Key: zipcode
+===============================================================================
+  191:2(32590):2700163090:146727615
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+baseline_s~C |        191           1           0          1          1
+
+
+
+
+file ../temp/baseline_zipcode.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       240,815
+        from master                   240,815  
+        from using                          0  
+
+    matched                            19,905  
+    -----------------------------------------
+(240,815 real changes made)
+(8,636 real changes made)
+(248,771 observations deleted)
+(298 real changes made)
+(note: file ../temp/ym_entry_to_zillow_MFdxtx.dta not found)
+file ../temp/ym_entry_to_zillow_MFdxtx.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       237,510
+        from master                   237,510  
+        from using                          0  
+
+    matched                            23,210  
+    -----------------------------------------
+(231 observations deleted)
+(data already sorted by zipcode)
+  variable baseline_sample_MFdxtx was float now byte
+  (201 bytes saved)
+===============================================================================
+File: ../temp/baseline_zipcode.dta
+Key: zipcode
+===============================================================================
+  67:2(67764):4285675990:2567193691
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+baseline_s~x |         67           1           0          1          1
+
+
+
+
+file ../temp/baseline_zipcode.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       254,524
+        from master                   254,524  
+        from using                          0  
+
+    matched                             6,196  
+    -----------------------------------------
+(254,524 real changes made)
+(2,243 real changes made)
+(113,897 observations deleted)
+(3,364 real changes made)
+(note: file ../temp/ym_entry_to_zillow_Mfr5Plus.dta not found)
+file ../temp/ym_entry_to_zillow_Mfr5Plus.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                        67,812
+        from master                    67,812  
+        from using                          0  
+
+    matched                           192,908  
+    -----------------------------------------
+(2,589 observations deleted)
+(data already sorted by zipcode)
+  variable baseline_sample_Mfr5Plus was float now byte
+  (2,325 bytes saved)
+===============================================================================
+File: ../temp/baseline_zipcode.dta
+Key: zipcode
+===============================================================================
+  775:2(24951):2306890772:569938489
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+baseline_s~s |        775           1           0          1          1
+
+
+
+
+file ../temp/baseline_zipcode.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       187,504
+        from master                   187,504  
+        from using                          0  
+
+    matched                            73,216  
+    -----------------------------------------
+(187,504 real changes made)
+(27,491 real changes made)
+(116,127 observations deleted)
+(2,607 real changes made)
+(note: file ../temp/ym_entry_to_zillow_SF.dta not found)
+file ../temp/ym_entry_to_zillow_SF.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                        82,183
+        from master                    82,183  
+        from using                          0  
+
+    matched                           178,537  
+    -----------------------------------------
+(1,699 observations deleted)
+(data already sorted by zipcode)
+  variable baseline_sample_SF was float now byte
+  (2,724 bytes saved)
+===============================================================================
+File: ../temp/baseline_zipcode.dta
+Key: zipcode
+===============================================================================
+  908:2(31646):55383689:498447236
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+baseline_s~F |        908           1           0          1          1
+
+
+
+
+file ../temp/baseline_zipcode.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       168,476
+        from master                   168,476  
+        from using                          0  
+
+    matched                            92,244  
+    -----------------------------------------
+(168,476 real changes made)
+(38,672 real changes made)
+(237,229 observations deleted)
+(515 real changes made)
+(note: file ../temp/ym_entry_to_zillow_Studio.dta not found)
+file ../temp/ym_entry_to_zillow_Studio.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       222,385
+        from master                   222,385  
+        from using                          0  
+
+    matched                            38,335  
+    -----------------------------------------
+(385 observations deleted)
+(data already sorted by zipcode)
+  variable baseline_sample_Studio was float now byte
+  (390 bytes saved)
+===============================================================================
+File: ../temp/baseline_zipcode.dta
+Key: zipcode
+===============================================================================
+  130:2(62796):1302089740:611948642
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+baseline_s~o |        130           1           0          1          1
+
+
+
+
+file ../temp/baseline_zipcode.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       247,859
+        from master                   247,859  
+        from using                          0  
+
+    matched                            12,861  
+    -----------------------------------------
+(247,859 real changes made)
+(5,191 real changes made)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                        27,194
+        from master                         0  (_merge==1)
+        from using                     27,194  (_merge==2)
+
+    matched                           260,720  (_merge==3)
+    -----------------------------------------
+(27,194 observations deleted)
 
 
 Data Setup
@@ -324,15 +802,15 @@ Iteration 3: Max Difference = 26639.577
 Iteration 4: Max Difference = 9799.88848
 Iteration 5: Max Difference = 3604.91328
 Iteration 6: Max Difference = 1325.90929
-Iteration 7: Max Difference = 487.510668
-Iteration 8: Max Difference = 179.081292
-Iteration 9: Max Difference = 65.6171187
-Iteration 10: Max Difference = 23.8777524
-Iteration 11: Max Difference = 8.52746548
-Iteration 12: Max Difference = 2.89303959
-Iteration 13: Max Difference = .85207642
-Iteration 14: Max Difference = .169817413
-Iteration 15: Max Difference = .012075602
+Iteration 7: Max Difference = 487.510673
+Iteration 8: Max Difference = 179.081304
+Iteration 9: Max Difference = 65.6171504
+Iteration 10: Max Difference = 23.8778378
+Iteration 11: Max Difference = 8.52769301
+Iteration 12: Max Difference = 2.89362332
+Iteration 13: Max Difference = .853403199
+Iteration 14: Max Difference = .171959506
+Iteration 15: Max Difference = .012941439
 maximum difference smaller than the tolerance level; convergence achieved
 
 
@@ -354,11 +832,11 @@ After:  _webal as the weighting variable
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_hhld~2010 |     .3297     .02055      .6949 
-sh_wo~0_2013 |     .2724    .006099     .07692 
-sh_re~0_2013 |     .2299    .002131      .2509 
-sh_wo~S_2013 |     .1091    .001209      1.088 
-sh_re~S_2013 |     .1005    .001089       1.08 
+sh_hhld~2010 |     .3576     .02343      .6108 
+sh_wo~0_2013 |      .268    .006219      .0978 
+sh_re~0_2013 |     .2293    .002332       .192 
+sh_wo~S_2013 |     .1068    .001142       1.02 
+sh_re~S_2013 |      .099    .001061       1.07 
 
 
 Data Setup
@@ -367,47 +845,47 @@ Covariate adjustment: sh_hhlds_renteroccup_cens2010 sh_workers_under1250_2013 s
 
 
 Optimizing...
-Iteration 1: Max Difference = 132740
-Iteration 2: Max Difference = 48832.0528
-Iteration 3: Max Difference = 17964.0441
-Iteration 4: Max Difference = 6608.33826
-Iteration 5: Max Difference = 2430.80757
-Iteration 6: Max Difference = 893.979966
-Iteration 7: Max Difference = 328.612816
-Iteration 8: Max Difference = 120.62622
-Iteration 9: Max Difference = 44.1131919
-Iteration 10: Max Difference = 15.9682298
-Iteration 11: Max Difference = 5.62126987
-Iteration 12: Max Difference = 1.83311871
-Iteration 13: Max Difference = .483779291
-Iteration 14: Max Difference = .071355177
-Iteration 15: Max Difference = .002402121
+Iteration 1: Max Difference = 136112
+Iteration 2: Max Difference = 50072.5449
+Iteration 3: Max Difference = 18420.3983
+Iteration 4: Max Difference = 6776.22428
+Iteration 5: Max Difference = 2492.57208
+Iteration 6: Max Difference = 916.704548
+Iteration 7: Max Difference = 336.975412
+Iteration 8: Max Difference = 123.705335
+Iteration 9: Max Difference = 45.2486178
+Iteration 10: Max Difference = 16.3885996
+Iteration 11: Max Difference = 5.77854493
+Iteration 12: Max Difference = 1.89345999
+Iteration 13: Max Difference = .507825856
+Iteration 14: Max Difference = .07979307
+Iteration 15: Max Difference = .003381643
 maximum difference smaller than the tolerance level; convergence achieved
 
 
-No. of units adjusted: 132741 total of weights: 132741
+No. of units adjusted: 134279 total of weights: 134279
 
 
 Before: without weighting
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_hhld~2010 |     .3295     .01986      .7754 
-sh_wo~0_2013 |     .2758    .006279    .006473 
-sh_re~0_2013 |     .2287    .002136      .2641 
-sh_wo~S_2013 |     .1098    .001082      1.053 
-sh_re~S_2013 |     .1015   .0009965      1.043 
+sh_hhld~2010 |     .3312     .02022      .7753 
+sh_wo~0_2013 |     .2753    .006309     .00358 
+sh_re~0_2013 |     .2284    .002151      .2491 
+sh_wo~S_2013 |     .1097    .001081      1.042 
+sh_re~S_2013 |     .1014   .0009952      1.038 
 
 
 After:  _webal as the weighting variable
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_hhld~2010 |     .3295     .01978       .767 
-sh_wo~0_2013 |     .2724    .006182     .01549 
-sh_re~0_2013 |     .2297      .0022      .2956 
-sh_wo~S_2013 |     .1092    .001078       1.11 
-sh_re~S_2013 |     .1005   .0009528      1.056 
+sh_hhld~2010 |     .3582     .02308      .6843 
+sh_wo~0_2013 |     .2678    .006371     .04561 
+sh_re~0_2013 |     .2292    .002438      .2281 
+sh_wo~S_2013 |     .1068    .001013      .9871 
+sh_re~S_2013 |    .09901   .0009363      1.032 
 
 
 Data Setup
@@ -416,21 +894,21 @@ Covariate adjustment: sh_hhlds_renteroccup_cens2010 sh_workers_under1250_2013 s
 
 
 Optimizing...
-Iteration 1: Max Difference = 78823
-Iteration 2: Max Difference = 28997.097
-Iteration 3: Max Difference = 10667.1716
-Iteration 4: Max Difference = 3923.9689
-Iteration 5: Max Difference = 1443.28329
-Iteration 6: Max Difference = 530.690138
-Iteration 7: Max Difference = 194.966099
-Iteration 8: Max Difference = 71.4607245
-Iteration 9: Max Difference = 26.0272566
-Iteration 10: Max Difference = 9.31758502
-Iteration 11: Max Difference = 3.18203596
-Iteration 12: Max Difference = .954331125
-Iteration 13: Max Difference = .199711052
-Iteration 14: Max Difference = .015959954
-Iteration 15: Max Difference = .000133041
+Iteration 1: Max Difference = 79532.055
+Iteration 2: Max Difference = 29257.9464
+Iteration 3: Max Difference = 10763.1354
+Iteration 4: Max Difference = 3959.27471
+Iteration 5: Max Difference = 1456.27427
+Iteration 6: Max Difference = 535.471941
+Iteration 7: Max Difference = 196.727917
+Iteration 8: Max Difference = 72.1115554
+Iteration 9: Max Difference = 26.2693848
+Iteration 10: Max Difference = 9.40937588
+Iteration 11: Max Difference = 3.21854757
+Iteration 12: Max Difference = .970457768
+Iteration 13: Max Difference = .20754307
+Iteration 14: Max Difference = .018253679
+Iteration 15: Max Difference = .00020836
 maximum difference smaller than the tolerance level; convergence achieved
 
 
@@ -452,235 +930,341 @@ After:  _webal as the weighting variable
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_hhld~2010 |     .3295     .02005      .7658 
-sh_wo~0_2013 |     .2723      .0062    .004288 
-sh_re~0_2013 |     .2297    .002219      .2922 
-sh_wo~S_2013 |     .1092    .001109       1.13 
-sh_re~S_2013 |     .1005   .0009653      1.064 
+sh_hhld~2010 |     .3585     .02322      .6746 
+sh_wo~0_2013 |     .2677    .006355     .04205 
+sh_re~0_2013 |     .2292    .002444      .2338 
+sh_wo~S_2013 |     .1068    .001039      1.017 
+sh_re~S_2013 |    .09898   .0009495      1.042 
 (note: file ../temp/weights.dta not found)
 file ../temp/weights.dta saved
 
     Result                           # of obs.
     -----------------------------------------
     not matched                             0
-    matched                           197,978  
+    matched                           260,720  
     -----------------------------------------
 (data already sorted by zipcode year_month)
-  variable yr_entry_to_zillow was float now int
-  variable qtr_entry_to_zillow was float now int
-  variable fullbal_sample was float now byte
-  (1,385,846 bytes saved)
+  variable yr_entry_to_zillow_SFCC was float now int
+  variable qtr_entry_to_zillow_SFCC was float now int
+  variable fullbal_sample_SFCC was float now byte
+  variable unbalanced_sample_SFCC was float now byte
+  variable yr_entry_to_zillow_1BR was float now int
+  variable qtr_entry_to_zillow_1BR was float now int
+  variable fullbal_sample_1BR was float now byte
+  variable unbalanced_sample_1BR was float now byte
+  variable yr_entry_to_zillow_2BR was float now int
+  variable qtr_entry_to_zillow_2BR was float now int
+  variable fullbal_sample_2BR was float now byte
+  variable unbalanced_sample_2BR was float now byte
+  variable yr_entry_to_zillow_3BR was float now int
+  variable qtr_entry_to_zillow_3BR was float now int
+  variable fullbal_sample_3BR was float now byte
+  variable unbalanced_sample_3BR was float now byte
+  variable yr_entry_to_zillow_4BR was float now int
+  variable qtr_entry_to_zillow_4BR was float now int
+  variable fullbal_sample_4BR was float now byte
+  variable unbalanced_sample_4BR was float now byte
+  variable yr_entry_to_zillow_5BR was float now int
+  variable qtr_entry_to_zillow_5BR was float now int
+  variable fullbal_sample_5BR was float now byte
+  variable unbalanced_sample_5BR was float now byte
+  variable yr_entry_to_zillow_CC was float now int
+  variable qtr_entry_to_zillow_CC was float now int
+  variable fullbal_sample_CC was float now byte
+  variable unbalanced_sample_CC was float now byte
+  variable yr_entry_to_zillow_MFdxtx was float now int
+  variable qtr_entry_to_zillow_MFdxtx was float now int
+  variable fullbal_sample_MFdxtx was float now byte
+  variable unbalanced_sample_MFdxtx was float now byte
+  variable yr_entry_to_zillow_Mfr5Plus was float now int
+  variable qtr_entry_to_zillow_Mfr5Plus was float now int
+  variable fullbal_sample_Mfr5Plus was float now byte
+  variable unbalanced_sample_Mfr5Plus was float now byte
+  variable yr_entry_to_zillow_SF was float now int
+  variable qtr_entry_to_zillow_SF was float now int
+  variable fullbal_sample_SF was float now byte
+  variable unbalanced_sample_SF was float now byte
+  variable yr_entry_to_zillow_Studio was float now int
+  variable qtr_entry_to_zillow_Studio was float now int
+  variable fullbal_sample_Studio was float now byte
+  variable unbalanced_sample_Studio was float now byte
+  (28,679,200 bytes saved)
 ===============================================================================
 File: ../../../drive/derived_large/estimation_samples/zipcode_months.dta
 Key: zipcode year_month
 ===============================================================================
-  197978:170(54637):654660392:609410571
+  260720:224(44445):4215204118:4118004601
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
      zipcode |          0
-  year_month |    197,978    679.8485    29.62182        601        719
- zipcode_num |    197,978    54551.65    29306.32       1545      99705
-        year |    197,978    2016.184    2.460616       2010       2019
-       month |    197,978    6.635217    3.444678          1         12
+  year_month |    260,720    681.4453     28.9775        601        719
+ zipcode_num |    260,720     53622.9     30376.5       1060      99705
+        year |    260,720    2016.316    2.406662       2010       2019
+       month |    260,720     6.65723    3.446437          1         12
 -------------+---------------------------------------------------------
   place_code |          0
-place_code~m |    197,978     3304560     2945004     103076    9999999
+place_code~m |    260,720     3319958     2857416     103076    9999999
   countyfips |          0
-  county_num |    197,978    23793.24    16814.06       1001      56021
+  county_num |    260,720    24644.68    16626.65       1001      56021
    statefips |          0
 -------------+---------------------------------------------------------
-statefips_~m |    197,978    23.69774     16.7631          1         56
+statefips_~m |    260,720    24.55316    16.58105          1         56
         cbsa |          0
-    cbsa_num |    197,978    30725.79    11059.78      10180      99999
-statutory_mw |    197,978    8.490077    1.653734       7.25         16
-      mw_res |    197,978    2.122701    .1733436   1.981001   2.772589
+    cbsa_num |    260,720    30616.11    11035.81      10180      99999
+statutory_mw |    260,720    8.662543    1.752521       7.25         16
+      mw_res |    260,720    2.141206    .1825567   1.981001   2.772589
 -------------+---------------------------------------------------------
-  binding_mw |    197,978    1.710494    .6736844          1          4
-binding_mw~l |    197,978    1.616025    .4863517          1          2
-binding_mw~x |    197,978    1.726672      .70234          1          4
-binding_mw~n |    197,978    1.685278    .6312945          1          4
-mw_wkp_to~09 |    197,766    2.124111    .1706009   1.981001   2.696221
+  binding_mw |    260,720      1.7768    .7290962          1          4
+binding_mw~l |    260,720    1.643197    .4790557          1          2
+binding_mw~x |    260,720    1.795888    .7594616          1          4
+binding_mw~n |    260,720    1.747373    .6841479          1          4
+mw_wkp_to~09 |    260,449    2.141961    .1783208   1.981001   2.714947
 -------------+---------------------------------------------------------
-mw_wkp_~9_09 |    197,766    2.123415    .1694179   1.981001   2.696938
-mw_wkp_~4_09 |    197,766    2.124342    .1710081   1.981001   2.693757
-mw_wkp_~5_09 |    197,766    2.124189    .1706464   1.981001   2.708926
-mw_wkp_~0_09 |    197,766    2.123103    .1690392   1.981001   2.689965
-mw_~_3333_09 |    197,766    2.123122    .1691333   1.981001   2.690221
+mw_wkp_~9_09 |    260,413    2.141146    .1770385   1.981001   2.704773
+mw_wkp_~4_09 |    260,449     2.14225    .1787694   1.981001   2.722751
+mw_wkp_~5_09 |    260,344    2.142071     .178411   1.981001   2.708926
+mw_wkp_~0_09 |    260,449    2.140765    .1767092   1.981001   2.708116
+mw_~_3333_09 |    260,413    2.140842    .1769111   1.981001   2.714288
 -------------+---------------------------------------------------------
-mw_~e3333_09 |    197,766     2.12507    .1719826   1.981001   2.703647
-mw_wkp_go~09 |    197,766    2.121886    .1651784   1.981001   2.675497
-mw_wkp_tr~09 |    197,766    2.122952    .1685583   1.981001   2.679887
-mw_wkp_ot~09 |    197,766    2.124594    .1716685   1.981001   2.708008
-mw_wkp_to~10 |    197,766    2.126151     .170739   1.981001   2.702564
+mw_~e3333_09 |    260,413    2.143136    .1797638   1.981001   2.717053
+mw_wkp_go~09 |    260,344    2.138802    .1721791   1.981001   2.703946
+mw_wkp_tr~09 |    260,449    2.140295     .175797   1.981001   2.692065
+mw_wkp_ot~09 |    260,413     2.14272    .1796328   1.981001   2.718081
+mw_wkp_to~10 |    260,449    2.143971    .1782952   1.981001   2.728093
 -------------+---------------------------------------------------------
-mw_wkp_~9_10 |    197,766    2.125187    .1691945   1.981001   2.700264
-mw_wkp_~4_10 |    197,766    2.126387    .1712421   1.981001   2.703563
-mw_wkp_~5_10 |    197,766    2.126539    .1708801   1.981001   2.701672
-mw_wkp_~0_10 |    197,766    2.124133     .168867   1.981001   2.691651
-mw_~_3333_10 |    197,766    2.124429    .1691295   1.981001   2.692726
+mw_wkp_~9_10 |    260,380    2.142875    .1766779   1.981001   2.723357
+mw_wkp_~4_10 |    260,449    2.144267    .1788344   1.981001   2.731384
+mw_wkp_~5_10 |    260,413    2.144358     .178461   1.981001   2.722941
+mw_wkp_~0_10 |    260,449    2.141782    .1764356   1.981001   2.739517
+mw_~_3333_10 |    260,413    2.142157    .1768129   1.981001   2.728103
 -------------+---------------------------------------------------------
-mw_~e3333_10 |    197,766    2.127753     .172367   1.981001   2.707738
-mw_wkp_go~10 |    197,766    2.122467    .1650463   1.981001    2.68284
-mw_wkp_tr~10 |    197,766    2.123563    .1684631   1.981001   2.678595
-mw_wkp_ot~10 |    197,766    2.126958    .1718377   1.981001   2.710505
-mw_wkp_to~11 |    197,978    2.126256    .1706206   1.981001   2.723764
+mw_~e3333_10 |    260,449    2.145757    .1799387   1.981001   2.725135
+mw_wkp_go~10 |    260,380    2.139253     .171879   1.981001      2.688
+mw_wkp_tr~10 |    260,413    2.140884    .1756314   1.981001   2.722595
+mw_wkp_ot~10 |    260,449    2.145034    .1796265   1.981001   2.730254
+mw_wkp_to~11 |    260,679    2.144191    .1782289   1.981001   2.723764
 -------------+---------------------------------------------------------
-mw_wkp_~9_11 |    197,978    2.125348    .1691269   1.981001    2.73539
-mw_wkp_~4_11 |    197,978    2.126487     .171126   1.981001   2.720158
-mw_wkp_~5_11 |    197,978    2.126598    .1706986   1.981001   2.723767
-mw_wkp_~0_11 |    197,978    2.124253     .168736   1.981001   2.727513
-mw_~_3333_11 |    197,978    2.124532    .1689585   1.981001   2.718271
+mw_wkp_~9_11 |    260,638    2.143104    .1766551   1.981001    2.73539
+mw_wkp_~4_11 |    260,638    2.144506    .1787819   1.981001   2.720158
+mw_wkp_~5_11 |    260,679    2.144508    .1783351   1.981001   2.723767
+mw_wkp_~0_11 |    260,638    2.141976    .1763962   1.981001   2.727513
+mw_~_3333_11 |    260,638     2.14233    .1766992   1.981001   2.718271
 -------------+---------------------------------------------------------
-mw_~e3333_11 |    197,978    2.127848    .1722599   1.981001   2.724349
-mw_wkp_go~11 |    197,978    2.122748    .1649588   1.981001   2.688559
-mw_wkp_tr~11 |    197,978    2.123648    .1684546   1.981001    2.70805
-mw_wkp_ot~11 |    197,978    2.127065    .1717038   1.981001   2.730948
-mw_wkp_to~12 |    197,978     2.12635    .1707141   1.981001   2.726933
+mw_~e3333_11 |    260,679    2.146012    .1798986   1.981001   2.724349
+mw_wkp_go~11 |    260,638    2.139739    .1719125   1.981001    2.69357
+mw_wkp_tr~11 |    260,638    2.141061    .1757163   1.981001    2.70805
+mw_wkp_ot~11 |    260,679    2.145244    .1795191   1.981001   2.730948
+mw_wkp_to~12 |    260,699    2.144314    .1783353   1.981001   2.726933
 -------------+---------------------------------------------------------
-mw_wkp_~9_12 |    197,978    2.125312      .16945   1.981001   2.732237
-mw_wkp_~4_12 |    197,978    2.126619    .1711437   1.981001   2.725364
-mw_wkp_~5_12 |    197,978    2.126593    .1706816   1.981001   2.727421
-mw_wkp_~0_12 |    197,978    2.124418    .1689475   1.981001   2.727923
-mw_~_3333_12 |    197,978    2.124533    .1689034   1.981001   2.725009
+mw_wkp_~9_12 |    260,638    2.143154    .1770379   1.981001   2.732237
+mw_wkp_~4_12 |    260,699     2.14465     .178791   1.981001   2.725364
+mw_wkp_~5_12 |    260,658    2.144506    .1783155   1.981001   2.727421
+mw_wkp_~0_12 |    260,638    2.142175    .1766484   1.981001   2.727923
+mw_~_3333_12 |    260,699    2.142359    .1766625   1.981001   2.725009
 -------------+---------------------------------------------------------
-mw_~e3333_12 |    197,978    2.127949    .1723403   1.981001   2.727111
-mw_wkp_go~12 |    197,978    2.122939    .1647861   1.981001    2.69106
-mw_wkp_tr~12 |    197,978    2.123932    .1688334   1.981001    2.70865
-mw_wkp_ot~12 |    197,978    2.127109    .1717553   1.981001   2.731859
-mw_wkp_to~13 |    197,978    2.126464    .1706572   1.981001   2.729451
+mw_~e3333_12 |    260,658    2.146146    .1799872   1.981001   2.727111
+mw_wkp_go~12 |    260,638    2.139879    .1717164   1.981001    2.69106
+mw_wkp_tr~12 |    260,658    2.141446    .1762016   1.981001    2.70865
+mw_wkp_ot~12 |    260,679    2.145311    .1795727   1.981001   2.731859
+mw_wkp_to~13 |    260,699    2.144401    .1782524   1.981001   2.729451
 -------------+---------------------------------------------------------
-mw_wkp_~9_13 |    197,978    2.125407    .1694019   1.981001   2.735872
-mw_wkp_~4_13 |    197,978    2.126755    .1711111   1.981001   2.728685
-mw_wkp_~5_13 |    197,978    2.126669    .1705758   1.981001   2.724522
-mw_wkp_~0_13 |    197,978    2.124444    .1687472   1.981001   2.728561
-mw_~_3333_13 |    197,978    2.124592     .168751   1.981001   2.725964
+mw_wkp_~9_13 |    260,638    2.143246    .1769831   1.981001   2.735872
+mw_wkp_~4_13 |    260,658    2.144768    .1787445   1.981001   2.728685
+mw_wkp_~5_13 |    260,679    2.144524    .1781598   1.981001   2.724522
+mw_wkp_~0_13 |    260,638    2.142182    .1764433   1.981001   2.728561
+mw_~_3333_13 |    260,699    2.142377    .1764774   1.981001   2.725964
 -------------+---------------------------------------------------------
-mw_~e3333_13 |    197,978    2.128075    .1723149   1.981001   2.730041
-mw_wkp_go~13 |    197,978    2.122721    .1643612   1.981001   2.688457
-mw_wkp_tr~13 |    197,978    2.123952    .1687873   1.981001   2.715977
-mw_wkp_ot~13 |    197,978    2.127275    .1717513   1.981001   2.733458
-mw_wkp_to~14 |    197,978    2.126532    .1706021   1.981001   2.729872
+mw_~e3333_13 |    260,638    2.146238    .1799369   1.981001   2.730041
+mw_wkp_go~13 |    260,638    2.139627    .1712941   1.981001   2.688457
+mw_wkp_tr~13 |    260,658    2.141433    .1761117   1.981001   2.715977
+mw_wkp_ot~13 |    260,679    2.145451    .1795441   1.981001   2.733458
+mw_wkp_to~14 |    260,699    2.144446    .1781393   1.981001   2.729872
 -------------+---------------------------------------------------------
-mw_wkp_~9_14 |    197,978    2.125423    .1692701   1.981001   2.736814
-mw_wkp_~4_14 |    197,978    2.126855    .1710885   1.981001   2.729049
-mw_wkp_~5_14 |    197,978    2.126696    .1704862   1.981001   2.724677
-mw_wkp_~0_14 |    197,978    2.124531    .1687049   1.981001   2.735022
-mw_~_3333_14 |    197,978    2.124595    .1685796   1.981001   2.727722
+mw_wkp_~9_14 |    260,638    2.143222    .1767767   1.981001   2.736814
+mw_wkp_~4_14 |    260,699    2.144842    .1786551   1.981001   2.729049
+mw_wkp_~5_14 |    260,638    2.144553    .1780416   1.981001   2.724677
+mw_wkp_~0_14 |    260,638    2.142235    .1763098   1.981001   2.735022
+mw_~_3333_14 |    260,679    2.142338    .1762465   1.981001   2.727722
 -------------+---------------------------------------------------------
-mw_~e3333_14 |    197,978    2.128118    .1722229   1.981001   2.729643
-mw_wkp_go~14 |    197,978    2.122777    .1639387   1.981001    2.70805
-mw_wkp_tr~14 |    197,978    2.123994    .1686807   1.981001   2.713008
-mw_wkp_ot~14 |    197,978    2.127364    .1717615   1.981001    2.73603
-mw_wkp_to~15 |    197,978    2.126411    .1706431   1.981066   2.690024
+mw_~e3333_14 |    260,699    2.146253    .1797751   1.981001   2.729643
+mw_wkp_go~14 |    260,638    2.139593    .1707511   1.981001    2.70805
+mw_wkp_tr~14 |    260,679    2.141452    .1759377   1.981001   2.713008
+mw_wkp_ot~14 |    260,699    2.145527    .1795011   1.981001    2.73603
+mw_wkp_to~15 |    260,658    2.144301    .1781502   1.981066   2.693985
 -------------+---------------------------------------------------------
-mw_wkp_~9_15 |    197,978    2.125318    .1695629   1.981001   2.699935
-mw_wkp_~4_15 |    197,978    2.126737    .1711102   1.981025   2.688502
-mw_wkp_~5_15 |    197,978     2.12654    .1703292   1.981001   2.691492
-mw_wkp_~0_15 |    197,978     2.12419    .1684786   1.981001   2.695126
-mw_~_3333_15 |    197,978    2.124407    .1685084   1.981001   2.693136
+mw_wkp_~9_15 |    260,638    2.143121    .1770819   1.981001   2.699935
+mw_wkp_~4_15 |    260,638    2.144696    .1786363   1.981001   2.690713
+mw_wkp_~5_15 |    260,658    2.144336     .177807   1.981001   2.696391
+mw_wkp_~0_15 |    260,638    2.141802    .1759772   1.981001   2.705175
+mw_~_3333_15 |    260,658    2.142137    .1761753   1.981001   2.693136
 -------------+---------------------------------------------------------
-mw_~e3333_15 |    197,978    2.128061    .1723211   1.981001   2.698339
-mw_wkp_go~15 |    197,978    2.122885    .1640899   1.981001   2.671106
-mw_wkp_tr~15 |    197,978    2.124132    .1690419   1.981001   2.723306
-mw_wkp_ot~15 |    197,978    2.127163    .1717213   1.981022   2.697262
-mw_wkp_to~16 |    197,978    2.126502    .1707413   1.981049   2.693834
+mw_~e3333_15 |    260,638    2.146187     .179864   1.981001   2.698339
+mw_wkp_go~15 |    260,638    2.139601    .1708241   1.981001   2.676615
+mw_wkp_tr~15 |    260,658    2.141599    .1762615   1.981001   2.723306
+mw_wkp_ot~15 |    260,638    2.145294    .1794302   1.981001   2.703003
+mw_wkp_to~16 |    260,679    2.144406    .1782486   1.981001   2.693834
 -------------+---------------------------------------------------------
-mw_wkp_~9_16 |    197,978    2.125377     .169784   1.981001   2.703966
-mw_wkp_~4_16 |    197,978    2.126851    .1712143   1.981016   2.691873
-mw_wkp_~5_16 |    197,978    2.126627    .1702915   1.981001   2.689187
-mw_wkp_~0_16 |    197,978    2.124253    .1685374   1.981001   2.696961
-mw_~_3333_16 |    197,978    2.124418    .1685051   1.981008   2.694405
+mw_wkp_~9_16 |    260,638    2.143232    .1773336   1.981001   2.703966
+mw_wkp_~4_16 |    260,679    2.144826    .1787396   1.981001   2.693478
+mw_wkp_~5_16 |    260,679    2.144377    .1777073   1.981001   2.691519
+mw_wkp_~0_16 |    260,638    2.141892    .1760448   1.981001    2.69799
+mw_~_3333_16 |    260,679    2.142153    .1761614   1.981001   2.694405
 -------------+---------------------------------------------------------
-mw_~e3333_16 |    197,978    2.128144    .1723922   1.981009   2.701021
-mw_wkp_go~16 |    197,978    2.123013    .1640729   1.981001   2.671271
-mw_wkp_tr~16 |    197,978    2.124188      .16911   1.981001   2.732279
-mw_wkp_ot~16 |    197,978    2.127255    .1718346   1.981024   2.699198
-mw_wkp_to~17 |    197,978    2.126509     .170538    1.98106   2.694137
+mw_~e3333_16 |    260,679    2.146265    .1799299   1.981001   2.701021
+mw_wkp_go~16 |    260,638    2.139808    .1708466   1.981001   2.678573
+mw_wkp_tr~16 |    260,679    2.141648    .1763535   1.981001   2.732279
+mw_wkp_ot~16 |    260,679      2.1454    .1795362   1.981001   2.700735
+mw_wkp_to~17 |    260,699    2.144414    .1780358   1.981001   2.694807
 -------------+---------------------------------------------------------
-mw_wkp_~9_17 |    197,978    2.125348     .169373   1.981009   2.707357
-mw_wkp_~4_17 |    197,978    2.126899    .1710758   1.981034   2.690996
-mw_wkp_~5_17 |    197,978    2.126562    .1701351   1.981001   2.691312
-mw_wkp_~0_17 |    197,978    2.124143    .1680978   1.981001   2.687496
-mw_~_3333_17 |    197,978    2.124379    .1681745   1.981029   2.689518
+mw_wkp_~9_17 |    260,638    2.143183     .176896   1.981001   2.707357
+mw_wkp_~4_17 |    260,658    2.144889    .1786177   1.981001   2.694045
+mw_wkp_~5_17 |    260,679    2.144332    .1775538   1.981001   2.696423
+mw_wkp_~0_17 |    260,638    2.141745    .1755705   1.981001   2.699012
+mw_~_3333_17 |    260,679    2.142115    .1758565   1.981001   2.689518
 -------------+---------------------------------------------------------
-mw_~e3333_17 |    197,978     2.12813    .1722049   1.981026   2.699259
-mw_wkp_go~17 |    197,978    2.122973    .1640143   1.981001   2.667079
-mw_wkp_tr~17 |    197,978    2.124198    .1689134   1.981001   2.734492
-mw_wkp_ot~17 |    197,978    2.127261    .1715973   1.981037   2.698904
-mw_wkp_to~18 |    197,978    2.126548    .1705825   1.981076   2.699071
+mw_~e3333_17 |    260,658    2.146255     .179748   1.981001   2.700501
+mw_wkp_go~17 |    260,638    2.139787    .1707547   1.981001   2.676213
+mw_wkp_tr~17 |    260,679    2.141686    .1761621   1.981001   2.734492
+mw_wkp_ot~17 |    260,658    2.145407    .1793003   1.981001    2.70214
+mw_wkp_to~18 |    260,658    2.144466     .178095   1.981001   2.699071
 -------------+---------------------------------------------------------
-mw_wkp_~9_18 |    197,978    2.125362    .1694366    1.98102   2.712028
-mw_wkp_~4_18 |    197,978    2.126969    .1711567   1.981028   2.695188
-mw_wkp_~5_18 |    197,978    2.126546    .1700716   1.981001   2.693004
-mw_wkp_~0_18 |    197,978     2.12415    .1680278   1.981012   2.689319
-mw_~_3333_18 |    197,978    2.124354    .1681455   1.981058   2.693606
+mw_wkp_~9_18 |    260,638    2.143187    .1769308   1.981001   2.712028
+mw_wkp_~4_18 |    260,658    2.144973    .1786999   1.981001   2.695188
+mw_wkp_~5_18 |    260,638    2.144319    .1775258   1.981001   2.696024
+mw_wkp_~0_18 |    260,638    2.141737    .1754697   1.981001   2.706101
+mw_~_3333_18 |    260,658    2.142096    .1758412   1.981001   2.693606
 -------------+---------------------------------------------------------
-mw_~e3333_18 |    197,978    2.128132     .172211   1.981024   2.705203
-mw_wkp_go~18 |    197,978    2.122865    .1638314   1.981001   2.667329
-mw_wkp_tr~18 |    197,978    2.124287    .1690483   1.981001    2.74121
-mw_wkp_ot~18 |    197,978      2.1273    .1716275   1.981056   2.704008
-mw_wkp_tot~y |    158,186    2.104751    .1469083   1.981001   2.662255
+mw_~e3333_18 |    260,658    2.146258    .1797577   1.981001   2.705203
+mw_wkp_go~18 |    260,638    2.139648    .1705809   1.981001   2.679695
+mw_wkp_tr~18 |    260,638    2.141743    .1762603   1.981001    2.74121
+mw_wkp_ot~18 |    260,658    2.145464    .1793399   1.981001   2.704008
+mw_wkp_tot~y |    205,115    2.120598    .1543946   1.981001   2.662255
 -------------+---------------------------------------------------------
-m~9_timevary |    158,186    2.103793    .1459024   1.981001   2.675424
-m~4_timevary |    158,186     2.10506    .1473884   1.981001   2.658298
-m~5_timevary |    158,186    2.104826    .1465241   1.981001   2.656047
-m~0_timevary |    158,186    2.102772    .1447471   1.981001   2.648687
-mw_wkp_ear.. |    158,186    2.103004      .14486   1.981001   2.656807
+m~9_timevary |    205,090    2.119565    .1533977   1.981001   2.675424
+m~4_timevary |    205,103    2.120969    .1548961   1.981001   2.658298
+m~5_timevary |    205,107    2.120569    .1539578   1.981001   2.656047
+m~0_timevary |    205,090    2.118352    .1522088   1.981001    2.65805
+mw_wkp_ear.. |    205,115    2.118699    .1524845   1.981001   2.656807
 -------------+---------------------------------------------------------
-mw_wkp_ear.. |    158,186    2.106081    .1483279   1.981001   2.668538
-mw_wkp_goo~y |    158,186    2.101615    .1408613   1.981001   2.605971
-mw_wkp_tra~y |    158,186    2.102734    .1456106   1.981001   2.705586
-mw_wkp_oth~y |    158,186    2.105402    .1478514   1.981001   2.656079
-medDailyli~C |    148,860    179.1121    128.9684         12       2234
+mw_wkp_ear.. |    205,103    2.122102    .1558362   1.981001   2.668538
+mw_wkp_goo~y |    205,090    2.116436    .1475827   1.981001   2.605971
+mw_wkp_tra~y |    205,107    2.118162    .1528413   1.981001   2.705586
+mw_wkp_oth~y |    205,103    2.121458    .1555256   1.981001   2.656079
+medpctpric~C |    215,272    3.312605    1.645374   .0002276   43.16547
 -------------+---------------------------------------------------------
-medli~e_SFCC |    170,893    379874.6      372217      17800    6995000
-medli~t_SFCC |    187,318    212.6468    208.2763   15.76577   2695.917
-medli~w_tier |     94,049    132.8645    99.42843   15.82222   1672.388
-medli~p_tier |    129,092    253.8545    245.4021   62.48275   2729.885
-medrentp~2BR |     71,382     1774.83     916.481        475      19500
+medrentp~1BR |     55,405    2.190759    .9192868   .6388889   7.164352
+medrentp~2BR |     92,778    1.682624    .8035175   .5015198   12.55461
+medrentp~3BR |     67,139    1.233209    .8117302   .5060225       17.5
+medrentp~4BR |      8,370     1.49865    2.559936   .5492424   21.85141
+medrentp~5BR |        537    7.753782    7.031498   .3727683         22
 -------------+---------------------------------------------------------
-medrentp~3BR |     65,676    1874.471    1501.986        595      40000
-medre~e_SFCC |    170,424    1766.822    1557.824        500      50000
-medre~t_SFCC |    197,978    1.303812    1.033133   .1091193   23.96932
-Monthlylis~C |    154,730     231.081    153.6402         13       2540
-NewMonthly~C |     56,926    62.24103    34.77379         11        609
+medrentp~FCC |    197,978    1.303812    1.033133   .1091193   23.96932
+medrentp~_CC |     30,608    2.170225    1.168605   .5835432   12.92755
+medrentpri~x |     11,949    2.451649    1.286775   .3627695   6.936796
+medrentpri~s |    146,823    1.736252    .8487653   .3150482   12.55435
+medrentpri~F |    144,593       1.145    1.002039   .1039069   24.48466
 -------------+---------------------------------------------------------
- Sale_Counts |    178,604    60.58495    33.17106          0        382
-     quarter |    197,978    2.542101    1.116308          1          4
-year_quarter |    197,978    226.2799     9.87255        200        239
+medrentpri~o |     23,491    1.954625    1.574804   .4288971   7.347833
+Monthlylis~C |    194,330     212.276    150.8849         12       2540
+NewMonthly~C |     65,326    59.69456    34.42235         11        609
+ Sale_Counts |    236,007    54.13609    33.41542          0        493
+     quarter |    260,720    2.549072    1.116735          1          4
+-------------+---------------------------------------------------------
+year_quarter |    260,720    226.8118    9.657613        200        239
     ln_rents |    197,978    .1260564    .4678614  -2.215314   3.176775
-ln_rents_1BR |     41,046    .7164504    .3907797  -.4480247   1.899293
+ln_rents_1BR |     55,405    .7084706    .3803459  -.4480247   1.969118
+ln_rents_2BR |     92,778     .429662    .4122928  -.6901123   2.530088
+ln_rents_3BR |     67,139    .1044009    .4121419  -.6811742   2.862201
 -------------+---------------------------------------------------------
-ln_rents_2BR |     69,621    .4353367    .4266835  -.6901123   2.530088
-ln_rents_3BR |     62,617     .090562    .4123318  -.6811742   2.862201
-ln_rents_4BR |      8,197    .0115073    .6285575  -.5992154   3.084265
-ln_rents_5BR |        505    1.186913    1.427766  -.9867982   3.091043
- ln_rents_CC |     29,865    .6563441    .4685581  -.5386367   2.559361
+ln_rents_4BR |      8,370    .0209857    .6321349  -.5992154   3.084265
+ln_rents_5BR |        537    1.270166    1.432776  -.9867982   3.091043
+ ln_rents_CC |     30,608    .6574969    .4686013  -.5386367   2.559361
+ln_rents_M~x |     11,949    .7588902     .538354  -1.013988    1.93684
+ln_rents_M~s |    146,823    .4564784    .4223449   -1.15503   2.530067
 -------------+---------------------------------------------------------
-ln_rents_M~x |      8,273    .7878276    .5592001  -.6632233    1.93684
-ln_rents_M~s |     89,931    .4584986    .4342857  -.6719947   2.530067
- ln_rents_SF |    142,126    .0105987    .4108514   -2.26426   3.198047
-ln_rents_S~o |     20,828    .3346214    .7130985  -.8465384   1.994406
-ln_emp_biz~v |    197,966    11.03427    1.381873   5.659482   13.38876
+ ln_rents_SF |    144,593    .0142758    .4144709   -2.26426   3.198047
+ln_rents_S~o |     23,491    .3914822    .7207413  -.8465384   1.994406
+ln_emp_biz~v |    260,708    11.06471     1.36863   5.575949   13.38876
+ ln_emp_info |    259,232    8.954355    1.583349   2.397895   12.38988
+  ln_emp_fin |    260,696    10.11119      1.3978   2.944439   12.89542
 -------------+---------------------------------------------------------
- ln_emp_info |    196,846    8.890655    1.580753   2.397895   12.38988
-  ln_emp_fin |    197,954     10.0722    1.420266   2.944439   12.89542
-ln_estcoun~v |    197,978    8.569249    1.254155   1.098612   10.96353
-ln_estcoun~o |    197,966    6.003222     1.36842          0   9.531191
-ln_estcoun~n |    197,978    7.875171    1.205097   2.197225   10.33748
+ln_estcoun~v |    260,720    8.581004    1.239135   1.098612   10.96353
+ln_estcoun~o |    260,708    6.046316    1.374286          0   9.531191
+ln_estcoun~n |    260,720    7.887073    1.196493   2.197225   10.33748
+ln_avgwwag~v |    260,708    7.146973    .3162681   5.420535   9.135509
+ln_avgwwag~o |    259,232    7.329245    .3789631   5.891644   9.584453
 -------------+---------------------------------------------------------
-ln_avgwwag~v |    197,966    7.120423    .3153675   5.420535   8.461046
-ln_avgwwag~o |    196,846    7.301237     .375169   5.891644   9.004791
-ln_avgwwag~n |    197,954    7.274049    .3634351   6.061457   9.163982
-yr_entry_t~w |    197,978    2013.084      2.7304       2010       2019
-qtr_entry_~w |    197,978    213.2962    10.87926        200        236
+ln_avgwwag~n |    260,696     7.30321    .3657506   6.061457   9.163982
+yr_entry~FCC |    216,027    2013.379    2.818691       2010       2019
+qtr_entr~FCC |    216,027    214.4915    11.24623        200        236
+baseline~FCC |    260,720    .5184144    .4996618          0          1
+fullbal_~FCC |    260,720    .3043687    .4601404          0          1
 -------------+---------------------------------------------------------
-baseline_s~e |    197,978    .6748225    .4684423          0          1
-fullbal_sa~e |    197,978    .4008274    .4900673          0          1
-weights_un~l |    196,845           1    .0994468   .6726034   1.602837
-weights_ba~e |    132,741           1    .0807915   .6761348   1.391653
-weights_fu~l |     78,824           1    .0799402    .720978   1.344039
+unbalanc~FCC |    260,720     .759351    .4274784          0          1
+yr_entry~1BR |    109,332    2016.219    2.143701       2010       2019
+qtr_entr~1BR |    109,332    226.0717     8.44203        200        236
+baseline~1BR |    260,720    .0786016    .2691164          0          1
+fullbal_~1BR |    260,720    .0470697    .2117883          0          1
+-------------+---------------------------------------------------------
+unbalanc~1BR |    260,720    .2125077    .4090829          0          1
+yr_entry~2BR |    157,352    2015.858    2.372037       2010       2019
+qtr_entr~2BR |    157,352    224.5385    9.386034        200        236
+baseline~2BR |    260,720    .1428659    .3499367          0          1
+fullbal_~2BR |    260,720    .0832771    .2763011          0          1
+-------------+---------------------------------------------------------
+unbalanc~2BR |    260,720     .355853    .4787719          0          1
+yr_entry~3BR |    117,035    2015.415    2.651558       2010       2019
+qtr_entr~3BR |    117,035    222.5999    10.54273        200        236
+baseline~3BR |    260,720    .1340327    .3406881          0          1
+fullbal_~3BR |    260,720    .0767145    .2661384          0          1
+-------------+---------------------------------------------------------
+unbalanc~3BR |    260,720    .2575138    .4372656          0          1
+yr_entry~4BR |     18,767    2016.092    2.205505       2011       2019
+qtr_entr~4BR |     18,767    225.3053    8.717873        204        236
+baseline~4BR |    260,720    .0143756    .1190335          0          1
+fullbal_~4BR |    260,720     .008373    .0911202          0          1
+-------------+---------------------------------------------------------
+unbalanc~4BR |    260,720    .0321034    .1762751          0          1
+yr_entry~5BR |        879    2016.091     1.68901       2012       2018
+qtr_entr~5BR |        879    225.1479    6.945179        208        235
+baseline~5BR |    260,720    .0004104    .0202543          0          1
+fullbal_~5BR |    260,720    .0002263    .0150415          0          1
+-------------+---------------------------------------------------------
+unbalanc~5BR |    260,720    .0020597     .045337          0          1
+yr_entry~_CC |     49,447    2014.677    2.914165       2010       2019
+qtr_entr~_CC |     49,447    219.7676    11.50859        200        236
+baseline~_CC |    260,720    .0763463    .2655519          0          1
+fullbal_~_CC |    260,720    .0432226    .2033583          0          1
+-------------+---------------------------------------------------------
+unbalanc~_CC |    260,720     .117398    .3218945          0          1
+yr_entry_t~x |     23,210    2015.981    2.000232       2011       2019
+qtr_entry_~x |     23,210    225.3058    7.891578        204        236
+baseline_s~x |    260,720     .023765    .1523164          0          1
+fullbal_sa~x |    260,720    .0151619    .1221967          0          1
+-------------+---------------------------------------------------------
+unbalanced~x |    260,720    .0458308    .2091183          0          1
+yr_entry_t~s |    192,908    2015.046    2.643347       2010       2019
+qtr_entry_~s |    192,908    221.5457    10.35072        200        236
+baseline_s~s |    260,720    .2808223    .4494017          0          1
+fullbal_sa~s |    260,720    .1753797    .3802923          0          1
+-------------+---------------------------------------------------------
+unbalanced~s |    260,720    .5631444    .4959977          0          1
+yr_entry_t~F |    178,537    2014.031    2.854551       2010       2019
+qtr_entry_~F |    178,537    217.0857    11.46024        200        236
+baseline_s~F |    260,720    .3538048    .4781505          0          1
+fullbal_sa~F |    260,720    .2054771    .4040506          0          1
+-------------+---------------------------------------------------------
+unbalanced~F |    260,720    .5545911    .4970118          0          1
+yr_entry_t~o |     38,335    2015.328     2.73533       2010       2019
+qtr_entry_~o |     38,335     222.431    10.90463        202        236
+baseline_s~o |    260,720    .0493288     .216554          0          1
+fullbal_sa~o |    260,720    .0294185    .1689769          0          1
+-------------+---------------------------------------------------------
+unbalanced~o |    260,720    .0901005    .2863262          0          1
+weights_un~l |    196,845           1    .1883526   .6518163    2.06529
+weights_ba~e |    134,279           1    .2173594   .5270637   2.098933
+weights_fu~l |     78,824           1    .2020564   .5655332   1.989206
 
 
 
@@ -691,7 +1275,7 @@ file ../../../drive/derived_large/estimation_samples/zipcode_months.dta saved
 (note: file ../../../drive/derived_large/estimation_samples/zipcode_months.csv 
 > not found)
 file ../../../drive/derived_large/estimation_samples/zipcode_months.csv saved
-(0 observations deleted)
+(320,324 observations deleted)
        panel variable:  county_num (unbalanced)
         time variable:  year_month, 2010m1 to 2019m12
                 delta:  1 month
@@ -704,18 +1288,18 @@ file ../../../drive/derived_large/estimation_samples/zipcode_months.csv saved
 (22 missing values generated)
 (237 observations deleted)
 (data already sorted by countyfips)
-  variable baseline_sample was float now byte
+  variable baseline_sample_SFCC was float now byte
   (1,398 bytes saved)
 ===============================================================================
 File: ../temp/baseline_county.dta
 Key: countyfips
 ===============================================================================
-  466:2(99393):4052232618:2527939146
+  466:2(32459):4052232618:2527939146
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
   countyfips |          0
-baseline_s~e |        466           1           0          1          1
+baseline_s~C |        466           1           0          1          1
 
 
 
@@ -734,13 +1318,14 @@ file ../temp/baseline_county.dta saved
 (7,758 real changes made)
 (21,464 real changes made)
 (data now sorted by countyfips year_month)
-  variable fullbal_sample was float now byte
-  (170,148 bytes saved)
+  variable fullbal_sample_SFCC was float now byte
+  variable unbalanced_sample_SFCC was float now byte
+  (340,296 bytes saved)
 ===============================================================================
 File: ../../../drive/derived_large/estimation_samples/county_months.dta
 Key: countyfips year_month
 ===============================================================================
-  56716:155(52299):2985903800:3398903346
+  56716:156(87189):2901742341:1032908795
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -927,8 +1512,10 @@ ln_estcoun~n |     56,716    6.446967    1.079483   2.197225   10.33748
 ln_avgwwag~v |     56,704    6.933836    .3180453   5.420535   9.135509
 ln_avgwwag~o |     56,106    7.037167    .3495051   5.365976   9.584453
 ln_avgwwag~n |     56,694    7.043474    .3164056   6.061457   9.163982
-baseline_s~e |     56,716    .8632132    .3436252          0          1
-fullbal_sa~e |     56,716    .4847662    .4997723          0          1
+baseline_s~C |     56,716    .8632132    .3436252          0          1
+fullbal_sa~C |     56,716    .4847662    .4997723          0          1
+-------------+---------------------------------------------------------
+unbalanced~C |     56,716           1           0          1          1
 
 
 
@@ -1097,7 +1684,7 @@ running c:\ado\personal\profile.do ...
 . 
 . 
 . main
-(0 observations deleted)
+(62,742 observations deleted)
 (32 observations deleted)
        panel variable:  zipcode_num (unbalanced)
         time variable:  year_month, 2010m2 to 2019m12
@@ -1678,4 +2265,4 @@ file ../../../drive/derived_large/estimation_samples/stacked_sample_window9.dta
 . 
 end of do-file
 
- make.py ended: 2022-04-05 09:42:51
+ make.py ended: 2022-04-06 06:56:41
