@@ -5,6 +5,7 @@
 import subprocess, shutil, os
 from distutils.dir_util import copy_tree
 copy_tree("../../lib/python/gslab_make", "./gslab_make") # Copy from gslab tools stored locally
+copy_tree("../../lib/python/gslab_fill", "./gslab_fill") 
 from gslab_make.get_externals import *
 from gslab_make.make_log import *
 from gslab_make.make_links import *
@@ -103,4 +104,5 @@ tablefill(input    = os.path.join(fd_het_dir, "heterogeneity.txt"),
 end_make_logging()
 
 shutil.rmtree("gslab_make")
+shutil.rmtree("gslab_fill")
 input("\n Press <Enter> to exit.")
