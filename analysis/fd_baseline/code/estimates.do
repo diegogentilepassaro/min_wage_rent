@@ -15,7 +15,7 @@ program main
     local mw_wkp_var "mw_wkp_tot_17"
 
     ** STATIC
-    use "`instub'/zipcode_months.dta" if baseline_sample, clear
+    use "`instub'/zipcode_months.dta" if baseline_sample_SFCC, clear
     xtset zipcode_num `absorb'
 
     estimate_dist_lag_model if !missing(D.ln_rents), depvar(`mw_wkp_var') ///
@@ -47,10 +47,10 @@ program main
     export delimited "`outstub'/estimates_static.csv", replace
 
     ** RESIDUALS UNBALANCED
-    use "`instub'/zipcode_months.dta", clear
+    use "`instub'/zipcode_months.dta" if unbalanced_sample_SFCC, clear
     xtset zipcode_num `absorb'
 
-    local absorb_res "yr_entry_to_zillow##`absorb'"
+    local absorb_res "yr_entry_to_zillow_SFCC##`absorb'"
 
     estimate_dist_lag_model if !missing(D.ln_rents), depvar(`mw_wkp_var') ///
         dyn_var(mw_res) w(0) stat_var(mw_res) ///
@@ -67,7 +67,7 @@ program main
     export delimited "`outstub'/estimates_unbal_residuals.csv", replace    
 
     ** DYNAMIC
-    use "`instub'/zipcode_months.dta" if baseline_sample, clear
+    use "`instub'/zipcode_months.dta" if baseline_sample_SFCC, clear
     xtset zipcode_num `absorb'
 
     estimate_dist_lag_model, depvar(ln_rents) ///
