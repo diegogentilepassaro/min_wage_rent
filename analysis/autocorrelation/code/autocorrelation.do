@@ -12,7 +12,7 @@ program main
     local controls "`r(economic_controls)'"
 
     use "`instub'/zipcode_months", clear
-    keep if baseline_sample
+    keep if baseline_sample_SFCC
 
     xtset zipcode_num year_month
 

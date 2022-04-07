@@ -252,12 +252,12 @@ program estimate_alt_zillow_cats, rclass
 
         estimate_dist_lag_model if unbalanced_sample_`depvar',                       ///
             depvar(ln_rents_`depvar') dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)    ///
-            controls(`controls') absorb(`absorb'##yr_entry_to_zillow_`depvar')       ///
+            controls(`controls') absorb(`absorb'##qtr_entry_to_zillow_`depvar')       ///
             cluster(`cluster') model_name(`depvar'_rents) test_equality
         
         estimate_dist_lag_model if unbalanced_sample_`depvar' & !missing(D.ln_rents_`depvar'),    ///
             depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res)                            ///
-            controls(`controls') absorb(`absorb'##yr_entry_to_zillow_`depvar')                    ///
+            controls(`controls') absorb(`absorb'##qtr_entry_to_zillow_`depvar')                    ///
             cluster(`cluster')  model_name(`depvar'_wkp_mw_on_res_mw) test_equality
 
         local specifications "`specifications' `depvar'_rents `depvar'_wkp_mw_on_res_mw"
@@ -279,7 +279,7 @@ program estimate_alt_zillow_cats_dyn, rclass
 
         estimate_dist_lag_model if unbalanced_sample_`depvar',                                   ///
             depvar(ln_rents_`depvar') dyn_var(`mw_wkp_var') w(6) stat_var(mw_res)                ///
-            controls(`controls') absorb(`absorb'##yr_entry_to_zillow_`depvar') cluster(`cluster')         ///
+            controls(`controls') absorb(`absorb'##qtr_entry_to_zillow_`depvar') cluster(`cluster')         ///
             model_name(`depvar'_rents_dyn) test_equality
 
         local specifications "`specifications' `depvar'_rents_dyn"

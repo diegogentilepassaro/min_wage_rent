@@ -38,9 +38,9 @@ program load_and_clean
     local controls     "`r(economic_controls)'"
 
     use zipcode statefips cbsa year_month zipcode_num ln_rents mw_res ///
-        mw_wkp_tot_17 baseline_sample `controls' ///
-        using "`instub'/zipcode_months.dta" if baseline_sample == 1, clear
-    drop baseline_sample
+        mw_wkp_tot_17 baseline_sample_SFCC `controls' ///
+        using "`instub'/zipcode_months.dta" if baseline_sample_SFCC, clear
+    drop baseline_sample_SFCC
     xtset zipcode_num year_month
 
     merge m:1 zipcode using "`incross'/zipcode_cross.dta", nogen ///
