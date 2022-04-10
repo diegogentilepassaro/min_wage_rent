@@ -50,7 +50,7 @@ program main
     use "`instub'/zipcode_months.dta" if unbalanced_sample_SFCC, clear
     xtset zipcode_num `absorb'
 
-    local absorb_res "yr_entry_to_zillow_SFCC##`absorb'"
+    local absorb_res "qtr_entry_to_zillow_SFCC##`absorb'"
 
     estimate_dist_lag_model if !missing(D.ln_rents), depvar(`mw_wkp_var') ///
         dyn_var(mw_res) w(0) stat_var(mw_res) ///

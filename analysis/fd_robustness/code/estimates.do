@@ -91,7 +91,7 @@ program main
 		
 	estimate_dist_lag_model if unbalanced_sample_SFCC,   ///
 		depvar(ln_monthly_listings) dyn_var(`mw_wkp_var') w(6) stat_var(mw_res) ///
-		controls(`controls') absorb(`absorb'##yr_entry_to_zillow_SFCC) cluster(`cluster')          ///
+		controls(`controls') absorb(`absorb'##qtr_entry_to_zillow_SFCC) cluster(`cluster')          ///
 		model_name(monthly_listings_unbal)
 		
     local specifications "`specifications' monthly_listings monthly_listings_fullbal"
@@ -163,7 +163,7 @@ program estimate_sample_specifications, rclass
     syntax, mw_wkp_var(str) controls(str) absorb(str) cluster(str) ///
             samples(str)
 
-    gen unbal_by_entry_sample_SFCC  =  1
+    gen unbal_by_entry_sample_SFCC  =  unbalanced_sample_SFCC
     gen weights_unbal_by_entry      =  weights_unbalanced
 
     local specifications ""
@@ -171,7 +171,7 @@ program estimate_sample_specifications, rclass
 
         local absorb_vars "`absorb'"
         if "`'" == "unbal_by_entry" {
-            local absorb_vars "`absorb'##yr_entry_to_zillow_SFCC"
+            local absorb_vars "`absorb'##qtr_entry_to_zillow_SFCC"
         }
 
         if "`sample'" != "baseline" {
@@ -270,10 +270,10 @@ program estimate_alt_zillow_cats_dyn, rclass
     syntax, mw_wkp_var(str) controls(str) absorb(str) cluster(str)
 
     local specifications ""
-	
-	local depvars "SF CC Studio 1BR 2BR 3BR Mfr5Plus"
+
+    local depvars "SF CC Studio 1BR 2BR 3BR Mfr5Plus"
     local n_depvars: word count `depvars'
-	
+
     forval i = 1/`n_depvars' {
         local depvar: word `i' of `depvars'
 
