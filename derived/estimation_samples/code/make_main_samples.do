@@ -180,7 +180,7 @@ program compute_weights
         keep if _merge == 3
         
         ebalance `target_vars' if unbalanced_sample_`stub', manualtargets(`target_means')
-        rename _webal weights_unbal
+        rename _webal weights_unbalanced
         
         ebalance `target_vars' if baseline_sample_`stub', manualtargets(`target_means')
         rename _webal weights_baseline
@@ -188,7 +188,7 @@ program compute_weights
         ebalance `target_vars' if fullbal_sample_`stub', manualtargets(`target_means')
         rename _webal weights_fullbal
         
-        keep zipcode year_month weights_unbal weights_baseline weights_fullbal
+        keep zipcode year_month weights_unbalanced weights_baseline weights_fullbal
         save "../temp/weights.dta", replace
     restore
 end
