@@ -172,7 +172,8 @@ program flag_samples
     gen     fullbal_sample_`stub' = baseline_sample_`stub'
     replace fullbal_sample_`stub' = 0 if year_month <= `=tm(`target_ym')' & !missing(`rent_var'_`stub')
 
-    gen unbalanced_sample_`stub' = !missing(`rent_var'_`stub')
+    gen     unbalanced_sample_`stub' = 1
+    replace unbalanced_sample_`stub' = . if missing(`rent_var'_`stub')
 end
 
 program compute_weights
