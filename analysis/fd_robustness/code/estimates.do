@@ -18,7 +18,6 @@ program main
 	** STATIC	
     use "`instub'/zipcode_months.dta", clear
     xtset zipcode_num `absorb'
-	rename weights_unbal weights_unbalanced
 	
     estimate_baseline_ctrls, mw_wkp_var(`mw_wkp_var') controls(`controls')      ///
         absorb(`absorb') cluster(`cluster')
