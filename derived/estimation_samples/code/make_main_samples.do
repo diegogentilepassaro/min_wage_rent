@@ -128,16 +128,13 @@ program compute_weights
     syntax, instub(str) target_vars(str) [thresh(real 0.2)]
     
     preserve
-        merge m:1 zipcode using "`instub'/zipcode_cross.dta", ///
-            assert(2 3) keep(2 3) keepusing(`target_vars' urban_cbsa)
-
-        foreach var of local target_vars {
+        use zipcode `target_vars' urban_cbsa sing "`instub'/zipcode_cross.dta"
+        foreach var of local target_vars {u
             qui sum `var' if urban_cbsa == 1
             local var_mean = r(mean)
             local target_means "`target_means' `var_mean'"
         }
-                
-        keep if _merge == 3
+    restore                
         
         ebalance `target_vars', manualtargets(`target_means')
         rename _webal weights_unbal
