@@ -11,7 +11,7 @@ program main
     local logfile      "../output/data_file_manifest.log"
     
     local rent_var          "medrentpricepsqft"
-    local rentvar_stubs     "SFCC 1BR 2BR 3BR 4BR 5BR CC MFdxtx Mfr5Plus SF Studio"
+    local rentvar_stubs     "SFCC SF CC Studio 1BR 2BR 3BR 4BR 5BR MFdxtx Mfr5Plus"
 
     local start_year_month  "2010m1"
     local end_year_month    "2019m12"
@@ -23,8 +23,8 @@ program main
     #delimit cr
 
     * Zipcode-months
-    create_unbalanced_panel, instub(`in_zip_mth')                       ///
-        geo(zipcode) rent_var(`rent_var') stubs(`rentvar_stubs')        ///
+    create_unbalanced_panel, instub(`in_zip_mth')                           ///
+        geo(zipcode) rent_var(`rent_var') stubs(`rentvar_stubs')            ///
         start_ym(`start_year_month') end_ym(`end_year_month')
 
     gen_vars, rent_var(`rent_var') stubs(`rentvar_stubs') geo(zipcode)
@@ -33,61 +33,75 @@ program main
 
         gen_date_of_entry, rent_var(`rent_var') stub(`stub')
 
-        flag_samples, instub(`in_zip_mth') geo(zipcode) geo_name(zipcode) ///
+        flag_samples, instub(`in_zip_mth') geo(zipcode) geo_name(zipcode)    ///
             rent_var(`rent_var') stub(`stub') target_ym(`target_year_month')
     }
 
     compute_weights, instub(`in_zipcode') target_vars(`target_vars')
-    merge 1:1 zipcode year_month using "../temp/weights.dta", ///
+    merge 1:1 zipcode year_month using "../temp/weights.dta",                ///
        nogen assert(2 3) keep(3)
 
-    save_data "`outstub'/zipcode_months.dta", key(zipcode year_month) ///
+    save_data "`outstub'/zipcode_months.dta", key(zipcode year_month)        ///
         replace log(`logfile')
     export delimited "`outstub'/zipcode_months.csv", replace
 
+    create_monthly_listings_panel, instub(`in_zip_mth')                      ///
+        geo(zipcode) start_ym(`start_year_month') end_ym(`end_year_month')
+    
+    save_data "`outstub'/zipcode_months_listings.dta", key(zipcode year_month) ///
+        replace log(`logfile')
+    
     * County-months
-    create_unbalanced_panel, instub(`in_cty_mth')                     ///
-        geo(county) rent_var(`rent_var')                             ///
+    create_unbalanced_panel, instub(`in_cty_mth')                            ///
+        geo(county) rent_var(`rent_var')                                     ///
         start_ym(`start_year_month') end_ym(`end_year_month')
 
     gen_vars, rent_var(`rent_var') geo(county)
 
-    flag_samples, instub(`in_cty_mth') geo(county) geo_name(countyfips) ///
+    flag_samples, instub(`in_cty_mth') geo(county) geo_name(countyfips)      ///
         rent_var(`rent_var') stub(SFCC) target_ym(`target_year_month')
 
-    save_data "`outstub'/county_months.dta", key(countyfips year_month) ///
+    save_data "`outstub'/county_months.dta", key(countyfips year_month)      ///
         replace log(`logfile')
     export delimited "`outstub'/county_months.csv", replace
 end
 
 program create_unbalanced_panel
     syntax, instub(str) geo(str) rent_var(str) [stubs(str)]      ///
-            start_ym(str) end_ym(str)
+            start_ym(str) end_ym(str) [w(int 6)]
        
     use "`instub'/`geo'_month_panel.dta" ///
         if inrange(year_month, `=tm(`start_ym')', `=tm(`end_ym')'), clear
+
+    destring_geographies
     
     if "`geo'"=="county" {
         keep if !missing(`rent_var'_SFCC)
+
+        xtset county_num year_month
     }
     else {
-        local i = 1
+        xtset zipcode_num year_month
+
+        local j = 0
         foreach stub of local stubs {
-            if `i' == 1 {
+            if `j'==0 {
                 local if_statement "if !missing(`rent_var'_`stub')"
             }
-            local if_statement "`if_statement' | !missing(`rent_var'_`stub')"
-
-            local i = `i' + 1
+            else {
+                local if_statement "`if_statement' | !missing(`rent_var'_`stub')"
+            }
+            
+            forvalues i = 1(1)`w' {
+                local if_statement "`if_statement' | !missing(F`i'.`rent_var'_`stub')"
+            }
+            local j = `j' + 1
         }
 
         keep `if_statement'
     }
 
     drop_vars
-    destring_geographies
-
-    xtset `geo'_num year_month
 end
 
 program gen_vars
@@ -153,9 +167,10 @@ program flag_samples
         nogen assert(1 3) keep(1 3)
     
     replace baseline_sample_`stub' = 0 if missing(baseline_sample_`stub')
-    
+    replace baseline_sample_`stub' = . if missing(`rent_var'_`stub')
+
     gen     fullbal_sample_`stub' = baseline_sample_`stub'
-    replace fullbal_sample_`stub' = 0 if year_month <= `=tm(`target_ym')'
+    replace fullbal_sample_`stub' = 0 if year_month <= `=tm(`target_ym')' & !missing(`rent_var'_`stub')
 
     gen unbalanced_sample_`stub' = !missing(`rent_var'_`stub')
 end
@@ -195,13 +210,40 @@ end
 
 program drop_vars
     foreach var in pctlistings_pricedown_SFCC SalesPrevForeclosed_Share ///
-                   zhvi_2BR zhvi_SFCC zhvi_C zhvi_SF zri_SFCCMF zri_MF {
+                   zhvi_2BR zhvi_SFCC zhvi_C zhvi_SF zri_SFCCMF zri_MF Sale_Counts {
         cap drop `var'
     }
 
+    cap drop Monthly* NewMonthly*
     cap drop medlistingprice*
     cap drop medrentprice_*
     cap drop medDailyli*
+end
+
+program create_monthly_listings_panel
+    syntax, instub(str) geo(str) start_ym(str) end_ym(str) [w(int 6)]
+
+    use "`instub'/zipcode_month_panel.dta" ///
+        if inrange(year_month, `=tm(`start_ym')', `=tm(`end_ym')'), clear
+
+    keep zipcode statefips cbsa place_code countyfips year_month ///
+        Monthlylistings_NSA_SFCC mw_res mw_wkp_tot_17
+    
+    destring_geographies
+    xtset zipcode_num year_month
+
+    local if_statement "if !missing(Monthlylistings_NSA_SFCC)"
+    forvalues i = 1(1)`w' {
+        local if_statement "`if_statement' | !missing(F`i'.Monthlylistings_NSA_SFCC)"
+    }
+    keep `if_statement'
+
+	gen ln_monthly_listings = log(Monthlylistings_NSA_SFCC)
+
+    local if_statement "if !missing(Monthlylistings_NSA_SFCC)"
+    forvalues i = 1(1)`w' {
+        local if_statement "`if_statement' | !missing(F`i'.Monthlylistings_NSA_SFCC)"
+    }
 end
 
 program destring_geographies
