@@ -192,7 +192,7 @@ program compute_weights
             local var_mean = r(mean)
             local target_means "`target_means' `var_mean'"
         }
-                
+        
         keep if _merge == 3
         
         ebalance `target_vars' if unbalanced_sample_`stub', manualtargets(`target_means')
