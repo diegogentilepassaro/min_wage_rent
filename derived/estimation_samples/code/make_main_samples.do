@@ -182,19 +182,23 @@ program compute_weights
     if "`stub'"=="" {
         local stub "SFCC"
     }
-
+    
     preserve
-        merge m:1 zipcode using "`instub'/zipcode_cross.dta", ///
-            assert(2 3) keep(2 3) keepusing(`target_vars' urban_cbsa)
+        use zipcode `target_vars' urban_cbsa using "`instub'/zipcode_cross.dta", clear
+
+        keep if urban_cbsa
 
         foreach var of local target_vars {
-            qui sum `var' if urban_cbsa == 1
+            qui sum `var'
             local var_mean = r(mean)
             local target_means "`target_means' `var_mean'"
         }
-        
-        keep if _merge == 3
-        
+    restore
+    
+    preserve
+        merge m:1 zipcode using "`instub'/zipcode_cross.dta", ///
+                assert(2 3) keep(3) keepusing(`target_vars' urban_cbsa)
+                
         ebalance `target_vars' if unbalanced_sample_`stub', manualtargets(`target_means')
         rename _webal weights_unbalanced
         
@@ -227,24 +231,46 @@ program create_monthly_listings_panel
     use "`instub'/zipcode_month_panel.dta" ///
         if inrange(year_month, `=tm(`start_ym')', `=tm(`end_ym')'), clear
 
+    local SFCC_vars Monthlylistings_NSA_SFCC medlistingprice_SFCC medlistingpricepsqft_SFCC pctlistings_pricedown_SFCC
     keep zipcode statefips cbsa place_code countyfips year_month ///
-        Monthlylistings_NSA_SFCC mw_res mw_wkp_tot_17
+        `SFCC_vars' mw_res mw_wkp_tot_timevary mw_wkp_*_17
     
     destring_geographies
     xtset zipcode_num year_month
 
     local if_statement "if !missing(Monthlylistings_NSA_SFCC)"
-    forvalues i = 1(1)`w' {
-        local if_statement "`if_statement' | !missing(F`i'.Monthlylistings_NSA_SFCC)"
+    foreach var of local SFCC_vars {
+        forvalues i = 1(1)`w' {
+            local if_statement "`if_statement' | !missing(F`i'.`var')"
+        }
     }
     keep `if_statement'
 
 	gen ln_monthly_listings = log(Monthlylistings_NSA_SFCC)
+	gen ln_prices_psqft     = log(medlistingpricepsqft_SFCC)
 
-    local if_statement "if !missing(Monthlylistings_NSA_SFCC)"
-    forvalues i = 1(1)`w' {
-        local if_statement "`if_statement' | !missing(F`i'.Monthlylistings_NSA_SFCC)"
+    local target_ym = "2013m1"
+    foreach var in Monthlylistings_NSA_SFCC medlistingpricepsqft_SFCC {
+        preserve
+            keep if !missing(`var')
+            
+            gcollapse (min) min_year_month = year_month, by(zipcode)
+            keep if min_year_month <= `=tm(`target_ym')'
+            
+            keep zipcode
+
+            if "`var'"=="Monthlylistings_NSA_SFCC"  local stub "n_listings"
+            if "`var'"=="medlistingpricepsqft_SFCC" local stub "price_psqft"
+            gen indata_`stub' = 1
+            
+            save_data "../temp/`var'.dta", key(zipcode) replace log(none)
+        restore
+
+        merge m:1 zipcode using "../temp/`var'.dta", nogen assert(1 3) keep(1 3)
+        replace indata_`stub' = 0 if missing(indata_`stub')
+        replace indata_`stub' = . if missing(`var')
     }
+    keep if year_month >= `=tm(`target_ym')'
 end
 
 program destring_geographies

@@ -1,5 +1,5 @@
 
- make.py started: 2022-04-13 08:23:20 C:\Users\shermo\Documents\GitHub\min_wage_rent\derived\estimation_samples\code 
+ make.py started: 2022-04-13 20:26:23 C:\Users\shermo\Documents\GitHub\min_wage_rent\derived\estimation_samples\code 
 
 
 
@@ -254,36 +254,41 @@ delimiter now cr
 .     if "`stub'"=="" {
   3.         local stub "SFCC"
   4.     }
-  5. 
+  5.     
 .     preserve
-  6.         merge m:1 zipcode using "`instub'/zipcode_cross.dta", ///
->             assert(2 3) keep(2 3) keepusing(`target_vars' urban_cbsa)
+  6.         use zipcode `target_vars' urban_cbsa using "`instub'/zipcode_cross
+> .dta", clear
   7. 
+.         keep if urban_cbsa
+  8. 
 .         foreach var of local target_vars {
-  8.             qui sum `var' if urban_cbsa == 1
-  9.             local var_mean = r(mean)
- 10.             local target_means "`target_means' `var_mean'"
- 11.         }
- 12.                 
-.         keep if _merge == 3
- 13.         
+  9.             qui sum `var'
+ 10.             local var_mean = r(mean)
+ 11.             local target_means "`target_means' `var_mean'"
+ 12.         }
+ 13.     restore
+ 14.     
+.     preserve
+ 15.         merge m:1 zipcode using "`instub'/zipcode_cross.dta", ///
+>                 assert(2 3) keep(3) keepusing(`target_vars' urban_cbsa)
+ 16.                 
 .         ebalance `target_vars' if unbalanced_sample_`stub', manualtargets(`ta
 > rget_means')
- 14.         rename _webal weights_unbalanced
- 15.         
+ 17.         rename _webal weights_unbalanced
+ 18.         
 .         ebalance `target_vars' if baseline_sample_`stub', manualtargets(`targ
 > et_means')
- 16.         rename _webal weights_baseline
- 17.         
+ 19.         rename _webal weights_baseline
+ 20.         
 .         ebalance `target_vars' if fullbal_sample_`stub', manualtargets(`targe
 > t_means')
- 18.         rename _webal weights_fullbal
- 19.         
+ 21.         rename _webal weights_fullbal
+ 22.         
 .         keep zipcode year_month weights_unbalanced weights_baseline weights_f
 > ullbal
- 20.         save "../temp/weights.dta", replace
- 21.     restore
- 22. end
+ 23.         save "../temp/weights.dta", replace
+ 24.     restore
+ 25. end
 
 . 
 . program drop_vars
@@ -307,27 +312,50 @@ delimiter now cr
 .     use "`instub'/zipcode_month_panel.dta" ///
 >         if inrange(year_month, `=tm(`start_ym')', `=tm(`end_ym')'), clear
   3. 
-.     keep zipcode statefips cbsa place_code countyfips year_month ///
->         Monthlylistings_NSA_SFCC mw_res mw_wkp_tot_17
-  4.     
+.     local SFCC_vars Monthlylistings_NSA_SFCC medlistingprice_SFCC medlistingp
+> ricepsqft_SFCC pctlistings_pricedown_SFCC
+  4.     keep zipcode statefips cbsa place_code countyfips year_month ///
+>         `SFCC_vars' mw_res mw_wkp_tot_timevary mw_wkp_*_17
+  5.     
 .     destring_geographies
-  5.     xtset zipcode_num year_month
-  6. 
+  6.     xtset zipcode_num year_month
+  7. 
 .     local if_statement "if !missing(Monthlylistings_NSA_SFCC)"
-  7.     forvalues i = 1(1)`w' {
-  8.         local if_statement "`if_statement' | !missing(F`i'.Monthlylistings
-> _NSA_SFCC)"
-  9.     }
- 10.     keep `if_statement'
- 11. 
+  8.     foreach var of local SFCC_vars {
+  9.         forvalues i = 1(1)`w' {
+ 10.             local if_statement "`if_statement' | !missing(F`i'.`var')"
+ 11.         }
+ 12.     }
+ 13.     keep `if_statement'
+ 14. 
 .         gen ln_monthly_listings = log(Monthlylistings_NSA_SFCC)
- 12. 
-.     local if_statement "if !missing(Monthlylistings_NSA_SFCC)"
- 13.     forvalues i = 1(1)`w' {
- 14.         local if_statement "`if_statement' | !missing(F`i'.Monthlylistings
-> _NSA_SFCC)"
- 15.     }
- 16. end
+ 15.         gen ln_prices_psqft     = log(medlistingpricepsqft_SFCC)
+ 16. 
+.     local target_ym = "2013m1"
+ 17.     foreach var in Monthlylistings_NSA_SFCC medlistingpricepsqft_SFCC {
+ 18.         preserve
+ 19.             keep if !missing(`var')
+ 20.             
+.             gcollapse (min) min_year_month = year_month, by(zipcode)
+ 21.             keep if min_year_month <= `=tm(`target_ym')'
+ 22.             
+.             keep zipcode
+ 23. 
+.             if "`var'"=="Monthlylistings_NSA_SFCC"  local stub "n_listings"
+ 24.             if "`var'"=="medlistingpricepsqft_SFCC" local stub "price_psqf
+> t"
+ 25.             gen indata_`stub' = 1
+ 26.             
+.             save_data "../temp/`var'.dta", key(zipcode) replace log(none)
+ 27.         restore
+ 28. 
+.         merge m:1 zipcode using "../temp/`var'.dta", nogen assert(1 3) keep(1
+>  3)
+ 29.         replace indata_`stub' = 0 if missing(indata_`stub')
+ 30.         replace indata_`stub' = . if missing(`var')
+ 31.     }
+ 32.     keep if year_month >= `=tm(`target_ym')'
+ 33. end
 
 . 
 . program destring_geographies
@@ -871,16 +899,13 @@ file ../temp/baseline_zipcode.dta saved
 (141,567 missing values generated)
 (23,206 real changes made)
 (141,567 real changes made, 141,567 to missing)
+(20,472 observations deleted)
 
     Result                           # of obs.
     -----------------------------------------
-    not matched                        27,194
-        from master                         0  (_merge==1)
-        from using                     27,194  (_merge==2)
-
+    not matched                             0
     matched                           288,390  (_merge==3)
     -----------------------------------------
-(27,194 observations deleted)
 
 
 Data Setup
@@ -893,18 +918,18 @@ Iteration 1: Max Difference = 286724
 Iteration 2: Max Difference = 105479.601
 Iteration 3: Max Difference = 38803.5123
 Iteration 4: Max Difference = 14274.7502
-Iteration 5: Max Difference = 5251.12289
-Iteration 6: Max Difference = 1931.51595
-Iteration 7: Max Difference = 710.300864
-Iteration 8: Max Difference = 261.041106
-Iteration 9: Max Difference = 95.768127
-Iteration 10: Max Difference = 34.9688162
-Iteration 11: Max Difference = 12.6052957
-Iteration 12: Max Difference = 4.38701961
-Iteration 13: Max Difference = 1.3864358
-Iteration 14: Max Difference = .33567202
-Iteration 15: Max Difference = .039526586
-Iteration 16: Max Difference = .000809414
+Iteration 5: Max Difference = 5251.1229
+Iteration 6: Max Difference = 1931.51597
+Iteration 7: Max Difference = 710.300907
+Iteration 8: Max Difference = 261.041224
+Iteration 9: Max Difference = 95.7684485
+Iteration 10: Max Difference = 34.9696866
+Iteration 11: Max Difference = 12.6076355
+Iteration 12: Max Difference = 4.39318445
+Iteration 13: Max Difference = 1.40172043
+Iteration 14: Max Difference = .36825262
+Iteration 15: Max Difference = .072779339
+Iteration 16: Max Difference = .007050052
 maximum difference smaller than the tolerance level; convergence achieved
 
 
@@ -926,11 +951,11 @@ After:  _webal as the weighting variable
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_hhld~2010 |     .3587     .02529      .6082 
-sh_wo~0_2013 |     .2678    .006333     .09668 
-sh_re~0_2013 |     .2296    .002197      .1518 
-sh_wo~S_2013 |     .1066    .001306      1.017 
-sh_re~S_2013 |    .09886    .001203      1.138 
+sh_hhld~2010 |     .2839     .01706      .8185 
+sh_wo~0_2013 |     .2813    .005754     .06238 
+sh_re~0_2013 |     .2444    .002215      .5129 
+sh_wo~S_2013 |     .1032    .001158      1.265 
+sh_re~S_2013 |    .09293   .0008315      1.248 
 
 
 Data Setup
@@ -943,18 +968,18 @@ Iteration 1: Max Difference = 222620
 Iteration 2: Max Difference = 81897.057
 Iteration 3: Max Difference = 30127.9793
 Iteration 4: Max Difference = 11083.2
-Iteration 5: Max Difference = 4077.01718
-Iteration 6: Max Difference = 1499.58661
-Iteration 7: Max Difference = 551.402965
-Iteration 8: Max Difference = 202.58591
-Iteration 9: Max Difference = 74.2638625
-Iteration 10: Max Difference = 27.058382
-Iteration 11: Max Difference = 9.69666924
-Iteration 12: Max Difference = 3.32084748
-Iteration 13: Max Difference = 1.00380714
-Iteration 14: Max Difference = .214749768
-Iteration 15: Max Difference = .018208373
-Iteration 16: Max Difference = .000174051
+Iteration 5: Max Difference = 4077.01719
+Iteration 6: Max Difference = 1499.58663
+Iteration 7: Max Difference = 551.403034
+Iteration 8: Max Difference = 202.586097
+Iteration 9: Max Difference = 74.2643698
+Iteration 10: Max Difference = 27.0597539
+Iteration 11: Max Difference = 9.70034555
+Iteration 12: Max Difference = 3.33044482
+Iteration 13: Max Difference = 1.02691285
+Iteration 14: Max Difference = .261436933
+Iteration 15: Max Difference = .051327775
+Iteration 16: Max Difference = .0040382
 maximum difference smaller than the tolerance level; convergence achieved
 
 
@@ -976,11 +1001,11 @@ After:  _webal as the weighting variable
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_hhld~2010 |     .3587      .0253       .645 
-sh_wo~0_2013 |     .2678    .006407     .06509 
-sh_re~0_2013 |     .2296    .002183      .1799 
-sh_wo~S_2013 |     .1066    .001293       1.01 
-sh_re~S_2013 |    .09886    .001164      1.126 
+sh_hhld~2010 |     .2834     .01643      .8757 
+sh_wo~0_2013 |     .2814    .005848     .01249 
+sh_re~0_2013 |     .2444    .002241      .5809 
+sh_wo~S_2013 |     .1032    .001147      1.278 
+sh_re~S_2013 |     .0929   .0008005      1.211 
 
 
 Data Setup
@@ -992,18 +1017,19 @@ Optimizing...
 Iteration 1: Max Difference = 168703
 Iteration 2: Max Difference = 62062.1011
 Iteration 3: Max Difference = 22831.1068
-Iteration 4: Max Difference = 8398.83059
-Iteration 5: Max Difference = 3089.49289
-Iteration 6: Max Difference = 1136.29674
-Iteration 7: Max Difference = 417.756134
-Iteration 8: Max Difference = 153.420106
-Iteration 9: Max Difference = 56.1770935
-Iteration 10: Max Difference = 20.4054951
-Iteration 11: Max Difference = 7.25152185
-Iteration 12: Max Difference = 2.42735607
-Iteration 13: Max Difference = .689547086
-Iteration 14: Max Difference = .12545122
-Iteration 15: Max Difference = .00743108
+Iteration 4: Max Difference = 8398.8306
+Iteration 5: Max Difference = 3089.4929
+Iteration 6: Max Difference = 1136.29677
+Iteration 7: Max Difference = 417.756229
+Iteration 8: Max Difference = 153.420363
+Iteration 9: Max Difference = 56.177792
+Iteration 10: Max Difference = 20.407381
+Iteration 11: Max Difference = 7.25655273
+Iteration 12: Max Difference = 2.44031349
+Iteration 13: Max Difference = .719389275
+Iteration 14: Max Difference = .17220608
+Iteration 15: Max Difference = .031675457
+Iteration 16: Max Difference = .001692657
 maximum difference smaller than the tolerance level; convergence achieved
 
 
@@ -1025,11 +1051,11 @@ After:  _webal as the weighting variable
 
              |      mean   variance   skewness 
 -------------+---------------------------------
-sh_hhld~2010 |     .3593     .02579      .6117 
-sh_wo~0_2013 |     .2677    .006438     .06966 
-sh_re~0_2013 |     .2296    .002151       .141 
-sh_wo~S_2013 |     .1065    .001393      1.033 
-sh_re~S_2013 |    .09881    .001257      1.168 
+sh_hhld~2010 |     .2831     .01705      .8675 
+sh_wo~0_2013 |     .2815    .005944     .02971 
+sh_re~0_2013 |     .2445      .0022      .5348 
+sh_wo~S_2013 |     .1032    .001268      1.304 
+sh_re~S_2013 |    .09288   .0008941      1.284 
 (note: file ../temp/weights.dta not found)
 file ../temp/weights.dta saved
 
@@ -1088,7 +1114,7 @@ file ../temp/weights.dta saved
 File: ../../../drive/derived_large/estimation_samples/zipcode_months.dta
 Key: zipcode year_month
 ===============================================================================
-  288390:221(41780):3255168480:284213264
+  288390:221(41780):2642474546:1615363824
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -1353,10 +1379,10 @@ qtr_entry_~s |    212,997    221.8915    10.29292        200        236
 baseline_s~s |    146,823    .4694837    .4990696          0          1
 fullbal_sa~s |    146,823    .3114294    .4630795          0          1
 unbalanced~s |    146,823           1           0          1          1
-weights_un~d |    286,725           1    .1144542   .6288658   1.827688
-weights_ba~e |    222,621           1    .0910315   .6658246   1.681638
+weights_un~d |    286,725           1     .714193   .0314833   8.689268
+weights_ba~e |    222,621           1    .8166765    .019764   12.31973
 -------------+---------------------------------------------------------
-weights_fu~l |    168,704           1    .1756332   .5226278   2.245747
+weights_fu~l |    168,704           1    .8653473   .0132028   12.57535
 
 
 
@@ -1370,8 +1396,74 @@ file ../../../drive/derived_large/estimation_samples/zipcode_months.csv saved
        panel variable:  zipcode_num (strongly balanced)
         time variable:  year_month, 2010m1 to 2019m12
                 delta:  1 month
-(2,801,345 observations deleted)
-(71,466 missing values generated)
+(2,332,583 observations deleted)
+(540,228 missing values generated)
+(404,761 missing values generated)
+(540,228 observations deleted)
+(1,006 observations deleted)
+(data already sorted by zipcode)
+  variable indata_n_listings was float now byte
+  (32,715 bytes saved)
+===============================================================================
+File: ../temp/Monthlylistings_NSA_SFCC.dta
+Key: zipcode
+===============================================================================
+  10905:2(59833):2894300752:1396200952
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+indata_n_l~s |     10,905           1           0          1          1
+
+
+
+
+(note: file ../temp/Monthlylistings_NSA_SFCC.dta not found)
+file ../temp/Monthlylistings_NSA_SFCC.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       245,793
+        from master                   245,793  
+        from using                          0  
+
+    matched                         1,240,744  
+    -----------------------------------------
+(245,793 real changes made)
+(540,228 real changes made, 540,228 to missing)
+(404,761 observations deleted)
+(2,715 observations deleted)
+(data already sorted by zipcode)
+  variable indata_price_psqft was float now byte
+  (24,426 bytes saved)
+===============================================================================
+File: ../temp/medlistingpricepsqft_SFCC.dta
+Key: zipcode
+===============================================================================
+  8142:2(80578):2935953193:2511487650
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+indata_pri~t |      8,142           1           0          1          1
+
+
+
+
+(note: file ../temp/medlistingpricepsqft_SFCC.dta not found)
+file ../temp/medlistingpricepsqft_SFCC.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                       512,940
+        from master                   512,940  
+        from using                          0  
+
+    matched                           973,597  
+    -----------------------------------------
+(512,940 real changes made)
+(404,761 real changes made, 404,761 to missing)
+(378,354 observations deleted)
 (data now sorted by zipcode year_month)
   (0 bytes saved)
 ===============================================================================
@@ -1379,27 +1471,47 @@ File: ../../../drive/derived_large/estimation_samples/zipcode_months_listings.d
 > ta
 Key: zipcode year_month
 ===============================================================================
-  1017775:15(38744):270480364:510665392
+  1108183:31(63946):2565744490:2016807165
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
      zipcode |          0
-  year_month |  1,017,775    675.1998     26.0404        630        719
- zipcode_num |  1,017,775    46202.47    28852.48       1001      99835
+  year_month |  1,108,183     678.391    24.23953        636        719
+ zipcode_num |  1,108,183    47515.25    29181.98       1001      99901
   place_code |          0
-place_code~m |  1,017,775     5456336     3702526     100460    9999999
+place_code~m |  1,108,183     5296348     3680506     100460    9999999
 -------------+---------------------------------------------------------
   countyfips |          0
-  county_num |  1,017,775    29124.84     15736.6       1001      56043
+  county_num |  1,108,183    28857.66    15788.46       1001      56045
    statefips |          0
-statefips_~m |  1,017,775    29.04116    15.71684          1         56
+statefips_~m |  1,108,183    28.77403    15.76842          1         56
         cbsa |          0
 -------------+---------------------------------------------------------
-    cbsa_num |  1,017,775    37153.91    23554.33      10100      99999
-      mw_res |  1,017,775    2.092293    .1392615   1.981001   2.772589
-mw_wkp_to~17 |  1,017,685    2.095529    .1376885   1.981001   2.689819
+    cbsa_num |  1,108,183    37156.25    23402.94      10100      99999
+      mw_res |  1,108,183    2.101481    .1486646   1.981001   2.772589
+mw_wkp_to~17 |  1,108,099    2.105005    .1463807   1.981001   2.694133
+mw_wkp_~9_17 |  1,108,000     2.10428    .1454042   1.981001   2.707345
+mw_wkp_~4_17 |  1,108,015    2.105318    .1468664   1.981001   2.690996
+-------------+---------------------------------------------------------
+mw_wkp_~5_17 |  1,108,084    2.104936    .1461567   1.981001   2.691312
+mw_wkp_~0_17 |  1,108,000    2.103335    .1447728   1.981001   2.698991
+mw_~_3333_17 |  1,108,099    2.103575    .1450577   1.981001   2.689518
+mw_~e3333_17 |  1,108,015    2.106395    .1475845   1.981001   2.699259
+mw_wkp_go~17 |  1,107,932     2.10284    .1424196   1.981001   2.665756
+-------------+---------------------------------------------------------
+mw_wkp_tr~17 |  1,108,000    2.103826    .1454399   1.981001   2.734492
+mw_wkp_ot~17 |  1,108,015    2.105639    .1471981   1.981001   2.698904
+mw_wkp_tot~y |    941,605    2.090002     .128013   1.981001   2.662255
+medli~e_SFCC |    710,551    312383.6      273536      12000    6995000
+medli~t_SFCC |    797,720     174.047    145.9411   11.57113   2802.347
+-------------+---------------------------------------------------------
 Monthlylis~C |    946,309    127.9996    116.0013         11       2540
+pctlisting~C |    829,760    13.38339    5.471997          0   47.94521
 ln_monthly~s |    946,309    4.532164    .8057329   2.397895    7.83992
+ln_prices_~t |    797,720    4.972483    .5597653   2.448513   7.938212
+indata_n_l~s |    946,309    .9679925    .1760201          0          1
+-------------+---------------------------------------------------------
+indata_pri~t |    797,720    .8561425    .3509454          0          1
 
 
 
@@ -2400,4 +2512,4 @@ file ../../../drive/derived_large/estimation_samples/stacked_sample_window9.dta
 . 
 end of do-file
 
- make.py ended: 2022-04-13 08:48:48
+ make.py ended: 2022-04-13 20:59:02
