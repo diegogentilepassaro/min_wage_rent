@@ -17,6 +17,8 @@ program main
     use "`instub'/zipcode_months.dta", clear
     xtset zipcode_num `absorb'
     
+	local zillow_cats = "SF CC Studio 1BR 2BR 3BR Mfr5Plus"
+	
     estimate_alt_zillow_cats_dyn, mw_wkp_var(`mw_wkp_var') controls(`controls') ///
         absorb(`absorb') cluster(`cluster') stubs(`zillow_cats')
     
