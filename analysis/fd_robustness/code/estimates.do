@@ -80,24 +80,24 @@ program main
 	use "`instub'/zipcode_months_listings.dta", clear
     xtset zipcode_num `absorb'
 	
-	estimate_dist_lag_model if indata_n_listings,   ///
+	estimate_dist_lag_model if indata_n_listings,                               ///
 		depvar(ln_monthly_listings) dyn_var(`mw_wkp_var') w(6) stat_var(mw_res) ///
-		absorb(`absorb') cluster(`cluster')          ///
+		absorb(`absorb') cluster(`cluster')                                     ///
 		model_name(monthly_listings)
 		
-	estimate_dist_lag_model if indata_n_listings,   ///
+	estimate_dist_lag_model if indata_n_listings,                               ///
 		depvar(ln_monthly_listings) dyn_var(`mw_wkp_var') w(6) stat_var(mw_res) ///
-		absorb(`absorb'##cbsa_num) cluster(`cluster')          ///
+		absorb(`absorb'##cbsa_num) cluster(`cluster')                           ///
 		model_name(monthly_listings_by_cbsa)
 		
-	estimate_dist_lag_model if indata_price_psqft,   ///
+	estimate_dist_lag_model if indata_price_psqft,                          ///
 		depvar(ln_prices_psqft) dyn_var(`mw_wkp_var') w(6) stat_var(mw_res) ///
-		absorb(`absorb') cluster(`cluster')          ///
+		absorb(`absorb') cluster(`cluster')                                 ///
 		model_name(prices_psqft)
 		
-	estimate_dist_lag_model if indata_price_psqft,   ///
+	estimate_dist_lag_model if indata_price_psqft,                          ///
 		depvar(ln_prices_psqft) dyn_var(`mw_wkp_var') w(6) stat_var(mw_res) ///
-		absorb(`absorb'##cbsa_num) cluster(`cluster')          ///
+		absorb(`absorb'##cbsa_num) cluster(`cluster')                       ///
 		model_name(prices_psqft_by_cbsa)
 		
 	local specifications "`specifications' monthly_listings monthly_listings_by_cbsa"
@@ -110,36 +110,6 @@ program main
 	
 	save             `outstub'/estimates_dynamic.dta, replace
     export delimited `outstub'/estimates_dynamic.csv, replace
-	
-    /* local specifications "`r(specifications)'"
-
-    gen ln_monthly_listings = log(Monthlylistings_NSA_SFCC)
-
-	estimate_dist_lag_model if baseline_sample_SFCC,   ///
-		depvar(ln_monthly_listings) dyn_var(`mw_wkp_var') w(6) stat_var(mw_res) ///
-		controls(`controls') absorb(`absorb') cluster(`cluster')          ///
-		model_name(monthly_listings)
-		
-	estimate_dist_lag_model if fullbal_sample_SFCC,   ///
-		depvar(ln_monthly_listings) dyn_var(`mw_wkp_var') w(6) stat_var(mw_res) ///
-		controls(`controls') absorb(`absorb') cluster(`cluster')          ///
-		model_name(monthly_listings_fullbal)
-		
-	estimate_dist_lag_model if unbalanced_sample_SFCC,   ///
-		depvar(ln_monthly_listings) dyn_var(`mw_wkp_var') w(6) stat_var(mw_res) ///
-		controls(`controls') absorb(`absorb'##qtr_entry_to_zillow_SFCC) cluster(`cluster')          ///
-		model_name(monthly_listings_unbal)
-		
-    local specifications "`specifications' monthly_listings monthly_listings_fullbal"
-    local specifications "`specifications' monthly_listings_unbal"
-
-
-    clear
-    foreach ff in `specifications' {        
-        append using ../temp/estimates_`ff'.dta
-    }
-    save             `outstub'/estimates_dynamic.dta, replace
-    export delimited `outstub'/estimates_dynamic.csv, replace */
         
 end
 
