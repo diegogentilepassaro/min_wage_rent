@@ -1,6 +1,5 @@
 clear all
 set more off
-adopath + ../../../lib/stata/gslab_misc/ado
 adopath + ../../../lib/stata/min_wage/ado
 set maxvar 32000 
 
@@ -13,39 +12,40 @@ program main
     local cluster = "statefips"
     local absorb  = "year_month"
 
-    local mw_wkp_var "mw_wkp_tot_17"
+    local mw_wkp_var  "mw_wkp_tot_17"
+    local zillow_cats "SF CC Studio 1BR 2BR 3BR Mfr5Plus""
 
-	** STATIC	
+    ** STATIC	
     use "`instub'/zipcode_months.dta", clear
     xtset zipcode_num `absorb'
-	
+
     estimate_baseline_ctrls, mw_wkp_var(`mw_wkp_var') controls(`controls')      ///
         absorb(`absorb') cluster(`cluster')
     local specifications "`r(specifications)'"
-    
+
     estimate_geofe_specifications, mw_wkp_var(`mw_wkp_var') controls(" ")       ///
         cluster(`cluster') geos(county cbsa place_code statefips)
     local specifications "`specifications' `r(specifications)'"
-    
+
     estimate_zipcodetrend, mw_wkp_var(`mw_wkp_var') controls(`controls')         ///
         absorb(`absorb') cluster(`cluster')
     local specifications "`specifications' `r(specifications)'"
-    
+
     estimate_sample_specifications, mw_wkp_var(`mw_wkp_var') controls(`controls') ///
         absorb(`absorb') cluster(`cluster')                                       ///
         samples(baseline unbalanced unbal_by_entry fullbal)
     local specifications "`specifications' `r(specifications)'"
-    
+
     estimate_arellano_bond, mw_wkp_var(`mw_wkp_var') controls(`controls')         ///
         absorb(`absorb') cluster(`cluster')
     local specifications "`specifications' `r(specifications)'"
-	
-	estimate_alt_zillow_cats, mw_wkp_var(`mw_wkp_var') controls(`controls') ///
-	    absorb(`absorb') cluster(`cluster')
+
+    estimate_alt_zillow_cats, mw_wkp_var(`mw_wkp_var') controls(`controls') ///
+        absorb(`absorb') cluster(`cluster') stubs(`zillow_cats')
     local specifications "`specifications' `r(specifications)'"
-    
+
     foreach mw_wkp_var in mw_wkp_tot_14 mw_wkp_tot_18 mw_wkp_tot_timevary    ///
-                          mw_wkp_earn_under1250_17 mw_wkp_age_under29_17        {
+                            mw_wkp_earn_under1250_17 mw_wkp_age_under29_17        {
         
         estimate_dist_lag_model if baseline_sample_SFCC,                      ///
             depvar(ln_rents) dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)      ///
@@ -56,7 +56,7 @@ program main
             depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res)             ///
             controls(`controls') absorb(`absorb') cluster(`cluster')               ///
             model_name(`mw_wkp_var'_wkp_mw_on_res_mw) test_equality
-            
+        
         local specifications "`specifications' `mw_wkp_var'_rents `mw_wkp_var'_wkp_mw_on_res_mw"
     }
 
@@ -66,51 +66,6 @@ program main
     }
     save             `outstub'/estimates_static.dta, replace
     export delimited `outstub'/estimates_static.csv, replace
-
-    ** DYNAMIC
-    use "`instub'/zipcode_months.dta", clear
-    xtset zipcode_num `absorb'
-	
-	local mw_wkp_var "mw_wkp_tot_17"
-    estimate_alt_zillow_cats_dyn, mw_wkp_var(`mw_wkp_var') controls(`controls') ///
-	    absorb(`absorb') cluster(`cluster')
-		
-	local specifications "`r(specifications)'"
-	
-	use "`instub'/zipcode_months_listings.dta", clear
-    xtset zipcode_num `absorb'
-	
-	estimate_dist_lag_model if indata_n_listings,                               ///
-		depvar(ln_monthly_listings) dyn_var(`mw_wkp_var') w(6) stat_var(mw_res) ///
-		absorb(`absorb') cluster(`cluster')                                     ///
-		model_name(monthly_listings)
-		
-	estimate_dist_lag_model if indata_n_listings,                               ///
-		depvar(ln_monthly_listings) dyn_var(`mw_wkp_var') w(6) stat_var(mw_res) ///
-		absorb(`absorb'##cbsa_num) cluster(`cluster')                           ///
-		model_name(monthly_listings_by_cbsa)
-		
-	estimate_dist_lag_model if indata_price_psqft,                          ///
-		depvar(ln_prices_psqft) dyn_var(`mw_wkp_var') w(6) stat_var(mw_res) ///
-		absorb(`absorb') cluster(`cluster')                                 ///
-		model_name(prices_psqft)
-		
-	estimate_dist_lag_model if indata_price_psqft,                          ///
-		depvar(ln_prices_psqft) dyn_var(`mw_wkp_var') w(6) stat_var(mw_res) ///
-		absorb(`absorb'##cbsa_num) cluster(`cluster')                       ///
-		model_name(prices_psqft_by_cbsa)
-		
-	local specifications "`specifications' monthly_listings monthly_listings_by_cbsa"
-	local specifications "`specifications' prices_psqft prices_psqft_by_cbsa"	
-	
-    clear
-    foreach ff in `specifications' {        
-        append using ../temp/estimates_`ff'.dta
-    }
-	
-	save             `outstub'/estimates_dynamic.dta, replace
-    export delimited `outstub'/estimates_dynamic.csv, replace
-        
 end
 
 program estimate_baseline_ctrls, rclass
@@ -118,7 +73,7 @@ program estimate_baseline_ctrls, rclass
 
     local specifications ""
     foreach num in 1 2 {
-	
+
         if `num' == 1 {
             local name      "baseline"
             local ctrl_vars "`controls'"
@@ -142,7 +97,7 @@ program estimate_baseline_ctrls, rclass
     }
 
     return local specifications "`specifications'"
-end
+    end
 
 program estimate_geofe_specifications, rclass
     syntax, mw_wkp_var(str) controls(str) cluster(str) geos(str)
@@ -246,49 +201,22 @@ program estimate_zipcodetrend, rclass
 end
 
 program estimate_alt_zillow_cats, rclass
-    syntax, mw_wkp_var(str) controls(str) absorb(str) cluster(str)
+    syntax, mw_wkp_var(str) controls(str) absorb(str) cluster(str) stubs(str)
 
     local specifications ""
-	
-	local depvars "SF CC Studio 1BR 2BR 3BR Mfr5Plus"
-    local n_depvars: word count `depvars'
-	
-    forval i = 1/`n_depvars' {
-        local depvar: word `i' of `depvars'
 
-        estimate_dist_lag_model if unbalanced_sample_`depvar',                       ///
-            depvar(ln_rents_`depvar') dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)    ///
-            controls(`controls') absorb(`absorb'##qtr_entry_to_zillow_`depvar')       ///
-            cluster(`cluster') model_name(`depvar'_rents) test_equality
+    foreach stub of local stubs {
+        estimate_dist_lag_model if unbalanced_sample_`stub',                       ///
+            depvar(ln_rents_`stub') dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)    ///
+            controls(`controls') absorb(`absorb'##qtr_entry_to_zillow_`stub')       ///
+            cluster(`cluster') model_name(`stub'_rents) test_equality
         
-        estimate_dist_lag_model if unbalanced_sample_`depvar' & !missing(D.ln_rents_`depvar'),    ///
+        estimate_dist_lag_model if unbalanced_sample_`stub' & !missing(D.ln_rents_`stub'),    ///
             depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res)                            ///
-            controls(`controls') absorb(`absorb'##qtr_entry_to_zillow_`depvar')                    ///
-            cluster(`cluster')  model_name(`depvar'_wkp_mw_on_res_mw) test_equality
+            controls(`controls') absorb(`absorb'##qtr_entry_to_zillow_`stub')                    ///
+            cluster(`cluster')  model_name(`stub'_wkp_mw_on_res_mw) test_equality
 
-        local specifications "`specifications' `depvar'_rents `depvar'_wkp_mw_on_res_mw"
-    }
-
-    return local specifications "`specifications'"
-end
-
-program estimate_alt_zillow_cats_dyn, rclass
-    syntax, mw_wkp_var(str) controls(str) absorb(str) cluster(str)
-
-    local specifications ""
-
-    local depvars "SF CC Studio 1BR 2BR 3BR Mfr5Plus"
-    local n_depvars: word count `depvars'
-
-    forval i = 1/`n_depvars' {
-        local depvar: word `i' of `depvars'
-
-        estimate_dist_lag_model if unbalanced_sample_`depvar',                                   ///
-            depvar(ln_rents_`depvar') dyn_var(`mw_wkp_var') w(6) stat_var(mw_res)                ///
-            controls(`controls') absorb(`absorb'##qtr_entry_to_zillow_`depvar') cluster(`cluster')         ///
-            model_name(`depvar'_rents_dyn) test_equality
-
-        local specifications "`specifications' `depvar'_rents_dyn"
+        local specifications "`specifications' `stub'_rents `stub'_wkp_mw_on_res_mw"
     }
 
     return local specifications "`specifications'"
