@@ -21,15 +21,20 @@ program plot_dynamics_both
         local leg_name_sec `"`legend_stat_var'"'
     }
 
+    local at_dyn0  "at"
+    if "`name'" == "fd_both_dynamic" {
+        local at_dyn0  "`at_dyn'"
+    }
+
     preserve
         keep if model == "`model'"
         twoway  (scatter b      `at_dyn'  if var == "`dyn_var'" & at == 0,      ///
                      mcol(`color_dyn_var') msymbol(`symbol_dyn_var'))           ///
-                (scatter b      at        if var == "`dyn_var'" & at != 0,      ///
+                (scatter b      `at_dyn0' if var == "`dyn_var'" & at != 0,      ///
                      mcol(`color_dyn_var') msymbol(`symbol_dyn_var'))           ///
                 (rcap b_lb b_ub `at_dyn'  if var == "`dyn_var'" & at == 0,      ///
                     lcol(`color_dyn_var') lw(thin))                             ///
-                (rcap b_lb b_ub at        if var == "`dyn_var'" & at != 0,      ///
+                (rcap b_lb b_ub `at_dyn0' if var == "`dyn_var'" & at != 0,      ///
                     lcol(`color_dyn_var') lw(thin))                             ///
                 (scatter b      `at_stat' if var == "`stat_var'",               ///
                     mcol(`color_stat_var') msymbol(`symbol_stat_var'))          ///
