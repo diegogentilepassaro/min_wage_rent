@@ -116,7 +116,7 @@ sh_rent <- data %>%
   xlab('Decile') +
   ylab('Share') +
   coord_cartesian(ylim=c(0,1)) +
-  labs(title = 'Share of households that are owners of their household by income decile')
+  labs(title = 'Share of households that are owners of their living unit by income decile')
 
 ggsave('sh_rent.png', sh_rent, 
        width = 900, height=700, units = 'px', dpi = 140)
