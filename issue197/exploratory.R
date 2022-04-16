@@ -3,39 +3,18 @@ remove(list=ls())
 library(data.table)
 library(tidyverse)
 
-in_files <- '../drive/raw_data/ahs'
+in_data <- '../drive/base_large/ahs'
 
-varchar <- c('COUNTY', 'STATE', 'SMSA', 'METRO')
-
-varnum <- c('ZINC', 'ZINC2', 'ZINCN','HHPQSAL', 'RENT',
-            'TYPE','NUNITS', 'TENURE', 'UNITSF', 'CONDO', 'BEDRMS')
-
-vars <- c(varchar, varnum)
-
-data <- rbindlist(lapply(
-  list(2011, 2013),
-  \(yy) fread(
-    file.path(in_files, paste('AHS', yy, 'Metropolitan PUF'), 'household.csv'),
-    select = vars, quote = "'",
-    colClasses = list(character = varchar,
-                      numeric   = varnum))[, year := yy]), fill = TRUE)
+data <- fread(file.path(in_data, 'ahs_household_2011_2013.csv'))
 
 data_hh <- data %>%
   filter(TENURE == 2,           # Renting (not owner)
          ZINC2  >  0,           # Non missing household income
          TYPE   == 1) %>%       # "House, apartment, flat" -- not mobile or hotel
   mutate(
-    ZINC2_res   = resid(lm(ZINC2 ~ 1 + factor(SMSA) , data = .)),
+    ZINC2_res   = resid(lm(ZINC2 ~ factor(SMSA) , data = .)),
     ZINC2_decil = ntile(ZINC2_res, 10),
-    RENT_res    = resid(lm(RENT ~ 1 + factor(SMSA) , data = .)),
-    NUNITS_cat  = case_when(
-      NUNITS == 1 ~ 'Single Unit',
-      NUNITS == 2 ~ '2 apartments',
-      NUNITS %in% c(3, 4) ~ '3 to 4 apartments',
-      NUNITS > 4 ~ '5+ apartments',
-      TRUE ~ '-1') %>%
-      factor(levels = c('Single Unit', '2 apartments', '3 to 4 apartments',
-                        '5+ apartments')))
+    RENT_res    = resid(lm(RENT ~ factor(SMSA) , data = .)))
 
 inc_by_unit <- data_hh %>%
   group_by(ZINC2_decil, NUNITS_cat) %>%
