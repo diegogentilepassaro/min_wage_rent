@@ -2,11 +2,13 @@ remove(list = ls())
 
 library(data.table)
 
+source('../../../lib/R/save_data.R')
+
 main <- function() {
   in_raw <- '../../../drive/raw_data/ahs'
   out_data <- '../../../drive/base_large/ahs'
   
-  varchar <- c('COUNTY', 'STATE', 'SMSA', 'METRO')
+  varchar <- c('COUNTY', 'STATE', 'SMSA', 'METRO', 'CONTROL')
   
   varnum <- c('ZINC', 'ZINC2', 'HHPQSAL', 'RENT', 'TYPE', 'NUNITS', 'TENURE',
               'UNITSF', 'CONDO', 'BEDRMS')
@@ -33,7 +35,9 @@ main <- function() {
                            levels = c('Single Unit', '2 apartments',
                                       '3 to 4 apartments','5+ apartments'))]
   
-  fwrite(data, file.path(out_data, 'ahs_household_2011_2013.csv'))
+  save_data(data, 'CONTROL',
+            file.path(out_data, 'ahs_household_2011_2013.csv'),
+            logfile = '../output/data_manifest.txt')
   
 }
 
