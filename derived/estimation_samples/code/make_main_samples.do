@@ -9,7 +9,7 @@ program main
     local in_zipcode   "../../../drive/derived_large/zipcode"
     local outstub      "../../../drive/derived_large/estimation_samples"
     local logfile      "../output/data_file_manifest.log"
-    
+
     local rent_var          "medrentpricepsqft"
     local rentvar_stubs     "SFCC SF CC Studio 1BR 2BR 3BR 4BR 5BR MFdxtx Mfr5Plus"
 
@@ -17,7 +17,7 @@ program main
     local end_year_month    "2019m12"
     local target_year_month "2015m1"
     #delimit ;
-    local target_vars  "sh_hhlds_renteroccup_cens2010
+    local target_vars  "sh_hhlds_renteroccup_cens2010 med_hhld_inc_acs2011
                         sh_workers_under1250_2013     sh_residents_under1250_2013
                         sh_workers_underHS_2013       sh_residents_underHS_2013";
     #delimit cr
