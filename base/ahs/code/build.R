@@ -33,11 +33,7 @@ main <- function() {
 
   data_per  <- load_data('person', varchar, varnum, in_raw)
   
-  data_full <- data_hh[data_per, nomatch=NULL]
-  
-  set(data_full, j = 'i.SMSA', value = NULL)
-  
-  save_data(data_full, c('CONTROL', 'PLINE'),
+  save_data(data_per, c('CONTROL', 'PLINE'),
             file.path(out_data, 'ahs_person_2011_2013.csv'),
             logfile = '../output/data_manifest.txt')
   
