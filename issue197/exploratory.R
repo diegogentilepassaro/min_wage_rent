@@ -131,7 +131,7 @@ ggsave('sh_rent.png', sh_rent,
 # Person section
 
 data <- fread(file.path(in_data, 'ahs_person_2011_2013.csv'),
-              colClasses = list(character='SMSA'))
+              colClasses = list(character='SMSA','CONTROL'))
 
 data[, NUNITS_cat := factor(NUNITS_cat, 
                             levels = c('1 unit', '2 units',
@@ -175,15 +175,27 @@ p_nothead <- data_per %>%
 ggsave('p_nothead.png', p_nothead, 
        width = 1000, height=700, units = 'px', dpi = 140)
 
-
-data_per %>% 
+data_per2 <- data_per %>% 
   group_by(CONTROL, year) %>% 
-  mutate(SAL = ifelse(SAL>0, SAL, NA),
-         SAL_mean_hh = mean(SAL, na.rm=T),
-         n = sum(!is.na(SAL))) %>% 
-  filter(n > 0) %>% 
-  mutate(SAL_rest=(n/(n-1))*(SAL_mean_hh - SAL/n),
-         SAL_rest_res = ifelse(SAL_rest>0, 
-                              resid(lm(SAL_rest ~ factor(SMSA), data= .)),
-                              NA),
-         SAL_rest_mean = mean(SAL_rest, na.rm=T))
+  filter(SAL > 0) %>%
+  mutate(SAL_mean_hh = mean(SAL, na.rm=T),
+         n = n()) %>%
+  filter(n > 1) %>% 
+  mutate(SAL_rest = (n/(n-1))*(SAL_mean_hh - SAL/n)) %>% 
+  ungroup() %>% 
+  mutate(SAL_rest_res = resid(lm(SAL_rest ~ factor(SMSA), data = .)),
+         SAL_rest_mean = mean(SAL_rest, na.rm=T)) 
+
+inc_rest <- data_per2 %>% 
+  group_by(SAL_cat) %>% 
+  summarise(mean=mean(SAL_rest_res),
+            mean_all=unique(SAL_rest_mean)) %>% 
+  ggplot(aes(x=factor(SAL_cat), y = mean_all +  mean)) +
+  geom_bar(stat='identity', fill="#92977E") +
+  theme_bw() +
+  xlab('Person salary decile') +
+  ylab('Mean income of other HH members') +
+  labs(title = 'Mean individual income of other HH members by individual income decile')
+
+ggsave('inc_rest.png', inc_rest, 
+       width = 1000, height=700, units = 'px', dpi = 140)
