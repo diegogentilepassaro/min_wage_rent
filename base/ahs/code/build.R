@@ -10,35 +10,56 @@ main <- function() {
   
   varchar <- c('COUNTY', 'STATE', 'SMSA', 'METRO', 'CONTROL')
   
+  # Household section
+  
   varnum <- c('ZINC', 'ZINC2', 'HHPQSAL', 'RENT', 'TYPE', 'NUNITS', 'TENURE',
-              'UNITSF', 'CONDO', 'BEDRMS')
+              'UNITSF', 'CONDO', 'BEDRMS', 'PER')
+
+  data_hh <- load_data('household', varchar, varnum, in_raw)
+  
+  data_hh[,NUNITS_cat := fcase(
+    NUNITS == 1         , '1 unit',
+    NUNITS == 2         , '2 units',
+    NUNITS %in% c(3, 4) , '3 to 4 units',
+    NUNITS > 4          , '5+ units')]
+  
+  save_data(data_hh, 'CONTROL',
+            file.path(out_data, 'ahs_household_2011_2013.csv'),
+            logfile = '../output/data_manifest.txt')
+  
+  # Person section
+  
+  varnum <- c('REL', 'SAL', 'PLINE')
+
+  data_per  <- load_data('person', varchar, varnum, in_raw)
+  
+  data_full <- data_hh[data_per, nomatch=NULL]
+  
+  set(data_full, j = 'i.SMSA', value = NULL)
+  
+  save_data(data_full, c('CONTROL', 'PLINE'),
+            file.path(out_data, 'ahs_person_2011_2013.csv'),
+            logfile = '../output/data_manifest.txt')
+  
+}
+
+load_data <- function(survey, varchar, varnum, in_raw) {
   
   vars <- c(varchar, varnum)
   
   data <- lapply(list(2011, 2013),
-    \(yy) fread(file.path(in_raw, 
-                          paste('AHS', yy, 'Metropolitan PUF'),
-                          'household.csv'), 
-                select = vars, quote = "'", 
-                colClasses = list(character = varchar, 
-                                  numeric   = varnum))[, year := yy])
+                 \(yy) fread(file.path(in_raw, 
+                                       paste('AHS', yy, 'Metropolitan PUF'),
+                                       paste0(survey, '.csv')), 
+                             select = vars, quote = "'", 
+                             colClasses = list(character = varchar, 
+                                               numeric   = varnum))[, year := yy])
   
   data <- rbindlist(data, fill=TRUE)
   
-  data[,NUNITS_cat := fcase(
-    NUNITS == 1         , 'Single Unit',
-    NUNITS == 2         , '2 apartments',
-    NUNITS %in% c(3, 4) , '3 to 4 apartments',
-    NUNITS > 4          , '5+ apartments')]
+  setkey(data, CONTROL, year)
   
-  data[, NUNITS_cat := factor(NUNITS_cat, 
-                           levels = c('Single Unit', '2 apartments',
-                                      '3 to 4 apartments','5+ apartments'))]
-  
-  save_data(data, 'CONTROL',
-            file.path(out_data, 'ahs_household_2011_2013.csv'),
-            logfile = '../output/data_manifest.txt')
-  
+  return(data)
 }
 
 main()
