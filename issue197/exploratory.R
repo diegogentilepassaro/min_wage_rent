@@ -127,3 +127,63 @@ sh_rent <- data %>%
 
 ggsave('sh_rent.png', sh_rent, 
        width = 900, height=700, units = 'px', dpi = 140)
+
+# Person section
+
+data <- fread(file.path(in_data, 'ahs_person_2011_2013.csv'),
+              colClasses = list(character='SMSA'))
+
+data[, NUNITS_cat := factor(NUNITS_cat, 
+                            levels = c('1 unit', '2 units',
+                                       '3 to 4 units','5+ units'))]
+
+data_per <- data %>%
+  filter(TENURE == 2,           # Renting (not owner)
+         ZINC2  >  0,           # Non missing household income
+         TYPE   == 1) %>%       # "House, apartment, flat" -- not mobile or hotel
+  mutate(SAL_res  = ifelse(SAL>0, 
+                       resid(lm(SAL ~ factor(SMSA), data= .)),
+                       NA),
+         SAL_cat  = ntile(SAL_res,10),
+         HEAD_ind = if_else(REL==1, 1, 0))
+
+hh_members <- data_per %>% 
+  group_by(SAL_cat) %>% 
+  summarise(mean = mean(PER, na.rm=T)) %>% 
+  filter(!is.na(SAL_cat)) %>% 
+  ggplot(aes(x=factor(SAL_cat), y=mean)) +
+  geom_bar(stat='identity', fill="#5C5D8D") +
+  theme_bw() +
+  xlab('Person salary decile') +
+  ylab('Household members') +
+  labs(title = 'Average households members by individual income decile')
+
+ggsave('hh_members.png', hh_members, 
+       width = 1000, height=700, units = 'px', dpi = 140)
+
+p_nothead <- data_per %>% 
+  group_by(SAL_cat) %>% 
+  summarise(mean=mean(HEAD_ind)) %>% 
+  filter(!is.na(SAL_cat)) %>% 
+  ggplot(aes(x=factor(SAL_cat), y=1-mean)) +
+  geom_bar(stat='identity', fill="#FF934F") +
+  theme_bw() +
+  xlab('Person salary decile') +
+  ylab('Probability ind. is not HH head') +
+  labs(title = 'Probability individual is not HH head by individual income decile')
+
+ggsave('p_nothead.png', p_nothead, 
+       width = 1000, height=700, units = 'px', dpi = 140)
+
+
+data_per %>% 
+  group_by(CONTROL, year) %>% 
+  mutate(SAL = ifelse(SAL>0, SAL, NA),
+         SAL_mean_hh = mean(SAL, na.rm=T),
+         n = sum(!is.na(SAL))) %>% 
+  filter(n > 0) %>% 
+  mutate(SAL_rest=(n/(n-1))*(SAL_mean_hh - SAL/n),
+         SAL_rest_res = ifelse(SAL_rest>0, 
+                              resid(lm(SAL_rest ~ factor(SMSA), data= .)),
+                              NA),
+         SAL_rest_mean = mean(SAL_rest, na.rm=T))
