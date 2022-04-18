@@ -40,7 +40,7 @@ program main
         color_stat_var(navy) symbol_stat_var(circle) ///
         x_label(-6(1)6) name(fd_both_mw_res_only_dynamic)
 	
-    offset_x_axis, k(0.3)
+    offset_x_axis
 
     plot_dynamics_both, model(both_dynamic) dyn_var(mw_res) ///
         legend_dyn_var(Residence MW) y_label(`y_label') ///
