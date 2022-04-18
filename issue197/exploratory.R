@@ -5,7 +5,12 @@ library(tidyverse)
 
 in_data <- '../drive/base_large/ahs'
 
-data <- fread(file.path(in_data, 'ahs_household_2011_2013.csv'))
+data <- fread(file.path(in_data, 'ahs_household_2011_2013.csv'),
+              colClasses = list(character='SMSA'))
+
+data[, NUNITS_cat := factor(NUNITS_cat, 
+                            levels = c('1 unit', '2 units',
+                                       '3 to 4 units','5+ units'))]
 
 data_hh <- data %>%
   filter(TENURE == 2,           # Renting (not owner)
@@ -14,7 +19,7 @@ data_hh <- data %>%
   mutate(
     ZINC2_res   = resid(lm(ZINC2 ~ factor(SMSA) , data = .)),
     ZINC2_decil = ntile(ZINC2_res, 10),
-    RENT_res    = resid(lm(RENT ~ factor(SMSA) , data = .)))
+    BEDRMS_res  = resid(lm(BEDRMS ~ factor(SMSA) , data = .)))
 
 inc_by_unit <- data_hh %>%
   group_by(ZINC2_decil, NUNITS_cat) %>%
@@ -53,13 +58,13 @@ ggsave('inc_by_unit_stack.png', inc_by_unit_stack,
 avg_rent_psqft <- data_hh %>%
   filter(UNITSF > 1,
          RENT  > 1) %>%
-  mutate(RENT_res = resid(lm(RENT ~ 1 + factor(SMSA) , data = .)),
-         agrent_psqft = RENT_res / UNITSF,
-         mean_rent = mean(RENT / UNITSF)) %>%
+  mutate(RENT_UNITSF=RENT/UNITSF,
+    RENT_UNITSF_res = resid(lm(RENT_UNITSF ~ factor(SMSA) , data = .)),
+    mean_all = mean(RENT_UNITSF)) %>%
   group_by(ZINC2_decil) %>%
-  summarise(mean = mean(agrent_psqft),
-            mean_rent = unique(mean_rent)) %>%
-  mutate(mean = mean + mean_rent) %>%
+  summarise(mean = mean(RENT_UNITSF_res),
+            mean_all = unique(mean_all)) %>%
+  mutate(mean = mean + mean_all) %>%
   ggplot(aes(x = factor(ZINC2_decil), y = mean)) +
   geom_bar(stat = 'identity', fill = "#498467") +
   theme_bw() +
@@ -72,8 +77,11 @@ ggsave('avg_rent_psqft.png', avg_rent_psqft,
        width = 900, height=700, units = 'px', dpi = 140)
 
 avg_bdrm <- data_hh %>%
+  mutate(BEDRMS_mean=mean(BEDRMS)) %>% 
   group_by(ZINC2_decil) %>%
-  summarise(mean = mean(BEDRMS)) %>%
+  summarise(mean = mean(BEDRMS_res),
+            BEDRMS_mean=unique(BEDRMS_mean),
+            mean=mean + BEDRMS_mean) %>%
   ggplot(aes(x = factor(ZINC2_decil), y = mean)) +
   geom_bar(stat = 'identity', fill = "#B2D3A8") +
   theme_bw() +
@@ -101,7 +109,6 @@ ggsave('sh_condo.png', sh_condo,
        width = 900, height=700, units = 'px', dpi = 140)
 
 sh_rent <- data %>%
-  as_tibble() %>%
   filter(TENURE %in% c(1,2),
          ZINC2 > 0,
          TYPE == 1) %>%
