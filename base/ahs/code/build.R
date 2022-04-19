@@ -13,28 +13,51 @@ main <- function() {
   # Household section
   
   varnum <- c('ZINC', 'ZINC2', 'HHPQSAL', 'RENT', 'TYPE', 'NUNITS', 'TENURE',
-              'UNITSF', 'CONDO', 'BEDRMS', 'PER')
+              'UNITSF', 'CONDO', 'BEDRMS', 'PER', 'HHPLINE')
 
-  data_hh <- load_data('household', varchar, varnum, in_raw)
+  data <- load_data('household', varchar, varnum, in_raw)
   
-  data_hh[,NUNITS_cat := fcase(
-    NUNITS == 1         , '1 unit',
-    NUNITS == 2         , '2 units',
-    NUNITS %in% c(3, 4) , '3 to 4 units',
-    NUNITS > 4          , '5+ units')]
+  names_new <- c('fam_income', 'hh_income', 'hh_wage_ind', 'monthly_hh_rent', 'type',
+                 'n_units', 'tenure', 'unit_sqft', 'is_condo_coop', 'n_bedrms', 
+                 'n_persons_in_hh', 'hh_head_person_num')
   
-  save_data(data_hh, 'CONTROL',
-            file.path(out_data, 'ahs_household_2011_2013.csv'),
+  setnames(data, varnum, names_new)
+  
+  data[, n_units_cat := fcase(
+    n_units == 1         , '1 unit',
+    n_units == 2         , '2 units',
+    n_units %in% c(3, 4) , '3 to 4 units',
+    n_units > 4          , '5+ units')]
+  
+  data[,`:=`(house_apartment_unit = 1 * (type ==1),
+                mobile_unit          = 1 * (type %in% c(2,3)),
+                hotel_unit           = 1 * (type %in% c(4,5)),
+                rooming_unit         = 1 * (type ==6),
+                boat_other_unit      = 1 * (type %in% c(7,8,9)),
+                is_condo_coop        = 1 * (is_condo_coop == 1),
+                is_tenant            = 1 * (tenure == 2),
+                is_owner             = 1 * (tenure == 1))]
+  
+  set(data, j=c('type', 'tenure'), value=NULL)
+  
+  save_data(data, 'household_id',
+            file.path(out_data, 'household_2011_2013.csv'),
             logfile = '../output/data_manifest.txt')
   
   # Person section
   
   varnum <- c('REL', 'SAL', 'PLINE')
 
-  data_per  <- load_data('person', varchar, varnum, in_raw)
+  data  <- load_data('person', varchar, varnum, in_raw)
   
-  save_data(data_per, c('CONTROL', 'PLINE'),
-            file.path(out_data, 'ahs_person_2011_2013.csv'),
+  names_new <- c('relation_to_hh_head', 'person_salary', 'person_num')
+  
+  setnames(data,varnum, names_new)
+  
+  data[, hh_head := 1 * (relation_to_hh_head == 1 | relation_to_hh_head == 2)]
+  
+  save_data(data, c('household_id', 'person_num'),
+            file.path(out_data, 'person_2011_2013.csv'),
             logfile = '../output/data_manifest.txt')
   
 }
@@ -53,7 +76,13 @@ load_data <- function(survey, varchar, varnum, in_raw) {
   
   data <- rbindlist(data, fill=TRUE)
   
-  setkey(data, CONTROL, year)
+  names_old <- c('CONTROL', 'COUNTY', 'STATE', 'SMSA', 'METRO')
+  
+  names_new <- c('household_id', 'county', 'state', 'smsa', 'metro')
+  
+  setnames(data, names_old, names_new, skip_absent = T)
+  
+  setkey(data, household_id, year)
   
   return(data)
 }
