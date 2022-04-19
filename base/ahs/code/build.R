@@ -46,11 +46,12 @@ main <- function() {
   
   # Person section
   
-  varnum <- c('REL', 'SAL', 'PLINE')
+  varnum <- c('REL', 'SAL', 'PLINE', 'AGE', 'GRAD', 'SEX')
 
   data  <- load_data('person', varchar, varnum, in_raw)
   
-  names_new <- c('relation_to_hh_head', 'person_salary', 'person_num')
+  names_new <- c('relation_to_hh_head', 'person_salary', 'person_num',
+                 'age_of_person', 'educ_level_of_person', 'sex_of_person')
   
   setnames(data,varnum, names_new)
   
