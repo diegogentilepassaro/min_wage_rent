@@ -17,10 +17,8 @@ program main
     local end_year_month    "2019m12"
     local target_year_month "2015m1"
     #delimit ;
-    local target_vars  "sh_hhlds_renteroccup_cens2010 sh_black_cens2010
-                        sh_workers_accomm_food_2013   sh_residents_accomm_food_2013
-                        sh_workers_under1250_2013     sh_residents_under1250_2013
-                        sh_workers_underHS_2013       sh_residents_underHS_2013";
+    local target_vars  "med_hhld_inc_acs2011 sh_hhlds_renteroccup_cens2010 
+	                    sh_male_cens2010 sh_black_cens2010";
     #delimit cr
 
     * Zipcode-months
