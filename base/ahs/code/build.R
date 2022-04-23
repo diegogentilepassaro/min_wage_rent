@@ -5,7 +5,7 @@ library(data.table)
 source('../../../lib/R/save_data.R')
 
 main <- function() {
-  in_raw <- '../../../drive/raw_data/ahs'
+  in_raw   <- '../../../drive/raw_data/ahs'
   out_data <- '../../../drive/base_large/ahs'
   
   varchar <- c('COUNTY', 'STATE', 'SMSA', 'METRO', 'CONTROL')
@@ -17,9 +17,9 @@ main <- function() {
 
   data <- load_data('household', varchar, varnum, in_raw)
   
-  names_new <- c('fam_income', 'hh_income', 'hh_wage_ind', 'monthly_hh_rent', 'type',
+  names_new <- c('fam_income', 'hh_income', 'hh_wageincome_ind', 'monthly_hh_rent', 'type',
                  'n_units', 'tenure', 'unit_sqft', 'is_condo_coop', 'n_bedrms', 
-                 'n_persons_in_hh', 'hh_head_person_num')
+                 'n_persons', 'head_person_num')
   
   setnames(data, varnum, names_new)
   
@@ -29,7 +29,7 @@ main <- function() {
     n_units %in% c(3, 4) , '3 to 4 units',
     n_units > 4          , '5+ units')]
   
-  data[,`:=`(house_apartment_unit = 1 * (type ==1),
+  data[,`:=`(house_apartment_unit    = 1 * (type ==1),
                 mobile_unit          = 1 * (type %in% c(2,3)),
                 hotel_unit           = 1 * (type %in% c(4,5)),
                 rooming_unit         = 1 * (type ==6),
@@ -42,7 +42,7 @@ main <- function() {
   
   save_data(data, 'household_id',
             file.path(out_data, 'household_2011_2013.csv'),
-            logfile = '../output/data_manifest.txt')
+            logfile = '../output/data_file_manifest.txt')
   
   # Person section
   
@@ -51,15 +51,15 @@ main <- function() {
   data  <- load_data('person', varchar, varnum, in_raw)
   
   names_new <- c('relation_to_hh_head', 'person_salary', 'person_num',
-                 'age_of_person', 'educ_level_of_person', 'sex_of_person')
+                 'age', 'educ_level', 'sex')
   
-  setnames(data,varnum, names_new)
+  setnames(data, varnum, names_new)
   
   data[, hh_head := 1 * (relation_to_hh_head == 1 | relation_to_hh_head == 2)]
   
   save_data(data, c('household_id', 'person_num'),
             file.path(out_data, 'person_2011_2013.csv'),
-            logfile = '../output/data_manifest.txt')
+            logfile = '../output/data_file_manifest.txt')
   
 }
 
@@ -83,8 +83,12 @@ load_data <- function(survey, varchar, varnum, in_raw) {
   
   setnames(data, names_old, names_new, skip_absent = T)
   
-  setkey(data, household_id, year)
+  # Set all negative values to NA. These can be -6 and -9, which mean not applicable
+  # or didn't answer.
   
+  data <- data[, (varnum) := lapply(.SD, \(x) fifelse(x<0, NA_real_, x)), 
+               .SDcols = varnum] 
+
   return(data)
 }
 
