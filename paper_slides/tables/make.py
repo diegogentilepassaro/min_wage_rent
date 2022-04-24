@@ -73,6 +73,10 @@ tablefill(input    = os.path.join(fd_robust_dir, "static_sample.txt"),
           template = "input/static_sample.tex",
           output   = "output/static_sample.tex")
 
+tablefill(input    = os.path.join(fd_robust_dir, "static_sample.txt"),
+          template = "input/slides_static_sample.tex",
+          output   = "output/slides_static_sample.tex")
+
 tablefill(input    = os.path.join(fd_robust_dir, "static_ab.txt"),
           template = "input/static_ab.tex", 
           output   = "output/static_ab.tex")
