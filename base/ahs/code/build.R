@@ -30,19 +30,19 @@ main <- function() {
     n_units > 4          , '5+ units')]
   
   data[,`:=`(house_apartment_unit    = 1 * (type ==1),
-                mobile_unit          = 1 * (type %in% c(2,3)),
-                hotel_unit           = 1 * (type %in% c(4,5)),
-                rooming_unit         = 1 * (type ==6),
-                boat_other_unit      = 1 * (type %in% c(7,8,9)),
-                is_condo_coop        = 1 * (is_condo_coop == 1),
-                is_tenant            = 1 * (tenure == 2),
-                is_owner             = 1 * (tenure == 1))]
+             mobile_unit             = 1 * (type %in% c(2,3)),
+             hotel_unit              = 1 * (type %in% c(4,5)),
+             rooming_unit            = 1 * (type ==6),
+             boat_other_unit         = 1 * (type %in% c(7,8,9)),
+             is_condo_coop           = 1 * (is_condo_coop == 1),
+             is_tenant               = 1 * (tenure == 2),
+             is_owner                = 1 * (tenure == 1))]
   
   set(data, j=c('type', 'tenure'), value=NULL)
   
   save_data(data, 'household_id',
             file.path(out_data, 'household_2011_2013.csv'),
-            logfile = '../output/data_file_manifest.txt')
+            logfile = '../output/data_file_manifest.log')
   
   # Person section
   
@@ -59,7 +59,7 @@ main <- function() {
   
   save_data(data, c('household_id', 'person_num'),
             file.path(out_data, 'person_2011_2013.csv'),
-            logfile = '../output/data_file_manifest.txt')
+            logfile = '../output/data_file_manifest.log')
   
 }
 
