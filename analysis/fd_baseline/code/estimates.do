@@ -15,7 +15,7 @@ program main
     local mw_wkp_var "mw_wkp_tot_17"
 
     ** STATIC
-    use "`instub'/zipcode_months.dta" if baseline_sample_SFCC, clear
+    use "`instub'/zipcode_months.dta" if fullbal_sample_SFCC, clear
     xtset zipcode_num `absorb'
 
     estimate_dist_lag_model if !missing(D.ln_rents), depvar(`mw_wkp_var') ///
@@ -67,7 +67,7 @@ program main
     export delimited "`outstub'/estimates_unbal_residuals.csv", replace    
 
     ** DYNAMIC
-    use "`instub'/zipcode_months.dta" if baseline_sample_SFCC, clear
+    use "`instub'/zipcode_months.dta" if fullbal_sample_SFCC, clear
     xtset zipcode_num `absorb'
 
     estimate_dist_lag_model, depvar(ln_rents) ///
