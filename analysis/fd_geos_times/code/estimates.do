@@ -55,7 +55,7 @@ program main
 	local absorb     "year_month"
     local mw_wkp_var "mw_wkp_tot_17"
 
-    use "`in_est'/county_months.dta" if baseline_sample, clear
+    use "`in_est'/county_months.dta" if fullbal_sample_SFCC, clear
     xtset county_num `absorb'
 
     estimate_dist_lag_model, depvar(ln_rents)                       ///
@@ -96,7 +96,7 @@ program estimates_geo_month
     syntax, in_est(str) geo(str) geo_name(str) mw_wkp_var(str) ///
 	    controls(str) absorb(str) cluster(str)
 
-    use "`in_est'/`geo'_months.dta" if baseline_sample == 1, clear
+    use "`in_est'/`geo'_months.dta" if fullbal_sample_SFCC == 1, clear
     xtset `geo'_num year_month
 
     estimate_dist_lag_model if !missing(D.ln_rents), depvar(`mw_wkp_var') ///
@@ -129,23 +129,23 @@ program estimates_geo_year
 	    geo_name(`geo_name') time(year)
     xtset `geo'_num year
 
-    estimate_stacked_model if baseline_sample == 1 & !missing(d_ln_rents_avg), ///
+    estimate_stacked_model if fullbal_sample_SFCC == 1 & !missing(d_ln_rents_avg), ///
 	    depvar(`mw_wkp_var')                                               ///
         mw_var1(d_mw_res_avg) mw_var2(d_mw_res_avg)                        ///
         controls(`controls') absorb(`absorb') cluster(`cluster')           ///
         model_name(`geo'_yr_mw_wkp_on_res_mw)
 
-    estimate_stacked_model if baseline_sample == 1, depvar(d_ln_rents_avg) ///
+    estimate_stacked_model if fullbal_sample_SFCC == 1, depvar(d_ln_rents_avg) ///
         mw_var1(d_mw_res_avg) mw_var2(d_mw_res_avg)                        ///
         controls(`controls') absorb(`absorb') cluster(`cluster')           ///
         model_name(`geo'_yr_static_mw_res)
 
-    estimate_stacked_model if baseline_sample == 1, depvar(d_ln_rents_avg) ///
+    estimate_stacked_model if fullbal_sample_SFCC == 1, depvar(d_ln_rents_avg) ///
         mw_var1(`mw_wkp_var') mw_var2(`mw_wkp_var')                        ///
         controls(`controls') absorb(`absorb') cluster(`cluster')           ///
         model_name(`geo'_yr_static_mw_wkp)
 
-    estimate_stacked_model if baseline_sample == 1, depvar(d_ln_rents_avg) ///
+    estimate_stacked_model if fullbal_sample_SFCC == 1, depvar(d_ln_rents_avg) ///
         mw_var1(`mw_wkp_var') mw_var2(d_mw_res_avg)                        ///
         controls(`controls') absorb(`absorb') cluster(`cluster')           ///
         model_name(`geo'_yr_static_both)
@@ -155,7 +155,7 @@ program get_sample_flags
     syntax, instub(str) geo(str) geo_name(str) time(str)
 	
 	preserve
-	    use `geo_name' year_month `time' baseline_sample fullbal_sample ///
+	    use `geo_name' year_month `time' fullbal_sample_SFCC ///
 		    using "`instub'/`geo'_months.dta", clear
 		bysort `geo_name' `time' (year_month): keep if _n == 7
 		drop year_month
