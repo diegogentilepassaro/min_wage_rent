@@ -11,9 +11,7 @@ program main
     define_controls
     local controls "`r(economic_controls)'"
 
-    use "`instub'/zipcode_months", clear
-    keep if baseline_sample_SFCC
-
+    use "`instub'/zipcode_months" if fullbal_sample_SFCC, clear
     xtset zipcode_num year_month
 
     * LEVELS
