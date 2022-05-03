@@ -13,7 +13,7 @@ program main
     local cluster_vars "statefips"
     local absorb "year_month"
 
-    use "`instub'/baseline_sample_with_vars_for_het.dta", clear
+    use "`instub'/fullbal_sample_with_vars_for_het.dta", clear
     xtset zipcode_num year_month
 
     estimate_dist_lag_model, depvar(ln_rents) ///

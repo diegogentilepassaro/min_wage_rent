@@ -26,7 +26,7 @@ program main
     gen public_housing = (total_units > 0) if !missing(total_units)
     replace public_housing = 0 if missing(total_units)
 
-    save_data "`outstub'/baseline_sample_with_vars_for_het.dta", ///
+    save_data "`outstub'/fullbal_sample_with_vars_for_het.dta", ///
         key(zipcode year_month) replace log(none)
 end
 
@@ -38,9 +38,9 @@ program load_and_clean
     local controls     "`r(economic_controls)'"
 
     use zipcode statefips cbsa year_month zipcode_num ln_rents mw_res ///
-        mw_wkp_tot_17 baseline_sample_SFCC `controls' ///
-        using "`instub'/zipcode_months.dta" if baseline_sample_SFCC, clear
-    drop baseline_sample_SFCC
+        mw_wkp_tot_17 fullbal_sample_SFCC `controls' ///
+        using "`instub'/zipcode_months.dta" if fullbal_sample_SFCC, clear
+    drop fullbal_sample_SFCC
     xtset zipcode_num year_month
 
     merge m:1 zipcode using "`incross'/zipcode_cross.dta", nogen ///
