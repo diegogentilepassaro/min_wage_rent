@@ -161,7 +161,8 @@ program flag_samples
     
     merge m:1 `geo_name' using "../temp/fullbal_`geo'.dta", ///
         nogen assert(1 3) keep(1 3)
-    
+
+    replace fullbal_sample_`stub' = 0 if year_month <= `=tm(`target_ym')' & !missing(`rent_var'_`stub')
     replace fullbal_sample_`stub' = 0 if missing(fullbal_sample_`stub')
     replace fullbal_sample_`stub' = . if missing(`rent_var'_`stub')
 
