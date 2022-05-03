@@ -6,12 +6,12 @@ source('../../../lib/R/write_command.R')
 
 main <- function() {
   
-  in_baseline  <- '../output'
+  in_fullbal  <- '../output'
   out_autofill <- '../output'
   
   # From estimates_static
   
-  dt <- load_data(in_baseline, 'static')
+  dt <- load_data(in_fullbal, 'static')
   
   dt <- dt[!(model %in% c('Only', 'WkpOnRes') & var == 'Sum')]
   
@@ -58,7 +58,7 @@ main <- function() {
   
   # From estimates_dynamic
   
-  dt <- load_data(in_baseline, 'dynamic')
+  dt <- load_data(in_fullbal, 'dynamic')
   
   dt <- dt[model == 'both_mw_wkp_dynamic' & at == 0]
   
