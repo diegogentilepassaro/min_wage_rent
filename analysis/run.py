@@ -2,11 +2,11 @@ import os
 import time
 import subprocess
 
-folders_to_run = ["fd_baseline",
+folders_to_run = ["autocorrelation",
+                  "fd_baseline",
                   "fd_stacked",
                   "fd_robustness",
                   "fd_geos_times",
-                  "autocorrelation",
                   "twfe_wages"]
 
 log_file = open("run.log", 'w')

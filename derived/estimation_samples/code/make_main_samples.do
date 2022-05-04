@@ -15,7 +15,7 @@ program main
 
     local start_year_month         "2010m1"
     local end_year_month           "2019m12"
-    local fullbal_start_year_month "2015m1"
+    local fullbal_start_year_month "2014m1"
     #delimit ;
     local target_vars  "sh_hhlds_renteroccup_cens2010 
                         sh_workers_under1250_2013 sh_residents_under1250_2013";

@@ -36,7 +36,7 @@ program main
         yvar(ln_wagebill) xvars(`mw_wkp_var'_avg) controls(`controls')     ///
         absorb(zipcode year#county_num) cluster(`cluster') model_name(county_time)
     
-    estimate_twfe_model if baseline_sample, ///
+    estimate_twfe_model if fullbal_sample_SFCC, ///
         yvar(ln_wagebill) xvars(`mw_wkp_var'_avg) controls(`controls')     ///
         absorb(zipcode year#cbsa_num) cluster(`cluster') model_name(cbsa_time_baseline)
 
@@ -71,9 +71,9 @@ program add_baseline_zipcodes
     preserve
         use `instub'/zipcode_months.dta, clear
 
-        keep if baseline_sample == 1
+        keep if fullbal_sample_SFCC == 1
         bys  zipcode: keep if _n == 1
-        keep zipcode baseline_sample
+        keep zipcode fullbal_sample_SFCC
 
         tempfile zipcode_years_baseline
         save    `zipcode_years_baseline'
@@ -81,7 +81,7 @@ program add_baseline_zipcodes
 
     merge m:1 zipcode using `zipcode_years_baseline', keep(1 3) nogen
 
-    replace baseline_sample = 0 if baseline_sample != 1
+    replace fullbal_sample_SFCC = 0 if fullbal_sample_SFCC != 1
 end
 
 
