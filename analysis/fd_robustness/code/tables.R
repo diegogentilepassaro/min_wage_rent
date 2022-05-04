@@ -67,33 +67,41 @@ main <- function() {
   close(fileConn)
   
   # AB table
-  txt_ab <- c("<tab:static_ab>")
+  txt_ab <- c("<tab:arellano_bond>")
   for (xvar in c("mw_res", "mw_wkp_tot_17")) {
     txt_ab <- c(txt_ab, 
-                paste(est[model == "baseline" & var == xvar,]$b,
-                      est[model == "AB"       & var == xvar,]$b,
+                paste(est[model == "levels_model"    & var == xvar,]$b,
+                      est[model == "AB_levels_model" & var == xvar,]$b,
+                      est[model == "baseline"        & var == xvar,]$b,
+                      est[model == "AB"              & var == xvar,]$b,
                       sep = "\t"))
     txt_ab <- c(txt_ab, 
-                paste(est[model == "baseline" & var == xvar,]$se,
-                      est[model == "AB"       & var == xvar,]$se,
+                paste(est[model == "levels_model"    & var == xvar,]$se,
+                      est[model == "AB_levels_model" & var == xvar,]$se,
+                      est[model == "baseline"        & var == xvar,]$se,
+                      est[model == "AB"              & var == xvar,]$se,
                       sep = "\t"))
   }
 
   txt_ab <- c(txt_ab,
-              paste(est[model == "AB" & var == "L_ln_rents",]$b,
+              paste(est[model == "AB_levels_model" & var == "L_ln_rents",]$b,
+                    est[model == "AB"              & var == "L_ln_rents",]$b,
                     sep = "\t"))
   txt_ab <- c(txt_ab,
-              paste(est[model == "AB" & var == "L_ln_rents",]$se,
+              paste(est[model == "AB_levels_model" & var == "L_ln_rents",]$se,
+                    est[model == "AB"              & var == "L_ln_rents",]$se,
                     sep = "\t"))
   
-  for (stat in c("p_equality", "N")) {
+  for (stat in c("N")) {
     txt_ab <- c(txt_ab, 
-                paste(est[model == "baseline" & var == "mw_wkp_tot_17",][[stat]],
-                      est[model == "AB"       & var == "mw_wkp_tot_17",][[stat]],
+                paste(est[model == "levels_model"    & var == "mw_wkp_tot_17",][[stat]],
+                      est[model == "AB_levels_model" & var == "mw_wkp_tot_17",][[stat]],
+                      est[model == "baseline"        & var == "mw_wkp_tot_17",][[stat]],
+                      est[model == "AB"              & var == "mw_wkp_tot_17",][[stat]],
                       sep = "\t"))
   }
 
-  fileConn <- file(file.path(outstub, "static_ab.txt"))
+  fileConn <- file(file.path(outstub, "arellano_bond.txt"))
   writeLines(txt_ab, fileConn)
   close(fileConn) 
 }

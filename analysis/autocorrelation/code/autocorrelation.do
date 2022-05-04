@@ -19,7 +19,7 @@ program main
         mw_var1(mw_res) mw_var2(mw_wkp_tot_17) controls(`controls') ///
         absorb(year_month zipcode) cluster(statefips) ///
         model_name(levels_model)
-
+		
     * FD
     reghdfe D.ln_rents D.mw_res D.mw_wkp_tot_17 D.`controls',	///
             absorb(year_month) 	vce(cluster statefips) ///

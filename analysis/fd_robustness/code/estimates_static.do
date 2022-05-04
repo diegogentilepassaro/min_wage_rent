@@ -167,18 +167,23 @@ end
 
 program estimate_arellano_bond, rclass
     syntax, mw_wkp_var(str) controls(str) absorb(str) cluster(str)
-
+		
     estimate_dist_lag_model if fullbal_sample_SFCC,                    ///
         depvar(ln_rents) dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)    ///
         controls(`controls') ab absorb(`absorb') cluster(`cluster')     ///
-        model_name(AB_rents) test_equality
-    
-    estimate_dist_lag_model if (fullbal_sample_SFCC & !missing(D.ln_rents)), ///
-        depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res)            ///
-        controls(`controls') ab absorb(`absorb') cluster(`cluster')           ///
-        model_name(AB_wkp_mw_on_res_mw) test_equality
+        model_name(AB_rents)
+		
+    estimate_stacked_model if fullbal_sample_SFCC, depvar(ln_rents)  ///
+        mw_var1(mw_res) mw_var2(`mw_wkp_var') controls(`controls') ///
+        absorb(year_month zipcode) cluster(statefips) ///
+        model_name(levels_model)
+		
+    estimate_stacked_model if fullbal_sample_SFCC, depvar(ln_rents)  ///
+        mw_var1(mw_res) mw_var2(`mw_wkp_var') controls(`controls') ///
+        absorb(year_month zipcode) cluster(statefips) ab ///
+        model_name(AB_levels_model)
 
-    return local specifications "AB_rents AB_wkp_mw_on_res_mw"
+    return local specifications "AB_rents levels_model AB_levels_model"
 end
 
 

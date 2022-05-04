@@ -6,8 +6,11 @@ folders_to_run = ["autocorrelation",
                   "fd_baseline",
                   "fd_stacked",
                   "fd_robustness",
+                  "fd_heterogeneity",
                   "fd_geos_times",
-                  "twfe_wages"]
+                  "twfe_wages",
+                  "counterfactuals",
+                  "maps_events"]
 
 log_file = open("run.log", 'w')
 log_file.write("Started at " + time.strftime('%I:%M:%S%p %Z on %b %d, %Y\n\n'))
