@@ -33,7 +33,7 @@ program main
 
     estimate_sample_specifications, mw_wkp_var(`mw_wkp_var') controls(`controls') ///
         absorb(`absorb') cluster(`cluster')                                       ///
-        samples(unbalanced unbal_by_entry fullbal)
+        samples(fullbal unbalanced unbal_by_entry)
     local specifications "`specifications' `r(specifications)'"
 
     estimate_arellano_bond, mw_wkp_var(`mw_wkp_var') controls(`controls')         ///
