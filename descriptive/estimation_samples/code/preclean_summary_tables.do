@@ -32,7 +32,7 @@ program main
     merge m:1 zipcode using "`instub_zipcode'/zipcode_cross.dta", nogen ///
         assert(2 3)
     merge 1:1 zipcode year_month using "`instub_est_samp'/zipcode_months.dta", ///
-        nogen assert(1 3) keepusing(baseline_sample)
+        nogen assert(1 3) keepusing(fullbal_sample_SFCC)
 
     build_zip_lvl_samples, instub(`instub_est_samp')
     foreach data in "all"              "all_urban"          ///
@@ -63,10 +63,10 @@ program main
         mw_wkp_earn_under1250_17 mw_wkp_age_under29_17             ///
         ln_emp_bizserv ln_emp_info ln_emp_fin                      ///
         ln_estcount_bizserv ln_estcount_info ln_estcount_fin       ///
-        ln_avgwwage_bizserv ln_avgwwage_info ln_avgwwage_fin baseline_sample ///
+        ln_avgwwage_bizserv ln_avgwwage_info ln_avgwwage_fin fullbal_sample_SFCC ///
         using "`instub_est_samp'/zipcode_months.dta", clear
     
-    keep if baseline_sample == 1
+    keep if fullbal_sample_SFCC == 1
 
     merge m:1 zipcode countyfips cbsa year using "../temp/safmr_clean.dta", ///
         nogen keep(1 3)
@@ -141,7 +141,7 @@ program build_zip_lvl_samples
     restore 
 
     preserve
-        keep if baseline_sample == 1
+        keep if fullbal_sample_SFCC == 1
         keep zipcode countyfips cbsa statefips urban_cbsa urban_zip
         duplicates drop zipcode, force
         save "../temp/baseline_zipcodes.dta", replace

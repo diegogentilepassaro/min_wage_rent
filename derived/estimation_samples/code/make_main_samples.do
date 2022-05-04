@@ -212,7 +212,6 @@ program drop_vars
 
     cap drop Monthly* NewMonthly*
     cap drop medlistingprice*
-    cap drop medrentprice_*
     cap drop medDailyli*
 end
 
