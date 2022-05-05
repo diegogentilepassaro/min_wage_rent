@@ -9,11 +9,15 @@ program main
 
     local cluster "statefips"
     local absorb  "year_month#event_id"
+    local n_zip   10
 
     local mw_wkp_var "d_mw_wkp_tot_17"
 
     foreach w in 3 6 9 {
         use "`instub'/stacked_sample_window`w'.dta", clear
+
+        bys event_id: gen num_yms = _N
+        keep if num_yms >= `n_zip'*(2*`w' + 1)
 
         estimate_stacked_model if !missing(d_ln_rents), depvar(`mw_wkp_var') ///
             mw_var1(d_mw_res) mw_var2(d_mw_res) ///
