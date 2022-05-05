@@ -76,7 +76,6 @@ local p99 = r(p99)
 gen extreme_val =  !missing(ln_rents) & ((ln_rents <= `p1') | (ln_rents >= `p99'))
 
 preserve
-
 	collapse (max) extr_val = extreme_val, by(zipcode)
 	
 	tempfile extreme
@@ -96,3 +95,14 @@ reghdfe D.ln_rents D.mw_res L(-6/6).D.mw_wkp_tot_17 ///
    if fullbal_sample_SFCC == 1 & !extr_val, ///
    absorb(year_month##cbsa_num) cluster(statefips) nocons
 
+** Estimate by year
+
+foreach yyyy of numlist 2015 2016 2017 2018 2019 {
+
+	reghdfe D.ln_rents D.mw_res L(-6/6).D.mw_wkp_tot_17 ///
+	   D.( ln_emp_bizserv ln_emp_info ln_emp_fin ln_estcount_bizserv ln_estcount_info ln_estcount_fin ln_avgwwage_bizserv ln_avgwwage_info ln_avgwwage_fin ) ///
+	   if fullbal_sample_SFCC == 1 & year == `yyyy', ///
+	   absorb(year_month##cbsa_num) cluster(statefips) nocons
+	
+}
+   
