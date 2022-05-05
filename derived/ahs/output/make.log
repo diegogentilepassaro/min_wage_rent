@@ -1,0 +1,207 @@
+
+ make.py started: 2022-05-05 00:00:33 C:\Users\Usuario\Documents\GitHub\min_wage_rent\derived\ahs\code 
+
+
+
+
+Execute:  R CMD BATCH --no-save "./prepare.R" prepare.Rout
+
+R version 4.1.2 (2021-11-01) -- "Bird Hippie"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list = ls())
+> 
+> library(dplyr)
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+> library(readr)
+> 
+> main <- function() {
++   in_data <- '../../../drive/base_large/ahs'
++   varchar <- c('smsa', 'county', 'state', 'household_id')
++   
++   hh_data     <- read_csv(file.path(in_data, 'household_2011_2013.csv'))
++   person_data <- read_csv(file.path(in_data, 'person_2011_2013.csv'))
++   
++   sh_renters <- hh_data %>%
++     filter((is_owner + is_tenant) == 1, 
++            !is.na(hh_income),
++            house_apartment_unit == 1) %>%
++     group_by(smsa) %>%
++     mutate(hh_income_decile = ntile(hh_income, 10)) %>%
++     group_by(hh_income_decile) %>%
++     summarise(pr_tenant = mean(is_tenant))
++   
++   sh_unit_types <- hh_data %>%
++     filter(is_tenant == 1,
++            !is.na(hh_income),
++       house_apartment_unit == 1) %>%
++     group_by(smsa) %>%
++     mutate(hh_income_decile = ntile(hh_income, 10)) %>%
++     group_by(hh_income_decile, n_units_cat) %>%
++     summarise(count_unit_type = n()) %>%
++     group_by(hh_income_decile) %>%
++     mutate(sh_unit_type = count_unit_type / sum(count_unit_type)) %>% 
++     select(-count_unit_type)
++   
++   sh_condo <- hh_data %>%
++     filter(is_tenant == 1,
++       hh_income > 0,
++       house_apartment_unit == 1) %>%
++     group_by(smsa) %>%
++     mutate(hh_income_decile = ntile(hh_income, 10)) %>%
++     group_by(hh_income_decile) %>%
++     summarise(sh_condo = mean(is_condo_coop))
++   
++   sh_hh_head <- person_data %>%
++     left_join(hh_data[, c('household_id', 'is_tenant', 'hh_income')], by = 'household_id') %>%
++     filter(is_tenant == 1,
++       person_salary > 0) %>% # Está bien hacer esto?
++     group_by(household_id) %>%
++     mutate(max_income   =  max(person_salary),
++            hh_head_max  =  1 * (person_salary == max_income)) %>%
++     group_by(smsa) %>%
++     mutate(person_salary_decile = ntile(person_salary, 10)) %>%
++     group_by(person_salary_decile) %>%
++     summarise(sh_hh_head_max = mean(hh_head_max))
++   
++   plots <- c('sh_renters', 'sh_unit_types', 'sh_condo', 'sh_hh_head')
++   for (pp in plots) {
++     write_csv(get(pp), paste0('../output/', pp, '.csv'))
++   }
++   
++ }
+> 
+> main()
+Rows: 164188 Columns: 24
+-- Column specification --------------------------------------------------------
+Delimiter: ","
+chr  (5): household_id, county, state, smsa, n_units_cat
+dbl (19): metro, fam_income, hh_income, hh_wageincome_ind, monthly_hh_rent, ...
+
+i Use `spec()` to retrieve the full column specification for this data.
+i Specify the column types or set `show_col_types = FALSE` to quiet this message.
+Rows: 359760 Columns: 10
+-- Column specification --------------------------------------------------------
+Delimiter: ","
+chr (2): household_id, smsa
+dbl (8): person_num, relation_to_hh_head, person_salary, age, educ_level, se...
+
+i Use `spec()` to retrieve the full column specification for this data.
+i Specify the column types or set `show_col_types = FALSE` to quiet this message.
+`summarise()` has grouped output by 'hh_income_decile'. You can override using
+the `.groups` argument.
+> 
+> proc.time()
+   user  system elapsed 
+   4.96    0.35    4.57 
+
+
+Execute:  StataMP-64 /e do "./plot.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   16.0   Copyright 1985-2019 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      Downloadly.ir     
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 2-core Stata network license expires 20 Aug 2022:
+       Serial number:  501609213901
+         Licensed to:  DOWNLOADLY.IR 085227746673
+                       WwW.DownLoadLy.iR 085227746673
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+. do ./plot.do 
+
+. clear all
+
+. 
+. program main 
+  1. 
+.         local instub "../output/"
+  2. 
+.         import delimited "`instub'sh_renters.csv", clear
+  3. 
+.         graph bar pr_tenant, over(hh_income_decile) ytitle("Share of renters"
+> ) ///
+>                 b1title("Household income decile")
+  4. 
+.         graph export "`instub'/sh_renters.png", as(png) replace
+  5. 
+.         import delimited "`instub'sh_condo.csv", clear
+  6. 
+.         graph bar sh_condo, over(hh_income_decile) ytitle("Share of people in
+>  condos & cooperatives") ///
+>                 b1title("Household income decile")
+  7. 
+.         graph export "`instub'/sh_condo.png", as(png) replace
+  8. 
+.         import delimited "`instub'sh_unit_types.csv", clear
+  9. 
+.         graph bar sh_unit_type, over(n_units_cat) over(hh_income_decile) ytit
+> le("Share of unit type") ///
+>                 b1title("Household income decile") asyvars stack
+ 10. 
+.         graph export "`instub'/sh_unit_types.png", as(png) replace
+ 11. 
+.         import delimited "`instub'sh_hh_head.csv", clear
+ 12. 
+.         graph bar sh_hh_head_max, over(person_salary_decile) ytitle("Probabil
+> ity of being household head") ///
+>                 b1title("Person income decile")
+ 13. 
+.         graph export "`instub'/sh_hh_head.png", as(png) replace
+ 14. end
+
+. 
+. main
+(2 vars, 10 obs)
+(note: file ../output//sh_renters.png not found)
+(file ../output//sh_renters.png written in PNG format)
+(2 vars, 10 obs)
+(note: file ../output//sh_condo.png not found)
+(file ../output//sh_condo.png written in PNG format)
+(3 vars, 40 obs)
+(note: file ../output//sh_unit_types.png not found)
+(file ../output//sh_unit_types.png written in PNG format)
+(2 vars, 10 obs)
+(note: file ../output//sh_hh_head.png not found)
+(file ../output//sh_hh_head.png written in PNG format)
+
+. 
+end of do-file
+
+ make.py ended: 2022-05-05 00:00:45

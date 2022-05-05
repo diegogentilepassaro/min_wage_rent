@@ -29,10 +29,10 @@ main <- function() {
     n_units %in% c(3, 4) , '3 to 4 units',
     n_units > 4          , '5+ units')]
   
-  data[,`:=`(house_apartment_unit    = 1 * (type ==1),
+  data[,`:=`(house_apartment_unit    = 1 * (type == 1),
              mobile_unit             = 1 * (type %in% c(2,3)),
              hotel_unit              = 1 * (type %in% c(4,5)),
-             rooming_unit            = 1 * (type ==6),
+             rooming_unit            = 1 * (type == 6),
              boat_other_unit         = 1 * (type %in% c(7,8,9)),
              is_condo_coop           = 1 * (is_condo_coop == 1),
              is_tenant               = 1 * (tenure == 2),
@@ -43,6 +43,10 @@ main <- function() {
   save_data(data, 'household_id',
             file.path(out_data, 'household_2011_2013.csv'),
             logfile = '../output/data_file_manifest.log')
+  
+  hh_id_smsa <- unique(data[,c('smsa', 'household_id')])
+  
+  setkey(hh_id_smsa, 'household_id')
   
   # Person section
   
@@ -55,7 +59,13 @@ main <- function() {
   
   setnames(data, varnum, names_new)
   
+  set(data, j='smsa', value=NULL)
+  
   data[, hh_head := 1 * (relation_to_hh_head == 1 | relation_to_hh_head == 2)]
+  
+  setkey(data, 'household_id')
+
+  data <- data[hh_id_smsa, nomatch=NULL]
   
   save_data(data, c('household_id', 'person_num'),
             file.path(out_data, 'person_2011_2013.csv'),
