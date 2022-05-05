@@ -19,10 +19,8 @@ program main
 		absorb(zipcode_num cbsa_num##year) cluster(cbsa_num) nocons
 	}
 
-	local bdrm 0 1 2 3 4
-
-	foreach bd of local bdrm {
-		reghdfe ln_safmr`bd'br mw_wkp_tot_15_avg mw_res_avg if cbsa != "99999", ///
+	forval bd = 0(1)4 {
+		reghdfe ln_safmr`bd'br mw_wkp_tot_16_avg mw_res_avg if cbsa != "99999", ///
 			absorb(zipcode_num cbsa_num##year) cluster(cbsa_num) nocons
 	}
 
