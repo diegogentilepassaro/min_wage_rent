@@ -73,9 +73,9 @@ tablefill(input    = os.path.join(fd_robust_dir, "static_sample.txt"),
           template = "input/static_sample.tex",
           output   = "output/static_sample.tex")
 
-tablefill(input    = os.path.join(fd_robust_dir, "static_ab.txt"),
-          template = "input/static_ab.tex", 
-          output   = "output/static_ab.tex")
+tablefill(input    = os.path.join(fd_robust_dir, "arellano_bond.txt"),
+          template = "input/arellano_bond.tex", 
+          output   = "output/arellano_bond.tex")
 
 tablefill(input    = os.path.join(fd_geos_times, "static_geos_times.txt"),
           template = "input/static_geos_times.tex",

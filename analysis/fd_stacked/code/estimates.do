@@ -22,22 +22,22 @@ program main
         estimate_stacked_model if !missing(d_ln_rents), depvar(`mw_wkp_var') ///
             mw_var1(d_mw_res) mw_var2(d_mw_res) ///
             absorb(`absorb') cluster(`cluster') ///
-            model_name(mw_wkp_on_res_mw_w`w') outfolder("../temp")
+            model_name(mw_wkp_on_res_mw_w`w') test_equality outfolder("../temp")
 
         estimate_stacked_model, depvar(d_ln_rents) ///
             mw_var1(d_mw_res) mw_var2(d_mw_res) ///
             absorb(`absorb') cluster(`cluster') ///
-            model_name(static_mw_res_w`w') outfolder("../temp")
+            model_name(static_mw_res_w`w') test_equality outfolder("../temp")
             
         estimate_stacked_model, depvar(d_ln_rents) ///
             mw_var1(`mw_wkp_var') mw_var2(`mw_wkp_var') ///
             absorb(`absorb') cluster(`cluster') ///
-            model_name(static_mw_wkp_w`w') outfolder("../temp")
+            model_name(static_mw_wkp_w`w') test_equality outfolder("../temp")
 
         estimate_stacked_model, depvar(d_ln_rents) ///
             mw_var1(d_mw_res) mw_var2(`mw_wkp_var') ///
             absorb(`absorb') cluster(`cluster') ///
-            model_name(static_both_w`w') outfolder("../temp")
+            model_name(static_both_w`w') test_equality outfolder("../temp")
 
         estimate_dyn_stacked_model, depvar(d_ln_rents) w(`w') ///
             res_mw_var(d_mw_res) wkp_mw_var(`mw_wkp_var') ///
