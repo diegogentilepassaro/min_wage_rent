@@ -47,12 +47,12 @@ program main
     foreach mw_wkp_var in mw_wkp_tot_14 mw_wkp_tot_18 mw_wkp_tot_timevary    ///
                             mw_wkp_earn_under1250_17 mw_wkp_age_under29_17        {
         
-        estimate_dist_lag_model if fullbal_sample_SFCC,                      ///
+        estimate_dist_lag_model if fullbal_sample_SFCC == 1,                      ///
             depvar(ln_rents) dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)      ///
             controls(`controls') absorb(`absorb') cluster(`cluster')          ///
             model_name(`mw_wkp_var'_rents) test_equality
             
-        estimate_dist_lag_model if (fullbal_sample_SFCC & !missing(D.ln_rents)),  ///
+        estimate_dist_lag_model if (fullbal_sample_SFCC == 1 & !missing(D.ln_rents)),  ///
             depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res)             ///
             controls(`controls') absorb(`absorb') cluster(`cluster')               ///
             model_name(`mw_wkp_var'_wkp_mw_on_res_mw) test_equality
@@ -83,12 +83,12 @@ program estimate_baseline_ctrls, rclass
             local ctrl_vars ""
         }    
 
-        estimate_dist_lag_model if fullbal_sample_SFCC,                      ///
+        estimate_dist_lag_model if fullbal_sample_SFCC == 1,                      ///
             depvar(ln_rents) dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)      ///
             controls(`ctrl_vars') absorb(`absorb') cluster(`cluster')         ///
             model_name(`name'_rents) test_equality
         
-        estimate_dist_lag_model if (fullbal_sample_SFCC & !missing(D.ln_rents)),   ///
+        estimate_dist_lag_model if (fullbal_sample_SFCC == 1 & !missing(D.ln_rents)),   ///
             depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res)              ///
             controls(`ctrl_vars') absorb(`absorb') cluster(`cluster')               ///
             model_name(`name'_wkp_mw_on_res_mw) test_equality
@@ -104,12 +104,12 @@ program estimate_geofe_specifications, rclass
 
     local specifications ""
     foreach geo in `geos' {
-        estimate_dist_lag_model if fullbal_sample_SFCC,                            ///
+        estimate_dist_lag_model if fullbal_sample_SFCC == 1,                            ///
             depvar(ln_rents) dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)            ///
             controls(`controls') absorb(year_month##`geo'_num) cluster(`cluster')   ///
             model_name(`geo'time_fe_rents) test_equality
             
-        estimate_dist_lag_model if (fullbal_sample_SFCC & !missing(D.ln_rents)),         ///
+        estimate_dist_lag_model if (fullbal_sample_SFCC == 1 & !missing(D.ln_rents)),         ///
             depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res)               ///
             controls(`controls') absorb(year_month##`geo'_num) cluster(`cluster')    ///
             model_name(`geo'time_fe_wkp_mw_on_res_mw) test_equality
@@ -168,17 +168,17 @@ end
 program estimate_arellano_bond, rclass
     syntax, mw_wkp_var(str) controls(str) absorb(str) cluster(str)
 		
-    estimate_dist_lag_model if fullbal_sample_SFCC,                    ///
+    estimate_dist_lag_model if fullbal_sample_SFCC == 1,                    ///
         depvar(ln_rents) dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)    ///
         controls(`controls') ab absorb(`absorb') cluster(`cluster')     ///
         model_name(AB_rents)
 		
-    estimate_stacked_model if fullbal_sample_SFCC, depvar(ln_rents)  ///
+    estimate_stacked_model if fullbal_sample_SFCC == 1, depvar(ln_rents)  ///
         mw_var1(mw_res) mw_var2(`mw_wkp_var') controls(`controls') ///
         absorb(year_month zipcode) cluster(statefips) ///
         model_name(levels_model)
 		
-    estimate_stacked_model if fullbal_sample_SFCC, depvar(ln_rents)  ///
+    estimate_stacked_model if fullbal_sample_SFCC == 1, depvar(ln_rents)  ///
         mw_var1(mw_res) mw_var2(`mw_wkp_var') controls(`controls') ///
         absorb(year_month zipcode) cluster(statefips) ab ///
         model_name(AB_levels_model)
@@ -190,12 +190,12 @@ end
 program estimate_zipcodetrend, rclass
     syntax, mw_wkp_var(str) controls(str) absorb(str) cluster(str)
 
-    estimate_dist_lag_model if fullbal_sample_SFCC,                      ///
+    estimate_dist_lag_model if fullbal_sample_SFCC == 1,                      ///
         depvar(ln_rents) dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)      ///
         controls(`controls') absorb(`absorb' zipcode) cluster(`cluster')  ///
         model_name(ziptrend_rents) test_equality
         
-    estimate_dist_lag_model if (fullbal_sample_SFCC & !missing(D.ln_rents)),   ///
+    estimate_dist_lag_model if (fullbal_sample_SFCC == 1 & !missing(D.ln_rents)),   ///
         depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res)              ///
         controls(`controls') absorb(`absorb' zipcode) cluster(`cluster')        ///
         model_name(ziptrend_wkp_mw_on_res_mw) test_equality

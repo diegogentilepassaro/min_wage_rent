@@ -39,7 +39,7 @@ program load_and_clean
 
     use zipcode statefips cbsa year_month zipcode_num ln_rents mw_res ///
         mw_wkp_tot_17 fullbal_sample_SFCC `controls' ///
-        using "`instub'/zipcode_months.dta" if fullbal_sample_SFCC, clear
+        using "`instub'/zipcode_months.dta" if fullbal_sample_SFCC == 1, clear
     drop fullbal_sample_SFCC
     xtset zipcode_num year_month
 
