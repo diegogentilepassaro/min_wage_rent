@@ -1,5 +1,5 @@
 
-use "..\drive\derived_large\estimation_samples\zipcode_months.dta" 
+use "..\drive\derived_large\estimation_samples\zipcode_months.dta"
 
 xtset zipcode_num year_month
 
@@ -30,7 +30,7 @@ foreach st in `state_list' {
 *** Drop CBAs
 local cbsa_list 35620 47900 47260 45300 42660 41860 41740 41700 40140 38060 37980 36740 33460 33100 31080 29820 27260 26420 19820 19740 19100 16980 16740 14460 12420 12580 12060
 
-mat results = J(26, 2, .)
+mat results = J(27, 2, .)
 mat rownames results = `cbsa_list'
 mat colnames results = b se
 
@@ -101,8 +101,79 @@ foreach yyyy of numlist 2015 2016 2017 2018 2019 {
 
 	reghdfe D.ln_rents D.mw_res L(-6/6).D.mw_wkp_tot_17 ///
 	   D.( ln_emp_bizserv ln_emp_info ln_emp_fin ln_estcount_bizserv ln_estcount_info ln_estcount_fin ln_avgwwage_bizserv ln_avgwwage_info ln_avgwwage_fin ) ///
-	   if fullbal_sample_SFCC == 1 & year == `yyyy', ///
+	   if fullbal_sample_SFCC == 1 & year >= `yyyy', ///
 	   absorb(year_month##cbsa_num) cluster(statefips) nocons
-	
 }
-   
+
+** Balance in 2017m1
+
+use "..\drive\derived_large\estimation_samples\zipcode_months.dta", clear
+
+preserve
+	collapse (min) min_ym = year_month if !missing(ln_rents), by(zipcode)
+	
+	keep if min_ym <= `=tm(2017m2)'
+	
+	tempfile balanced_zip
+	save    `balanced_zip'
+restore
+
+merge m:1 zipcode using `balanced_zip'
+
+keep if _merge == 3 & year >= 2017
+
+xtset zipcode_num year_month
+
+reghdfe D.ln_rents D.mw_res D.mw_wkp_tot_17 ///
+	D.( ln_emp_bizserv ln_emp_info ln_emp_fin ln_estcount_bizserv ln_estcount_info ln_estcount_fin ln_avgwwage_bizserv ln_avgwwage_info ln_avgwwage_fin ) ///
+	, absorb(year_month) cluster(statefips)
+
+reghdfe D.ln_rents D.mw_res D.mw_wkp_tot_17 ///
+	D.( ln_emp_bizserv ln_emp_info ln_emp_fin ln_estcount_bizserv ln_estcount_info ln_estcount_fin ln_avgwwage_bizserv ln_avgwwage_info ln_avgwwage_fin ) ///
+	, absorb(year_month##cbsa_num) cluster(statefips)
+
+reghdfe D.ln_rents D.mw_res L(-6/0).D.mw_wkp_tot_17 ///
+	D.( ln_emp_bizserv ln_emp_info ln_emp_fin ln_estcount_bizserv ln_estcount_info ln_estcount_fin ln_avgwwage_bizserv ln_avgwwage_info ln_avgwwage_fin ) ///
+	, absorb(year_month) cluster(statefips)
+
+reghdfe D.ln_rents D.mw_res L(-6/0).D.mw_wkp_tot_17 ///
+	D.( ln_emp_bizserv ln_emp_info ln_emp_fin ln_estcount_bizserv ln_estcount_info ln_estcount_fin ln_avgwwage_bizserv ln_avgwwage_info ln_avgwwage_fin ) ///
+	, absorb(year_month##cbsa_num) cluster(statefips)
+
+** Controls
+
+use "..\drive\derived_large\estimation_samples\zipcode_months.dta", clear
+
+merge m:1 zipcode using "..\drive\derived_large\zipcode\zipcode_cross.dta"
+keep if _merge == 3
+drop _merge
+
+
+preserve
+
+	keep if year_month == `=tm(2015m1)'
+	keep if statutory_mw == 7.25
+	rename statutory_mw stat_mw_baseline
+
+	tempfile mw_base
+	save    `mw_base'
+restore
+
+merge m:1 zipcode using `mw_base'
+
+xtset zipcode_num year_month
+
+* sh_residents_under1250_2013 sh_residents_underHS_2013
+
+reghdfe D.ln_rents D.mw_res D.mw_wkp_tot_17 ///
+	D.( ln_emp_bizserv ln_emp_info ln_emp_fin ln_estcount_bizserv ln_estcount_info ln_estcount_fin ln_avgwwage_bizserv ln_avgwwage_info ln_avgwwage_fin ) ///
+	if fullbal_sample_SFCC == 1, absorb(year_month i.month##c.sh_residents_under29_2013) cluster(statefips) nocons
+
+reghdfe D.ln_rents D.mw_res L(-6/6).D.mw_wkp_tot_17 ///
+	D.( ln_emp_bizserv ln_emp_info ln_emp_fin ln_estcount_bizserv ln_estcount_info ln_estcount_fin ln_avgwwage_bizserv ln_avgwwage_info ln_avgwwage_fin ) ///
+	if fullbal_sample_SFCC == 1, absorb(year_month##cbsa_num) cluster(statefips) nocons
+
+reghdfe D.ln_rents D.mw_res L(-6/6).D.mw_wkp_tot_17 ///
+	D.( ln_emp_bizserv ln_emp_info ln_emp_fin ln_estcount_bizserv ln_estcount_info ln_estcount_fin ln_avgwwage_bizserv ln_avgwwage_info ln_avgwwage_fin ) ///
+	if fullbal_sample_SFCC == 1, absorb(year_month##cbsa_num i.month##c.sh_residents_under1250_2013 i.month##c.sh_residents_under29_2013 i.month##c.sh_residents_underHS_2013) cluster(statefips) nocons
+
