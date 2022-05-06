@@ -41,8 +41,8 @@ program main
         absorb(zipcode year#cbsa_num) cluster(`cluster') model_name(cbsa_time_baseline)
 
     estimate_twfe_model, ///
-        yvar(ln_wagebill) xvars(mw_wkp_tot_10_avg) controls(`controls')     ///
-        absorb(zipcode year#cbsa_num) cluster(`cluster') model_name(mw_wkp_tot_10)
+        yvar(ln_wagebill) xvars(mw_wkp_tot_14_avg) controls(`controls')     ///
+        absorb(zipcode year#cbsa_num) cluster(`cluster') model_name(mw_wkp_tot_14)
     
     estimate_twfe_model, ///
         yvar(ln_wagebill) xvars(mw_wkp_tot_18_avg) controls(`controls')     ///
@@ -58,7 +58,7 @@ program main
 
     use `outstub'/estimates_naive.dta, clear
     foreach ff in ctrls cbsa_time county_time cbsa_time_baseline ///
-                  mw_wkp_tot_10 mw_wkp_tot_18 mw_wkp_tot_timvar dividends {
+                  mw_wkp_tot_14 mw_wkp_tot_18 mw_wkp_tot_timvar dividends {
         append using `outstub'/estimates_`ff'.dta
     }
     save             `outstub'/estimates_all.dta, replace
