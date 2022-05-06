@@ -68,7 +68,7 @@ program generate_urban_flags
 end
 
 program merge_lodes_shares
-    syntax, instub(str) [yy(int 2013)]
+    syntax, instub(str) [yy(int 2014)]
 
     preserve
         use "`instub'/jobs.dta" if jobs_by == "residence" & year == `yy', clear
@@ -101,7 +101,7 @@ end
 program merge_od_shares
     syntax, instub(str)
 
-    foreach yy in 2013 2017 {
+    foreach yy in 2014 2017 {
         preserve
             clear
             import delimited "`instub'/zipcode_shares.csv", stringcols(1)
@@ -116,7 +116,7 @@ program merge_od_shares
             save "../temp/od_shares_`yy'.dta"
         restore
     }
-    merge 1:1 zipcode using "../temp/od_shares_2013.dta", nogen keep(1 3)
+    merge 1:1 zipcode using "../temp/od_shares_2014.dta", nogen keep(1 3)
     merge 1:1 zipcode using "../temp/od_shares_2017.dta", nogen keep(1 3)
 end
 

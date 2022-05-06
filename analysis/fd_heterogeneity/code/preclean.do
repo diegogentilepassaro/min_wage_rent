@@ -44,12 +44,12 @@ program load_and_clean
     xtset zipcode_num year_month
 
     merge m:1 zipcode using "`incross'/zipcode_cross.dta", nogen ///
-        keep(3) keepusing(sh_mw_wkrs_statutory sh_workers_under29_2013 ///
-        sh_residents_under29_2013 sh_residents_underHS_2013 ///
-        sh_residents_under1250_2013 sh_workers_underHS_2013 ///
-        sh_workers_under1250_2013 sh_residents_accomm_food_2013 ///
-        sh_workers_accomm_food_2013)
-    rename *_2013 *
+        keep(3) keepusing(sh_mw_wkrs_statutory sh_workers_under29_2014 ///
+        sh_residents_under29_2014 sh_residents_underHS_2014 ///
+        sh_residents_under1250_2014 sh_workers_underHS_2014 ///
+        sh_workers_under1250_2014 sh_residents_accomm_food_2014 ///
+        sh_workers_accomm_food_2014)
+    rename *_2014 *
     rename *residents* *res*
 
     foreach var in sh_mw_wkrs_statutory sh_workers_accomm_food ///
