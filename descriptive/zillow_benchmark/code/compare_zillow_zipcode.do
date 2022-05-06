@@ -11,10 +11,6 @@ program main
 	import delim "../../../drive/raw_data/cpi2012/cpi2012_usa.csv", clear  
 	replace cpi2012 = cpi2012 /100
 	save ../temp/cpi2012.dta, replace
-
-	import delim "../../../drive/raw_data/ahs/AHS_sfcc_est_by_br.csv", clear
-	prepare_ahs_weights
-	save ../temp/ahs_wgt.dta, replace 
 	
 	use "`instub_safmr'/safmr_2017_2019_by_zipcode_cbsa.dta", clear
 	collapse (sum) safmr1br safmr2br safmr3br safmr4br, ///
@@ -26,35 +22,10 @@ program main
 	    by(zipcode year)
 	append using "../temp/safmr_2017_2019.dta"
 	save "../temp/safmr.dta", replace
-	prepare_weighted_safmr
-	save ../temp/wgt_safmr.dta, replace 
 
 	compare_zillow_safmr_zipcode, inzillow(`instub_zillow') ///
 	    mlist(1)
-end 
-
-program prepare_ahs_weights
-	
-	collapse (sum) estimate, by(year br)
-	bys year: egen tot_house = sum(estimate)
-	g br_share = estimate / tot_house
-
-	keep year br br_share
-
-	tsset br year 
-	tsfill
-	bys br: carryforward br_share, replace 
-end 
-
-program prepare_weighted_safmr
-	unab safmrvars: safmr*
-	collapse (mean) `safmrvars', by(year)
-	reshape long safmr@br, i(year) j(br)
-	rename safmrbr safmr
-	merge 1:1 year br using "../temp/ahs_wgt.dta", nogen assert(1 2 3) keep(1 3)
-	collapse (mean) safmr [w = br_share], by(year)
-end 
-
+end
 
 program compare_zillow_safmr_zipcode
 	syntax, inzillow(str) mlist(str)
