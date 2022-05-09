@@ -44,7 +44,7 @@ main <- function() {
             file.path(out_data, 'household_2011_2013.csv'),
             logfile = '../output/data_file_manifest.log')
   
-  hh_id_smsa <- unique(data[,c('smsa', 'household_id')])
+  hh_id_smsa <- data[,c('smsa', 'household_id')]
   
   setkey(hh_id_smsa, 'household_id')
   

@@ -7,24 +7,23 @@ main <- function() {
   in_data <- '../../../drive/base_large/ahs'
   varchar <- c('smsa', 'county', 'state', 'household_id')
   
-  hh_data     <- read_csv(file.path(in_data, 'household_2011_2013.csv'))
+  hh_data <- read_csv(file.path(in_data, 'household_2011_2013.csv'))
+  
+  hh_data <- hh_data %>% 
+    filter(is_owner == 1 | is_tenant == 1, 
+           !is.na(hh_income),
+           house_apartment_unit == 1) 
+  
   person_data <- read_csv(file.path(in_data, 'person_2011_2013.csv'))
   
   sh_renters <- hh_data %>%
-    filter((is_owner + is_tenant) == 1, 
-           !is.na(hh_income),
-           house_apartment_unit == 1) %>%
-    group_by(smsa) %>%
-    mutate(hh_income_decile = ntile(hh_income, 10)) %>%
+    mutate(hh_income_decile = ntile(resid(lm(hh_income ~ factor(smsa) , data = .)), 10)) %>%
     group_by(hh_income_decile) %>%
     summarise(pr_tenant = mean(is_tenant))
   
   sh_unit_types <- hh_data %>%
-    filter(is_tenant == 1,
-           !is.na(hh_income),
-      house_apartment_unit == 1) %>%
-    group_by(smsa) %>%
-    mutate(hh_income_decile = ntile(hh_income, 10)) %>%
+    filter(is_tenant == 1) %>% 
+    mutate(hh_income_decile = ntile(resid(lm(hh_income ~ factor(smsa) , data = .)), 10)) %>%
     group_by(hh_income_decile, n_units_cat) %>%
     summarise(count_unit_type = n()) %>%
     group_by(hh_income_decile) %>%
@@ -32,11 +31,9 @@ main <- function() {
     select(-count_unit_type)
   
   sh_condo <- hh_data %>%
-    filter(is_tenant == 1,
-      hh_income > 0,
-      house_apartment_unit == 1) %>%
-    group_by(smsa) %>%
-    mutate(hh_income_decile = ntile(hh_income, 10)) %>%
+    filter(is_tenant == 1, 
+           hh_income >  0) %>% 
+    mutate(hh_income_decile = ntile(resid(lm(hh_income ~ factor(smsa) , data = .)), 10)) %>%
     group_by(hh_income_decile) %>%
     summarise(sh_condo = mean(is_condo_coop))
   
