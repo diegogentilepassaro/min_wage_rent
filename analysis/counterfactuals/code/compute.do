@@ -6,9 +6,11 @@ program main
     local in_cf_mw    "../../../drive/derived_large/min_wage_measures"
     local in_baseline "../../fd_baseline/output"
     local in_wages    "../../twfe_wages/output"
+    local in_s        "../../estimate_s/output"
     local in_zip      "../../../drive/derived_large/zipcode"
 
-    load_parameters, in_baseline(`in_baseline') in_wages(`in_wages')
+    load_parameters, in_baseline(`in_baseline') ///
+        in_wages(`in_wages')
     local beta    = r(beta)
     local gamma   = r(gamma)
     local epsilon = r(epsilon)
@@ -17,6 +19,8 @@ program main
 
     load_counterfactuals,  instub(`in_cf_mw')
     select_urban_zipcodes, instub(`in_zip')
+    merge m:1 zipcode using "`in_s'/s_by_zip.dta", ///
+        nogen keep(1 3)
     
     compute_vars, beta(`beta') gamma(`gamma') epsilon(`epsilon')
 
@@ -86,7 +90,7 @@ program select_urban_zipcodes
 end
 
 program compute_vars
-    syntax, beta(str) gamma(str) epsilon(str) [s(real 0.35)]
+    syntax, beta(str) gamma(str) epsilon(str)
 
     gen  no_direct_treatment  = d_mw_res == 0
     gen  fully_affected       = !no_direct_treatment
@@ -98,12 +102,12 @@ program compute_vars
     gen perc_incr_wagebill = exp(change_ln_wagebill) - 1
     gen ratio_increases    = perc_incr_rent/perc_incr_wagebill
 
-    local s_lb = `s' - 0.1
-    local s_ub = `s' + 0.1
+    gen s_lb = s - 0.1
+    gen s_ub = s + 0.1
 
-    gen rho    = `s'*ratio_increases
-    gen rho_lb = `s_lb'*ratio_increases
-    gen rho_ub = `s_ub'*ratio_increases
+    gen rho    = s*ratio_increases
+    gen rho_lb = s_lb*ratio_increases
+    gen rho_ub = s_ub*ratio_increases
 end
 
 program flag_unaffected_cbsas
