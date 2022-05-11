@@ -22,8 +22,8 @@ program main
 	    nogen keep(1 3)
     merge 1:1 zipcode using "../temp/safmr_2014_clean.dta", ///
 	    nogen keep(1 3)
-	gen alpha_alt = sh_hhlds_renteroccup_cens2010*safmr2br/wage_per_wage_hhld
-	gen alpha = safmr2br/wage_per_wage_hhld
+	gen alpha_alt = sh_hhlds_renteroccup_cens2010*safmr2br/(wage_per_wage_hhld/12)
+	gen alpha = safmr2br/(wage_per_wage_hhld/12)
 	
 	keep zipcode alpha*
 	save_data "../output/alpha_by_zip.dta", key(zipcode) replace
