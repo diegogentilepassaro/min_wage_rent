@@ -50,14 +50,14 @@ main <- function() {
   
   avg_rent <- hh_data_renters %>%
     mutate(monthly_hh_rent_res = resid(lm(monthly_hh_rent ~ factor(smsa) , data = ., na.action=na.exclude)),
-           monthly_hh_rent     = monthly_hh_rent + mean(monthly_hh_rent, na.rm=T)) %>%
+           monthly_hh_rent     = monthly_hh_rent_res + mean(monthly_hh_rent, na.rm=T)) %>%
     group_by(hh_income_decile) %>%
     summarise(avg_rent = mean(monthly_hh_rent, na.rm=T))
   
   avg_rent_psqft <- hh_data_renters %>%
     mutate(rent_psqft     = monthly_hh_rent / unit_sqft, 
            rent_psqft_res = resid(lm(rent_psqft ~ factor(smsa) , data = ., na.action=na.exclude)),
-           rent_psqft     = rent_psqft + mean(rent_psqft, na.rm=T)) %>%
+           rent_psqft     = rent_psqft_res + mean(rent_psqft, na.rm=T)) %>%
     group_by(hh_income_decile) %>%
     summarise(avg_rent_psqft = mean(rent_psqft, na.rm=T))
   
