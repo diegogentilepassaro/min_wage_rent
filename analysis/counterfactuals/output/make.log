@@ -1,5 +1,5 @@
 
- make.py started: 2022-05-12 13:02:52 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\code 
+ make.py started: 2022-05-12 14:05:08 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\code 
 
 
 
@@ -46,46 +46,70 @@ running c:\ado\personal\profile.do ...
   3.     local in_wages    "../../twfe_wages/output"
   4.     local in_s        "../../estimate_s/output"
   5.     local in_zip      "../../../drive/derived_large/zipcode"
-  6. 
+  6.     local instub_irs       "../../../drive/base_large/irs_soi"
+  7.     local instub_safmr     "../../../base/safmr/output"
+  8.         
+.     clean_irs, instub(`instub_irs')
+  9.     save_data "../temp/irs_2016_clean.dta",  log(none)      ///
+>         key(zipcode) replace
+ 10.     
+.     clean_safmr, instub(`instub_safmr')
+ 11.     save_data "../temp/safmr_2016_clean.dta",     log(none)      ///
+>         key(zipcode) replace 
+ 12. 
 .     load_parameters, in_baseline(`in_baseline') ///
 >         in_wages(`in_wages')
-  7.     local beta    = r(beta)
-  8.     local gamma   = r(gamma)
-  9.     local epsilon = r(epsilon)
- 10. 
-.     di "Beta, Gamma, and Epsilon: `beta', `gamma', `epsilon'"
- 11. 
-.     load_counterfactuals,  instub(`in_cf_mw')
- 12.     select_urban_zipcodes, instub(`in_zip')
- 13.     merge m:1 zipcode using "`in_s'/s_by_zip.dta", ///
->         nogen keep(1 3)
- 14.     
-.     compute_vars, beta(`beta') gamma(`gamma') epsilon(`epsilon')
- 15. 
-.     flag_unaffected_cbsas
+ 13.     local beta    = r(beta)
+ 14.     local gamma   = r(gamma)
+ 15.     local epsilon = r(epsilon)
  16. 
-.     foreach cf in fed_10pc fed_9usd fed_15usd {
+.     di "Beta, Gamma, and Epsilon: `beta', `gamma', `epsilon'"
  17. 
-.         qui unique cbsa if counterfactual == "`cf'"
- 18.         local n_cbsas           = `r(unique)'
- 19.         qui unique cbsa if !cbsa_low_inc_increase & counterfactual == "`cf
-> '"
- 20.         local n_cbsas_affected = `r(unique)'
+.     load_counterfactuals,  instub(`in_cf_mw')
+ 18.     select_urban_zipcodes, instub(`in_zip')
+ 19.     merge m:1 zipcode using "`in_s'/s_by_zip.dta", ///
+>         nogen keep(1 3)
+ 20.     
+.     compute_vars, beta(`beta') gamma(`gamma') epsilon(`epsilon')
  21. 
+.     flag_unaffected_cbsas
+ 22. 
+.     foreach cf in fed_10pc fed_9usd fed_15usd {
+ 23. 
+.         qui unique cbsa if counterfactual == "`cf'"
+ 24.         local n_cbsas           = `r(unique)'
+ 25.         qui unique cbsa if !cbsa_low_inc_increase & counterfactual == "`cf
+> '"
+ 26.         local n_cbsas_affected = `r(unique)'
+ 27. 
 .         di "{bf: Counterfactual: `cf'}"
- 22.         di "    Unique CBAs: `n_cbsas'"
- 23.         di "    Unique CBAs strongly affected: `n_cbsas_affected'"
- 24. 
+ 28.         di "    Unique CBAs: `n_cbsas'"
+ 29.         di "    Unique CBAs strongly affected: `n_cbsas_affected'"
+ 30. 
 .         di "    Distribution of rho"
- 25.         sum rho if counterfactual == "`cf'" & year == 2020, detail
- 26.         di "    Distribution of rho for strongly affected CBAs"
- 27.         sum rho if counterfactual == "`cf'" & !cbsa_low_inc_increase & yea
+ 31.         sum rho if counterfactual == "`cf'" & year == 2020, detail
+ 32.         di "    Distribution of rho for strongly affected CBAs"
+ 33.         sum rho if counterfactual == "`cf'" & !cbsa_low_inc_increase & yea
 > r == 2020, detail
- 28.     }
- 29. 
+ 34.     }
+ 35. 
 .     save             "../output/data_counterfactuals.dta", replace
- 30.     export delimited "../output/data_counterfactuals.csv", replace
- 31. end
+ 36.     export delimited "../output/data_counterfactuals.csv", replace
+ 37.         
+.         keep if (year == 2020 & month == 1)
+ 38.         keep zipcode counterfactual change_ln_rents perc_incr_rent change_
+> ln_wagebill perc_incr_wagebill
+ 39.     merge m:1 zipcode using "../temp/irs_2016_clean.dta", ///
+>         nogen keep(1 3)
+ 40.     merge m:1 zipcode using "../temp/safmr_2016_clean.dta", ///
+>         nogen keep(1 3)
+ 41.         gen num_terms = safmr2br*(1 + change_ln_rents)
+ 42.         gen denom_terms = total_wage*(1 + change_ln_wagebill)
+ 43.         collapse (sum) num_tot_incidence = num_terms ///
+>             (sum) denom_tot_incidence = denom_terms, by(counterfactual)
+ 44.         gen tot_incidence = num_tot_incidence/denom_tot_incidence
+ 45.     save_data "../output/tot_incidence.dta", key(counterfactual) replace
+ 46. end
 
 . 
 . program load_parameters, rclass
@@ -173,8 +197,70 @@ running c:\ado\personal\profile.do ...
   8. end
 
 . 
+. program clean_irs 
+  1.     syntax, instub(str)
+  2.     
+.     use "`instub'/irs_zip.dta", clear
+  3. 
+.     drop if inlist(zipcode, "0", "00000", "99999")    
+  4.     keep if year == 2016
+  5.     
+.     keep zipcode total_wage
+  6. end
+
+. 
+. program clean_safmr 
+  1.     syntax, instub(str)
+  2.     
+.     use "`instub'/safmr_2012_2016_by_zipcode_county_cbsa.dta", clear
+  3.     keep zipcode countyfips cbsa year safmr1br safmr2br safmr3br
+  4.     keep if year == 2016
+  5.     drop year
+  6.     collapse (mean) safmr*, by(zipcode)
+  7. end
+
 . 
 . main
+(1,020 observations deleted)
+(276,958 observations deleted)
+(data already sorted by zipcode)
+  variable total_wage was double now long
+  (119,488 bytes saved)
+===============================================================================
+File: ../temp/irs_2016_clean.dta
+Key: zipcode
+===============================================================================
+  29872:2(53824):374515149:2431980889
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+  total_wage |     29,872    235232.3    391104.2          0    5856720
+
+
+
+
+file ../temp/irs_2016_clean.dta saved
+(94,696 observations deleted)
+(data already sorted by zipcode)
+  (0 bytes saved)
+===============================================================================
+File: ../temp/safmr_2016_clean.dta
+Key: zipcode
+===============================================================================
+  23501:4(88405):997244590:1850400453
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+    safmr1br |     23,501     791.534    294.3818        320       2370
+    safmr2br |     23,501    980.3685    351.1399        380       2960
+    safmr3br |     23,501    1311.818     470.858        510       4090
+
+
+
+
+file ../temp/safmr_2016_clean.dta saved
 (6 observations deleted)
 Beta, Gamma, and Epsilon: .0546001419425011, -.0207457412034273, .1083480641245
 > 842
@@ -321,6 +407,47 @@ file ../output/cbsa_averages.dta saved
 file ../output/data_counterfactuals.dta saved
 (note: file ../output/data_counterfactuals.csv not found)
 file ../output/data_counterfactuals.csv saved
+(33,762 observations deleted)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                         5,043
+        from master                     5,043  
+        from using                          0  
+
+    matched                            28,719  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                           579
+        from master                       579  
+        from using                          0  
+
+    matched                            33,183  
+    -----------------------------------------
+(699 missing values generated)
+(5,043 missing values generated)
+(data already sorted by counterfactual)
+  (0 bytes saved)
+===============================================================================
+File: ../output/tot_incidence.dta
+Key: counterfactual
+===============================================================================
+  3:4(75978):3533527002:643533992
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+counterfac~l |          0
+num_tot_in~e |          3    1.24e+07    89743.47   1.23e+07   1.25e+07
+denom_tot_~e |          3    4.77e+09    1.10e+08   4.70e+09   4.90e+09
+tot_incide~e |          3    .0025912    .0000403    .002545   .0026192
+
+
+
+
+(note: file ../output/tot_incidence.dta not found)
+file ../output/tot_incidence.dta saved
 
 . 
 end of do-file
@@ -614,7 +741,7 @@ Type 'q()' to quit R.
 > 
 > proc.time()
    user  system elapsed 
-   0.46    0.15    0.54 
+   0.57    0.26    0.70 
 
 
 Execute:  R CMD BATCH --no-save "./map_cfs.R" map_cfs.Rout
@@ -778,6 +905,6 @@ There were 17 warnings (use warnings() to see them)
 > 
 > proc.time()
    user  system elapsed 
-  55.75   44.10  100.70 
+  64.73   49.64  120.75 
 
- make.py ended: 2022-05-12 13:04:48
+ make.py ended: 2022-05-12 14:07:32

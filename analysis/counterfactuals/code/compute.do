@@ -8,6 +8,16 @@ program main
     local in_wages    "../../twfe_wages/output"
     local in_s        "../../estimate_s/output"
     local in_zip      "../../../drive/derived_large/zipcode"
+    local instub_irs       "../../../drive/base_large/irs_soi"
+    local instub_safmr     "../../../base/safmr/output"
+	
+    clean_irs, instub(`instub_irs')
+    save_data "../temp/irs_2016_clean.dta",  log(none)      ///
+        key(zipcode) replace
+    
+    clean_safmr, instub(`instub_safmr')
+    save_data "../temp/safmr_2016_clean.dta",     log(none)      ///
+        key(zipcode) replace 
 
     load_parameters, in_baseline(`in_baseline') ///
         in_wages(`in_wages')
@@ -45,6 +55,19 @@ program main
 
     save             "../output/data_counterfactuals.dta", replace
     export delimited "../output/data_counterfactuals.csv", replace
+	
+	keep if (year == 2020 & month == 1)
+	keep zipcode counterfactual change_ln_rents perc_incr_rent change_ln_wagebill perc_incr_wagebill
+    merge m:1 zipcode using "../temp/irs_2016_clean.dta", ///
+        nogen keep(1 3)
+    merge m:1 zipcode using "../temp/safmr_2016_clean.dta", ///
+        nogen keep(1 3)
+	gen num_terms = safmr2br*(1 + change_ln_rents)
+	gen denom_terms = total_wage*(1 + change_ln_wagebill)
+	collapse (sum) num_tot_incidence = num_terms ///
+	    (sum) denom_tot_incidence = denom_terms, by(counterfactual)
+	gen tot_incidence = num_tot_incidence/denom_tot_incidence
+    save_data "../output/tot_incidence.dta", key(counterfactual) replace
 end
 
 program load_parameters, rclass
@@ -126,5 +149,25 @@ program flag_unaffected_cbsas
         assert(3) nogen
 end
 
+program clean_irs 
+    syntax, instub(str)
+    
+    use "`instub'/irs_zip.dta", clear
+
+    drop if inlist(zipcode, "0", "00000", "99999")    
+    keep if year == 2016
+    
+    keep zipcode total_wage
+end
+
+program clean_safmr 
+    syntax, instub(str)
+    
+    use "`instub'/safmr_2012_2016_by_zipcode_county_cbsa.dta", clear
+    keep zipcode countyfips cbsa year safmr1br safmr2br safmr3br
+    keep if year == 2016
+    drop year
+    collapse (mean) safmr*, by(zipcode)
+end
 
 main
