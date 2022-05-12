@@ -3,27 +3,28 @@ set more off
 
 program main 
 
-	make_plot, xvar(hh_income_decile) yvar(pr_tenant) y_title("Share of renters") ///
-		x_title("Household income decile") color(navy%80) name(sh_renters)
-	
-	make_plot, xvar(hh_income_decile) yvar(sh_condo) y_title("Share of people in condos & cooperatives") ///
-		x_title("Household income decile") color(navy%80) name(sh_condo)
-		
-	make_plot, xvar(hh_income_decile) yvar(avg_rent) y_title("Average rent") ///
-		x_title("Household income decile") color(navy%80) name(avg_rent)
-		
-	make_plot, xvar(hh_income_decile) yvar(avg_sqft) y_title("Average square foots") ///
-		x_title("Household income decile") color(navy%80) name(avg_sqft)
-		
-	make_plot, xvar(hh_income_decile) yvar(avg_rent_psqft) y_title("Average rent per square foot") ///
-		x_title("Household income decile") color(navy%80) name(avg_rent_psqft)
+    make_plot, xvar(hh_income_decile) yvar(pr_tenant) y_title("Share of renters") ///
+        x_title("Residualized income decile") color(navy%80) name(sh_renters)
 
-	make_plot, xvar(person_salary_decile) yvar(sh_hh_head_max) y_title("Probability of being household head") ///
-		x_title("Person income decile") color(navy%80) name(sh_hh_head)
-		
-	make_stacked_plot, xvar1(n_units_cat) xvar2(hh_income_decile) yvar(sh_unit_type)   ///
-	    y_title("Share of unit type") x_title("Household income decile")   ///
-		name(sh_unit_types)
+    make_plot, xvar(hh_income_decile) yvar(sh_condo) y_title("Share of people in condos & cooperatives") ///
+        x_title("Residualized income decile") color(navy%80) name(sh_condo)
+
+	make_plot, xvar(hh_income_decile) yvar(avg_rent) y_title("Residualized average rent ($)") ///
+        x_title("Residualized income decile") color(navy%80) name(avg_rent)
+
+    make_plot, xvar(hh_income_decile) yvar(avg_sqft) y_title("Residualized average square footage") ///
+        x_title("Residualized income decile") color(navy%80) name(avg_sqft)
+
+    make_plot, xvar(hh_income_decile) yvar(avg_rent_psqft) y_title("Residualized average rent per square foot ($)") ///
+        x_title("Residualized income decile") color(navy%80) name(avg_rent_psqft)
+
+    make_plot, xvar(person_salary_decile) yvar(sh_hh_head_max) ///
+        y_title("Residualized probability of being household head") ///
+        x_title("Residualized income decile") color(navy%80) name(sh_hh_head)
+
+    make_stacked_plot, xvar1(n_units_cat) xvar2(hh_income_decile) yvar(sh_unit_type)   ///
+        y_title("Share of unit type") x_title("Residualized income decile")   ///
+        name(sh_unit_types)
 
 end
 
