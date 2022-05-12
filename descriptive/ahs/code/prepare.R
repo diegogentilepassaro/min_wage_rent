@@ -43,6 +43,34 @@ main <- function() {
     group_by(hh_income_decile) %>%
     summarise(sh_condo = mean(sh_condo))
   
+  avg_sqft <- hh_data %>%
+    filter(is_tenant == 1) %>% 
+    mutate(hh_income_res      = resid(lm(hh_income ~ factor(smsa) , data = .)),
+           hh_income_decile   = ntile(hh_income_res, 10),
+           unit_sqft_res      = resid(lm(unit_sqft ~ factor(smsa) , data = ., na.action=na.exclude)),
+           unit_sqft          = unit_sqft_res + mean(unit_sqft, na.rm=T)) %>%
+    group_by(hh_income_decile) %>%
+    summarise(avg_sqft = mean(unit_sqft, na.rm=T))
+  
+  avg_rent <- hh_data %>%
+    filter(is_tenant == 1, monthly_hh_rent>2) %>% 
+    mutate(hh_income_res       = resid(lm(hh_income ~ factor(smsa) , data = .)),
+           hh_income_decile    = ntile(hh_income_res, 10),
+           monthly_hh_rent_res = resid(lm(monthly_hh_rent ~ factor(smsa) , data = ., na.action=na.exclude)),
+           monthly_hh_rent     = monthly_hh_rent + mean(monthly_hh_rent, na.rm=T)) %>%
+    group_by(hh_income_decile) %>%
+    summarise(avg_rent = mean(monthly_hh_rent, na.rm=T))
+  
+  avg_rent_psqft <- hh_data %>%
+    filter(is_tenant == 1, monthly_hh_rent>2) %>% 
+    mutate(hh_income_res       = resid(lm(hh_income ~ factor(smsa) , data = .)),
+           hh_income_decile    = ntile(hh_income_res, 10),
+           rent_psqft          = monthly_hh_rent / unit_sqft, 
+           rent_psqft_res          = resid(lm(rent_psqft ~ factor(smsa) , data = ., na.action=na.exclude)),
+           rent_psqft     = rent_psqft + mean(rent_psqft, na.rm=T)) %>%
+    group_by(hh_income_decile) %>%
+    summarise(avg_rent_psqft = mean(rent_psqft, na.rm=T))
+  
   sh_hh_head <- person_data %>%
     left_join(hh_data[, c('household_id', 'is_tenant', 'house_apartment_unit')], 
               by = 'household_id') %>%
@@ -60,7 +88,8 @@ main <- function() {
     group_by(person_salary_decile) %>%
     summarise(sh_hh_head_max = mean(hh_head_max))
   
-  plots <- c('sh_renters', 'sh_unit_types', 'sh_condo', 'sh_hh_head')
+  plots <- c('sh_renters', 'sh_unit_types', 'sh_condo', 'sh_hh_head', 'avg_rent',
+             'avg_sqft', 'avg_rent_psqft')
   for (pp in plots) {
     write_csv(get(pp), paste0('../output/', pp, '.csv'))
   }
