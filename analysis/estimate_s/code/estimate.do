@@ -15,16 +15,29 @@ program main
     save_data "../temp/safmr_2014_clean.dta",     log(none)      ///
         key(zipcode) replace 
         
-    use zipcode population_cens2010 urb_pop_cens2010 sh_hhlds_renteroccup_cens2010 ///
-        n_hhlds_cens2010 n_hhlds_urban_cens2010 population_acs2014 ///
+    use zipcode n_workers_acs2014 med_hhld_inc_acs2014 sh_white_cens2010 ///
+	    sh_black_cens2010 sh_male_cens2010 sh_urb_pop_cens2010 sh_rural_pop_cens2010 ///
+		sh_hhlds_urban_cens2010 sh_hhlds_renteroccup_cens2010 population_cens2010 ///
+		n_male_cens2010 n_white_cens2010 n_black_cens2010 urb_pop_cens2010 ///
+		n_hhlds_cens2010 n_hhlds_urban_cens2010 n_hhlds_renteroccup_cens2010 ///
+		rural_pop_cens2010 population_acs2014 ///
         using "`in_zipcode'/zipcode_cross.dta", clear
     merge 1:1 zipcode using "../temp/irs_2014_clean.dta", ///
         nogen keep(1 3)
     merge 1:1 zipcode using "../temp/safmr_2014_clean.dta", ///
         nogen keep(1 3)
     gen s = safmr2br/(wage_per_wage_hhld/12)
+	reg s n_workers_acs2014 med_hhld_inc_acs2014 sh_white_cens2010 ///
+	    sh_black_cens2010 sh_male_cens2010 sh_urb_pop_cens2010 ///
+		sh_hhlds_urban_cens2010 sh_hhlds_renteroccup_cens2010 population_cens2010 ///
+		n_male_cens2010 n_white_cens2010 n_black_cens2010 urb_pop_cens2010 ///
+		n_hhlds_cens2010 n_hhlds_urban_cens2010 n_hhlds_renteroccup_cens2010 ///
+	    population_acs2014
+    predict s_pred, xb
+	gen s_imputed = s
+	replace s_imputed = s_pred if (missing(s) & !missing(s_pred))
 
-    keep zipcode s
+    keep zipcode s s_imputed
     save_data "../output/s_by_zip.dta", key(zipcode) replace
 end
 

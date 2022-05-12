@@ -102,10 +102,10 @@ program compute_vars
     gen perc_incr_wagebill = exp(change_ln_wagebill) - 1
     gen ratio_increases    = perc_incr_rent/perc_incr_wagebill
 
-    gen s_lb = s - 0.1
-    gen s_ub = s + 0.1
+    gen s_lb = s_imputed - 0.1
+    gen s_ub = s_imputed + 0.1
 
-    gen rho    = s*ratio_increases
+    gen rho    = s_imputed*ratio_increases
     gen rho_lb = s_lb*ratio_increases
     gen rho_ub = s_ub*ratio_increases
 end
