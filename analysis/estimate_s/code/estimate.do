@@ -45,9 +45,6 @@ program main
 		sh_male_cens2010 sh_urb_pop_cens2010 sh_hhlds_urban_cens2010 sh_hhlds_renteroccup_cens2010 ///
 		population_cens2010 n_male_cens2010 n_white_cens2010 n_black_cens2010 urb_pop_cens2010 ///
 		n_hhlds_cens2010 n_hhlds_urban_cens2010 n_hhlds_renteroccup_cens2010 population_acs2014 ///
-		agi_per_hhld wage_per_wage_hhld wage_per_hhld c.wage_per_hhld#c.wage_per_hhld ///
-		c.wage_per_hhld#c.wage_per_hhld#c.wage_per_hhld ///
-		share_wage_hhlds share_bussiness_hhlds share_farmer_hhlds c.share_farmer_hhlds#c.share_farmer_hhlds ///
 		sh_residents* sh_workers* state_avg* cbsa_avg*
     predict s_pred, xb
 	gen s_imputed = s
