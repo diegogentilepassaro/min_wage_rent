@@ -62,7 +62,7 @@ main <- function() {
     summarise(avg_rent_psqft = mean(rent_psqft, na.rm=T))
   
   sh_hh_head <- person_data %>%
-    left_join(hh_data[, c('household_id', 'is_tenant', 'house_apartment_unit')], 
+    left_join(hh_data[, c('household_id', 'is_tenant', 'house_apartment_unit', 'smsa')], 
               by = 'household_id') %>%
     filter(is_tenant             == 1,
            house_apartment_unit  == 1,

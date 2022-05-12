@@ -44,10 +44,6 @@ main <- function() {
             file.path(out_data, 'household_2011_2013.csv'),
             logfile = '../output/data_file_manifest.log')
   
-  hh_id_smsa <- data[,c('smsa', 'household_id')]
-  
-  setkey(hh_id_smsa, 'household_id')
-  
   # Person section
   
   varnum <- c('REL', 'SAL', 'PLINE', 'AGE', 'GRAD', 'SEX')
@@ -62,10 +58,6 @@ main <- function() {
   set(data, j='smsa', value=NULL)
   
   data[, hh_head := 1 * (relation_to_hh_head == 1 | relation_to_hh_head == 2)]
-  
-  setkey(data, 'household_id')
-
-  data <- data[hh_id_smsa, nomatch=NULL]
   
   save_data(data, c('household_id', 'person_num'),
             file.path(out_data, 'person_2011_2013.csv'),
