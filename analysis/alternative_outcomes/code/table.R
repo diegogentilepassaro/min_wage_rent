@@ -7,38 +7,33 @@ main <- function() {
   outstub <- "../output/"
   
   est <- fread(file.path(instub, "estimates_static.csv"))
-  est_var <- est[var != "cumsum_from0"]
-  est_var <- est_var[at == 0]
+  est <- est[var != "cumsum_from0"]
+  
+  models <- c("sh_residents_under1250", "sh_workers_under1250", "sh_residents_accomm_food",
+              "sh_workers_accomm_food")
   
   txt <- c("<tab:share_migration>")
   
-  txt <- c(txt, 
-           paste(est_var[model == "sh_workers_under1250"   & var == "mw_wkp_tot_15_avg"]$b, 
-                 est_var[model == "sh_residents_underHS"   & var == "mw_wkp_tot_15_avg"]$b,
-                 est_var[model == "sh_workers_accomm_food" & var == "mw_wkp_tot_15_avg"]$b, sep = "\t"), 
-           paste(est_var[model == "sh_workers_under1250"   & var == "mw_wkp_tot_15_avg"]$se, 
-                 est_var[model == "sh_residents_underHS"   & var == "mw_wkp_tot_15_avg"]$se,
-                 est_var[model == "sh_workers_accomm_food" & var == "mw_wkp_tot_15_avg"]$se, sep = "\t"))
+  txt <- c(txt,
+           get_estimates(est, models, 'mw_wkp_tot_15_avg', 'b'), 
+           get_estimates(est, models, 'mw_wkp_tot_15_avg', 'se'))
+  
+  txt <- c(txt,
+           get_estimates(est, models, 'mw_res_avg', 'b'), 
+           get_estimates(est, models, 'mw_res_avg', 'se'))
   
   txt <- c(txt, 
-           paste(est_var[model == "sh_workers_under1250"   & var == "mw_res_avg"]$b, 
-                 est_var[model == "sh_residents_underHS"   & var == "mw_res_avg"]$b,
-                 est_var[model == "sh_workers_accomm_food" & var == "mw_res_avg"]$b, sep = "\t"), 
-           paste(est_var[model == "sh_workers_under1250"   & var == "mw_res_avg"]$se, 
-                 est_var[model == "sh_residents_underHS"   & var == "mw_res_avg"]$se,
-                 est_var[model == "sh_workers_accomm_food" & var == "mw_res_avg"]$se, sep = "\t"))
-  
-  txt <- c(txt, 
-           paste(est_var[model == "sh_workers_under1250"   & var == "mw_res_avg"]$r2, 
-                 est_var[model == "sh_residents_underHS"   & var == "mw_res_avg"]$r2,
-                 est_var[model == "sh_workers_accomm_food" & var == "mw_res_avg"]$r2, sep = "\t"), 
-           paste(est_var[model == "sh_workers_under1250"   & var == "mw_res_avg"]$N, 
-                 est_var[model == "sh_residents_underHS"   & var == "mw_res_avg"]$N,
-                 est_var[model == "sh_workers_accomm_food" & var == "mw_res_avg"]$N, sep = "\t"))
+           get_estimates(est, models, 'mw_res_avg', 'r2'), 
+           get_estimates(est, models, 'mw_res_avg', 'N'))
   
   fileConn <- file(file.path(outstub, "share_migration.txt"))
   writeLines(txt, fileConn)
   close(fileConn)
+}
+
+get_estimates <- function(data, models, variable, value) {
+  txt <- paste(lapply(models, \(x) data[model == x & var == variable, get(value)]), collapse = "\t")
+  return(txt)
 }
 
 main()
