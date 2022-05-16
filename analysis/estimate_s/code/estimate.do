@@ -32,13 +32,8 @@ program main
     merge 1:1 zipcode using "../temp/safmr_2014_clean.dta", ///
         nogen keep(1 3)
     gen s = safmr2br/(wage_per_wage_hhld/12)
-    
-    foreach var in safmr1br safmr2br safmr3br {
-        bysort statefips:  egen state_avg_`var' = mean(`var')
-        bysort cbsa:       egen cbsa_avg_`var' = mean(`var')
-        bysort countyfips: egen county_avg_`var' = mean(`var')
-        bysort place_code: egen place_avg_`var' = mean(`var')
-    }
+	
+	egen geo_group = group(statefips cbsa countyfips place_code)
     
     impute_var, var(safmr2br)
     impute_var, var(wage_per_wage_hhld)
@@ -47,8 +42,6 @@ program main
     keep zipcode s safmr2br wage_per_wage_hhld *imputed
     save_data "../output/s_by_zip.dta", key(zipcode) replace
 end
-
-
 
 program clean_irs 
     syntax, instub(str)
@@ -75,12 +68,12 @@ end
 
 program impute_var
     syntax, var(str)
-    reg `var' n_workers_acs2014 med_hhld_inc_acs2014 c.med_hhld_inc_acs2014#c.med_hhld_inc_acs2014 ///
+    reghdfe `var' n_workers_acs2014 med_hhld_inc_acs2014 c.med_hhld_inc_acs2014#c.med_hhld_inc_acs2014 ///
         sh_white_cens2010 c.sh_white_cens2010#c.sh_white_cens2010 sh_black_cens2010 ///
         sh_male_cens2010 sh_urb_pop_cens2010 sh_hhlds_urban_cens2010 sh_hhlds_renteroccup_cens2010 ///
         population_cens2010 n_male_cens2010 n_white_cens2010 n_black_cens2010 urb_pop_cens2010 ///
         n_hhlds_cens2010 n_hhlds_urban_cens2010 n_hhlds_renteroccup_cens2010 population_acs2014 ///
-        sh_residents* sh_workers* state_avg* cbsa_avg*
+        sh_residents* sh_workers*, absorb(geo_group)
     predict `var'_pred, xb
     gen `var'_imputed = `var'
     replace `var'_imputed = `var'_pred if (missing(`var') & !missing(`var'_pred))
