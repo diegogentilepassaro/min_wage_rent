@@ -8,16 +8,6 @@ program main
     local in_wages    "../../twfe_wages/output"
     local in_s        "../../estimate_s/output"
     local in_zip      "../../../drive/derived_large/zipcode"
-    local instub_irs       "../../../drive/base_large/irs_soi"
-    local instub_safmr     "../../../base/safmr/output"
-	
-    clean_irs, instub(`instub_irs')
-    save_data "../temp/irs_2016_clean.dta",  log(none)      ///
-        key(zipcode) replace
-    
-    clean_safmr, instub(`instub_safmr')
-    save_data "../temp/safmr_2016_clean.dta",     log(none)      ///
-        key(zipcode) replace 
 
     load_parameters, in_baseline(`in_baseline') ///
         in_wages(`in_wages')
@@ -57,13 +47,11 @@ program main
     export delimited "../output/data_counterfactuals.csv", replace
 	
 	keep if (year == 2020 & month == 1)
-	keep zipcode counterfactual change_ln_rents perc_incr_rent change_ln_wagebill perc_incr_wagebill
-    merge m:1 zipcode using "../temp/irs_2016_clean.dta", ///
-        nogen keep(1 3)
-    merge m:1 zipcode using "../temp/safmr_2016_clean.dta", ///
-        nogen keep(1 3)
-	gen num_terms = safmr2br*(1 + change_ln_rents)
-	gen denom_terms = total_wage*(1 + change_ln_wagebill)
+	keep zipcode counterfactual change_ln_rents perc_incr_rent ///
+	    change_ln_wagebill perc_incr_wagebill ///
+	    safmr2br_imputed wage_per_wage_hhld_imputed
+	gen num_terms = safmr2br_imputed*(change_ln_rents)
+	gen denom_terms = wage_per_wage_hhld_imputed*(change_ln_wagebill)
 	collapse (sum) num_tot_incidence = num_terms ///
 	    (sum) denom_tot_incidence = denom_terms, by(counterfactual)
 	gen tot_incidence = num_tot_incidence/denom_tot_incidence

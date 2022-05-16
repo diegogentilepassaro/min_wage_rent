@@ -1,5 +1,5 @@
 
- make.py started: 2022-05-12 14:05:08 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\code 
+ make.py started: 2022-05-16 12:39:01 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\code 
 
 
 
@@ -46,70 +46,57 @@ running c:\ado\personal\profile.do ...
   3.     local in_wages    "../../twfe_wages/output"
   4.     local in_s        "../../estimate_s/output"
   5.     local in_zip      "../../../drive/derived_large/zipcode"
-  6.     local instub_irs       "../../../drive/base_large/irs_soi"
-  7.     local instub_safmr     "../../../base/safmr/output"
-  8.         
-.     clean_irs, instub(`instub_irs')
-  9.     save_data "../temp/irs_2016_clean.dta",  log(none)      ///
->         key(zipcode) replace
- 10.     
-.     clean_safmr, instub(`instub_safmr')
- 11.     save_data "../temp/safmr_2016_clean.dta",     log(none)      ///
->         key(zipcode) replace 
- 12. 
+  6. 
 .     load_parameters, in_baseline(`in_baseline') ///
 >         in_wages(`in_wages')
- 13.     local beta    = r(beta)
- 14.     local gamma   = r(gamma)
- 15.     local epsilon = r(epsilon)
- 16. 
+  7.     local beta    = r(beta)
+  8.     local gamma   = r(gamma)
+  9.     local epsilon = r(epsilon)
+ 10. 
 .     di "Beta, Gamma, and Epsilon: `beta', `gamma', `epsilon'"
- 17. 
+ 11. 
 .     load_counterfactuals,  instub(`in_cf_mw')
- 18.     select_urban_zipcodes, instub(`in_zip')
- 19.     merge m:1 zipcode using "`in_s'/s_by_zip.dta", ///
+ 12.     select_urban_zipcodes, instub(`in_zip')
+ 13.     merge m:1 zipcode using "`in_s'/s_by_zip.dta", ///
 >         nogen keep(1 3)
- 20.     
+ 14.     
 .     compute_vars, beta(`beta') gamma(`gamma') epsilon(`epsilon')
- 21. 
+ 15. 
 .     flag_unaffected_cbsas
- 22. 
+ 16. 
 .     foreach cf in fed_10pc fed_9usd fed_15usd {
- 23. 
+ 17. 
 .         qui unique cbsa if counterfactual == "`cf'"
- 24.         local n_cbsas           = `r(unique)'
- 25.         qui unique cbsa if !cbsa_low_inc_increase & counterfactual == "`cf
+ 18.         local n_cbsas           = `r(unique)'
+ 19.         qui unique cbsa if !cbsa_low_inc_increase & counterfactual == "`cf
 > '"
- 26.         local n_cbsas_affected = `r(unique)'
- 27. 
+ 20.         local n_cbsas_affected = `r(unique)'
+ 21. 
 .         di "{bf: Counterfactual: `cf'}"
- 28.         di "    Unique CBAs: `n_cbsas'"
- 29.         di "    Unique CBAs strongly affected: `n_cbsas_affected'"
- 30. 
+ 22.         di "    Unique CBAs: `n_cbsas'"
+ 23.         di "    Unique CBAs strongly affected: `n_cbsas_affected'"
+ 24. 
 .         di "    Distribution of rho"
- 31.         sum rho if counterfactual == "`cf'" & year == 2020, detail
- 32.         di "    Distribution of rho for strongly affected CBAs"
- 33.         sum rho if counterfactual == "`cf'" & !cbsa_low_inc_increase & yea
+ 25.         sum rho if counterfactual == "`cf'" & year == 2020, detail
+ 26.         di "    Distribution of rho for strongly affected CBAs"
+ 27.         sum rho if counterfactual == "`cf'" & !cbsa_low_inc_increase & yea
 > r == 2020, detail
- 34.     }
- 35. 
+ 28.     }
+ 29. 
 .     save             "../output/data_counterfactuals.dta", replace
- 36.     export delimited "../output/data_counterfactuals.csv", replace
- 37.         
+ 30.     export delimited "../output/data_counterfactuals.csv", replace
+ 31.         
 .         keep if (year == 2020 & month == 1)
- 38.         keep zipcode counterfactual change_ln_rents perc_incr_rent change_
-> ln_wagebill perc_incr_wagebill
- 39.     merge m:1 zipcode using "../temp/irs_2016_clean.dta", ///
->         nogen keep(1 3)
- 40.     merge m:1 zipcode using "../temp/safmr_2016_clean.dta", ///
->         nogen keep(1 3)
- 41.         gen num_terms = safmr2br*(1 + change_ln_rents)
- 42.         gen denom_terms = total_wage*(1 + change_ln_wagebill)
- 43.         collapse (sum) num_tot_incidence = num_terms ///
+ 32.         keep zipcode counterfactual change_ln_rents perc_incr_rent ///
+>             change_ln_wagebill perc_incr_wagebill ///
+>             safmr2br_imputed wage_per_wage_hhld_imputed
+ 33.         gen num_terms = safmr2br_imputed*(change_ln_rents)
+ 34.         gen denom_terms = wage_per_wage_hhld_imputed*(change_ln_wagebill)
+ 35.         collapse (sum) num_tot_incidence = num_terms ///
 >             (sum) denom_tot_incidence = denom_terms, by(counterfactual)
- 44.         gen tot_incidence = num_tot_incidence/denom_tot_incidence
- 45.     save_data "../output/tot_incidence.dta", key(counterfactual) replace
- 46. end
+ 36.         gen tot_incidence = num_tot_incidence/denom_tot_incidence
+ 37.     save_data "../output/tot_incidence.dta", key(counterfactual) replace
+ 38. end
 
 . 
 . program load_parameters, rclass
@@ -221,46 +208,6 @@ running c:\ado\personal\profile.do ...
 
 . 
 . main
-(1,020 observations deleted)
-(276,958 observations deleted)
-(data already sorted by zipcode)
-  variable total_wage was double now long
-  (119,488 bytes saved)
-===============================================================================
-File: ../temp/irs_2016_clean.dta
-Key: zipcode
-===============================================================================
-  29872:2(53824):374515149:2431980889
-
-    Variable |        Obs        Mean    Std. Dev.       Min        Max
--------------+---------------------------------------------------------
-     zipcode |          0
-  total_wage |     29,872    235232.3    391104.2          0    5856720
-
-
-
-
-file ../temp/irs_2016_clean.dta saved
-(94,696 observations deleted)
-(data already sorted by zipcode)
-  (0 bytes saved)
-===============================================================================
-File: ../temp/safmr_2016_clean.dta
-Key: zipcode
-===============================================================================
-  23501:4(88405):997244590:1850400453
-
-    Variable |        Obs        Mean    Std. Dev.       Min        Max
--------------+---------------------------------------------------------
-     zipcode |          0
-    safmr1br |     23,501     791.534    294.3818        320       2370
-    safmr2br |     23,501    980.3685    351.1399        380       2960
-    safmr3br |     23,501    1311.818     470.858        510       4090
-
-
-
-
-file ../temp/safmr_2016_clean.dta saved
 (6 observations deleted)
 Beta, Gamma, and Epsilon: .0546001419425011, -.0207457412034273, .1083480641245
 > 842
@@ -306,33 +253,33 @@ file ../output/cbsa_averages.dta saved
                              rho
 -------------------------------------------------------------
       Percentiles      Smallest
- 1%     .0265389      -.8896115
- 5%     .0412725      -.0358896
-10%     .0501976      -.0293156       Obs              10,704
-25%     .0665156      -.0268207       Sum of Wgt.      10,704
+ 1%     .0268144      -.8783774
+ 5%     .0409791      -.1362113
+10%      .049831      -.0358896       Obs              10,704
+25%     .0662444      -.0293156       Sum of Wgt.      10,704
 
-50%     .0956103                      Mean           .1034511
-                        Largest       Std. Dev.      .0494091
-75%     .1309964       .3334058
-90%     .1683588       .3346644       Variance       .0024413
-95%     .1960469       .3372114       Skewness       .1117115
-99%      .249557       .3571484       Kurtosis       18.94572
+50%     .0952119                      Mean           .1034004
+                        Largest       Std. Dev.       .050768
+75%     .1305852       .4064308
+90%     .1686908       .4721728       Variance       .0025774
+95%     .1967355       .6397222       Skewness       .6588511
+99%     .2521167       .8867198       Kurtosis       23.42367
     Distribution of rho for strongly affected CBAs
 
                              rho
 -------------------------------------------------------------
       Percentiles      Smallest
  1%     .0220135      -.0358896
- 5%     .0343778      -.0293156
-10%     .0418922      -.0268207       Obs               4,835
-25%      .053996      -.0254802       Sum of Wgt.       4,835
+ 5%     .0344465      -.0293156
+10%     .0416034      -.0268207       Obs               4,835
+25%     .0535809      -.0254802       Sum of Wgt.       4,835
 
-50%     .0684458                      Mean           .0767692
-                        Largest       Std. Dev.      .0355136
-75%     .0930345        .284979
-90%     .1228327       .2933632       Variance       .0012612
-95%     .1452392       .3038759       Skewness       1.527201
-99%     .1997376       .3346644       Kurtosis       7.178886
+50%     .0681687                      Mean           .0769165
+                        Largest       Std. Dev.      .0386893
+75%     .0928971       .3346644
+90%     .1228327       .4064308       Variance       .0014969
+95%      .146149       .6397222       Skewness       3.857819
+99%     .2035973       .8867198       Kurtosis       55.30347
  Counterfactual: fed_9usd
     Unique CBAs: 176
     Unique CBAs strongly affected: 116
@@ -341,33 +288,33 @@ file ../output/cbsa_averages.dta saved
                              rho
 -------------------------------------------------------------
       Percentiles      Smallest
- 1%     .0245909      -2.870752
- 5%     .0387305      -.8883483
-10%     .0467644      -.2065011       Obs              10,827
-25%     .0602834      -.0383429       Sum of Wgt.      10,827
+ 1%     .0249421       -3.02739
+ 5%     .0384905      -.8771302
+10%     .0463746      -.4137758       Obs              10,827
+25%     .0600496      -.1361744       Sum of Wgt.      10,827
 
-50%     .0843633                      Mean           .0947763
-                        Largest       Std. Dev.       .056097
-75%     .1210845       .3263732
-90%     .1589115       .3334039       Variance       .0031469
-95%     .1871644       .3372066       Skewness      -13.45022
-99%      .247884       .3571455       Kurtosis       732.6307
+50%     .0842054                      Mean           .0947773
+                        Largest       Std. Dev.      .0590051
+75%     .1203173       .4721555
+90%     .1594679       .6449288       Variance       .0034816
+95%     .1877072       .8861281       Skewness       -12.7298
+99%     .2506612       1.110271       Kurtosis       745.5256
     Distribution of rho for strongly affected CBAs
 
                              rho
 -------------------------------------------------------------
       Percentiles      Smallest
- 1%     .0214234      -.2065011
- 5%     .0348763      -.0383429
-10%     .0421031      -.0354601       Obs               6,750
-25%     .0538358      -.0340302       Sum of Wgt.       6,750
+ 1%     .0218053      -.4137758
+ 5%     .0347186      -.0396547
+10%     .0417019      -.0383429       Obs               6,750
+25%     .0534001      -.0376841       Sum of Wgt.       6,750
 
-50%     .0676404                      Mean           .0746299
-                        Largest       Std. Dev.       .033053
-75%     .0891664       .2893916
-90%     .1161697       .2932523       Variance       .0010925
-95%     .1347165       .3037566       Skewness       1.455924
-99%     .1896883       .3229674       Kurtosis       8.603105
+50%     .0673853                      Mean           .0748209
+                        Largest       Std. Dev.      .0381052
+75%     .0891664       .4065432
+90%     .1162789       .6449288       Variance        .001452
+95%     .1351517       .8861281       Skewness       5.708058
+99%     .1916442       1.110271       Kurtosis       128.0934
  Counterfactual: fed_15usd
     Unique CBAs: 176
     Unique CBAs strongly affected: 176
@@ -376,72 +323,54 @@ file ../output/cbsa_averages.dta saved
                              rho
 -------------------------------------------------------------
       Percentiles      Smallest
- 1%     .0214479      -.0087509
- 5%     .0350984      -.0070916
-10%     .0424122       -.005653       Obs              10,956
-25%     .0536085      -.0048226       Sum of Wgt.      10,956
+ 1%     .0214004      -.3479911
+ 5%     .0348888      -.3060349
+10%     .0418628       -.186578       Obs              10,956
+25%     .0532101      -.0812505       Sum of Wgt.      10,956
 
-50%     .0670621                      Mean           .0727697
-                        Largest       Std. Dev.      .0308977
-75%     .0851886        .290533
-90%     .1087708       .2910164       Variance       .0009547
-95%     .1286948       .2923625       Skewness       1.752812
-99%      .187359       .2991904       Kurtosis       8.817627
+50%     .0665191                      Mean           .0726502
+                        Largest       Std. Dev.      .0327502
+75%     .0852095       .2991904
+90%     .1095767       .4030445       Variance       .0010726
+95%     .1296308       .5466213       Skewness       1.999907
+99%     .1890656       .6457635       Kurtosis       25.29583
     Distribution of rho for strongly affected CBAs
 
                              rho
 -------------------------------------------------------------
       Percentiles      Smallest
- 1%     .0214479      -.0087509
- 5%     .0350984      -.0070916
-10%     .0424122       -.005653       Obs              10,956
-25%     .0536085      -.0048226       Sum of Wgt.      10,956
+ 1%     .0214004      -.3479911
+ 5%     .0348888      -.3060349
+10%     .0418628       -.186578       Obs              10,956
+25%     .0532101      -.0812505       Sum of Wgt.      10,956
 
-50%     .0670621                      Mean           .0727697
-                        Largest       Std. Dev.      .0308977
-75%     .0851886        .290533
-90%     .1087708       .2910164       Variance       .0009547
-95%     .1286948       .2923625       Skewness       1.752812
-99%      .187359       .2991904       Kurtosis       8.817627
+50%     .0665191                      Mean           .0726502
+                        Largest       Std. Dev.      .0327502
+75%     .0852095       .2991904
+90%     .1095767       .4030445       Variance       .0010726
+95%     .1296308       .5466213       Skewness       1.999907
+99%     .1890656       .6457635       Kurtosis       25.29583
 (note: file ../output/data_counterfactuals.dta not found)
 file ../output/data_counterfactuals.dta saved
 (note: file ../output/data_counterfactuals.csv not found)
 file ../output/data_counterfactuals.csv saved
 (33,762 observations deleted)
-
-    Result                           # of obs.
-    -----------------------------------------
-    not matched                         5,043
-        from master                     5,043  
-        from using                          0  
-
-    matched                            28,719  
-    -----------------------------------------
-
-    Result                           # of obs.
-    -----------------------------------------
-    not matched                           579
-        from master                       579  
-        from using                          0  
-
-    matched                            33,183  
-    -----------------------------------------
-(699 missing values generated)
-(5,043 missing values generated)
+(600 missing values generated)
+(693 missing values generated)
 (data already sorted by counterfactual)
   (0 bytes saved)
 ===============================================================================
 File: ../output/tot_incidence.dta
 Key: counterfactual
 ===============================================================================
-  3:4(75978):3533527002:643533992
+  3:4(75978):873978858:4146299881
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
 counterfac~l |          0
-num_tot_in~e |          3    1.24e+07    89743.47   1.23e+07   1.25e+07
-denom_tot_~e |          3    4.77e+09    1.10e+08   4.70e+09   4.90e+09
-tot_incide~e |          3    .0025912    .0000403    .002545   .0026192
+num_tot_in~e |          3    67552.13    85152.55      10212   165396.2
+denom_tot_~e |          3    1.31e+07    1.64e+07    2048053   3.19e+07
+tot_incide~e |          3    .0050717    .0001043   .0049862   .0051878
 
 
 
@@ -631,7 +560,7 @@ running c:\ado\personal\profile.do ...
 (file ../output/hist_d_mw_wkp.png written in PNG format)
 (note: file ../output/hist_d_mw_wkp.eps not found)
 (file ../output/hist_d_mw_wkp.eps written in EPS format)
-(bin=30, start=-.20650114, width=.01764895)
+(bin=30, start=-.4137758, width=.05080156)
 (note: file ../output/hist_rho.png not found)
 (file ../output/hist_rho.png written in PNG format)
 (note: file ../output/hist_rho.eps not found)
@@ -741,7 +670,7 @@ Type 'q()' to quit R.
 > 
 > proc.time()
    user  system elapsed 
-   0.57    0.26    0.70 
+   0.59    0.21    0.85 
 
 
 Execute:  R CMD BATCH --no-save "./map_cfs.R" map_cfs.Rout
@@ -905,6 +834,6 @@ There were 17 warnings (use warnings() to see them)
 > 
 > proc.time()
    user  system elapsed 
-  64.73   49.64  120.75 
+  64.23   48.87  117.56 
 
- make.py ended: 2022-05-12 14:07:32
+ make.py ended: 2022-05-16 12:43:54
