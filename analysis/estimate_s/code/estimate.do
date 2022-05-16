@@ -42,9 +42,8 @@ program main
     
     impute_var, var(safmr2br)
     impute_var, var(wage_per_wage_hhld)
-    
-	gen s_imputed = safmr2br_imputed/(wage_per_wage_hhld_imputed/12)
-	
+    impute_var, var(s)
+    	
     keep zipcode s safmr2br wage_per_wage_hhld *imputed
     save_data "../output/s_by_zip.dta", key(zipcode) replace
 end
