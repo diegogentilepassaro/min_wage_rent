@@ -45,7 +45,7 @@ program main
 
     save             "../output/data_counterfactuals.dta", replace
     export delimited "../output/data_counterfactuals.csv", replace
-	
+
 	keep if (year == 2020 & month == 1) & !cbsa_low_inc_increase
 	keep zipcode counterfactual change_ln_rents perc_incr_rent ///
 	    change_ln_wagebill perc_incr_wagebill ///
@@ -113,12 +113,8 @@ program compute_vars
     gen perc_incr_wagebill = exp(change_ln_wagebill) - 1
     gen ratio_increases    = perc_incr_rent/perc_incr_wagebill
 
-    gen s_lb = s_imputed - 0.1
-    gen s_ub = s_imputed + 0.1
-
-    gen rho    = s_imputed*ratio_increases
-    gen rho_lb = s_lb*ratio_increases
-    gen rho_ub = s_ub*ratio_increases
+    gen rho              = s*ratio_increases
+    gen rho_with_imputed = s_imputed*ratio_increases
 end
 
 program flag_unaffected_cbsas
