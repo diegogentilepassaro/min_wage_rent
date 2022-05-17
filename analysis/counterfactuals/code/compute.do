@@ -46,7 +46,7 @@ program main
     save             "../output/data_counterfactuals.dta", replace
     export delimited "../output/data_counterfactuals.csv", replace
 	
-	keep if (year == 2020 & month == 1)
+	keep if (year == 2020 & month == 1) & !cbsa_low_inc_increase
 	keep zipcode counterfactual change_ln_rents perc_incr_rent ///
 	    change_ln_wagebill perc_incr_wagebill ///
 	    safmr2br_imputed wage_per_wage_hhld_imputed
