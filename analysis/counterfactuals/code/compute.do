@@ -49,9 +49,9 @@ program main
     keep if (year == 2020 & month == 1) & !cbsa_low_inc_increase
     keep zipcode counterfactual change_ln_rents perc_incr_rent ///
         change_ln_wagebill perc_incr_wagebill ///
-        safmr2br_imputed wage_per_wage_hhld_imputed
+        safmr2br_imputed wage_per_whhld_monthly_imputed
     gen num_terms = safmr2br_imputed*(perc_incr_rent)
-    gen denom_terms = wage_per_wage_hhld_imputed*(perc_incr_wagebill)
+    gen denom_terms = wage_per_whhld_monthly_imputed*(perc_incr_wagebill)
 
     collapse (sum) num_tot_incidence = num_terms ///
         (sum) denom_tot_incidence = denom_terms if (!missing(num_terms) & !missing(denom_terms)), ///
