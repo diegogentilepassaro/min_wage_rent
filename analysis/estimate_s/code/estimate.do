@@ -31,15 +31,17 @@ program main
         nogen keep(1 3)
     merge 1:1 zipcode using "../temp/safmr_2014_clean.dta", ///
         nogen keep(1 3)
-    gen s = safmr2br/(wage_per_wage_hhld/12)
+    
+    gen wage_per_whhld_monthly = wage_per_wage_hhld/12
+    gen s = safmr2br/wage_per_whhld_monthly
 	
 	egen geo_group = group(statefips cbsa countyfips place_code)
     
     impute_var, var(safmr2br)
-    impute_var, var(wage_per_wage_hhld)
+    impute_var, var(wage_per_whhld_monthly)
     impute_var, var(s)
     	
-    keep zipcode s safmr2br wage_per_wage_hhld *imputed
+    keep zipcode s safmr2br wage_per_whhld_monthly *imputed
     save_data "../output/s_by_zip.dta", key(zipcode) replace
 end
 
