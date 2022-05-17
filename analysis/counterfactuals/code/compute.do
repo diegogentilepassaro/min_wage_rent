@@ -50,8 +50,8 @@ program main
 	keep zipcode counterfactual change_ln_rents perc_incr_rent ///
 	    change_ln_wagebill perc_incr_wagebill ///
 	    safmr2br_imputed wage_per_wage_hhld_imputed
-	gen num_terms = safmr2br_imputed*(change_ln_rents)
-	gen denom_terms = wage_per_wage_hhld_imputed*(change_ln_wagebill)
+	gen num_terms = safmr2br_imputed*(perc_incr_rent)
+	gen denom_terms = wage_per_wage_hhld_imputed*(perc_incr_wagebill)
 	collapse (sum) num_tot_incidence = num_terms ///
 	    (sum) denom_tot_incidence = denom_terms, by(counterfactual)
 	gen tot_incidence = num_tot_incidence/denom_tot_incidence
