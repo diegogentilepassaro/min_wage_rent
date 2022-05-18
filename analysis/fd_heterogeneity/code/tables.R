@@ -2,7 +2,7 @@ remove(list = ls())
 library(data.table)
 
 main <- function() {
-  instub  <- "../temp/"
+  instub  <- "../output/"
   outstub <- "../output/"
   
   est <- fread(file.path(instub, "estimates_het.csv"))
