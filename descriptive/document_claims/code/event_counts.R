@@ -41,7 +41,7 @@ main <- function() {
   
   output_summary <- ""
   
-  for (panels in c("Unbalanced", "Fully Balanced", "Baseline")) {
+  for (panels in c("Unbalanced", "Baseline")) {
     output_summary <- paste0(output_summary, count_events(dt, panels, geographies))
     output_summary <- paste0(output_summary, count_local(dt, panels))
   }
@@ -112,11 +112,8 @@ filter_data <- function(data, panel) {
   if (panel == "Unbalanced") {
     dt_sample  <- data
     short_name <- "Unbal"
-  } else if (panel == "Fully Balanced") {
-    dt_sample  <- data[fullbal_sample == 1]
-    short_name <- "Fullbal"
   } else if (panel == "Baseline") {
-    dt_sample  <- data[baseline_sample == 1]
+    dt_sample  <- data[fullbal_sample_SFCC == 1]
     short_name <- "Base"
   }
 
