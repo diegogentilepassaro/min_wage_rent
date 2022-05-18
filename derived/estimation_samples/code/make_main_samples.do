@@ -18,7 +18,7 @@ program main
     local fullbal_start_year_month "2015m1"
     #delimit ;
     local target_vars  "sh_hhlds_renteroccup_cens2010 
-                        sh_workers_under1250_2013 sh_residents_under1250_2013";
+                        sh_workers_under1250_2014 sh_residents_under1250_2014";
     #delimit cr
 
     * Zipcode-months
@@ -162,7 +162,7 @@ program flag_samples
     merge m:1 `geo_name' using "../temp/fullbal_`geo'.dta", ///
         nogen assert(1 3) keep(1 3)
 
-    replace fullbal_sample_`stub' = 0 if year_month <= `=tm(`target_ym')' & !missing(`rent_var'_`stub')
+    replace fullbal_sample_`stub' = 0 if year_month < `=tm(`target_ym')' & !missing(`rent_var'_`stub')
     replace fullbal_sample_`stub' = 0 if missing(fullbal_sample_`stub')
     replace fullbal_sample_`stub' = . if missing(`rent_var'_`stub')
 
