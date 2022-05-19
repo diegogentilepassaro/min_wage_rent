@@ -21,8 +21,8 @@ main <- function() {
                                   numeric   = varnum))
   
   # Correlation matrix  
-  vars <- c("mw_wkp_tot_17", "mw_wkp_age_under29_17", "mw_wkp_earn_under1250_17")  
-  corrmatrix <- cor(dt[, ..vars])
+  vars <- c("mw_wkp_tot_17", "mw_wkp_age_under29_17", "mw_wkp_earn_under1250_17")
+  corrmatrix <- cor(na.omit(dt[, ..vars]))
   
   stargazer::stargazer(corrmatrix, summary = F, digits = 4,
                        type = "text",
