@@ -15,14 +15,15 @@ program main
 end
 
 program plot_mw_dist
-    syntax, outstub(str)
+    syntax, outstub(str) [width(int 2221) height(int 1615)]
 
     keep if pct_ch_MW > 0
     twoway (hist pct_ch_MW, color(navy%80) lcolor(white) lw(vthin)),       ///
         xtitle("Minimum wage increase (%)") ytitle("Relative frequency")   ///
         xlabel(, labsize(small)) ylabel(, labsize(small))                  ///
         graphregion(color(white)) bgcolor(white)
-    graph export `outstub'/pct_ch_mw_dist.png, replace 
+    
+    graph export `outstub'/pct_ch_mw_dist.png, replace width(`width') height(`height')
     graph export `outstub'/pct_ch_mw_dist.eps, replace
 
     twoway (hist year_month, color(navy%80) lcolor(white) lw(vthin)),       ///
@@ -30,7 +31,8 @@ program plot_mw_dist
         xlabel(`=mofd(td(01jun2010))'(6)`=mofd(td(01dec2019))',             ///
                labsize(small) angle(45))                                    ///
         graphregion(color(white)) bgcolor(white)
-    graph export `outstub'/pct_ch_mw_date_dist.png, replace 
+    
+    graph export `outstub'/pct_ch_mw_date_dist.png, replace width(`width') height(`height')
     graph export `outstub'/pct_ch_mw_date_dist.eps, replace 
 end
 
