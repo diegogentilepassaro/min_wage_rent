@@ -56,10 +56,10 @@ program main
         yvar(ln_dividends) xvars(`mw_wkp_var'_avg) controls(`controls')    ///
         absorb(zipcode year#cbsa_num) cluster(`cluster') model_name(dividends)
 
-    use `outstub'/estimates_naive.dta, clear
+    use ../temp/estimates_naive.dta, clear
     foreach ff in ctrls cbsa_time county_time cbsa_time_baseline ///
                   mw_wkp_tot_14 mw_wkp_tot_18 mw_wkp_tot_timvar dividends {
-        append using `outstub'/estimates_`ff'.dta
+        append using ../temp/estimates_`ff'.dta
     }
     save             `outstub'/estimates_all.dta, replace
     export delimited `outstub'/estimates_all.csv, replace

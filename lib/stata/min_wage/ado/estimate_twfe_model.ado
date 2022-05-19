@@ -5,7 +5,7 @@ program estimate_twfe_model
                  [outfolder(str)]
 
     if "`outfolder'"==""{
-        local outfolder "../output"
+        local outfolder "../temp"
     }
 
     preserve
