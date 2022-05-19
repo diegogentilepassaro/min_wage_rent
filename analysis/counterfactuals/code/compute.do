@@ -88,7 +88,6 @@ program load_counterfactuals
     bysort zipcode counterfactual (year month): ///
         gen d_mw_res = mw_res[_n] - mw_res[_n - 1]
     
-    * Predictions with parameters
     gen   diff_mw  = d_mw_wkp - d_mw_res
     xtile diff_qts = diff_mw, nquantiles(10)
 end
@@ -133,27 +132,6 @@ program flag_unaffected_cbsas
 
     merge m:1 cbsa counterfactual using "../output/cbsa_averages.dta", ///
         assert(3) nogen
-end
-
-program clean_irs 
-    syntax, instub(str)
-    
-    use "`instub'/irs_zip.dta", clear
-
-    drop if inlist(zipcode, "0", "00000", "99999")    
-    keep if year == 2016
-    
-    keep zipcode total_wage
-end
-
-program clean_safmr 
-    syntax, instub(str)
-    
-    use "`instub'/safmr_2012_2016_by_zipcode_county_cbsa.dta", clear
-    keep zipcode countyfips cbsa year safmr1br safmr2br safmr3br
-    keep if year == 2016
-    drop year
-    collapse (mean) safmr*, by(zipcode)
 end
 
 main

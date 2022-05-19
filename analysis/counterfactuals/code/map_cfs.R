@@ -59,15 +59,6 @@ main <- function(){
             break_values = c(min_break_wagebill, max_break_wagebill/2, max_break_wagebill), 
             map_name = "chicago_d_ln_wagebill")
 
-  min_break_s <- round(min(df_chicago$s, na.rm = TRUE), digits = 2)
-  max_break_s <- round(max(df_chicago$s, na.rm = TRUE), digits = 2)
-  
-  build_map(data = df_chicago, 
-            var = "s", 
-            var_legend ="Share of expenditure in housing", 
-            break_values = c(min_break_s, max_break_s/2, max_break_s), 
-            map_name = "chicago_s")
-
   min_break_s_imputed <- round(min(df_chicago$s_imputed, na.rm = TRUE), digits = 2)
   max_break_s_imputed <- round(max(df_chicago$s_imputed, na.rm = TRUE), digits = 2)
   
@@ -76,15 +67,6 @@ main <- function(){
             var_legend ="Share of expenditure in housing", 
             break_values = c(min_break_s_imputed, max_break_s_imputed/2, max_break_s_imputed), 
             map_name = "chicago_s_imputed")
-
-  min_break_rho <- round(min(df_chicago$rho, na.rm = TRUE), digits = 2)
-  max_break_rho <- round(max(df_chicago$rho, na.rm = TRUE), digits = 2)
-  
-  build_map(data = df_chicago, 
-            var = "rho", 
-            var_legend ="Share pocketed\nby landlords", 
-            break_values = c(min_break_rho, max_break_rho/2, max_break_rho), 
-            map_name = "chicago_rho")
 
   min_break_rho_with_imputed <- round(min(df_chicago$rho_with_imputed, na.rm = TRUE), digits = 2)
   max_break_rho_with_imputed <- round(max(df_chicago$rho_with_imputed, na.rm = TRUE), digits = 2)
