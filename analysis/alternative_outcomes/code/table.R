@@ -9,8 +9,8 @@ main <- function() {
   est <- fread(file.path(instub, "estimates_static.csv"))
   est <- est[var != "cumsum_from0"]
   
-  models <- c("sh_residents_under1250", "sh_workers_under1250", "sh_residents_accomm_food",
-              "sh_workers_accomm_food")
+  models <- c("sh_residents_accomm_food", "sh_workers_accomm_food", 
+              "sh_residents_underHS", "sh_workers_underHS")
   
   txt <- c("<tab:share_migration>")
   
