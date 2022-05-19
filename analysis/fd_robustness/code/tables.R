@@ -41,13 +41,13 @@ main <- function() {
   for (xvar in c("mw_res", "mw_wkp_tot_17")) {
     txt  <- c(txt, 
               paste(est[model == "baseline"           & var == xvar,]$b,
-                    est[model == "fullbal_wgt"        & var == xvar,]$b,
+                    est[model == "baseline_wgt"        & var == xvar,]$b,
                     est[model == "unbal_by_entry"     & var == xvar,]$b,
                     est[model == "unbal_by_entry_wgt" & var == xvar,]$b,
                     sep = "\t"))
     txt  <- c(txt, 
               paste(est[model == "baseline"           & var == xvar,]$se,
-                    est[model == "fullbal_wgt"        & var == xvar,]$se,
+                    est[model == "baseline_wgt"        & var == xvar,]$se,
                     est[model == "unbal_by_entry"     & var == xvar,]$se,
                     est[model == "unbal_by_entry_wgt" & var == xvar,]$se,
                     sep = "\t"))
@@ -56,7 +56,7 @@ main <- function() {
   for (stat in c("p_equality", "r2", "N")) {
     txt  <- c(txt, 
               paste(est[model == "baseline"           & var == "cumsum_from0",][[stat]],
-                    est[model == "fullbal_wgt"        & var == "cumsum_from0",][[stat]],
+                    est[model == "baseline_wgt"        & var == "cumsum_from0",][[stat]],
                     est[model == "unbal_by_entry"     & var == "cumsum_from0",][[stat]],
                     est[model == "unbal_by_entry_wgt" & var == "cumsum_from0",][[stat]],
                     sep = "\t"))
@@ -92,7 +92,7 @@ main <- function() {
                     est[model == "AB"              & var == "L_ln_rents",]$se,
                     sep = "\t"))
   
-  for (stat in c("N")) {
+  for (stat in c("p_equality", "N")) {
     txt_ab <- c(txt_ab, 
                 paste(est[model == "levels_model"    & var == "mw_wkp_tot_17",][[stat]],
                       est[model == "AB_levels_model" & var == "mw_wkp_tot_17",][[stat]],

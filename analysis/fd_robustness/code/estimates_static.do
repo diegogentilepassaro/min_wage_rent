@@ -33,7 +33,7 @@ program main
 
     estimate_sample_specifications, mw_wkp_var(`mw_wkp_var') controls(`controls') ///
         absorb(`absorb') cluster(`cluster')                                       ///
-        samples(fullbal unbalanced unbal_by_entry)
+        samples(baseline unbalanced unbal_by_entry)
     local specifications "`specifications' `r(specifications)'"
 
     estimate_arellano_bond, mw_wkp_var(`mw_wkp_var') controls(`controls')         ///
@@ -129,31 +129,37 @@ program estimate_sample_specifications, rclass
 
     local specifications ""
     foreach sample in `samples' {
+        if "`sample'" == "baseline" {
+            local sample_ind "fullbal"
+        }
+        else{
+            local sample_ind "`sample'"
+        }
 
         local absorb_vars "`absorb'"
         if "`'" == "unbal_by_entry" {
             local absorb_vars "`absorb'##qtr_entry_to_zillow_SFCC"
         }
 
-        estimate_dist_lag_model if `sample'_sample_SFCC,                               ///
+        estimate_dist_lag_model if `sample_ind'_sample_SFCC == 1,                               ///
             depvar(ln_rents) dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)               ///
             controls(`controls') absorb(`absorb_vars') cluster(`cluster')              ///
             model_name(`sample'_rents) test_equality
             
-        estimate_dist_lag_model if (`sample'_sample_SFCC & !missing(D.ln_rents)),      ///
+        estimate_dist_lag_model if (`sample_ind'_sample_SFCC == 1 & !missing(D.ln_rents)),      ///
             depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res)                 ///
             controls(`controls') absorb(`absorb_vars') cluster(`cluster')              ///
             model_name(`sample'_wkp_mw_on_res_mw) test_equality
 
         local specifications "`specifications' `sample'_rents `sample'_wkp_mw_on_res_mw"
 
-        estimate_dist_lag_model if `sample'_sample_SFCC, depvar(ln_rents)                   ///
-            dyn_var(`mw_wkp_var') w(0) stat_var(mw_res) wgt(weights_`sample')               ///
+        estimate_dist_lag_model if `sample_ind'_sample_SFCC, depvar(ln_rents)                   ///
+            dyn_var(`mw_wkp_var') w(0) stat_var(mw_res) wgt(weights_`sample_ind')               ///
             controls(`controls') absorb(`absorb_vars') cluster(`cluster')                   ///
             model_name(`sample'_wgt_rents) test_equality
             
-        estimate_dist_lag_model if (`sample'_sample_SFCC & !missing(D.ln_rents)),            ///
-            depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) wgt(weights_`sample') ///
+        estimate_dist_lag_model if (`sample_ind'_sample_SFCC == 1 & !missing(D.ln_rents)),            ///
+            depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) wgt(weights_`sample_ind') ///
             controls(`controls') absorb(`absorb_vars') cluster(`cluster')                    ///
             model_name(`sample'_wgt_wkp_mw_on_res_mw) test_equality
             
@@ -171,17 +177,17 @@ program estimate_arellano_bond, rclass
     estimate_dist_lag_model if fullbal_sample_SFCC == 1,                  ///
         depvar(ln_rents) dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)      ///
         controls(`controls') ab absorb(`absorb') cluster(`cluster')       ///
-        model_name(AB_rents)
+        model_name(AB_rents) test_equality
 		
     estimate_stacked_model if fullbal_sample_SFCC == 1, depvar(ln_rents)  ///
         mw_var1(mw_res) mw_var2(`mw_wkp_var') controls(`controls')        ///
         absorb(year_month zipcode) cluster(statefips)                     ///
-        model_name(levels_model)
+        model_name(levels_model) test_equality
 		
     estimate_stacked_model if fullbal_sample_SFCC == 1, depvar(ln_rents)  ///
         mw_var1(mw_res) mw_var2(`mw_wkp_var') controls(`controls')        ///
         absorb(year_month zipcode) cluster(statefips) ab                  ///
-        model_name(AB_levels_model)
+        model_name(AB_levels_model) test_equality
 
     return local specifications "AB_rents levels_model AB_levels_model"
 end
