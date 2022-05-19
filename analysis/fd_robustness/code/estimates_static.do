@@ -32,8 +32,7 @@ program main
     local specifications "`specifications' `r(specifications)'"
 
     estimate_sample_specifications, mw_wkp_var(`mw_wkp_var') controls(`controls') ///
-        absorb(`absorb') cluster(`cluster')                                       ///
-        samples(baseline unbalanced unbal_by_entry)
+        absorb(`absorb') cluster(`cluster')
     local specifications "`specifications' `r(specifications)'"
 
     estimate_arellano_bond, mw_wkp_var(`mw_wkp_var') controls(`controls')         ///
@@ -121,52 +120,52 @@ program estimate_geofe_specifications, rclass
 end
 
 program estimate_sample_specifications, rclass
-    syntax, mw_wkp_var(str) controls(str) absorb(str) cluster(str) ///
-            samples(str)
-
-    gen unbal_by_entry_sample_SFCC  =  unbalanced_sample_SFCC
-    gen weights_unbal_by_entry      =  weights_unbalanced
+    syntax, mw_wkp_var(str) controls(str) absorb(str) cluster(str)
 
     local specifications ""
-    foreach sample in `samples' {
-        if "`sample'" == "baseline" {
-            local sample_ind "fullbal"
-        }
-        else{
-            local sample_ind "`sample'"
-        }
-
+    foreach sample in unbal unbal_by_entry {
         local absorb_vars "`absorb'"
-        if "`'" == "unbal_by_entry" {
+        if "`sample'" == "unbal_by_entry" {
             local absorb_vars "`absorb'##qtr_entry_to_zillow_SFCC"
         }
 
-        estimate_dist_lag_model if `sample_ind'_sample_SFCC == 1,                               ///
+        estimate_dist_lag_model if unbalanced_sample_SFCC == 1,                               ///
             depvar(ln_rents) dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)               ///
             controls(`controls') absorb(`absorb_vars') cluster(`cluster')              ///
             model_name(`sample'_rents) test_equality
             
-        estimate_dist_lag_model if (`sample_ind'_sample_SFCC == 1 & !missing(D.ln_rents)),      ///
+        estimate_dist_lag_model if (unbalanced_sample_SFCC == 1 & !missing(D.ln_rents)),      ///
             depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res)                 ///
             controls(`controls') absorb(`absorb_vars') cluster(`cluster')              ///
             model_name(`sample'_wkp_mw_on_res_mw) test_equality
 
         local specifications "`specifications' `sample'_rents `sample'_wkp_mw_on_res_mw"
 
-        estimate_dist_lag_model if `sample_ind'_sample_SFCC, depvar(ln_rents)                   ///
-            dyn_var(`mw_wkp_var') w(0) stat_var(mw_res) wgt(weights_`sample_ind')               ///
+        estimate_dist_lag_model if unbalanced_sample_SFCC == 1, depvar(ln_rents)                   ///
+            dyn_var(`mw_wkp_var') w(0) stat_var(mw_res) wgt(weights_unbalanced)               ///
             controls(`controls') absorb(`absorb_vars') cluster(`cluster')                   ///
             model_name(`sample'_wgt_rents) test_equality
             
-        estimate_dist_lag_model if (`sample_ind'_sample_SFCC == 1 & !missing(D.ln_rents)),            ///
-            depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) wgt(weights_`sample_ind') ///
+        estimate_dist_lag_model if (unbalanced_sample_SFCC == 1 & !missing(D.ln_rents)),            ///
+            depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) wgt(weights_unbalanced) ///
             controls(`controls') absorb(`absorb_vars') cluster(`cluster')                    ///
             model_name(`sample'_wgt_wkp_mw_on_res_mw) test_equality
             
         local specifications "`specifications' `sample'_wgt_rents `sample'_wgt_wkp_mw_on_res_mw"
     }
 
-    drop unbal_by_entry_sample_SFCC weights_unbal_by_entry
+    estimate_dist_lag_model if fullbal_sample_SFCC == 1, depvar(ln_rents)                   ///
+        dyn_var(`mw_wkp_var') w(0) stat_var(mw_res) wgt(weights_fullbal)               ///
+        controls(`controls') absorb(`absorb') cluster(`cluster')                   ///
+        model_name(baseline_wgt_rents) test_equality
+        
+    estimate_dist_lag_model if (fullbal_sample_SFCC == 1 & !missing(D.ln_rents)),            ///
+        depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) wgt(weights_fullbal) ///
+        controls(`controls') absorb(`absorb') cluster(`cluster')                    ///
+        model_name(baseline_wgt_wkp_mw_on_res_mw) test_equality
+        
+    local specifications "`specifications' baseline_wgt_rents baseline_wgt_wkp_mw_on_res_mw"
+
     return local specifications "`specifications'"
 end
 

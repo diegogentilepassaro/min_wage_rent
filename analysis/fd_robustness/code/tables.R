@@ -22,7 +22,7 @@ main <- function() {
   close(fileConn)
 
   # Alternative Zillow categories Table
-  names <- c("unbalanced", 
+  names <- c("unbal", 
              "SF", "CC", "Studio", "1BR", "2BR", "3BR", "Mfr5Plus")
   
   txt <- c("<tab:zillow_categories>")
