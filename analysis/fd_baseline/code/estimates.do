@@ -15,25 +15,26 @@ program main
     local mw_wkp_var "mw_wkp_tot_17"
 
     ** STATIC
-    use "`instub'/zipcode_months.dta" if fullbal_sample_SFCC == 1, clear
+    use "`instub'/zipcode_months.dta", clear
     xtset zipcode_num `absorb'
 
-    estimate_dist_lag_model if !missing(D.ln_rents), depvar(`mw_wkp_var') ///
+    estimate_dist_lag_model if !missing(D.ln_rents) & fullbal_sample_SFCC == 1, ///
+        depvar(`mw_wkp_var')                                              ///
         dyn_var(mw_res) w(0) stat_var(mw_res)                             ///
         controls(`controls') absorb(`absorb') cluster(`cluster')          ///
         model_name(mw_wkp_on_res_mw) 
 
-    estimate_dist_lag_model, depvar(ln_rents)                             ///
+    estimate_dist_lag_model if fullbal_sample_SFCC == 1, depvar(ln_rents) ///
         dyn_var(mw_res) w(0) stat_var(mw_res)                             ///
         controls(`controls') absorb(`absorb') cluster(`cluster')          ///
         model_name(static_mw_res)
 
-    estimate_dist_lag_model, depvar(ln_rents)                             ///
+    estimate_dist_lag_model if fullbal_sample_SFCC == 1, depvar(ln_rents) ///
         dyn_var(`mw_wkp_var') w(0) stat_var(`mw_wkp_var')                 ///
         controls(`controls') absorb(`absorb') cluster(`cluster')          ///
         model_name(static_mw_wkp)
 
-    estimate_dist_lag_model, depvar(ln_rents)                             ///
+    estimate_dist_lag_model if fullbal_sample_SFCC == 1, depvar(ln_rents) ///
         dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)                       ///
         controls(`controls') absorb(`absorb') cluster(`cluster')          ///
         model_name(static_both) test_equality
@@ -47,19 +48,20 @@ program main
     export delimited "`outstub'/estimates_static.csv", replace
 
     ** RESIDUALS UNBALANCED
-    use "`instub'/zipcode_months.dta" if unbalanced_sample_SFCC == 1, clear
+    use "`instub'/zipcode_months.dta", clear
     xtset zipcode_num `absorb'
 
     local absorb_res "qtr_entry_to_zillow_SFCC##`absorb'"
 
-    estimate_dist_lag_model if !missing(D.ln_rents), depvar(`mw_wkp_var') ///
-        dyn_var(mw_res) w(0) stat_var(mw_res)                             ///
-        controls(`controls') absorb(`absorb_res') cluster(`cluster')      ///
+    estimate_dist_lag_model if !missing(D.ln_rents) & unbalanced_sample_SFCC == 1, ///
+        depvar(`mw_wkp_var')                                                ///
+        dyn_var(mw_res) w(0) stat_var(mw_res)                               ///
+        controls(`controls') absorb(`absorb_res') cluster(`cluster')        ///
         model_name(unbal_mw_wkp_on_res_mw) save_res_zip_month
 
-    estimate_dist_lag_model, depvar(ln_rents)                             ///
-        dyn_var(" ") w(0) stat_var(" ")                                   ///
-        controls(`controls') absorb(`absorb_res') cluster(`cluster')      ///
+    estimate_dist_lag_model if unbalanced_sample_SFCC == 1, depvar(ln_rents) ///
+        dyn_var(" ") w(0) stat_var(" ")                                      ///
+        controls(`controls') absorb(`absorb_res') cluster(`cluster')         ///
         model_name(unbal_static_both) save_res_zip_month
 
     use "../temp/resid_unbal_mw_wkp_on_res_mw.dta", clear
@@ -67,38 +69,38 @@ program main
     export delimited "`outstub'/estimates_unbal_residuals.csv", replace    
 
     ** DYNAMIC
-    use "`instub'/zipcode_months.dta" if fullbal_sample_SFCC == 1, clear
+    use "`instub'/zipcode_months.dta", clear
     xtset zipcode_num `absorb'
 
-    estimate_dist_lag_model, depvar(ln_rents)                    ///
-        dyn_var(`mw_wkp_var') w(6) stat_var(mw_res)              ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
+    estimate_dist_lag_model if fullbal_sample_SFCC == 1, depvar(ln_rents) ///
+        dyn_var(`mw_wkp_var') w(6) stat_var(mw_res)                       ///
+        controls(`controls') absorb(`absorb') cluster(`cluster')          ///
         model_name(both_mw_wkp_dynamic) test_equality
         
-    estimate_dist_lag_model, depvar(ln_rents)                    ///
-        dyn_var(mw_res) w(6) stat_var(`mw_wkp_var')              ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
+    estimate_dist_lag_model if fullbal_sample_SFCC == 1, depvar(ln_rents) ///
+        dyn_var(mw_res) w(6) stat_var(`mw_wkp_var')                       ///
+        controls(`controls') absorb(`absorb') cluster(`cluster')          ///
         model_name(both_mw_res_dynamic)
         
-    estimate_dist_lag_model, depvar(ln_rents)                    ///
-        dyn_var(`mw_wkp_var') w(6) stat_var(`mw_wkp_var')        ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
+    estimate_dist_lag_model if fullbal_sample_SFCC == 1, depvar(ln_rents) ///
+        dyn_var(`mw_wkp_var') w(6) stat_var(`mw_wkp_var')                 ///
+        controls(`controls') absorb(`absorb') cluster(`cluster')          ///
         model_name(mw_wkp_only_dynamic)
         
-    estimate_dist_lag_model, depvar(ln_rents)                    ///
-        dyn_var(mw_res) w(6) stat_var(mw_res)                    ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
+    estimate_dist_lag_model if fullbal_sample_SFCC == 1, depvar(ln_rents) ///
+        dyn_var(mw_res) w(6) stat_var(mw_res)                             ///
+        controls(`controls') absorb(`absorb') cluster(`cluster')          ///
         model_name(mw_res_only_dynamic)
         
-    estimate_dist_lag_model_two_dyn, depvar(ln_rents)            ///
-        dyn_var1(`mw_wkp_var') w(6) dyn_var2(mw_res)             ///
-        controls(`controls') absorb(`absorb') cluster(`cluster') ///
+    estimate_dist_lag_model_two_dyn if fullbal_sample_SFCC == 1, depvar(ln_rents) ///
+        dyn_var1(`mw_wkp_var') w(6) dyn_var2(mw_res)                      ///
+        controls(`controls') absorb(`absorb') cluster(`cluster')          ///
         model_name(both_dynamic)
     
-    use "`instub'/zipcode_months.dta" if unbalanced_sample_SFCC == 1, clear
+    use "`instub'/zipcode_months.dta", clear
     xtset zipcode_num `absorb'
 
-    estimate_dist_lag_model, depvar(ln_rents)                    ///
+    estimate_dist_lag_model if unbalanced_sample_SFCC == 1, depvar(ln_rents)  ///
         dyn_var(`mw_wkp_var') w(6) stat_var(mw_res)              ///
         controls(`controls') absorb(`absorb') cluster(`cluster') ///
         model_name(unbal_both_mw_wkp_dynamic) test_equality
