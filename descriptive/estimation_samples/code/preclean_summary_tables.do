@@ -10,18 +10,20 @@ program main
     local instub_zip_mth   "../../../drive/derived_large/zipcode_month"   
     local instub_est_samp  "../../../drive/derived_large/estimation_samples"    
 
+    local base_year = 2014
+
     * Cross-sections    
-    clean_irs, instub(`instub_irs')
-    save_data "../temp/irs_2014_clean.dta",  log(none)      ///
+    clean_irs, instub(`instub_irs') base_year(`base_year')
+    save_data "../temp/irs_`base_year'_clean.dta",  log(none)      ///
         key(zipcode) replace
     
     clean_safmr, instub(`instub_safmr')
     save_data "../temp/safmr_clean.dta",     log(none)      ///
         key(zipcode countyfips cbsa year) replace
     
-    keep if year == 2014
+    keep if year == `base_year'
     drop year
-    save_data "../temp/safmr_2014_clean.dta", log(none)     ///
+    save_data "../temp/safmr_`base_year'_clean.dta", log(none)     ///
         key(zipcode countyfips cbsa)  replace
     
     use zipcode countyfips cbsa statefips year_month year  ///
@@ -34,23 +36,23 @@ program main
     merge 1:1 zipcode year_month using "`instub_est_samp'/zipcode_months.dta", ///
         nogen assert(1 3) keepusing(fullbal_sample_SFCC)
 
-    build_zip_lvl_samples, instub(`instub_est_samp')
+    build_zip_lvl_samples, instub(`instub_est_samp') base_year(`base_year')
     foreach data in "all"              "all_urban"          ///
                     "all_zillow_rents" "baseline" {
         
         use "../temp/`data'_zipcodes.dta", clear
         merge 1:1 zipcode using "`instub_zipcode'/zipcode_cross.dta", nogen ///
             assert(2 3) keep(3)
-        merge 1:1 zipcode using "../temp/statutory_mw_dec2014.dta",  ///
+        merge 1:1 zipcode using "../temp/statutory_mw_dec`base_year'.dta",  ///
             nogen keep(1 3)
         merge 1:1 zipcode using "../temp/statutory_mw_dec2019.dta",  ///
             nogen keep(1 3)
-        merge 1:1 zipcode using "../temp/rents_dec2014.dta",      ///
+        merge 1:1 zipcode using "../temp/rents_dec`base_year'.dta",      ///
             nogen keep(1 3)
-        merge 1:1 zipcode using "../temp/irs_2014_clean.dta",     ///
+        merge 1:1 zipcode using "../temp/irs_`base_year'_clean.dta",     ///
             nogen keep(1 3)
         merge 1:1 zipcode countyfips cbsa                       ///
-            using "../temp/safmr_2014_clean.dta", nogen keep(1 3)
+            using "../temp/safmr_`base_year'_clean.dta", nogen keep(1 3)
         
         save_data "../output/`data'_zipcode_lvl_data.dta",        ///
             key(zipcode) replace
@@ -77,12 +79,12 @@ program main
 end
 
 program clean_irs 
-    syntax, instub(str)
+    syntax, instub(str) base_year(str)
     
     use "`instub'/irs_zip.dta", clear
 
     drop if inlist(zipcode, "0", "00000", "99999")    
-    keep if year == 2014
+    keep if year == `base_year'
     
     keep zipcode statefips share_wage_hhlds share_bussiness_hhlds /// 
          share_farmer_hhlds agi_per_hhld wage_per_wage_hhld       ///
@@ -97,20 +99,20 @@ program clean_safmr
 end
 
 program build_zip_lvl_samples
-    syntax, instub(str)
+    syntax, instub(str) base_year(str)
     
     preserve
-        keep if year == 2014 & month == 12
+        keep if year == `base_year' & month == 12
         keep zipcode medrentprice_SFCC medrentpricepsqft_SFCC     ///
             medrentprice_2BR medrentpricepsqft_2BR
-        save "../temp/rents_dec2014.dta", replace
+        save "../temp/rents_dec`base_year'.dta", replace
     restore
     
     preserve
-        keep if year == 2014 & month == 12
+        keep if year == `base_year' & month == 12
         keep zipcode statutory_mw
-        rename statutory_mw statutory_mw_dec2014
-        save "../temp/statutory_mw_dec2014.dta", replace
+        rename statutory_mw statutory_mw_dec`base_year'
+        save "../temp/statutory_mw_dec`base_year'.dta", replace
     restore
     
     preserve

@@ -2,11 +2,11 @@ clear all
 set more off
 
 program main
-    local instub "../../../drive/derived_large/estimation_samples"
-    local outstub "../output"
+    local instub         "../../../drive/derived_large/estimation_samples"
+    local outstub        "../output"
 
-    use zipcode zipcode_num year_month statutory_mw ///
-        using "`instub'/zipcode_months.dta", clear
+    use zipcode zipcode_num year_month statutory_mw unbalanced_sample_SFCC ///
+        using "`instub'/zipcode_months.dta" if unbalanced_sample_SFCC == 1, clear
     xtset zipcode_num year_month
     gen pct_ch_MW = 100*(statutory_mw/L.statutory_mw - 1)
     drop if missing(pct_ch_MW)
