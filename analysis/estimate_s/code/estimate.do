@@ -38,8 +38,13 @@ program impute_var
         sh_male_cens2010 sh_urb_pop_cens2010 sh_hhlds_urban_cens2010 sh_hhlds_renteroccup_cens2010 ///
         population_cens2010 n_male_cens2010 n_white_cens2010 n_black_cens2010 urb_pop_cens2010 ///
         n_hhlds_cens2010 n_hhlds_urban_cens2010 n_hhlds_renteroccup_cens2010 population_acs2014 ///
-        sh_residents* sh_workers*, absorb(geo_group)
-    predict `var'_pred, xb
+        sh_residents* sh_workers*, absorb(geo_group) savefe resid
+    preserve
+        collapse __hdfe1__, by(geo_group)
+        save ..tempfes.dta, replace
+    restore
+    merge m:1 geo_group using ..tempfes.dta, nogen keep(1 3)
+    predict `var'_pred, xbd
     gen `var'_imputed = `var'
     replace `var'_imputed = `var'_pred if (missing(`var') & !missing(`var'_pred))
 end
