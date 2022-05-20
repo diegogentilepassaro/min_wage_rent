@@ -124,44 +124,45 @@ program estimate_sample_specifications, rclass
 
     local specifications ""
     foreach sample in unbal unbal_by_entry {
+
         local absorb_vars "`absorb'"
         if "`sample'" == "unbal_by_entry" {
             local absorb_vars "`absorb'##qtr_entry_to_zillow_SFCC"
         }
 
-        estimate_dist_lag_model if unbalanced_sample_SFCC == 1,                               ///
-            depvar(ln_rents) dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)               ///
-            controls(`controls') absorb(`absorb_vars') cluster(`cluster')              ///
+        estimate_dist_lag_model if unbalanced_sample_SFCC == 1,                          ///
+            depvar(ln_rents) dyn_var(`mw_wkp_var') w(0) stat_var(mw_res)                 ///
+            controls(`controls') absorb(`absorb_vars') cluster(`cluster')                ///
             model_name(`sample'_rents) test_equality
             
-        estimate_dist_lag_model if (unbalanced_sample_SFCC == 1 & !missing(D.ln_rents)),      ///
-            depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res)                 ///
-            controls(`controls') absorb(`absorb_vars') cluster(`cluster')              ///
+        estimate_dist_lag_model if (unbalanced_sample_SFCC == 1 & !missing(D.ln_rents)), ///
+            depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res)                   ///
+            controls(`controls') absorb(`absorb_vars') cluster(`cluster')                ///
             model_name(`sample'_wkp_mw_on_res_mw) test_equality
 
         local specifications "`specifications' `sample'_rents `sample'_wkp_mw_on_res_mw"
 
-        estimate_dist_lag_model if unbalanced_sample_SFCC == 1, depvar(ln_rents)                   ///
-            dyn_var(`mw_wkp_var') w(0) stat_var(mw_res) wgt(weights_unbalanced)               ///
-            controls(`controls') absorb(`absorb_vars') cluster(`cluster')                   ///
+        estimate_dist_lag_model if unbalanced_sample_SFCC == 1, depvar(ln_rents)         ///
+            dyn_var(`mw_wkp_var') w(0) stat_var(mw_res) wgt(weights_unbalanced)          ///
+            controls(`controls') absorb(`absorb_vars') cluster(`cluster')                ///
             model_name(`sample'_wgt_rents) test_equality
             
-        estimate_dist_lag_model if (unbalanced_sample_SFCC == 1 & !missing(D.ln_rents)),            ///
+        estimate_dist_lag_model if (unbalanced_sample_SFCC == 1 & !missing(D.ln_rents)),       ///
             depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) wgt(weights_unbalanced) ///
-            controls(`controls') absorb(`absorb_vars') cluster(`cluster')                    ///
+            controls(`controls') absorb(`absorb_vars') cluster(`cluster')                      ///
             model_name(`sample'_wgt_wkp_mw_on_res_mw) test_equality
             
         local specifications "`specifications' `sample'_wgt_rents `sample'_wgt_wkp_mw_on_res_mw"
     }
 
-    estimate_dist_lag_model if fullbal_sample_SFCC == 1, depvar(ln_rents)                   ///
-        dyn_var(`mw_wkp_var') w(0) stat_var(mw_res) wgt(weights_fullbal)               ///
-        controls(`controls') absorb(`absorb') cluster(`cluster')                   ///
+    estimate_dist_lag_model if fullbal_sample_SFCC == 1, depvar(ln_rents)               ///
+        dyn_var(`mw_wkp_var') w(0) stat_var(mw_res) wgt(weights_fullbal)                ///
+        controls(`controls') absorb(`absorb') cluster(`cluster')                        ///
         model_name(baseline_wgt_rents) test_equality
         
-    estimate_dist_lag_model if (fullbal_sample_SFCC == 1 & !missing(D.ln_rents)),            ///
+    estimate_dist_lag_model if (fullbal_sample_SFCC == 1 & !missing(D.ln_rents)),       ///
         depvar(`mw_wkp_var') dyn_var(mw_res) w(0) stat_var(mw_res) wgt(weights_fullbal) ///
-        controls(`controls') absorb(`absorb') cluster(`cluster')                    ///
+        controls(`controls') absorb(`absorb') cluster(`cluster')                        ///
         model_name(baseline_wgt_wkp_mw_on_res_mw) test_equality
         
     local specifications "`specifications' baseline_wgt_rents baseline_wgt_wkp_mw_on_res_mw"
