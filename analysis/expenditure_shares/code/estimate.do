@@ -21,6 +21,9 @@ program main
     gen wage_per_whhld_monthly = wage_per_wage_hhld/12
     gen s = safmr2br/wage_per_whhld_monthly
     
+    foreach var in statefips cbsa countyfips place_code {
+        replace `var' = "missing" if missing(`var')
+    }
     egen geo_group = group(statefips cbsa countyfips place_code)
 
     impute_var, var(safmr2br)
