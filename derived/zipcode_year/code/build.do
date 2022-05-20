@@ -25,11 +25,11 @@ program main
     clean_qcew,        instub(`in_qcew')
     
     use "../temp/mw_rents_data.dta", clear
-    merge 1:1 zipcode year using "../temp/safmr.dta", nogen keep(1 3)
+    merge 1:1 zipcode year using "../temp/safmr.dta",            nogen keep(1 3)
     merge 1:1 zipcode year using "../temp/irs_data.dta",         nogen keep(1 3)
     merge 1:1 zipcode year using "../temp/workplace_shares.dta", nogen keep(1 3)
     merge 1:1 zipcode year using "../temp/residence_shares.dta", nogen keep(1 3)
-    merge m:1 countyfips year using "../temp/qcew_data.dta",        nogen keep(1 3)
+    merge m:1 countyfips year using "../temp/qcew_data.dta",     nogen keep(1 3)
     gen ln_wkp_jobs_tot = log(wkp_jobs_tot) 
     gen ln_res_jobs_tot = log(res_jobs_tot)
 
