@@ -14,7 +14,7 @@ main <- function() {
   varchar <- c("zipcode", "countyfips", "statefips", "place_code", "year_month")
   varnum <-  c("statutory_mw", "binding_mw", "binding_mw_max", 
                "mw_res", "mw_wkp_tot_17", "mw_wkp_age_under29_17", 
-               "mw_wkp_earn_under1250_17","baseline_sample", "fullbal_sample")
+               "mw_wkp_earn_under1250_17", "fullbal_sample_SFCC", "unbalanced_sample_SFCC")
 
   dt <- fread(file.path(in_sample, 'zipcode_months.csv'),
                 colClasses = list(character = varchar,
@@ -22,12 +22,12 @@ main <- function() {
   
   # Correlation matrix  
   vars <- c("mw_wkp_tot_17", "mw_wkp_age_under29_17", "mw_wkp_earn_under1250_17")
-  corrmatrix <- cor(na.omit(dt[, ..vars]))
+  dt_unbal <- dt[unbalanced_sample_SFCC == 1]
+  corrmatrix <- cor(na.omit(dt_unbal[, ..vars]))
   
   stargazer::stargazer(corrmatrix, summary = F, digits = 4,
                        type = "text",
                        out  = file.path(outstub, "corrmatrix.txt"))
-  
   
   # MW summary statistics  
   geographies <- c("state", "county", "local")
@@ -110,7 +110,7 @@ count_local <- function(data, panel) {
 filter_data <- function(data, panel) {
 
   if (panel == "Unbalanced") {
-    dt_sample  <- data
+    dt_sample  <- data[unbalanced_sample_SFCC == 1]
     short_name <- "Unbal"
   } else if (panel == "Baseline") {
     dt_sample  <- data[fullbal_sample_SFCC == 1]
