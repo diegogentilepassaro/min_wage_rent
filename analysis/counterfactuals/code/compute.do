@@ -3,14 +3,13 @@ set more off
 set maxvar 32000
 
 program main
-    local in_cf_mw    "../../../drive/derived_large/min_wage_measures"
-    local in_baseline "../../fd_baseline/output"
-    local in_wages    "../../twfe_wages/output"
-    local in_s        "../../expenditure_shares/output"
-    local in_zip      "../../../drive/derived_large/zipcode"
+    local in_cf_mw     "../../../drive/derived_large/min_wage_measures"
+    local in_baseline  "../../fd_baseline/output"
+    local in_wages     "../../twfe_wages/output"
+    local in_exp_share "../../expenditure_shares/output"
+    local in_zip       "../../../drive/derived_large/zipcode"
 
-    load_parameters, in_baseline(`in_baseline') ///
-        in_wages(`in_wages')
+    load_parameters, in_baseline(`in_baseline') in_wages(`in_wages')
     local beta    = r(beta)
     local gamma   = r(gamma)
     local epsilon = r(epsilon)
@@ -19,7 +18,7 @@ program main
 
     load_counterfactuals,  instub(`in_cf_mw')
     select_urban_zipcodes, instub(`in_zip')
-    merge m:1 zipcode using "`in_s'/s_by_zip.dta", ///
+    merge m:1 zipcode using "`in_exp_share'/s_by_zip.dta", ///
         nogen keep(1 3)
     
     compute_vars, beta(`beta') gamma(`gamma') epsilon(`epsilon')
@@ -48,16 +47,18 @@ program main
 
     keep if (year == 2020 & month == 1) & !cbsa_low_inc_increase
     keep zipcode counterfactual change_ln_rents perc_incr_rent ///
-        change_ln_wagebill perc_incr_wagebill ///
+        change_ln_wagebill perc_incr_wagebill                  ///
         safmr2br_imputed wage_per_whhld_monthly_imputed
     gen num_terms = safmr2br_imputed*(perc_incr_rent)
     gen denom_terms = wage_per_whhld_monthly_imputed*(perc_incr_wagebill)
 
-    collapse (sum) num_tot_incidence = num_terms ///
-        (sum) denom_tot_incidence = denom_terms if (!missing(num_terms) & !missing(denom_terms)), ///
+    collapse (sum) num_tot_incidence   = num_terms         ///
+                   denom_tot_incidence = denom_terms       ///
+        if (!missing(num_terms) & !missing(denom_terms)),  ///
         by(counterfactual)
+
     gen tot_incidence = num_tot_incidence/denom_tot_incidence
-    save_data "../output/tot_incidence.dta", key(counterfactual) replace
+
     export delimited "../output/tot_incidence.csv", replace
 end
 
