@@ -58,6 +58,7 @@ program main
         by(counterfactual)
     gen tot_incidence = num_tot_incidence/denom_tot_incidence
     save_data "../output/tot_incidence.dta", key(counterfactual) replace
+    export delimited "../output/tot_incidence.csv", replace
 end
 
 program load_parameters, rclass
