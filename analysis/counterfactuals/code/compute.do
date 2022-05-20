@@ -6,7 +6,7 @@ program main
     local in_cf_mw    "../../../drive/derived_large/min_wage_measures"
     local in_baseline "../../fd_baseline/output"
     local in_wages    "../../twfe_wages/output"
-    local in_s        "../../estimate_s/output"
+    local in_s        "../../expenditure_shares/output"
     local in_zip      "../../../drive/derived_large/zipcode"
 
     load_parameters, in_baseline(`in_baseline') ///
