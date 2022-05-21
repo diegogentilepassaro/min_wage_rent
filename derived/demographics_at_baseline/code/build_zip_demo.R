@@ -77,12 +77,12 @@ tract_to_zip <- function(instub, dt_geo) {
     dt[, c(var) := round(share_in_zip*get(var))]
   }
 
-  dt <- dt[, .(population_acs2011     = sum(population),
-               n_workers_acs2011      = sum(n_workers),
+  dt <- dt[, .(population_acs2014     = sum(population),
+               n_workers_acs2014      = sum(n_workers),
                n_mw_wkrs_statutory    = sum(n_mw_workers_statutory),
                n_mw_wkrs_state        = sum(n_mw_workers_state),
                n_mw_wkrs_fed          = sum(n_mw_workers_fed),
-               med_hhld_inc_acs2011   = weighted.mean(med_hhld_inc, num_house10)),
+               med_hhld_inc_acs2014   = weighted.mean(med_hhld_inc, num_house10)),
            by = .(zipcode)]
 
   return(dt)
@@ -103,10 +103,10 @@ compute_shares <- function(dt) {
     dt[, c(newvar) := get(var)/n_hhlds_cens2010]
   }
   
-  # ACS 2011
+  # ACS 2014
   for (var in paste0("n_mw_wkrs_", c("statutory", "state", "fed"))) {
     newvar <- gsub("^n_", "sh_", var)
-    dt[, c(newvar) := get(var)/n_workers_acs2011]
+    dt[, c(newvar) := get(var)/n_workers_acs2014]
   }
   
   return(dt)

@@ -1,17 +1,16 @@
 remove(list = ls())
-
 library(data.table)
 
 source('../../../lib/R/write_command.R')
 
 main <- function() {
   
-  in_baseline  <- '../output'
-  out_autofill <- '../output'
+  instub  <- '../output'
+  outstub <- '../output'
   
   # From estimates_static
   
-  dt <- load_data(in_baseline, 'static')
+  dt <- load_data(instub, 'static')
   
   dt <- dt[!(model %in% c('Only', 'WkpOnRes') & var == 'Sum')]
   
@@ -58,7 +57,7 @@ main <- function() {
   
   # From estimates_dynamic
   
-  dt <- load_data(in_baseline, 'dynamic')
+  dt <- load_data(instub, 'dynamic')
   
   dt <- dt[model == 'both_mw_wkp_dynamic' & at == 0]
   
@@ -98,7 +97,7 @@ main <- function() {
   txt <- paste0(txt, comm)
   
   write.table(txt,
-              file.path(out_autofill,'baseline_autofill.tex'),
+              file.path(outstub,'baseline_autofill.tex'),
               quote = F, row.names = F, col.names = F)
 }
 

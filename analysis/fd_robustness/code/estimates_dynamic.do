@@ -66,9 +66,9 @@ program estimate_alt_zillow_cats_dyn, rclass
     local specifications ""
 
     foreach stub of local stubs {
-        estimate_dist_lag_model if unbalanced_sample_`stub',                                   ///
-            depvar(ln_rents_`stub') dyn_var(`mw_wkp_var') w(6) stat_var(mw_res)                ///
-            controls(`controls') absorb(`absorb'##qtr_entry_to_zillow_`stub') cluster(`cluster')         ///
+        estimate_dist_lag_model if unbalanced_sample_`stub' == 1,                                ///
+            depvar(ln_rents_`stub') dyn_var(`mw_wkp_var') w(6) stat_var(mw_res)                  ///
+            controls(`controls') absorb(`absorb'##qtr_entry_to_zillow_`stub') cluster(`cluster') ///
             model_name(`stub'_rents_dyn) test_equality
         
         local specifications "`specifications' `stub'_rents_dyn"

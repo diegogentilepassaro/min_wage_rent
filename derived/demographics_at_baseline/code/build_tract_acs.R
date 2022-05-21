@@ -14,7 +14,7 @@ main <- function(){
   in_acs     <- "../../../drive/base_large/demographics"
   outstub    <- "../temp"
 
-  yy <- 2011
+  yy <- 2014
   mm <- 1
 
   dt_geo <- load_geographies(in_master)
@@ -34,7 +34,7 @@ main <- function(){
                     paste0("n_workers_", c("less_10k_inc", "10to15k_inc", "15to25k_inc",
                                            "25to35k_inc",  "35to50k_inc", "50to65k_inc", 
                                            "65to75k_inc",  "more_75k_inc")))
-  dt_acs <- fread(file.path(in_acs, "acs_tract_2011.csv"),
+  dt_acs <- fread(file.path(in_acs, "acs_tract_2014.csv"),
                   select = list(character = c("tract"),
                                 numeric   = numeric_vars)  )
   dt <- merge(dt, dt_acs, all.x = TRUE)
