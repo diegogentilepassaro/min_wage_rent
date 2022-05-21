@@ -13,33 +13,35 @@ program main
     local cluster_vars "statefips"
     local absorb "year_month"
 
-    use "`instub'/baseline_sample_with_vars_for_het.dta", clear
+    use "`instub'/fullbal_sample_with_vars_for_het.dta", clear
     xtset zipcode_num year_month
 
-    estimate_dist_lag_model, depvar(ln_rents) ///
-        dyn_var(mw_wkp_tot_17) w(0) stat_var(mw_res) ///
+    estimate_dist_lag_model, depvar(ln_rents)                         ///
+        dyn_var(mw_wkp_tot_17) w(0) stat_var(mw_res)                  ///
         controls(`controls') absorb(`absorb') cluster(`cluster_vars') ///
         model_name(static_both)
         
-    reghdfe D.ln_rents c.D.mw_res#ib0.high_work_mw ///
-        c.D.mw_wkp_tot_17#ib0.high_res_mw ///
-        D.(`controls'), nocons ///
-        absorb(`absorb'##high_work_mw##high_res_mw) ///
+    reghdfe D.ln_rents c.D.mw_res#ib0.high_work_mw                    ///
+        c.D.mw_wkp_tot_17#ib0.high_res_mw                             ///
+        D.(`controls'), nocons                                        ///
+        absorb(`absorb'##high_work_mw##high_res_mw)                   ///
         cluster(`cluster_vars')
-    process_estimates, res_var(mw_res_high_work_mw) ///
+    
+    process_estimates, res_var(mw_res_high_work_mw)                   ///
         wkp_var(mw_wkp_high_res_mw) model(het_mw_shares)
 
-    reghdfe D.ln_rents c.D.mw_res#ib0.public_housing ///
-        c.D.mw_wkp_tot_17#ib0.public_housing ///
-        D.(`controls'), nocons ///
+    reghdfe D.ln_rents c.D.mw_res#ib0.public_housing                  ///
+        c.D.mw_wkp_tot_17#ib0.public_housing                          ///
+        D.(`controls'), nocons                                        ///
         absorb(year_month##public_housing) cluster(`cluster_vars')
-    process_estimates, res_var(mw_res_high_public_hous) ///
+    
+    process_estimates, res_var(mw_res_high_public_hous)               ///
         wkp_var(mw_wkp_high_public_hous) model(het_public_hous)
 
     use "../temp/estimates_static_both.dta", clear
     append using "../temp/estimates_het_mw_shares.dta"
     append using "../temp/estimates_het_public_hous.dta"
-    export delimited "../temp/estimates_het.csv", replace
+    export delimited "../output/estimates_het.csv", replace
 end
 
 program process_estimates
@@ -54,10 +56,13 @@ program process_estimates
         rename (__at __b __se) (at b se)
         keep if _n <= 4
         keep if !missing(at)
+
         replace at = 0
         replace at = 1 if inlist(_n, 2, 4)
-        gen var     = "`res_var'"  
+
+        gen     var = "`res_var'"  
         replace var = "`wkp_var'" if _n >= 3
+
         gen N = `N'
         gen r2 = `r2'
         gen model = "`model'"

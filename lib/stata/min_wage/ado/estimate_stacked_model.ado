@@ -2,7 +2,7 @@ cap program drop estimate_stacked_model
 program estimate_stacked_model 
     syntax [if], depvar(str) mw_var1(str) mw_var2(str) ///
         absorb(str) cluster(str) model_name(str) ///
-        [controls(str) wgt(str) outfolder(str)]
+        [controls(str) ab test_equality wgt(str) outfolder(str)]
 
     if "`outfolder'"==""{
         local outfolder "../temp"
@@ -16,15 +16,22 @@ program estimate_stacked_model
     }
 
     preserve
-        reghdfe `depvar' `mw_var1' `mw_var2' `controls' `wgtsyntax' `if', ///
-            absorb(`absorb') cluster(`cluster') nocons
+        if "`ab'"=="" {        
+            reghdfe `depvar' `mw_var1' `mw_var2' `controls' `wgtsyntax' `if', ///
+                absorb(`absorb') cluster(`cluster') nocons
+        }
+        else {
+            ivreghdfe `depvar' `mw_var1' `mw_var2' ///
+                (L.`depvar'=L2.`depvar') `controls' `wgtsyntax' `if', ///
+                absorb(`absorb') cluster(`cluster') nocons
+        }
 
         ** Model diagnostics
         local N  = e(N)
         local r2 = e(r2)
         
-        if "`mw_var1'" != "`mw_var2'" {
-        	test `mw_var1' = `mw_var2'
+        if "`test_equality'"!="" {
+            test `mw_var1' = `mw_var2'
             local p_equality = r(p)
         }
 
@@ -60,24 +67,43 @@ program estimate_stacked_model
         ** Put everything together
         use "../temp/estimates.dta", clear
 
-        if "`mw_var1'" == "`mw_var2'" {
-            keep if _n <= 1
+        if "`ab'"=="" {
+            if "`mw_var1'" == "`mw_var2'" {
+                keep if _n <= 1
+            }
+            else {
+                keep if _n <= 2
+            }
         }
         else {
-            keep if _n <= 2
+            if "`mw_var1'" == "`mw_var2'" {
+                keep if _n <= 2
+            }
+            else {
+                keep if _n <= 3
+            }            
         }
+        
         keep if !missing(at)
-        gen var     = "`mw_var1'"    if _n == 1
-        replace var = "`mw_var2'"   if _n == 2
-        replace at  = 0
+        if "`ab'"=="" {
+            gen var     = "`mw_var1'"    if _n == 1
+            replace var = "`mw_var2'"   if _n == 2
+            replace at  = 0
+        }
+        else {
+            gen var     = "L_`depvar'"  if _n == 1
+            replace var = "`mw_var1'"   if _n == 2
+            replace var = "`mw_var2'"   if _n == 3
+            replace at  = 0            
+        }
         append using "../temp/estimates_cumsum_from0.dta"
 
         gen model = "`model_name'"
         gen N     = `N'
         gen r2    = `r2'
-        if ("`mw_var1'" != "`mw_var2'") {
+        if "`test_equality'"!="" {
             gen p_equality = `p_equality'
-        }
+        }      
 
         order  model var  at b se
         gsort  model -var at b se

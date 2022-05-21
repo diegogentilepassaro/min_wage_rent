@@ -36,7 +36,7 @@ program main
             graphregion(color(white)) bgcolor(white)                    ///
             plotregion(margin(b = 1.5))
         
-        graph export "../output/hist_`var'.png", replace
+        graph export "../output/hist_`var'.png", replace width(2221) height(1615)
         graph export "../output/hist_`var'.eps", replace
     }
 
@@ -49,7 +49,7 @@ program main
         xlabel(1(1)10) ylabel(0(0.04)0.2)                                   ///
         graphregion(color(white)) bgcolor(white) legend(off)
         
-    graph export "../output/deciles_diff.png", replace
+    graph export "../output/deciles_diff.png", replace width(2221) height(1615)
     graph export "../output/deciles_diff.eps", replace
 end
 

@@ -29,7 +29,7 @@ main <- function(){
     dt_state <- get_acs(geography = "tract", 
                         variables = c(demo_vars, inc_vars, 
                                       binned_income_hhld_vars, binned_income_worker_vars), 
-                        year = 2011, state = st) %>%
+                        year = 2014, state = st) %>%
       select(-NAME, -moe) %>%
       rename(tract = GEOID)
     
@@ -76,7 +76,7 @@ main <- function(){
   }
   
   save_data(dt, key = "tract",
-            filename = file.path(outstub, "acs_tract_2011.csv"),
+            filename = file.path(outstub, "acs_tract_2014.csv"),
             logfile  = "../output/data_manifest.log")
 }
 

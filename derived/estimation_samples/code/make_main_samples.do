@@ -13,12 +13,12 @@ program main
     local rent_var          "medrentpricepsqft"
     local rentvar_stubs     "SFCC SF CC Studio 1BR 2BR 3BR 4BR 5BR MFdxtx Mfr5Plus"
 
-    local start_year_month  "2010m1"
-    local end_year_month    "2019m12"
-    local target_year_month "2015m1"
+    local start_year_month         "2010m1"
+    local end_year_month           "2019m12"
+    local fullbal_start_year_month "2015m1"
     #delimit ;
     local target_vars  "sh_hhlds_renteroccup_cens2010 
-                        sh_workers_under1250_2013 sh_residents_under1250_2013";
+                        sh_workers_under1250_2014 sh_residents_under1250_2014";
     #delimit cr
 
     * Zipcode-months
@@ -33,7 +33,7 @@ program main
         gen_date_of_entry, rent_var(`rent_var') stub(`stub')
 
         flag_samples, instub(`in_zip_mth') geo(zipcode) geo_name(zipcode)    ///
-            rent_var(`rent_var') stub(`stub') target_ym(`target_year_month')
+            rent_var(`rent_var') stub(`stub') target_ym(`fullbal_start_year_month')
     }
 
     compute_weights, instub(`in_zipcode') target_vars(`target_vars')
@@ -58,7 +58,7 @@ program main
     gen_vars, rent_var(`rent_var') geo(county)
 
     flag_samples, instub(`in_cty_mth') geo(county) geo_name(countyfips)      ///
-        rent_var(`rent_var') stub(SFCC) target_ym(`target_year_month')
+        rent_var(`rent_var') stub(SFCC) target_ym(`fullbal_start_year_month')
 
     save_data "`outstub'/county_months.dta", key(countyfips year_month)      ///
         replace log(`logfile')
@@ -151,25 +151,20 @@ program flag_samples
         use year_month `geo_name' `rent_var'_`stub'    ///
             using "`instub'/`geo'_month_panel.dta"     ///
             if !missing(`rent_var'_`stub')
-        
-        gcollapse (min) min_year_month = year_month, by(`geo_name')
-        keep if min_year_month <= `=tm(`target_ym')'
-        
+        keep if year_month == `=tm(`target_ym')'
         keep `geo_name'
-        gen baseline_sample_`stub' = 1
-        
-        save_data "../temp/baseline_`geo'.dta", key(`geo_name') ///
+        gen fullbal_sample_`stub' = 1
+
+        save_data "../temp/fullbal_`geo'.dta", key(`geo_name') ///
             replace log(none)
     restore
     
-    merge m:1 `geo_name' using "../temp/baseline_`geo'.dta", ///
+    merge m:1 `geo_name' using "../temp/fullbal_`geo'.dta", ///
         nogen assert(1 3) keep(1 3)
-    
-    replace baseline_sample_`stub' = 0 if missing(baseline_sample_`stub')
-    replace baseline_sample_`stub' = . if missing(`rent_var'_`stub')
 
-    gen     fullbal_sample_`stub' = baseline_sample_`stub'
-    replace fullbal_sample_`stub' = 0 if year_month <= `=tm(`target_ym')' & !missing(`rent_var'_`stub')
+    replace fullbal_sample_`stub' = 0 if year_month < `=tm(`target_ym')' & !missing(`rent_var'_`stub')
+    replace fullbal_sample_`stub' = 0 if missing(fullbal_sample_`stub')
+    replace fullbal_sample_`stub' = . if missing(`rent_var'_`stub')
 
     gen     unbalanced_sample_`stub' = 1
     replace unbalanced_sample_`stub' = . if missing(`rent_var'_`stub')
@@ -201,13 +196,10 @@ program compute_weights
         ebalance `target_vars' if unbalanced_sample_`stub', manualtargets(`target_means')
         rename _webal weights_unbalanced
         
-        ebalance `target_vars' if baseline_sample_`stub', manualtargets(`target_means')
-        rename _webal weights_baseline
-        
         ebalance `target_vars' if fullbal_sample_`stub', manualtargets(`target_means')
         rename _webal weights_fullbal
         
-        keep zipcode year_month weights_unbalanced weights_baseline weights_fullbal
+        keep zipcode year_month weights_unbalanced weights_fullbal
         save "../temp/weights.dta", replace
     restore
 end
@@ -220,7 +212,6 @@ program drop_vars
 
     cap drop Monthly* NewMonthly*
     cap drop medlistingprice*
-    cap drop medrentprice_*
     cap drop medDailyli*
 end
 
