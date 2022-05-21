@@ -1,6 +1,7 @@
 clear all
 set more off
 set maxvar 32000
+set matsize 10000
 
 program main
     local in_zipcode    "../../../drive/derived_large/zipcode"
@@ -41,15 +42,15 @@ program impute_var
         sh_male_cens2010 sh_urb_pop_cens2010 sh_hhlds_urban_cens2010 sh_hhlds_renteroccup_cens2010 ///
         population_cens2010 n_male_cens2010 n_white_cens2010 n_black_cens2010 urb_pop_cens2010 ///
         n_hhlds_cens2010 n_hhlds_urban_cens2010 n_hhlds_renteroccup_cens2010 population_acs2014 ///
-        sh_residents* sh_workers*, absorb(geo_group) savefe resid
-    preserve
-        collapse __hdfe1__, by(geo_group)
-        save ..tempfes.dta, replace
-    restore
-    merge m:1 geo_group using ..tempfes.dta, nogen keep(1 3)
-    predict `var'_pred, xbd
+        sh_residents* sh_workers*, absorb(FE = geo_group) savefe resid
+
+    bys geo_group (FE): replace FE = FE[1]
+    replace FE = 0 if missing(FE)
+    predict xb, xb
+    gen `var'_pred = xb + FE
     gen `var'_imputed = `var'
     replace `var'_imputed = `var'_pred if (missing(`var') & !missing(`var'_pred))
+	drop FE xb
 end
 
 
