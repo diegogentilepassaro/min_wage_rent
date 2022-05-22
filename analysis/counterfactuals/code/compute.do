@@ -60,8 +60,8 @@ program main
     gen tot_incidence = num_tot_incidence/denom_tot_incidence
 
     export delimited "../output/tot_incidence.csv", replace
-	
-	make_autofill_values, beta(`beta') gamma(`gamma') epsilon(`epsilon')
+
+    make_autofill_values, beta(`beta') gamma(`gamma') epsilon(`epsilon')
 end
 
 program load_parameters, rclass
