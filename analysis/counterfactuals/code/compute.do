@@ -6,7 +6,7 @@ program main
     local in_cf_mw     "../../../drive/derived_large/min_wage_measures"
     local in_baseline  "../../fd_baseline/output"
     local in_wages     "../../twfe_wages/output"
-    local in_exp_share "../../expenditure_shares/output"
+    local in_exp_share "../../../drive/analysis_large/expenditure_shares"
     local in_zip       "../../../drive/derived_large/zipcode"
 
     load_parameters, in_baseline(`in_baseline') in_wages(`in_wages')
@@ -73,7 +73,7 @@ program load_parameters, rclass
     qui sum b if var == "mw_wkp_tot_17"
     return local beta = r(mean)
 
-    use `in_wages'/estimates_cbsa_time.dta, clear
+    use `in_wages'/estimates_all.dta if model == "cbsa_time", clear
     qui sum b
     return local epsilon = r(mean)
 end

@@ -4,8 +4,9 @@ set maxvar 32000
 set matsize 10000
 
 program main
-    local in_zipcode    "../../../drive/derived_large/zipcode"
-    local in_zip_yr     "../../../drive/derived_large/zipcode_year"
+    local in_zipcode  "../../../drive/derived_large/zipcode"
+    local in_zip_yr   "../../../drive/derived_large/zipcode_year"
+    local outstub     "../../../drive/analysis_large/expenditure_shares"
 
     use "`in_zip_yr'/zipcode_year.dta", clear
     keep if year == 2018
@@ -32,7 +33,8 @@ program main
     impute_var, var(s)
         
     keep zipcode s safmr2br wage_per_whhld_monthly *imputed
-    save_data "../output/s_by_zip.dta", key(zipcode) replace
+    save_data "`outstub'/s_by_zip.dta", key(zipcode) ///
+        log(../output/data_file_manifest.log) replace
 end
 
 program impute_var
