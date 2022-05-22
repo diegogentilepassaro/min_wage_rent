@@ -60,6 +60,8 @@ program main
     gen tot_incidence = num_tot_incidence/denom_tot_incidence
 
     export delimited "../output/tot_incidence.csv", replace
+	
+	make_autofill_values, beta(`beta') gamma(`gamma') epsilon(`epsilon')
 end
 
 program load_parameters, rclass
@@ -134,6 +136,44 @@ program flag_unaffected_cbsas
 
     merge m:1 cbsa counterfactual using "../output/cbsa_averages.dta", ///
         assert(3) nogen
+end
+
+
+program make_autofill_values
+    syntax, gamma(str) beta(str) epsilon(str)
+
+    sum rho if counterfactual == "fed_9usd" & !cbsa_low_inc_increase & year == 2020, detail
+    local rho_mean = r(mean)
+    local rho_median = r(p50)
+	
+    count if counterfactual == "fed_9usd" & year == 2020 & cbsa_low_inc_increase == 0
+
+    local total_zip = r(N)
+
+    count if counterfactual == "fed_9usd" & year == 2020 & cbsa_low_inc_increase == 0 & /// 
+       no_direct_treatment == 1
+
+    local no_treat = r(N)
+
+    local no_treat_pct = 100*`no_treat' / `total_zip'
+
+    sum d_mw_res if counterfactual == "fed_9usd" & year == 2020 & cbsa_low_inc_increase == 0
+
+    local avg_change = 100*r(mean)
+
+    cap file close f
+    file open   f using "../output/autofill_counterfactuals.tex", write replace
+    file write  f "\newcommand{\gammaCounterfactual}{\textnormal{"   %5.4f (`gamma') "}}" _n
+    file write  f "\newcommand{\betaCounterfactual}{\textnormal{" %5.4f (`beta') "}}" _n
+    file write  f "\newcommand{\epsilonCounterfactual}{\textnormal{" %5.4f (`epsilon') "}}" _n
+    file write  f "\newcommand{\rhoMeanCounterfactual}{\textnormal{" %4.3f (`rho_mean') "}}" _n
+    file write  f "\newcommand{\rhoMedianCounterfactual}{\textnormal{" %4.3f (`rho_median') "}}" _n
+    file write  f "\newcommand{\zipcodesCounterfactual}{\textnormal{" %4.0f (`total_zip') "}}" _n
+    file write  f "\newcommand{\zipNoIncCounterfactual}{\textnormal{" %4.0f (`no_treat') "}}" _n
+    file write  f "\newcommand{\zipNoIncPctCounterfactual}{\textnormal{" %4.1f (`no_treat_pct') "\%}}" _n
+    file write  f "\newcommand{\AvgChangeCounterfactual}{\textnormal{" %4.1f (`avg_change') "\%}}" _n
+    file close  f
+
 end
 
 main
