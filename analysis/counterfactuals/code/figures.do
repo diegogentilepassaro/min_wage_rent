@@ -36,7 +36,7 @@ program main
             graphregion(color(white)) bgcolor(white)                    ///
             plotregion(margin(b = 1.5))
         
-        graph export "../output/hist_`var'.png", width(2221) height(1615) replace
+        graph export "../output/hist_`var'.png", replace width(2221) height(1615)
         graph export "../output/hist_`var'.eps", replace
     }
 
@@ -54,23 +54,6 @@ program main
         graph export "../output/deciles_diff`stub'.png", width(2221) height(1615) replace
         graph export "../output/deciles_diff`stub'.eps", replace
     }
-end
-
-
-program load_parameters, rclass
-    syntax, in_baseline(str) in_wages(str)
-
-    use `in_baseline'/estimates_static.dta, clear
-    keep if model == "static_both"
-
-    qui sum b if var == "mw_res"
-    return local gamma = r(mean)
-    qui sum b if var == "mw_wkp_tot_17"
-    return local beta = r(mean)
-
-    use `in_wages'/estimates_cbsa_time.dta, clear
-    qui sum b
-    return local epsilon = r(mean)
 end
 
 program get_xlabel, rclass

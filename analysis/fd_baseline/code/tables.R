@@ -9,7 +9,6 @@ main <- function() {
   est     <- fread(file.path(instub, "estimates_static.csv"))
   est_var <- est[var != "cumsum_from0"]
   
-  
   txt <- c("<tab:static>")
   txt <- c(txt, 
            paste(est_var[model == "mw_wkp_on_res_mw"]$b,
