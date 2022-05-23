@@ -20,14 +20,11 @@ program main
     merge 1:1 zipcode using "../temp/irs_safmr_2018.dta", ///
         nogen keep(1 3)
     
+    create_vars
+
     gen wage_per_whhld_monthly = wage_per_wage_hhld/12
     gen s = safmr2br/wage_per_whhld_monthly
     
-    foreach var in statefips cbsa countyfips place_code {
-        replace `var' = "missing" if missing(`var')
-    }
-    egen geo_group = group(statefips cbsa countyfips place_code)
-
     impute_var, var(safmr2br)
     impute_var, var(wage_per_whhld_monthly)
     impute_var, var(s)
@@ -37,22 +34,52 @@ program main
         log(../output/data_file_manifest.log) replace
 end
 
+program create_vars
+
+    rename *hhlds_renteroccup* *hhl_ro*
+    rename *hhlds_urban*       *hhld_ur*
+
+    gen med_hhld_inc    = med_hhld_inc_acs2014
+    gen med_hhld_inc_sq = med_hhld_inc_acs2014^2
+    gen n_workers       = n_workers_acs2014
+    gen inc_x_n_workers = med_hhld_inc*n_workers_acs2014
+
+    foreach var in population n_male n_white n_black n_hhlds n_hhld_ur n_hhl_ro {
+        gen inc_x_`var' = med_hhld_inc*`var'_cens2010
+    }
+
+    foreach var in white black male urb_pop hhl_ro hhld_ur {
+        foreach var in white black male urb_pop hhl_ro hhld_ur {
+            cap gen sh_`var'_x_sh_`var' = sh_`var'_cens2010*sh_`var'_cens2010
+        }
+    }
+    
+    foreach var in statefips cbsa countyfips place_code {
+        replace `var' = "missing" if missing(`var')
+    }
+    egen geo_group = group(statefips cbsa countyfips) //place_code
+end
+
 program impute_var
     syntax, var(str)
-    reghdfe `var' n_workers_acs2014 med_hhld_inc_acs2014 c.med_hhld_inc_acs2014#c.med_hhld_inc_acs2014 ///
-        sh_white_cens2010 c.sh_white_cens2010#c.sh_white_cens2010 sh_black_cens2010 ///
-        sh_male_cens2010 sh_urb_pop_cens2010 sh_hhlds_urban_cens2010 sh_hhlds_renteroccup_cens2010 ///
+    reghdfe `var' med_hhld_inc n_workers inc_x* ///
         population_cens2010 n_male_cens2010 n_white_cens2010 n_black_cens2010 urb_pop_cens2010 ///
-        n_hhlds_cens2010 n_hhlds_urban_cens2010 n_hhlds_renteroccup_cens2010 population_acs2014 ///
+        n_hhlds_cens2010 n_hhld_ur_cens2010 n_hhl_ro_cens2010 ///
+        sh_white* sh_black* sh_male* sh_urb_pop* sh_hhld* ///
         sh_residents* sh_workers*, absorb(FE = geo_group) savefe resid
 
     bys geo_group (FE): replace FE = FE[1]
     replace FE = 0 if missing(FE)
     predict xb, xb
     gen `var'_pred = xb + FE
-    gen `var'_imputed = `var'
-    replace `var'_imputed = `var'_pred if (missing(`var') & !missing(`var'_pred))
 	drop FE xb
+
+    gen     `var'_imputed = `var'
+    replace `var'_imputed = `var'_pred if (missing(`var') & !missing(`var'_pred))
+
+    qui sum `var'_imputed, d
+    replace `var'_imputed = r(p1) if `var'_imputed  < r(p1)
+    replace `var'_imputed = r(p99) if `var'_imputed > r(p99)
 end
 
 
