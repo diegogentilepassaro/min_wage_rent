@@ -26,7 +26,7 @@ program main
         }
         if inlist("`var'", "rho", "rho_with_imputed", "change_ln_rents", "change_ln_wagebill") {
             local bin_opt    "bin(30)"
-            if "`var'"!="rho" {
+            if !inlist("`var'", "rho", "rho_with_imputed") {
                 local scale_opts "yscale(r(0 40))"
             }
         }
