@@ -45,21 +45,10 @@ program main
     save             "../output/data_counterfactuals.dta", replace
     export delimited "../output/data_counterfactuals.csv", replace
 
-    keep if (year == 2020 & month == 1) & !cbsa_low_inc_increase
-    keep zipcode counterfactual change_ln_rents perc_incr_rent ///
-        change_ln_wagebill perc_incr_wagebill                  ///
-        safmr2br_imputed wage_per_whhld_monthly_imputed
-    gen num_terms = safmr2br_imputed*(perc_incr_rent)
-    gen denom_terms = wage_per_whhld_monthly_imputed*(perc_incr_wagebill)
-
-    collapse (sum) num_tot_incidence   = num_terms         ///
-                   denom_tot_incidence = denom_terms       ///
-        if (!missing(num_terms) & !missing(denom_terms)),  ///
-        by(counterfactual)
-
-    gen tot_incidence = num_tot_incidence/denom_tot_incidence
-
-    export delimited "../output/tot_incidence.csv", replace
+    preserve
+        compute_tot_incidence
+        export delimited "../output/tot_incidence.csv", replace
+    restore
 
     make_autofill_values, beta(`beta') gamma(`gamma') epsilon(`epsilon')
 end
@@ -138,52 +127,67 @@ program flag_unaffected_cbsas
         assert(3) nogen
 end
 
+program compute_tot_incidence
+    
+    keep if (year == 2020 & month == 1) & !cbsa_low_inc_increase
+    keep zipcode counterfactual change_ln_rents perc_incr_rent ///
+        change_ln_wagebill perc_incr_wagebill                  ///
+        safmr2br_imputed wage_per_whhld_monthly_imputed
+    gen num_terms = safmr2br_imputed*(perc_incr_rent)
+    gen denom_terms = wage_per_whhld_monthly_imputed*(perc_incr_wagebill)
+
+    collapse (sum) num_tot_incidence   = num_terms         ///
+                   denom_tot_incidence = denom_terms       ///
+        if (!missing(num_terms) & !missing(denom_terms)),  ///
+        by(counterfactual)
+
+    gen tot_incidence = num_tot_incidence/denom_tot_incidence
+end
 
 program make_autofill_values
     syntax, gamma(str) beta(str) epsilon(str)
 
-    sum rho if counterfactual == "fed_9usd" & !cbsa_low_inc_increase & year == 2020, detail
+    qui sum rho if counterfactual == "fed_9usd" & !cbsa_low_inc_increase & year == 2020, detail
 	
     local rho_mean = r(mean)
     local rho_median = r(p50)
 	
-    count if counterfactual == "fed_9usd" & year == 2020 & cbsa_low_inc_increase == 0
+    qui count if counterfactual == "fed_9usd" & year == 2020 & cbsa_low_inc_increase == 0
 
     local zip_total = r(N)
 
-    count if counterfactual == "fed_9usd" & year == 2020 & cbsa_low_inc_increase == 0 & /// 
+    qui count if counterfactual == "fed_9usd" & year == 2020 & cbsa_low_inc_increase == 0 & /// 
        no_direct_treatment == 1
 
     local zip_no_treat = r(N)
 
-    local zip_no_treat_pct = 100*`zip_no_treat' / `zip_total'
+    local zip_notr_pct = 100*`zip_no_treat' / `zip_total'
 	
-    count if counterfactual == "fed_9usd" & year == 2019 & cbsa_low_inc_increase == 0 & /// 
+    qui count if counterfactual == "fed_9usd" & year == 2019 & cbsa_low_inc_increase == 0 & /// 
        no_direct_treatment == 0 & statutory_mw == 7.25
 	   
     local zip_bound = r(N)
 	
     local zip_bound_pct = 100 * `zip_bound' / `zip_total'
 	
-    sum d_mw_res if counterfactual == "fed_9usd" & year == 2020 & cbsa_low_inc_increase == 0
+    qui sum d_mw_res if counterfactual == "fed_9usd" & year == 2020 & cbsa_low_inc_increase == 0
 
     local avg_change = 100 * r(mean)
 
     cap file close f
     file open   f using "../output/autofill_counterfactuals.tex", write replace
-    file write  f "\newcommand{\gammaCounterfactual}{\textnormal{"   %5.4f (`gamma') "}}" _n
-    file write  f "\newcommand{\betaCounterfactual}{\textnormal{" %5.4f (`beta') "}}" _n
-    file write  f "\newcommand{\epsilonCounterfactual}{\textnormal{" %5.4f (`epsilon') "}}" _n
-    file write  f "\newcommand{\rhoMeanCounterfactual}{\textnormal{" %4.3f (`rho_mean') "}}" _n
-    file write  f "\newcommand{\rhoMedianCounterfactual}{\textnormal{" %4.3f (`rho_median') "}}" _n
-    file write  f "\newcommand{\zipcodesCounterfactual}{\textnormal{" %4.0f (`zip_total') "}}" _n
-    file write  f "\newcommand{\zipNoIncCounterfactual}{\textnormal{" %4.0f (`zip_no_treat') "}}" _n
-    file write  f "\newcommand{\zipNoIncPctCounterfactual}{\textnormal{" %4.1f (`zip_no_treat_pct') "\%}}" _n
-    file write  f "\newcommand{\zipBoundCounterfactual}{\textnormal{" %4.1f (`zip_bound') "\%}}" _n
-    file write  f "\newcommand{\zipBoundPctCounterfactual}{\textnormal{" %4.1f (`zip_bound_pct') "\%}}" _n
-    file write  f "\newcommand{\AvgChangeCounterfactual}{\textnormal{" %4.1f (`avg_change') "\%}}" _n
+    file write  f "\newcommand{\gammaCounterfactual}{\textnormal{"       %5.4f  (`gamma')         "}}" _n
+    file write  f "\newcommand{\betaCounterfactual}{\textnormal{"        %5.4f  (`beta')          "}}" _n
+    file write  f "\newcommand{\epsilonCounterfactual}{\textnormal{"     %5.4f  (`epsilon')       "}}" _n
+    file write  f "\newcommand{\rhoMeanCounterfactual}{\textnormal{"     %4.3f  (`rho_mean')      "}}" _n
+    file write  f "\newcommand{\rhoMedianCounterfactual}{\textnormal{"   %4.3f  (`rho_median')    "}}" _n
+    file write  f "\newcommand{\zipcodesCounterfactual}{\textnormal{"    %5.0fc (`zip_total')     "}}" _n
+    file write  f "\newcommand{\zipNoIncCounterfactual}{\textnormal{"    %5.0fc (`zip_no_treat')  "}}" _n
+    file write  f "\newcommand{\zipBoundCounterfactual}{\textnormal{"    %5.0fc (`zip_bound')     "}}" _n
+    file write  f "\newcommand{\zipNoIncPctCounterfactual}{\textnormal{" %4.1f  (`zip_notr_pct')  "}}" _n
+    file write  f "\newcommand{\zipBoundPctCounterfactual}{\textnormal{" %4.1f  (`zip_bound_pct') "}}" _n
+    file write  f "\newcommand{\AvgChangeCounterfactual}{\textnormal{"   %4.1f  (`avg_change')    "}}" _n
     file close  f
-
 end
 
 main
