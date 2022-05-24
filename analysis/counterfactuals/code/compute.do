@@ -47,10 +47,14 @@ program main
 
     preserve
         compute_tot_incidence
+
+        qui sum tot_incidence if counterfactual == "fed_9usd"
+        local tot_inc = r(mean)
+
         export delimited "../output/tot_incidence.csv", replace
     restore
 
-    make_autofill_values, beta(`beta') gamma(`gamma') epsilon(`epsilon')
+    make_autofill_values, beta(`beta') gamma(`gamma') epsilon(`epsilon') tot_inc(`tot_inc')
 end
 
 program load_parameters, rclass
@@ -145,48 +149,65 @@ program compute_tot_incidence
 end
 
 program make_autofill_values
-    syntax, gamma(str) beta(str) epsilon(str)
+    syntax, gamma(real) beta(real) epsilon(real) tot_inc(real)
 
-    qui sum rho if counterfactual == "fed_9usd" & !cbsa_low_inc_increase & year == 2020, detail
+    local tot_inc_cents = `tot_inc'*100
+
+    gen main_cf = counterfactual == "fed_9usd"
+
+    qui sum rho if main_cf & !cbsa_low_inc_increase & year == 2020, detail
 	
-    local rho_mean = r(mean)
-    local rho_median = r(p50)
+    local rho_mean      = r(mean)
+    local rho_median    = r(p50)
+    local rho_med_cents = r(p50)*100
+
+    qui sum rho if main_cf & year == 2020 & cbsa_low_inc_increase == 0 & ///
+       no_direct_treatment == 0
+    local rho_meandir_cent = 100 * r(mean)
+
+    qui sum rho if main_cf & year == 2020 & cbsa_low_inc_increase == 0 & ///
+       no_direct_treatment == 1
+    local rho_meanind_cent = 100 * r(mean)
 	
-    qui count if counterfactual == "fed_9usd" & year == 2020 & cbsa_low_inc_increase == 0
+    qui count if main_cf & year == 2020 & cbsa_low_inc_increase == 0
 
     local zip_total = r(N)
 
-    qui count if counterfactual == "fed_9usd" & year == 2020 & cbsa_low_inc_increase == 0 & /// 
+    qui count if main_cf & year == 2020 & cbsa_low_inc_increase == 0 & /// 
        no_direct_treatment == 1
 
     local zip_no_treat = r(N)
-
     local zip_notr_pct = 100*`zip_no_treat' / `zip_total'
 	
-    qui count if counterfactual == "fed_9usd" & year == 2019 & cbsa_low_inc_increase == 0 & /// 
+    qui count if main_cf & year == 2019 & cbsa_low_inc_increase == 0 & /// 
        no_direct_treatment == 0 & statutory_mw == 7.25
 	   
-    local zip_bound = r(N)
-	
+    local zip_bound = r(N)	
     local zip_bound_pct = 100 * `zip_bound' / `zip_total'
 	
-    qui sum d_mw_res if counterfactual == "fed_9usd" & year == 2020 & cbsa_low_inc_increase == 0
+    qui sum d_mw_res if main_cf & year == 2020 & cbsa_low_inc_increase == 0
 
     local avg_change = 100 * r(mean)
+        
 
     cap file close f
     file open   f using "../output/autofill_counterfactuals.tex", write replace
-    file write  f "\newcommand{\gammaCounterfactual}{\textnormal{"       %5.4f  (`gamma')         "}}" _n
-    file write  f "\newcommand{\betaCounterfactual}{\textnormal{"        %5.4f  (`beta')          "}}" _n
-    file write  f "\newcommand{\epsilonCounterfactual}{\textnormal{"     %5.4f  (`epsilon')       "}}" _n
-    file write  f "\newcommand{\rhoMeanCounterfactual}{\textnormal{"     %4.3f  (`rho_mean')      "}}" _n
-    file write  f "\newcommand{\rhoMedianCounterfactual}{\textnormal{"   %4.3f  (`rho_median')    "}}" _n
-    file write  f "\newcommand{\zipcodesCounterfactual}{\textnormal{"    %5.0fc (`zip_total')     "}}" _n
-    file write  f "\newcommand{\zipNoIncCounterfactual}{\textnormal{"    %5.0fc (`zip_no_treat')  "}}" _n
-    file write  f "\newcommand{\zipBoundCounterfactual}{\textnormal{"    %5.0fc (`zip_bound')     "}}" _n
-    file write  f "\newcommand{\zipNoIncPctCounterfactual}{\textnormal{" %4.1f  (`zip_notr_pct')  "}}" _n
-    file write  f "\newcommand{\zipBoundPctCounterfactual}{\textnormal{" %4.1f  (`zip_bound_pct') "}}" _n
-    file write  f "\newcommand{\AvgChangeCounterfactual}{\textnormal{"   %4.1f  (`avg_change')    "}}" _n
+    file write  f "\newcommand{\gammaCf}{\textnormal{"                    %5.4f  (`gamma')          "}}" _n
+    file write  f "\newcommand{\betaCf}{\textnormal{"                     %5.4f  (`beta')           "}}" _n
+    file write  f "\newcommand{\epsilonCf}{\textnormal{"                  %5.4f  (`epsilon')        "}}" _n
+    file write  f "\newcommand{\totIncidenceFedNine}{\textnormal{"        %4.3f  (`tot_inc')        "}}" _n
+    file write  f "\newcommand{\totIncidenceCentsFedNine}{\textnormal{"   %4.1f  (`tot_inc_cents')  "}}" _n
+    file write  f "\newcommand{\rhoMeanFedNine}{\textnormal{"             %4.3f  (`rho_mean')       "}}" _n
+    file write  f "\newcommand{\rhoMedianFedNine}{\textnormal{"           %4.3f  (`rho_median')     "}}" _n
+    file write  f "\newcommand{\rhoMedianCentsFedNine}{\textnormal{"      %4.0f  (`rho_med_cents')  "}}" _n
+    file write  f "\newcommand{\rhoMeanCentsIndirFedNine}{\textnormal{"   %4.1f  (`rho_meanind_cent') "}}" _n
+    file write  f "\newcommand{\rhoMeanCentsDirFedNine}{\textnormal{"     %4.1f  (`rho_meandir_cent') "}}" _n
+    file write  f "\newcommand{\zipcodesFedNine}{\textnormal{"            %5.0fc (`zip_total')      "}}" _n
+    file write  f "\newcommand{\zipNoIncFedNine}{\textnormal{"            %5.0fc (`zip_no_treat')   "}}" _n
+    file write  f "\newcommand{\zipBoundFedNine}{\textnormal{"            %5.0fc (`zip_bound')      "}}" _n
+    file write  f "\newcommand{\zipNoIncPctFedNine}{\textnormal{"         %4.1f  (`zip_notr_pct')   "}}" _n
+    file write  f "\newcommand{\zipBoundPctFedNine}{\textnormal{"         %4.1f  (`zip_bound_pct')  "}}" _n
+    file write  f "\newcommand{\AvgChangeFedNine}{\textnormal{"           %4.1f  (`avg_change')     "}}" _n
     file close  f
 end
 
