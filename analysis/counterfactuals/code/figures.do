@@ -13,7 +13,7 @@ program main
     keep if !cbsa_low_inc_increase
 
     foreach var in d_mw_res d_mw_wkp rho rho_with_imputed ///
-                   change_ln_rents change_ln_wagebill  {
+                   change_ln_rents change_ln_wagebill s_imputed {
         
         get_xlabel, var(`var')
         local x_lab = r(x_lab)
@@ -24,11 +24,16 @@ program main
             local scale_opts "yscale(r(0 53.5)) xscale(r(0 0.23))"
             local bin_opt    "bin(25)"
         }
-        if inlist("`var'", "rho", "rho_with_imputed", "change_ln_rents", "change_ln_wagebill") {
+        if inlist("`var'", "rho", "rho_with_imputed", "change_ln_rents", ///
+            "change_ln_wagebill") {
             local bin_opt    "bin(30)"
             if !inlist("`var'", "rho", "rho_with_imputed") {
                 local scale_opts "yscale(r(0 40))"
             }
+        }
+        if inlist("`var'", "s_imputed") {
+            local bin_opt    "bin(30)"
+            local scale_opts "yscale(r(0 8))"
         }
 
         hist `var', percent `bin_opt'                                   ///
@@ -48,7 +53,7 @@ program main
                (scatter  rho`stub'  diff_qts, mcol(navy)),                                  ///
             xtitle("Difference between change in wrk. MW and change in res. MW (deciles)")  ///
             ytitle("Mean share pocketed")                                                   ///
-            xlabel(1(1)10) ylabel(0(0.04)0.16)                                              ///
+            xlabel(1(1)10) ylabel(0.04(0.04)0.16)                                              ///
             graphregion(color(white)) bgcolor(white) legend(off)
             
         graph export "../output/deciles_diff`stub'.png", width(2221) height(1615) replace
@@ -72,6 +77,8 @@ program get_xlabel, rclass
 
     if "`var'"=="rho"                return local x_lab "Share pocketed by landlords"
     if "`var'"=="rho_with_imputed"   return local x_lab "Share pocketed by landlords"
+
+    if "`var'"=="s_imputed"          return local x_lab "Housing expenditure share"
 end
 
 
