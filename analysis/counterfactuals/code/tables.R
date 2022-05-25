@@ -25,6 +25,13 @@ main <- function() {
                   mean(dt_sample[["rho"]],      na.rm = T),
                   sep = "\t"))
   }
+
+  dt_tot_incidence <- fread(file.path(instub, "tot_incidence.csv"))
+  dt_tot_incidence <- dt_tot_incidence[counterfactual == "fed_9usd"]
+  txt <- c(txt, 
+        paste(dt_tot_incidence$N,
+              dt_tot_incidence$tot_incidence,
+              sep = "\t"))
   
   fileConn <- file(file.path(outstub, "counterfactuals_fed_9usd.txt"))
   writeLines(txt, fileConn)
@@ -66,8 +73,18 @@ main <- function() {
                     mean(dt_sample[["s"]],        na.rm = T),
                     mean(dt_sample[["rho"]],      na.rm = T),
                     sep = "\t"))
-    }    
+    }
+    
+    dt_tot_incidence <- fread(file.path(instub, "tot_incidence.csv"))
+    dt_tot_incidence <- dt_tot_incidence[counterfactual == cf]
+    txt <- c(txt, 
+             paste(dt_tot_incidence$N,
+                   dt_tot_incidence$tot_incidence,
+                   sep = "\t"))
   }
+  
+
+  
   
   fileConn <- file(file.path(outstub, "counterfactuals_other.txt"))
   writeLines(txt, fileConn)

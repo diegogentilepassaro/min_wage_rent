@@ -1,5 +1,5 @@
 
- make.py started: 2022-05-23 05:35:31 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\code 
+ make.py started: 2022-05-25 10:45:23 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\code 
 
 
 
@@ -85,24 +85,18 @@ running c:\ado\personal\profile.do ...
 .     save             "../output/data_counterfactuals.dta", replace
  30.     export delimited "../output/data_counterfactuals.csv", replace
  31. 
-.     keep if (year == 2020 & month == 1) & !cbsa_low_inc_increase
- 32.     keep zipcode counterfactual change_ln_rents perc_incr_rent ///
->         change_ln_wagebill perc_incr_wagebill                  ///
->         safmr2br_imputed wage_per_whhld_monthly_imputed
- 33.     gen num_terms = safmr2br_imputed*(perc_incr_rent)
- 34.     gen denom_terms = wage_per_whhld_monthly_imputed*(perc_incr_wagebill)
+.     preserve
+ 32.         compute_tot_incidence
+ 33. 
+.         qui sum tot_incidence if counterfactual == "fed_9usd"
+ 34.         local tot_inc = r(mean)
  35. 
-.     collapse (sum) num_tot_incidence   = num_terms         ///
->                    denom_tot_incidence = denom_terms       ///
->         if (!missing(num_terms) & !missing(denom_terms)),  ///
->         by(counterfactual)
- 36. 
-.     gen tot_incidence = num_tot_incidence/denom_tot_incidence
+.         export delimited "../output/tot_incidence.csv", replace
+ 36.     restore
  37. 
-.     export delimited "../output/tot_incidence.csv", replace
- 38. 
-.     make_autofill_values, beta(`beta') gamma(`gamma') epsilon(`epsilon')
- 39. end
+.     make_autofill_values, beta(`beta') gamma(`gamma') epsilon(`epsilon') tot_
+> inc(`tot_inc')
+ 38. end
 
 . 
 . program load_parameters, rclass
@@ -185,70 +179,104 @@ running c:\ado\personal\profile.do ...
   8. end
 
 . 
+. program compute_tot_incidence
+  1.     
+.     keep if (year == 2020 & month == 1) & !cbsa_low_inc_increase
+  2.     keep zipcode counterfactual change_ln_rents perc_incr_rent ///
+>         change_ln_wagebill perc_incr_wagebill                  ///
+>         safmr2br_imputed wage_per_whhld_monthly_imputed
+  3.     gen num_terms = safmr2br_imputed*(perc_incr_rent)
+  4.     gen denom_terms = wage_per_whhld_monthly_imputed*(perc_incr_wagebill)
+  5. 
+.     collapse (sum) num_tot_incidence   = num_terms         ///
+>                    denom_tot_incidence = denom_terms       ///
+>              (count) N = num_terms                         ///
+>         if (!missing(num_terms) & !missing(denom_terms)),  ///
+>         by(counterfactual)
+  6. 
+.     gen tot_incidence = num_tot_incidence/denom_tot_incidence
+  7. end
+
 . 
 . program make_autofill_values
-  1.     syntax, gamma(str) beta(str) epsilon(str)
+  1.     syntax, gamma(real) beta(real) epsilon(real) tot_inc(real)
   2. 
-.     sum rho if counterfactual == "fed_9usd" & !cbsa_low_inc_increase & year =
-> = 2020, detail
-  3.         
-.     local rho_mean = r(mean)
-  4.     local rho_median = r(p50)
+.     local tot_inc_cents = `tot_inc'*100
+  3. 
+.     gen main_cf = counterfactual == "fed_9usd"
+  4. 
+.     qui sum rho if main_cf & !cbsa_low_inc_increase & year == 2020, detail
   5.         
-.     count if counterfactual == "fed_9usd" & year == 2020 & cbsa_low_inc_incre
-> ase == 0
-  6. 
-.     local zip_total = r(N)
-  7. 
-.     count if counterfactual == "fed_9usd" & year == 2020 & cbsa_low_inc_incre
-> ase == 0 & /// 
->        no_direct_treatment == 1
+.     local rho_mean      = r(mean)
+  6.     local rho_median    = r(p50)
+  7.     local rho_med_cents = r(p50)*100
   8. 
-.     local zip_no_treat = r(N)
-  9. 
-.     local zip_no_treat_pct = 100*`zip_no_treat' / `zip_total'
- 10.         
-.     count if counterfactual == "fed_9usd" & year == 2019 & cbsa_low_inc_incre
-> ase == 0 & /// 
->        no_direct_treatment == 0 & statutory_mw == 7.25
- 11.            
-.     local zip_bound = r(N)
+.     qui sum rho if main_cf & year == 2020 & cbsa_low_inc_increase == 0 & ///
+>        no_direct_treatment == 0
+  9.     local rho_meandir_cent = 100 * r(mean)
+ 10. 
+.     qui sum rho if main_cf & year == 2020 & cbsa_low_inc_increase == 0 & ///
+>        no_direct_treatment == 1
+ 11.     local rho_meanind_cent = 100 * r(mean)
  12.         
-.     local zip_bound_pct = 100 * `zip_bound' / `zip_total'
- 13.         
-.     sum d_mw_res if counterfactual == "fed_9usd" & year == 2020 & cbsa_low_in
-> c_increase == 0
+.     qui count if main_cf & year == 2020 & cbsa_low_inc_increase == 0
+ 13. 
+.     local zip_total = r(N)
  14. 
-.     local avg_change = 100 * r(mean)
+.     qui count if main_cf & year == 2020 & cbsa_low_inc_increase == 0 & /// 
+>        no_direct_treatment == 1
  15. 
+.     local zip_no_treat = r(N)
+ 16.     local zip_notr_pct = 100*`zip_no_treat' / `zip_total'
+ 17.         
+.     qui count if main_cf & year == 2019 & cbsa_low_inc_increase == 0 & /// 
+>        no_direct_treatment == 0 & statutory_mw == 7.25
+ 18.            
+.     local zip_bound = r(N)      
+ 19.     local zip_bound_pct = 100 * `zip_bound' / `zip_total'
+ 20.         
+.     qui sum d_mw_res if main_cf & year == 2020 & cbsa_low_inc_increase == 0
+ 21. 
+.     local avg_change = 100 * r(mean)
+ 22.         
+. 
 .     cap file close f
- 16.     file open   f using "../output/autofill_counterfactuals.tex", write re
+ 23.     file open   f using "../output/autofill_counterfactuals.tex", write re
 > place
- 17.     file write  f "\newcommand{\gammaCounterfactual}{\textnormal{"   %5.4f
->  (`gamma') "}}" _n
- 18.     file write  f "\newcommand{\betaCounterfactual}{\textnormal{" %5.4f (`
-> beta') "}}" _n
- 19.     file write  f "\newcommand{\epsilonCounterfactual}{\textnormal{" %5.4f
->  (`epsilon') "}}" _n
- 20.     file write  f "\newcommand{\rhoMeanCounterfactual}{\textnormal{" %4.3f
->  (`rho_mean') "}}" _n
- 21.     file write  f "\newcommand{\rhoMedianCounterfactual}{\textnormal{" %4.
-> 3f (`rho_median') "}}" _n
- 22.     file write  f "\newcommand{\zipcodesCounterfactual}{\textnormal{" %4.0
-> f (`zip_total') "}}" _n
- 23.     file write  f "\newcommand{\zipNoIncCounterfactual}{\textnormal{" %4.0
-> f (`zip_no_treat') "}}" _n
- 24.     file write  f "\newcommand{\zipNoIncPctCounterfactual}{\textnormal{" %
-> 4.1f (`zip_no_treat_pct') "\%}}" _n
- 25.     file write  f "\newcommand{\zipBoundCounterfactual}{\textnormal{" %4.1
-> f (`zip_bound') "\%}}" _n
- 26.     file write  f "\newcommand{\zipBoundPctCounterfactual}{\textnormal{" %
-> 4.1f (`zip_bound_pct') "\%}}" _n
- 27.     file write  f "\newcommand{\AvgChangeCounterfactual}{\textnormal{" %4.
-> 1f (`avg_change') "\%}}" _n
- 28.     file close  f
- 29. 
-. end
+ 24.     file write  f "\newcommand{\gammaCf}{\textnormal{"                    
+> %5.4f  (`gamma')          "}}" _n
+ 25.     file write  f "\newcommand{\betaCf}{\textnormal{"                     
+> %5.4f  (`beta')           "}}" _n
+ 26.     file write  f "\newcommand{\epsilonCf}{\textnormal{"                  
+> %5.4f  (`epsilon')        "}}" _n
+ 27.     file write  f "\newcommand{\totIncidenceFedNine}{\textnormal{"        
+> %4.3f  (`tot_inc')        "}}" _n
+ 28.     file write  f "\newcommand{\totIncidenceCentsFedNine}{\textnormal{"   
+> %4.1f  (`tot_inc_cents')  "}}" _n
+ 29.     file write  f "\newcommand{\rhoMeanFedNine}{\textnormal{"             
+> %4.3f  (`rho_mean')       "}}" _n
+ 30.     file write  f "\newcommand{\rhoMedianFedNine}{\textnormal{"           
+> %4.3f  (`rho_median')     "}}" _n
+ 31.     file write  f "\newcommand{\rhoMedianCentsFedNine}{\textnormal{"      
+> %4.0f  (`rho_med_cents')  "}}" _n
+ 32.     file write  f "\newcommand{\rhoMeanCentsIndirFedNine}{\textnormal{"   
+> %4.1f  (`rho_meanind_cent') "}}" _n
+ 33.     file write  f "\newcommand{\rhoMeanCentsDirFedNine}{\textnormal{"     
+> %4.1f  (`rho_meandir_cent') "}}" _n
+ 34.     file write  f "\newcommand{\zipcodesFedNine}{\textnormal{"            
+> %5.0fc (`zip_total')      "}}" _n
+ 35.     file write  f "\newcommand{\zipNoIncFedNine}{\textnormal{"            
+> %5.0fc (`zip_no_treat')   "}}" _n
+ 36.     file write  f "\newcommand{\zipBoundFedNine}{\textnormal{"            
+> %5.0fc (`zip_bound')      "}}" _n
+ 37.     file write  f "\newcommand{\zipNoIncPctFedNine}{\textnormal{"         
+> %4.1f  (`zip_notr_pct')   "}}" _n
+ 38.     file write  f "\newcommand{\zipBoundPctFedNine}{\textnormal{"         
+> %4.1f  (`zip_bound_pct')  "}}" _n
+ 39.     file write  f "\newcommand{\AvgChangeFedNine}{\textnormal{"           
+> %4.1f  (`avg_change')     "}}" _n
+ 40.     file close  f
+ 41. end
 
 . 
 . main
@@ -399,11 +427,10 @@ file ../output/data_counterfactuals.csv saved
 (117 missing values generated)
 (note: file ../output/tot_incidence.csv not found)
 file ../output/tot_incidence.csv saved
-variable rho not found
-r(111);
+(note: file ../output/autofill_counterfactuals.tex not found)
 
+. 
 end of do-file
-r(111);
 
 
 Execute:  StataMP-64 /e do "./figures.do"
@@ -467,7 +494,7 @@ running c:\ado\personal\profile.do ...
  16.         if inlist("`var'", "rho", "rho_with_imputed", "change_ln_rents", "
 > change_ln_wagebill") {
  17.             local bin_opt    "bin(30)"
- 18.             if "`var'"!="rho" {
+ 18.             if !inlist("`var'", "rho", "rho_with_imputed") {
  19.                 local scale_opts "yscale(r(0 40))"
  20.             }
  21.         }
@@ -624,6 +651,13 @@ Type 'q()' to quit R.
 +                   mean(dt_sample[["rho"]],      na.rm = T),
 +                   sep = "\t"))
 +   }
++ 
++   dt_tot_incidence <- fread(file.path(instub, "tot_incidence.csv"))
++   dt_tot_incidence <- dt_tot_incidence[counterfactual == "fed_9usd"]
++   txt <- c(txt, 
++         paste(dt_tot_incidence$N,
++               dt_tot_incidence$tot_incidence,
++               sep = "\t"))
 +   
 +   fileConn <- file(file.path(outstub, "counterfactuals_fed_9usd.txt"))
 +   writeLines(txt, fileConn)
@@ -665,8 +699,18 @@ Type 'q()' to quit R.
 +                     mean(dt_sample[["s"]],        na.rm = T),
 +                     mean(dt_sample[["rho"]],      na.rm = T),
 +                     sep = "\t"))
-+     }    
++     }
++     
++     dt_tot_incidence <- fread(file.path(instub, "tot_incidence.csv"))
++     dt_tot_incidence <- dt_tot_incidence[counterfactual == cf]
++     txt <- c(txt, 
++              paste(dt_tot_incidence$N,
++                    dt_tot_incidence$tot_incidence,
++                    sep = "\t"))
 +   }
++   
++ 
++   
 +   
 +   fileConn <- file(file.path(outstub, "counterfactuals_other.txt"))
 +   writeLines(txt, fileConn)
@@ -678,7 +722,7 @@ Type 'q()' to quit R.
 > 
 > proc.time()
    user  system elapsed 
-   0.59    0.21    1.25 
+   0.54    0.25    0.71 
 
 
 Execute:  R CMD BATCH --no-save "./map_cfs.R" map_cfs.Rout
@@ -822,40 +866,40 @@ repos='https://nowosad.github.io/drat/', type='source')`
 + }
 > 
 > main()
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res.png
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res.eps
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res.eps
 Size: 6.117331 by 8.010029 inches
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp.png
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp.eps
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp.eps
 Size: 6.117331 by 8.010029 inches
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents.png
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents.eps
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents.eps
 Size: 6.117331 by 8.010029 inches
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill.png
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill.eps
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill.eps
 Size: 6.117331 by 8.010029 inches
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_s_imputed.png
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_s_imputed.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_s_imputed.eps
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_s_imputed.eps
 Size: 6.117331 by 8.010029 inches
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_rho_with_imputed.png
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_rho_with_imputed.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_rho_with_imputed.eps
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_rho_with_imputed.eps
 Size: 6.117331 by 8.010029 inches
 There were 22 warnings (use warnings() to see them)
 > 
 > proc.time()
    user  system elapsed 
-  70.89   54.17  133.81 
+  66.48   49.96  118.92 
 
- make.py ended: 2022-05-23 05:38:15
+ make.py ended: 2022-05-25 10:49:23

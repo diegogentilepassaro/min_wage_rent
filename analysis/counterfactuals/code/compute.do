@@ -142,6 +142,7 @@ program compute_tot_incidence
 
     collapse (sum) num_tot_incidence   = num_terms         ///
                    denom_tot_incidence = denom_terms       ///
+             (count) N = num_terms                         ///
         if (!missing(num_terms) & !missing(denom_terms)),  ///
         by(counterfactual)
 
