@@ -77,11 +77,9 @@ program impute_var
     gen     `var'_imputed = `var'
     replace `var'_imputed = `var'_pred if (missing(`var') & !missing(`var'_pred))
 
-    qui sum `var'_imputed, d
-    replace `var'_imputed = r(p1) if `var'_imputed  < r(p1)
-    replace `var'_imputed = r(p99) if `var'_imputed > r(p99)
+	winsor `var'_imputed, p(.1) generate(w`var'_imputed)
+    replace `var'_imputed = w`var'_imputed
+	drop w`var'_imputed
 end
-
-
 
 main
