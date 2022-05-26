@@ -47,7 +47,7 @@ main <- function(){
   build_map(data = df_chicago, 
             var = "change_ln_rents", 
             var_legend ="Change in log rents\nper sq. foot", 
-            break_values = c(min_break_rents, max_break_rents/2, max_break_rents), 
+            break_values = c(min_break_rents, (min_break_rents + max_break_rents)/2, max_break_rents), 
             map_name = "chicago_d_ln_rents")
 
   min_break_wagebill <- round(min(df_chicago$change_ln_wagebill, na.rm = TRUE), digits = 2)
@@ -56,25 +56,27 @@ main <- function(){
   build_map(data = df_chicago, 
             var = "change_ln_wagebill", 
             var_legend ="Change in\nlog total wages", 
-            break_values = c(min_break_wagebill, max_break_wagebill/2, max_break_wagebill), 
+            break_values = c(min_break_wagebill, (min_break_wagebill + max_break_wagebill)/2, max_break_wagebill), 
             map_name = "chicago_d_ln_wagebill")
 
-  min_break_s_imputed <- round(min(df_chicago$s_imputed, na.rm = TRUE), digits = 2)
-  max_break_s_imputed <- round(max(df_chicago$s_imputed, na.rm = TRUE), digits = 2)
+  df <- df_chicago %>% 
+    filter(is.na(s_imputed) == FALSE)
+  min_break_s_imputed <- round(min(df$s_imputed, na.rm = TRUE), digits = 3)
+  max_break_s_imputed <- round(max(df$s_imputed, na.rm = TRUE), digits = 3)
   
-  build_map(data = df_chicago, 
+  build_map(data = df, 
             var = "s_imputed", 
             var_legend ="Share of expenditure in housing", 
-            break_values = c(min_break_s_imputed, max_break_s_imputed/2, max_break_s_imputed), 
+            break_values = c(min_break_s_imputed, (min_break_s_imputed + max_break_s_imputed)/2, max_break_s_imputed), 
             map_name = "chicago_s_imputed")
 
-  min_break_rho_with_imputed <- round(min(df_chicago$rho_with_imputed, na.rm = TRUE), digits = 2)
-  max_break_rho_with_imputed <- round(max(df_chicago$rho_with_imputed, na.rm = TRUE), digits = 2)
+  min_break_rho_with_imputed <- round(min(df_chicago$rho_with_imputed, na.rm = TRUE), digits = 3)
+  max_break_rho_with_imputed <- round(max(df_chicago$rho_with_imputed, na.rm = TRUE), digits = 3)
   
   build_map(data = df_chicago, 
             var = "rho_with_imputed", 
             var_legend ="Share pocketed\nby landlords", 
-            break_values = c(min_break_rho_with_imputed, max_break_rho_with_imputed/2, max_break_rho_with_imputed), 
+            break_values = c(min_break_rho_with_imputed, (min_break_rho_with_imputed + max_break_rho_with_imputed)/2, max_break_rho_with_imputed), 
             map_name = "chicago_rho_with_imputed")
 }
 

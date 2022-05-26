@@ -1,5 +1,5 @@
 
- make.py started: 2022-05-25 11:44:40 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\code 
+ make.py started: 2022-05-26 14:27:16 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\code 
 
 
 
@@ -63,40 +63,45 @@ running c:\ado\personal\profile.do ...
  15. 
 .     flag_unaffected_cbsas
  16. 
-.     foreach cf in fed_10pc fed_9usd fed_15usd {
+.     gen  no_direct_treatment  = (d_mw_res == 0) ///
+>         if !missing(s_imputed) & !cbsa_low_inc_increase
  17. 
+.     gen  fully_affected       = (no_direct_treatment == 0) ///
+>         if !missing(s_imputed) & !cbsa_low_inc_increase
+ 18.     foreach cf in fed_10pc fed_9usd fed_15usd {
+ 19. 
 .         qui unique cbsa if counterfactual == "`cf'"
- 18.         local n_cbsas           = `r(unique)'
- 19.         qui unique cbsa if !cbsa_low_inc_increase & counterfactual == "`cf
+ 20.         local n_cbsas           = `r(unique)'
+ 21.         qui unique cbsa if !cbsa_low_inc_increase & counterfactual == "`cf
 > '"
- 20.         local n_cbsas_affected = `r(unique)'
- 21. 
+ 22.         local n_cbsas_affected = `r(unique)'
+ 23. 
 .         di "{bf: Counterfactual: `cf'}"
- 22.         di "    Unique CBAs: `n_cbsas'"
- 23.         di "    Unique CBAs strongly affected: `n_cbsas_affected'"
- 24. 
+ 24.         di "    Unique CBAs: `n_cbsas'"
+ 25.         di "    Unique CBAs strongly affected: `n_cbsas_affected'"
+ 26. 
 .         di "    Distribution of rho"
- 25.         sum rho if counterfactual == "`cf'" & year == 2020, detail
- 26.         di "    Distribution of rho for strongly affected CBAs"
- 27.         sum rho if counterfactual == "`cf'" & !cbsa_low_inc_increase & yea
+ 27.         sum rho if counterfactual == "`cf'" & year == 2020, detail
+ 28.         di "    Distribution of rho for strongly affected CBAs"
+ 29.         sum rho if counterfactual == "`cf'" & !cbsa_low_inc_increase & yea
 > r == 2020, detail
- 28.     }
- 29. 
-.     save             "../output/data_counterfactuals.dta", replace
- 30.     export delimited "../output/data_counterfactuals.csv", replace
+ 30.     }
  31. 
-.     preserve
- 32.         compute_tot_incidence
+.     save             "../output/data_counterfactuals.dta", replace
+ 32.     export delimited "../output/data_counterfactuals.csv", replace
  33. 
-.         qui sum tot_incidence if counterfactual == "fed_9usd"
- 34.         local tot_inc = r(mean)
+.     preserve
+ 34.         compute_tot_incidence
  35. 
-.         export delimited "../output/tot_incidence.csv", replace
- 36.     restore
+.         qui sum tot_incidence if counterfactual == "fed_9usd"
+ 36.         local tot_inc = r(mean)
  37. 
+.         export delimited "../output/tot_incidence.csv", replace
+ 38.     restore
+ 39. 
 .     make_autofill_values, beta(`beta') gamma(`gamma') epsilon(`epsilon') tot_
 > inc(`tot_inc')
- 38. end
+ 40. end
 
 . 
 . program load_parameters, rclass
@@ -147,19 +152,16 @@ running c:\ado\personal\profile.do ...
 . program compute_vars
   1.     syntax, beta(str) gamma(str) epsilon(str)
   2. 
-.     gen  no_direct_treatment  = d_mw_res == 0
-  3.     gen  fully_affected       = !no_direct_treatment
-  4. 
 .     gen change_ln_rents    = `beta'*d_mw_wkp + `gamma'*d_mw_res
-  5.     gen change_ln_wagebill = `epsilon'*d_mw_wkp
-  6. 
+  3.     gen change_ln_wagebill = `epsilon'*d_mw_wkp
+  4. 
 .     gen perc_incr_rent     = exp(change_ln_rents)    - 1
-  7.     gen perc_incr_wagebill = exp(change_ln_wagebill) - 1
-  8.     gen ratio_increases    = perc_incr_rent/perc_incr_wagebill
-  9. 
+  5.     gen perc_incr_wagebill = exp(change_ln_wagebill) - 1
+  6.     gen ratio_increases    = perc_incr_rent/perc_incr_wagebill
+  7. 
 .     gen rho              = s*ratio_increases
- 10.     gen rho_with_imputed = s_imputed*ratio_increases
- 11. end
+  8.     gen rho_with_imputed = s_imputed*ratio_increases
+  9. end
 
 . 
 . program flag_unaffected_cbsas
@@ -180,22 +182,22 @@ running c:\ado\personal\profile.do ...
 
 . 
 . program compute_tot_incidence
-  1.     
-.     keep if (year == 2020 & month == 1) & !cbsa_low_inc_increase
-  2.     keep zipcode counterfactual change_ln_rents perc_incr_rent ///
+  1.     keep if !missing(s_imputed) 
+  2.     keep if (year == 2020 & month == 1) & !cbsa_low_inc_increase
+  3.     keep zipcode counterfactual change_ln_rents perc_incr_rent ///
 >         change_ln_wagebill perc_incr_wagebill                  ///
 >         safmr2br_imputed wage_per_whhld_monthly_imputed
-  3.     gen num_terms = safmr2br_imputed*(perc_incr_rent)
-  4.     gen denom_terms = wage_per_whhld_monthly_imputed*(perc_incr_wagebill)
-  5. 
-.     collapse (sum) num_tot_incidence   = num_terms         ///
->                    denom_tot_incidence = denom_terms       ///
->              (count) N = num_terms                         ///
->         if (!missing(num_terms) & !missing(denom_terms)),  ///
->         by(counterfactual)
+  4. 
+.     gen num_terms_ti = safmr2br_imputed*(perc_incr_rent)
+  5.     gen denom_terms_ti = wage_per_whhld_monthly_imputed*(perc_incr_wagebil
+> l)
   6. 
+.     collapse (sum) num_tot_incidence   = num_terms_ti        ///
+>                    denom_tot_incidence = denom_terms_ti      ///
+>              (count) N = num_terms_ti, by(counterfactual)
+  7. 
 .     gen tot_incidence = num_tot_incidence/denom_tot_incidence
-  7. end
+  8. end
 
 . 
 . program make_autofill_values
@@ -305,7 +307,7 @@ Beta, Gamma, and Epsilon: .0680193975567818, -.0220795720815659, .1083480641245
 (33,762 missing values generated)
 (34,415 missing values generated)
 (36,827 missing values generated)
-(34,415 missing values generated)
+(34,852 missing values generated)
 (note: file ../output/cbsa_averages.dta not found)
 file ../output/cbsa_averages.dta saved
 
@@ -314,6 +316,8 @@ file ../output/cbsa_averages.dta saved
     not matched                             0
     matched                            67,524  
     -----------------------------------------
+(22,120 missing values generated)
+(22,120 missing values generated)
  Counterfactual: fed_10pc
     Unique CBAs: 176
     Unique CBAs strongly affected: 79
@@ -423,8 +427,9 @@ file ../output/cbsa_averages.dta saved
 file ../output/data_counterfactuals.dta saved
 (note: file ../output/data_counterfactuals.csv not found)
 file ../output/data_counterfactuals.csv saved
-(44,332 observations deleted)
-(117 missing values generated)
+(1,410 observations deleted)
+(43,412 observations deleted)
+(6 missing values generated)
 (note: file ../output/tot_incidence.csv not found)
 file ../output/tot_incidence.csv saved
 (note: file ../output/autofill_counterfactuals.tex not found)
@@ -584,7 +589,7 @@ running c:\ado\personal\profile.do ...
 (file ../output/hist_rho.png written in PNG format)
 (note: file ../output/hist_rho.eps not found)
 (file ../output/hist_rho.eps written in EPS format)
-(bin=30, start=-.14142202, width=.01445071)
+(bin=30, start=-.1237959, width=.0108769)
 (note: file ../output/hist_rho_with_imputed.png not found)
 (file ../output/hist_rho_with_imputed.png written in PNG format)
 (note: file ../output/hist_rho_with_imputed.eps not found)
@@ -599,7 +604,7 @@ running c:\ado\personal\profile.do ...
 (file ../output/hist_change_ln_wagebill.png written in PNG format)
 (note: file ../output/hist_change_ln_wagebill.eps not found)
 (file ../output/hist_change_ln_wagebill.eps written in EPS format)
-(bin=30, start=.10888262, width=.01188026)
+(bin=30, start=.16795802, width=.0051542)
 (note: file ../output/hist_s_imputed.png not found)
 (file ../output/hist_s_imputed.png written in PNG format)
 (note: file ../output/hist_s_imputed.eps not found)
@@ -735,7 +740,7 @@ Type 'q()' to quit R.
 > 
 > proc.time()
    user  system elapsed 
-   0.60    0.21    0.71 
+   0.56    0.21    0.67 
 
 
 Execute:  R CMD BATCH --no-save "./map_cfs.R" map_cfs.Rout
@@ -826,7 +831,7 @@ repos='https://nowosad.github.io/drat/', type='source')`
 +   build_map(data = df_chicago, 
 +             var = "change_ln_rents", 
 +             var_legend ="Change in log rents\nper sq. foot", 
-+             break_values = c(min_break_rents, max_break_rents/2, max_break_rents), 
++             break_values = c(min_break_rents, (min_break_rents + max_break_rents)/2, max_break_rents), 
 +             map_name = "chicago_d_ln_rents")
 + 
 +   min_break_wagebill <- round(min(df_chicago$change_ln_wagebill, na.rm = TRUE), digits = 2)
@@ -835,25 +840,27 @@ repos='https://nowosad.github.io/drat/', type='source')`
 +   build_map(data = df_chicago, 
 +             var = "change_ln_wagebill", 
 +             var_legend ="Change in\nlog total wages", 
-+             break_values = c(min_break_wagebill, max_break_wagebill/2, max_break_wagebill), 
++             break_values = c(min_break_wagebill, (min_break_wagebill + max_break_wagebill)/2, max_break_wagebill), 
 +             map_name = "chicago_d_ln_wagebill")
 + 
-+   min_break_s_imputed <- round(min(df_chicago$s_imputed, na.rm = TRUE), digits = 2)
-+   max_break_s_imputed <- round(max(df_chicago$s_imputed, na.rm = TRUE), digits = 2)
++   df <- df_chicago %>% 
++     filter(is.na(s_imputed) == FALSE)
++   min_break_s_imputed <- round(min(df$s_imputed, na.rm = TRUE), digits = 3)
++   max_break_s_imputed <- round(max(df$s_imputed, na.rm = TRUE), digits = 3)
 +   
-+   build_map(data = df_chicago, 
++   build_map(data = df, 
 +             var = "s_imputed", 
 +             var_legend ="Share of expenditure in housing", 
-+             break_values = c(min_break_s_imputed, max_break_s_imputed/2, max_break_s_imputed), 
++             break_values = c(min_break_s_imputed, (min_break_s_imputed + max_break_s_imputed)/2, max_break_s_imputed), 
 +             map_name = "chicago_s_imputed")
 + 
-+   min_break_rho_with_imputed <- round(min(df_chicago$rho_with_imputed, na.rm = TRUE), digits = 2)
-+   max_break_rho_with_imputed <- round(max(df_chicago$rho_with_imputed, na.rm = TRUE), digits = 2)
++   min_break_rho_with_imputed <- round(min(df_chicago$rho_with_imputed, na.rm = TRUE), digits = 3)
++   max_break_rho_with_imputed <- round(max(df_chicago$rho_with_imputed, na.rm = TRUE), digits = 3)
 +   
 +   build_map(data = df_chicago, 
 +             var = "rho_with_imputed", 
 +             var_legend ="Share pocketed\nby landlords", 
-+             break_values = c(min_break_rho_with_imputed, max_break_rho_with_imputed/2, max_break_rho_with_imputed), 
++             break_values = c(min_break_rho_with_imputed, (min_break_rho_with_imputed + max_break_rho_with_imputed)/2, max_break_rho_with_imputed), 
 +             map_name = "chicago_rho_with_imputed")
 + }
 > 
@@ -909,10 +916,10 @@ Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
 Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_rho_with_imputed.eps
 Size: 6.117331 by 8.010029 inches
-There were 22 warnings (use warnings() to see them)
+There were 18 warnings (use warnings() to see them)
 > 
 > proc.time()
    user  system elapsed 
-  65.87   47.34  115.87 
+  66.18   48.98  118.12 
 
- make.py ended: 2022-05-25 11:47:00
+ make.py ended: 2022-05-26 14:29:42

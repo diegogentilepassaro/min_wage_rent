@@ -25,6 +25,11 @@ program main
 
     flag_unaffected_cbsas
 
+    gen  no_direct_treatment  = (d_mw_res == 0) ///
+        if !missing(s_imputed) & !cbsa_low_inc_increase
+
+    gen  fully_affected       = (no_direct_treatment == 0) ///
+        if !missing(s_imputed) & !cbsa_low_inc_increase
     foreach cf in fed_10pc fed_9usd fed_15usd {
 
         qui unique cbsa if counterfactual == "`cf'"
@@ -101,9 +106,6 @@ end
 program compute_vars
     syntax, beta(str) gamma(str) epsilon(str)
 
-    gen  no_direct_treatment  = d_mw_res == 0
-    gen  fully_affected       = !no_direct_treatment
-
     gen change_ln_rents    = `beta'*d_mw_wkp + `gamma'*d_mw_res
     gen change_ln_wagebill = `epsilon'*d_mw_wkp
 
@@ -132,19 +134,18 @@ program flag_unaffected_cbsas
 end
 
 program compute_tot_incidence
-    
+    keep if !missing(s_imputed) 
     keep if (year == 2020 & month == 1) & !cbsa_low_inc_increase
     keep zipcode counterfactual change_ln_rents perc_incr_rent ///
         change_ln_wagebill perc_incr_wagebill                  ///
         safmr2br_imputed wage_per_whhld_monthly_imputed
-    gen num_terms = safmr2br_imputed*(perc_incr_rent)
-    gen denom_terms = wage_per_whhld_monthly_imputed*(perc_incr_wagebill)
 
-    collapse (sum) num_tot_incidence   = num_terms         ///
-                   denom_tot_incidence = denom_terms       ///
-             (count) N = num_terms                         ///
-        if (!missing(num_terms) & !missing(denom_terms)),  ///
-        by(counterfactual)
+    gen num_terms_ti = safmr2br_imputed*(perc_incr_rent)
+    gen denom_terms_ti = wage_per_whhld_monthly_imputed*(perc_incr_wagebill)
+
+    collapse (sum) num_tot_incidence   = num_terms_ti        ///
+                   denom_tot_incidence = denom_terms_ti      ///
+             (count) N = num_terms_ti, by(counterfactual)
 
     gen tot_incidence = num_tot_incidence/denom_tot_incidence
 end

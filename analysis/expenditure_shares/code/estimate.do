@@ -28,7 +28,7 @@ program main
     impute_var, var(safmr2br)
     impute_var, var(wage_per_whhld_monthly)
     impute_var, var(s)
-        
+    
     keep zipcode s safmr2br wage_per_whhld_monthly *imputed
     save_data "`outstub'/s_by_zip.dta", key(zipcode) ///
         log(../output/data_file_manifest.log) replace
