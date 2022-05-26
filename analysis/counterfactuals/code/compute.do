@@ -134,8 +134,8 @@ program flag_unaffected_cbsas
 end
 
 program compute_tot_incidence
-    keep if !missing(s_imputed) 
-    keep if (year == 2020 & month == 1) & !cbsa_low_inc_increase
+    keep if !missing(s_imputed) & !cbsa_low_inc_increase
+    keep if (year == 2020 & month == 1)
     keep zipcode counterfactual change_ln_rents perc_incr_rent ///
         change_ln_wagebill perc_incr_wagebill                  ///
         safmr2br_imputed wage_per_whhld_monthly_imputed
