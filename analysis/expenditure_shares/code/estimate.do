@@ -77,7 +77,7 @@ program impute_var
     gen     `var'_imputed = `var'
     replace `var'_imputed = `var'_pred if (missing(`var') & !missing(`var'_pred))
 
-	winsor `var'_imputed, p(.1) generate(w`var'_imputed)
+	winsor `var'_imputed, p(.005) generate(w`var'_imputed)
     replace `var'_imputed = w`var'_imputed
 	drop w`var'_imputed
 end
