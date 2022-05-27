@@ -22,7 +22,7 @@ main <- function() {
                   mean(dt_sample[["d_mw_res"]], na.rm = T),
                   mean(dt_sample[["d_mw_wkp"]], na.rm = T),
                   mean(dt_sample[["s_imputed"]],        na.rm = T),
-                  mean(dt_sample[["rho_with_imputed"]],      na.rm = T),
+                  median(dt_sample[["rho_with_imputed"]],      na.rm = T),
                   sep = "\t"))
   }
 
@@ -52,7 +52,7 @@ main <- function() {
                     mean(dt_sample[["d_mw_res"]], na.rm = T),
                     mean(dt_sample[["d_mw_wkp"]], na.rm = T),
                     mean(dt_sample[["s_imputed"]],        na.rm = T),
-                    mean(dt_sample[["rho_with_imputed"]],      na.rm = T),
+                    median(dt_sample[["rho_with_imputed"]],      na.rm = T),
                     sep = "\t"))
     }
     
