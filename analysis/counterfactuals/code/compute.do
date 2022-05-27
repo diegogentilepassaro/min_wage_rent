@@ -26,10 +26,12 @@ program main
     flag_unaffected_cbsas
 
     gen  no_direct_treatment  = (d_mw_res == 0) ///
-        if !missing(s_imputed) & !cbsa_low_inc_increase
+        if (!missing(s_imputed) & !missing(perc_incr_rent) & ///
+        !missing(perc_incr_wagebill) & !cbsa_low_inc_increase)
 
     gen  fully_affected       = (no_direct_treatment == 0) ///
-        if !missing(s_imputed) & !cbsa_low_inc_increase
+        if (!missing(s_imputed) & !missing(perc_incr_rent) & ///
+        !missing(perc_incr_wagebill) & !cbsa_low_inc_increase)
     foreach cf in fed_10pc fed_9usd fed_15usd {
 
         qui unique cbsa if counterfactual == "`cf'"
@@ -134,7 +136,8 @@ program flag_unaffected_cbsas
 end
 
 program compute_tot_incidence
-    keep if !missing(s_imputed) & !cbsa_low_inc_increase
+    keep if (!missing(s_imputed) & !missing(perc_incr_rent) & ///
+        !missing(perc_incr_wagebill) & !cbsa_low_inc_increase)
     keep if (year == 2020 & month == 1)
     keep zipcode counterfactual change_ln_rents perc_incr_rent ///
         change_ln_wagebill perc_incr_wagebill                  ///
