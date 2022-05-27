@@ -32,6 +32,14 @@ program main
     gen  fully_affected       = (no_direct_treatment == 0) ///
         if (!missing(s_imputed) & !missing(perc_incr_rent) & ///
         !missing(perc_incr_wagebill) & !cbsa_low_inc_increase)
+
+    qui sum s
+	local N_s = r(N)
+	qui sum s_imputed
+	local N_s_imp = r(N)
+	local unimp_sh_s = `N_s'/`N_s_imp'
+	di "Share of unimputed s: `unimp_sh_s'"
+
     foreach cf in fed_10pc fed_9usd fed_15usd {
 
         qui unique cbsa if counterfactual == "`cf'"

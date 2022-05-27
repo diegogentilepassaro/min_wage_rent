@@ -21,8 +21,8 @@ main <- function() {
             paste(dim(dt_sample)[1],
                   mean(dt_sample[["d_mw_res"]], na.rm = T),
                   mean(dt_sample[["d_mw_wkp"]], na.rm = T),
-                  mean(dt_sample[["s"]],        na.rm = T),
-                  mean(dt_sample[["rho"]],      na.rm = T),
+                  mean(dt_sample[["s_imputed"]],        na.rm = T),
+                  mean(dt_sample[["rho_with_imputed"]],      na.rm = T),
                   sep = "\t"))
   }
 
@@ -51,8 +51,8 @@ main <- function() {
               paste(dim(dt_sample)[1],
                     mean(dt_sample[["d_mw_res"]], na.rm = T),
                     mean(dt_sample[["d_mw_wkp"]], na.rm = T),
-                    mean(dt_sample[["s"]],        na.rm = T),
-                    mean(dt_sample[["rho"]],      na.rm = T),
+                    mean(dt_sample[["s_imputed"]],        na.rm = T),
+                    mean(dt_sample[["rho_with_imputed"]],      na.rm = T),
                     sep = "\t"))
     }
     
@@ -63,9 +63,6 @@ main <- function() {
                    dt_tot_incidence$tot_incidence,
                    sep = "\t"))
   }
-  
-
-  
   
   fileConn <- file(file.path(outstub, "counterfactuals_other.txt"))
   writeLines(txt, fileConn)
