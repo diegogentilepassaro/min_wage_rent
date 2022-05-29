@@ -55,9 +55,10 @@ main <- function() {
   
   setnames(data, varnum, names_new)
   
-  set(data, j='smsa', value=NULL)
+  data[, `:=`(hh_head = 1 * (relation_to_hh_head == 1 | relation_to_hh_head == 2),
+              female  = 1 * (sex == 2))]
   
-  data[, hh_head := 1 * (relation_to_hh_head == 1 | relation_to_hh_head == 2)]
+  set(data, j=c('smsa', 'sex'), value=NULL)
   
   save_data(data, c('household_id', 'person_num'),
             file.path(out_data, 'person_2011_2013.csv'),
