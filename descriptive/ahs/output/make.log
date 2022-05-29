@@ -1,5 +1,5 @@
 
- make.py started: 2022-05-12 19:47:55 C:\Users\Usuario\Documents\GitHub\min_wage_rent\descriptive\ahs\code 
+ make.py started: 2022-05-29 00:03:59 C:\Users\Usuario\Documents\GitHub\min_wage_rent\descriptive\ahs\code 
 
 
 
@@ -44,31 +44,23 @@ The following objects are masked from 'package:base':
 +   in_data <- '../../../drive/base_large/ahs'
 +   varchar <- c('smsa', 'county', 'state', 'household_id')
 +   
-+   hh_data <- read_csv(file.path(in_data, 'household_2011_2013.csv'))
++   hh_data <- load_hh_data(in_data)
 +   
-+   hh_data <- hh_data %>% 
-+     filter(is_owner == 1 | is_tenant == 1, 
-+            hh_income > 0,
-+            house_apartment_unit == 1) %>% 
-+     mutate(hh_income_res      = resid(lm(hh_income ~ factor(smsa) , data = .)),
-+            hh_income_decile   = ntile(hh_income_res, 10))
++   hh_data_renters <- load_hh_data(in_data, TRUE)
 +   
-+   hh_data_renters <- hh_data %>% 
-+     filter(is_tenant ==1) %>% 
-+     mutate(hh_income_res      = resid(lm(hh_income ~ factor(smsa) , data = .)),
-+            hh_income_decile   = ntile(hh_income_res, 10))
-+   
-+   person_data <- read_csv(file.path(in_data, 'person_2011_2013.csv'))
++   person_data <- load_person_data(in_data, hh_data)
 +   
 +   sh_renters <- hh_data %>%
 +     mutate(pr_tenant_res      = resid(lm(is_tenant ~ factor(smsa) , data = .)),
 +            pr_tenant          = pr_tenant_res + mean(is_tenant)) %>%
 +     group_by(hh_income_decile) %>%
-+     summarise(pr_tenant = mean(pr_tenant))
++     summarise(pr_tenant = mean(pr_tenant),
++               n = unique(n))
 +   
 +   sh_unit_types <- hh_data_renters %>%
 +     group_by(hh_income_decile, n_units_cat) %>%
-+     summarise(count_unit_type = n()) %>%
++     summarise(count_unit_type = n(),
++               n = unique(n)) %>%
 +     group_by(hh_income_decile) %>%
 +     mutate(sh_unit_type = count_unit_type / sum(count_unit_type)) %>% 
 +     select(-count_unit_type)
@@ -77,33 +69,32 @@ The following objects are masked from 'package:base':
 +     mutate(sh_condo_res       = resid(lm(is_condo_coop ~ factor(smsa) , data = .)),
 +            sh_condo           = sh_condo_res + mean(is_condo_coop)) %>%
 +     group_by(hh_income_decile) %>%
-+     summarise(sh_condo = mean(sh_condo))
++     summarise(sh_condo = mean(sh_condo),
++               n = unique(n))
 +   
 +   avg_sqft <- hh_data_renters %>%
 +     mutate(unit_sqft_res      = resid(lm(unit_sqft ~ factor(smsa) , data = ., na.action=na.exclude)),
 +            unit_sqft          = unit_sqft_res + mean(unit_sqft, na.rm=T)) %>%
 +     group_by(hh_income_decile) %>%
-+     summarise(avg_sqft = mean(unit_sqft, na.rm=T))
++     summarise(avg_sqft = mean(unit_sqft, na.rm=T),
++               n = unique(n))
 +   
 +   avg_rent <- hh_data_renters %>%
 +     mutate(monthly_hh_rent_res = resid(lm(monthly_hh_rent ~ factor(smsa) , data = ., na.action=na.exclude)),
 +            monthly_hh_rent     = monthly_hh_rent_res + mean(monthly_hh_rent, na.rm=T)) %>%
 +     group_by(hh_income_decile) %>%
-+     summarise(avg_rent = mean(monthly_hh_rent, na.rm=T))
++     summarise(avg_rent = mean(monthly_hh_rent, na.rm=T),
++               n = unique(n))
 +   
 +   avg_rent_psqft <- hh_data_renters %>%
 +     mutate(rent_psqft     = monthly_hh_rent / unit_sqft, 
 +            rent_psqft_res = resid(lm(rent_psqft ~ factor(smsa) , data = ., na.action=na.exclude)),
 +            rent_psqft     = rent_psqft_res + mean(rent_psqft, na.rm=T)) %>%
 +     group_by(hh_income_decile) %>%
-+     summarise(avg_rent_psqft = mean(rent_psqft, na.rm=T))
++     summarise(avg_rent_psqft = mean(rent_psqft, na.rm=T),
++               n = unique(n))
 +   
-+   sh_hh_head <- person_data %>%
-+     left_join(hh_data[, c('household_id', 'is_tenant', 'house_apartment_unit', 'smsa')], 
-+               by = 'household_id') %>%
-+     filter(is_tenant             == 1,
-+            house_apartment_unit  == 1,
-+            person_salary         >  0) %>% 
++   sh_hh_head <- person_data  %>% 
 +     group_by(household_id) %>%
 +     mutate(max_income   =  max(person_salary),
 +            hh_head_max  =  1 * (person_salary == max_income)) %>%
@@ -113,7 +104,8 @@ The following objects are masked from 'package:base':
 +            hh_head_max_res        = resid(lm(hh_head_max ~ factor(smsa) , data = .)),
 +            hh_head_max            = hh_head_max_res + mean(hh_head_max)) %>%
 +     group_by(person_salary_decile) %>%
-+     summarise(sh_hh_head_max = mean(hh_head_max))
++     summarise(sh_hh_head_max = mean(hh_head_max),
++               n = unique(n))
 +   
 +   plots <- c('sh_renters', 'sh_unit_types', 'sh_condo', 'sh_hh_head', 'avg_rent',
 +              'avg_sqft', 'avg_rent_psqft')
@@ -123,7 +115,52 @@ The following objects are masked from 'package:base':
 +   
 + }
 > 
+> load_hh_data <- function(path, renters_only = FALSE) {
++   data <- read_csv(file.path(path, 'household_2011_2013.csv'))
++   
++   data <- data %>%
++     filter(is_owner == 1 | is_tenant == 1,
++            hh_income > 0,
++            house_apartment_unit == 1) %>%
++     mutate(hh_income_res      = resid(lm(hh_income ~ factor(smsa) , data = .)),
++            hh_income_decile   = ntile(hh_income_res, 10),
++            n = n())
++   
++   if (renters_only == TRUE) {
++     data <- data %>%
++       filter(is_tenant == 1,
++              !is.na(unit_sqft),
++              !is.na(monthly_hh_rent)) %>%
++       mutate(hh_income_res      = resid(lm(hh_income ~ factor(smsa) , data = .)),
++              hh_income_decile   = ntile(hh_income_res, 10),
++              n = n())
++   }
++   return(data)
++ }
+> 
+> load_person_data <- function(path, hh_data) {
++   data <- read_csv(file.path(path, 'person_2011_2013.csv'))
++   
++   data <- data %>% 
++     left_join(hh_data[, c('household_id', 'is_tenant', 'house_apartment_unit', 'smsa')], 
++               by = 'household_id') %>%
++     filter(is_tenant             == 1,
++            house_apartment_unit  == 1,
++            person_salary         >  0) %>% 
++     mutate(n = n())
++   
++   return(data)
++ }
+> 
 > main()
+Rows: 164188 Columns: 24
+-- Column specification --------------------------------------------------------
+Delimiter: ","
+chr  (5): household_id, county, state, smsa, n_units_cat
+dbl (19): metro, fam_income, hh_income, hh_wageincome_ind, monthly_hh_rent, ...
+
+i Use `spec()` to retrieve the full column specification for this data.
+i Specify the column types or set `show_col_types = FALSE` to quiet this message.
 Rows: 164188 Columns: 24
 -- Column specification --------------------------------------------------------
 Delimiter: ","
@@ -136,7 +173,7 @@ Rows: 359760 Columns: 9
 -- Column specification --------------------------------------------------------
 Delimiter: ","
 chr (1): household_id
-dbl (8): person_num, relation_to_hh_head, person_salary, age, educ_level, se...
+dbl (8): person_num, relation_to_hh_head, person_salary, age, educ_level, ye...
 
 i Use `spec()` to retrieve the full column specification for this data.
 i Specify the column types or set `show_col_types = FALSE` to quiet this message.
@@ -145,7 +182,7 @@ the `.groups` argument.
 > 
 > proc.time()
    user  system elapsed 
-   7.93    0.76    8.32 
+   7.84    0.73    7.31 
 
 
 Execute:  StataMP-64 /e do "./plot.do"
@@ -182,106 +219,109 @@ Notes:
   1. 
 .     make_plot, xvar(hh_income_decile) yvar(pr_tenant) y_title("Share of rente
 > rs") ///
->         x_title("Residualized income decile") color(navy%80) name(sh_renters)
+>         x_title("Residualized household income decile") color(navy%80) name(s
+> h_renters)
   2. 
 .     make_plot, xvar(hh_income_decile) yvar(sh_condo) y_title("Share of people
 >  in condos & cooperatives") ///
->         x_title("Residualized income decile") color(navy%80) name(sh_condo)
+>         x_title("Residualized household income decile") color(navy%80) name(s
+> h_condo)
   3. 
-.         make_plot, xvar(hh_income_decile) yvar(avg_rent) y_title("Residualize
-> d average rent ($)") ///
->         x_title("Residualized income decile") color(navy%80) name(avg_rent)
+.     make_plot, xvar(hh_income_decile) yvar(avg_rent) y_title("Residualized av
+> erage rent ($)") ///
+>         x_title("Residualized household income decile") color(navy%80) name(a
+> vg_rent)
   4. 
 .     make_plot, xvar(hh_income_decile) yvar(avg_sqft) y_title("Residualized av
 > erage square footage") ///
->         x_title("Residualized income decile") color(navy%80) name(avg_sqft)
+>         x_title("Residualized household income decile") color(navy%80) name(a
+> vg_sqft)
   5. 
 .     make_plot, xvar(hh_income_decile) yvar(avg_rent_psqft) y_title("Residuali
 > zed average rent per square foot ($)") ///
->         x_title("Residualized income decile") color(navy%80) name(avg_rent_ps
-> qft)
+>         x_title("Residualized household income decile") color(navy%80) name(a
+> vg_rent_psqft)
   6. 
 .     make_plot, xvar(person_salary_decile) yvar(sh_hh_head_max) ///
 >         y_title("Residualized probability of being household head") ///
->         x_title("Residualized income decile") color(navy%80) name(sh_hh_head)
+>         x_title("Residualized individual income decile") color(navy%80) name(
+> sh_hh_head)
   7. 
 .     make_stacked_plot, xvar1(n_units_cat) xvar2(hh_income_decile) yvar(sh_uni
 > t_type)   ///
->         y_title("Share of unit type") x_title("Residualized income decile")  
->  ///
+>         y_title("Share of unit type") x_title("Residualized household income 
+> decile")   ///
 >         name(sh_unit_types)
   8. 
 . end
 
 . 
 . program make_plot
-  1.         syntax, xvar(str) yvar(str) y_title(str) ///
+  1.     syntax, xvar(str) yvar(str) y_title(str) ///
 >         x_title(str) color(str) name(str) [width(int 2221) height(int 1615)]
-  2.                 
-.                 import delimited "../output/`name'.csv", clear
-  3.                 
-.                 graph bar `yvar', over(`xvar') ytitle(`y_title') ///
->                 b1title(`x_title') graphregion(color(white)) bgcolor(white) b
-> ar(1, fcolor(`color'))
-  4.                 
-.                 graph export "../output/`name'.png", replace width(`width') h
-> eight(`height')
+  2. 
+.         import delimited "../output/`name'.csv", clear
+  3. 
+.         graph bar `yvar', over(`xvar') ytitle(`y_title') ///
+>         b1title(`x_title') graphregion(color(white)) bgcolor(white) bar(1, fc
+> olor(`color'))
+  4. 
+.         graph export "../output/`name'.png", replace width(`width') height(`h
+> eight')
   5.         graph export "../output/`name'.eps", replace
-  6.         
+  6. 
 . end
 
 . 
 . program make_stacked_plot
-  1.         syntax, xvar1(str) xvar2(str) yvar(str) y_title(str) ///
+  1.     syntax, xvar1(str) xvar2(str) yvar(str) y_title(str) ///
 >         x_title(str) name(str) [width(int 2221) height(int 1615)]
-  2.                 
-.                 import delimited "../output/`name'.csv", clear
-  3.                 
-.                 graph bar `yvar', over(`xvar1') over(`xvar2') ytitle(`y_title
-> ') ///
->                 b1title(`x_title') graphregion(color(white)) bgcolor(white) /
-> //
->                 asyvars stack
-  4.                 
-.                 graph export "../output/`name'.png", replace width(`width') h
-> eight(`height')
+  2. 
+.         import delimited "../output/`name'.csv", clear
+  3. 
+.         graph bar `yvar', over(`xvar1') over(`xvar2') ytitle(`y_title') ///
+>         b1title(`x_title') graphregion(color(white)) bgcolor(white) ///
+>         asyvars stack
+  4. 
+.         graph export "../output/`name'.png", replace width(`width') height(`h
+> eight')
   5.         graph export "../output/`name'.eps", replace
-  6.         
+  6. 
 . end
 
 . 
 . main
-(2 vars, 10 obs)
+(3 vars, 10 obs)
 (note: file ../output/sh_renters.png not found)
 (file ../output/sh_renters.png written in PNG format)
 (note: file ../output/sh_renters.eps not found)
 (file ../output/sh_renters.eps written in EPS format)
-(2 vars, 10 obs)
+(3 vars, 10 obs)
 (note: file ../output/sh_condo.png not found)
 (file ../output/sh_condo.png written in PNG format)
 (note: file ../output/sh_condo.eps not found)
 (file ../output/sh_condo.eps written in EPS format)
-(2 vars, 10 obs)
+(3 vars, 10 obs)
 (note: file ../output/avg_rent.png not found)
 (file ../output/avg_rent.png written in PNG format)
 (note: file ../output/avg_rent.eps not found)
 (file ../output/avg_rent.eps written in EPS format)
-(2 vars, 10 obs)
+(3 vars, 10 obs)
 (note: file ../output/avg_sqft.png not found)
 (file ../output/avg_sqft.png written in PNG format)
 (note: file ../output/avg_sqft.eps not found)
 (file ../output/avg_sqft.eps written in EPS format)
-(2 vars, 10 obs)
+(3 vars, 10 obs)
 (note: file ../output/avg_rent_psqft.png not found)
 (file ../output/avg_rent_psqft.png written in PNG format)
 (note: file ../output/avg_rent_psqft.eps not found)
 (file ../output/avg_rent_psqft.eps written in EPS format)
-(2 vars, 10 obs)
+(3 vars, 10 obs)
 (note: file ../output/sh_hh_head.png not found)
 (file ../output/sh_hh_head.png written in PNG format)
 (note: file ../output/sh_hh_head.eps not found)
 (file ../output/sh_hh_head.eps written in EPS format)
-(3 vars, 40 obs)
+(4 vars, 40 obs)
 (note: file ../output/sh_unit_types.png not found)
 (file ../output/sh_unit_types.png written in PNG format)
 (note: file ../output/sh_unit_types.eps not found)
@@ -290,4 +330,4 @@ Notes:
 . 
 end of do-file
 
- make.py ended: 2022-05-12 19:48:17
+ make.py ended: 2022-05-29 00:04:17
