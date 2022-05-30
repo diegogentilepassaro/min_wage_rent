@@ -197,15 +197,23 @@ program make_autofill_values
 
     qui count if nonmiss_cond == 1 & year == 2020 & no_direct_treatment == 1
     local zip_no_treat = r(N)
-    local zip_notr_pct = 100*`zip_no_treat' / `zip_total'
+    local zip_notr_pct = 100*`zip_no_treat'/`zip_total'
 	
+    qui count if nonmiss_cond == 1 & year == 2020 & no_direct_treatment == 0
+    local zip_treat    = r(N)
+    local zip_tr_pct   = 100*`zip_treat'/`zip_total'
+
     qui count if year == 2019 & no_direct_treatment == 0 & statutory_mw == 7.25
-    local zip_bound = r(N)	
-    local zip_bound_pct = 100 * `zip_bound' / `zip_total'
+    local zip_bound     = r(N)	
+    local zip_bound_pct = 100*`zip_bound'/`zip_total'
 	
     qui sum d_mw_res if nonmiss_cond == 1, d
     local avg_change_mw_res = 100 * r(mean)
     local med_change_mw_res = 100 * r(p50)
+
+    qui sum d_mw_wkp if nonmiss_cond == 1, d
+    local avg_change_mw_wkp = 100 * r(mean)
+    local med_change_mw_wkp = 100 * r(p50)
 
     cap file close f
     file open   f using "../output/autofill_counterfactuals.tex", write replace
@@ -220,11 +228,15 @@ program make_autofill_values
     file write  f "\newcommand{\rhoMedCentsDirFedNine}{\textnormal{"      %4.1f  (`rho_meddir_cent') "}}" _n
     file write  f "\newcommand{\zipcodesFedNine}{\textnormal{"            %5.0fc (`zip_total')       "}}" _n
     file write  f "\newcommand{\zipNoIncFedNine}{\textnormal{"            %5.0fc (`zip_no_treat')    "}}" _n
+    file write  f "\newcommand{\zipIncFedNine}{\textnormal{"              %5.0fc (`zip_treat')       "}}" _n
     file write  f "\newcommand{\zipBoundFedNine}{\textnormal{"            %5.0fc (`zip_bound')       "}}" _n
     file write  f "\newcommand{\zipNoIncPctFedNine}{\textnormal{"         %4.1f  (`zip_notr_pct')    "}}" _n
+    file write  f "\newcommand{\zipIncPctFedNine}{\textnormal{"           %4.1f  (`zip_tr_pct')      "}}" _n
     file write  f "\newcommand{\zipBoundPctFedNine}{\textnormal{"         %4.1f  (`zip_bound_pct')   "}}" _n
     file write  f "\newcommand{\AvgChangeMWResFedNine}{\textnormal{"      %4.1f  (`avg_change_mw_res') "}}" _n
     file write  f "\newcommand{\MedChangeMWResFedNine}{\textnormal{"      %4.1f  (`med_change_mw_res') "}}" _n
+    file write  f "\newcommand{\AvgChangeMWWkpFedNine}{\textnormal{"      %4.1f  (`avg_change_mw_wkp') "}}" _n
+    file write  f "\newcommand{\MedChangeMWWkpFedNine}{\textnormal{"      %4.1f  (`med_change_mw_wkp') "}}" _n
     file close  f
 end
 
