@@ -19,10 +19,10 @@ main <- function() {
     
     txt <- c(txt, 
             paste(dim(dt_sample)[1],
-                  mean(dt_sample[["d_mw_res"]], na.rm = T),
-                  mean(dt_sample[["d_mw_wkp"]], na.rm = T),
-                  mean(dt_sample[["s_imputed"]],        na.rm = T),
-                  median(dt_sample[["rho_with_imputed"]],      na.rm = T),
+                  median(dt_sample[["d_mw_res"]],         na.rm = T),
+                  median(dt_sample[["d_mw_wkp"]],         na.rm = T),
+                  median(dt_sample[["s_imputed"]],        na.rm = T),
+                  median(dt_sample[["rho_with_imputed"]], na.rm = T),
                   sep = "\t"))
   }
 
@@ -49,10 +49,10 @@ main <- function() {
       dt_sample <- dt_cf[get(sample) == 1]      
       txt <- c(txt, 
               paste(dim(dt_sample)[1],
-                    mean(dt_sample[["d_mw_res"]], na.rm = T),
-                    mean(dt_sample[["d_mw_wkp"]], na.rm = T),
-                    mean(dt_sample[["s_imputed"]],        na.rm = T),
-                    median(dt_sample[["rho_with_imputed"]],      na.rm = T),
+                    median(dt_sample[["d_mw_res"]],         na.rm = T),
+                    median(dt_sample[["d_mw_wkp"]],         na.rm = T),
+                    median(dt_sample[["s_imputed"]],        na.rm = T),
+                    median(dt_sample[["rho_with_imputed"]], na.rm = T),
                     sep = "\t"))
     }
     

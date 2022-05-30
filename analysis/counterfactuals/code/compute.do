@@ -21,30 +21,22 @@ program main
     merge m:1 zipcode using "`in_exp_share'/s_by_zip.dta", ///
         nogen keep(1 3)
     
-    compute_vars, beta(`beta') gamma(`gamma') epsilon(`epsilon')
-
+    compute_vars,         beta(`beta') gamma(`gamma') epsilon(`epsilon')
     flag_unaffected_cbsas
-
-    gen  no_direct_treatment  = (d_mw_res == 0) ///
-        if (!missing(s_imputed) & !missing(perc_incr_rent) & ///
-        !missing(perc_incr_wagebill) & !cbsa_low_inc_increase)
-
-    gen  fully_affected       = (no_direct_treatment == 0) ///
-        if (!missing(s_imputed) & !missing(perc_incr_rent) & ///
-        !missing(perc_incr_wagebill) & !cbsa_low_inc_increase)
+    flag_treatment_status
 
     qui sum s
-	local N_s = r(N)
-	qui sum s_imputed
-	local N_s_imp = r(N)
-	local unimp_sh_s = `N_s'/`N_s_imp'
-	di "Share of unimputed s: `unimp_sh_s'"
+    local N_s = r(N)
+    qui sum s_imputed
+    local N_s_imp = r(N)
+    local unimp_sh_s = `N_s'/`N_s_imp'
+    di "Share of unimputed s: `unimp_sh_s'"
 
     foreach cf in fed_10pc fed_9usd fed_15usd {
 
         qui unique cbsa if counterfactual == "`cf'"
         local n_cbsas           = `r(unique)'
-        qui unique cbsa if !cbsa_low_inc_increase & counterfactual == "`cf'"
+        qui unique cbsa if cbsa_low_inc_increase == 0 & counterfactual == "`cf'"
         local n_cbsas_affected = `r(unique)'
 
         di "{bf: Counterfactual: `cf'}"
@@ -52,9 +44,9 @@ program main
         di "    Unique CBAs strongly affected: `n_cbsas_affected'"
 
         di "    Distribution of rho"
-        sum rho if counterfactual == "`cf'" & year == 2020, detail
+        sum rho if counterfactual == "`cf'" & year == 2020, d
         di "    Distribution of rho for strongly affected CBAs"
-        sum rho if counterfactual == "`cf'" & !cbsa_low_inc_increase & year == 2020, detail
+        sum rho if counterfactual == "`cf'" & year == 2020 & cbsa_low_inc_increase == 0, d
     }
 
     save             "../output/data_counterfactuals.dta", replace
@@ -135,28 +127,47 @@ program flag_unaffected_cbsas
             by(cbsa counterfactual)
 
         gen cbsa_low_inc_increase = perc_incr_wagebill < `thresh'
-
-        save "../output/cbsa_averages.dta", replace
+        tempfile cbsa_averages
+        save    `cbsa_averages', replace
     restore
 
-    merge m:1 cbsa counterfactual using "../output/cbsa_averages.dta", ///
+    merge m:1 cbsa counterfactual using `cbsa_averages', ///
         assert(3) nogen
 end
 
+program flag_treatment_status
+
+    preserve
+        keep if year == 2020 & !missing(s_imputed) & !missing(perc_incr_rent)  ///
+                             & !missing(perc_incr_wagebill)
+
+        gen no_direct_treatment = (d_mw_res == 0)            if cbsa_low_inc_increase == 0
+        gen fully_affected      = (no_direct_treatment == 0) if !missing(no_direct_treatment)
+
+        keep zipcode counterfactual no_direct_treatment fully_affected
+        
+        tempfile treatment_status
+        save    `treatment_status', replace
+    restore
+
+    merge m:1 zipcode counterfactual using `treatment_status', assert(1 3) nogen
+end
+
 program compute_tot_incidence
-    keep if (!missing(s_imputed) & !missing(perc_incr_rent) & ///
-        !missing(perc_incr_wagebill) & !cbsa_low_inc_increase)
+    keep if !missing(s_imputed) & !missing(perc_incr_rent) &    ///
+            !missing(perc_incr_wagebill) & cbsa_low_inc_increase == 0
     keep if (year == 2020 & month == 1)
     keep zipcode counterfactual change_ln_rents perc_incr_rent ///
         change_ln_wagebill perc_incr_wagebill                  ///
         safmr2br_imputed wage_per_whhld_monthly_imputed
 
-    gen num_terms_ti = safmr2br_imputed*(perc_incr_rent)
-    gen denom_terms_ti = wage_per_whhld_monthly_imputed*(perc_incr_wagebill)
+    gen num_terms_ti   = safmr2br_imputed               * perc_incr_rent
+    gen denom_terms_ti = wage_per_whhld_monthly_imputed * perc_incr_wagebill
 
-    collapse (sum) num_tot_incidence   = num_terms_ti        ///
-                   denom_tot_incidence = denom_terms_ti      ///
-             (count) N = num_terms_ti, by(counterfactual)
+    collapse (sum)   num_tot_incidence   = num_terms_ti    ///
+                     denom_tot_incidence = denom_terms_ti  ///
+             (count) N                   = num_terms_ti,   ///
+        by(counterfactual)
 
     gen tot_incidence = num_tot_incidence/denom_tot_incidence
 end
@@ -166,61 +177,54 @@ program make_autofill_values
 
     local tot_inc_cents = `tot_inc'*100
 
-    gen main_cf = counterfactual == "fed_9usd"
+    keep if counterfactual == "fed_9usd" & cbsa_low_inc_increase == 0
+    gen nonmiss_cond = !missing(s_imputed) & !missing(perc_incr_rent)  ///
+                                           & !missing(perc_incr_wagebill)
 
-    qui sum rho if main_cf & !cbsa_low_inc_increase & year == 2020, detail
+    qui sum rho if nonmiss_cond == 1, d
 	
-    local rho_mean      = r(mean)
     local rho_median    = r(p50)
     local rho_med_cents = r(p50)*100
 
-    qui sum rho if main_cf & year == 2020 & cbsa_low_inc_increase == 0 & ///
-       no_direct_treatment == 0
-    local rho_meandir_cent = 100 * r(mean)
+    qui sum rho if nonmiss_cond == 1 & year == 2020 & no_direct_treatment == 0, d
+    local rho_meddir_cent = 100 * r(p50)
 
-    qui sum rho if main_cf & year == 2020 & cbsa_low_inc_increase == 0 & ///
-       no_direct_treatment == 1
-    local rho_meanind_cent = 100 * r(mean)
+    qui sum rho if nonmiss_cond == 1 & year == 2020 & no_direct_treatment == 1, d
+    local rho_medind_cent = 100 * r(p50)
 	
-    qui count if main_cf & year == 2020 & cbsa_low_inc_increase == 0
-
+    qui count if nonmiss_cond == 1 & year == 2020
     local zip_total = r(N)
 
-    qui count if main_cf & year == 2020 & cbsa_low_inc_increase == 0 & /// 
-       no_direct_treatment == 1
-
+    qui count if nonmiss_cond == 1 & year == 2020 & no_direct_treatment == 1
     local zip_no_treat = r(N)
     local zip_notr_pct = 100*`zip_no_treat' / `zip_total'
 	
-    qui count if main_cf & year == 2019 & cbsa_low_inc_increase == 0 & /// 
-       no_direct_treatment == 0 & statutory_mw == 7.25
-	   
+    qui count if year == 2019 & no_direct_treatment == 0 & statutory_mw == 7.25
     local zip_bound = r(N)	
     local zip_bound_pct = 100 * `zip_bound' / `zip_total'
 	
-    qui sum d_mw_res if main_cf & year == 2020 & cbsa_low_inc_increase == 0
-
-    local avg_change = 100 * r(mean)
-        
+    qui sum d_mw_res if nonmiss_cond == 1, d
+    local avg_change_mw_res = 100 * r(mean)
+    local med_change_mw_res = 100 * r(p50)
 
     cap file close f
     file open   f using "../output/autofill_counterfactuals.tex", write replace
-    file write  f "\newcommand{\gammaCf}{\textnormal{"                    %5.4f  (`gamma')          "}}" _n
-    file write  f "\newcommand{\betaCf}{\textnormal{"                     %5.4f  (`beta')           "}}" _n
-    file write  f "\newcommand{\epsilonCf}{\textnormal{"                  %5.4f  (`epsilon')        "}}" _n
-    file write  f "\newcommand{\totIncidenceFedNine}{\textnormal{"        %4.3f  (`tot_inc')        "}}" _n
-    file write  f "\newcommand{\totIncidenceCentsFedNine}{\textnormal{"   %4.1f  (`tot_inc_cents')  "}}" _n
-    file write  f "\newcommand{\rhoMeanFedNine}{\textnormal{"             %4.3f  (`rho_mean')       "}}" _n
-    file write  f "\newcommand{\rhoMedianFedNine}{\textnormal{"           %4.3f  (`rho_median')     "}}" _n
-    file write  f "\newcommand{\rhoMedianCentsFedNine}{\textnormal{"      %4.0f  (`rho_med_cents')  "}}" _n
-    file write  f "\newcommand{\rhoMeanCentsIndirFedNine}{\textnormal{"   %4.1f  (`rho_meanind_cent') "}}" _n
-    file write  f "\newcommand{\rhoMeanCentsDirFedNine}{\textnormal{"     %4.1f  (`rho_meandir_cent') "}}" _n
-    file write  f "\newcommand{\zipcodesFedNine}{\textnormal{"            %5.0fc (`zip_total')      "}}" _n
-    file write  f "\newcommand{\zipNoIncFedNine}{\textnormal{"            %5.0fc (`zip_no_treat')   "}}" _n
-    file write  f "\newcommand{\zipBoundFedNine}{\textnormal{"            %5.0fc (`zip_bound')      "}}" _n
-    file write  f "\newcommand{\zipNoIncPctFedNine}{\textnormal{"         %4.1f  (`zip_notr_pct')   "}}" _n
-    file write  f "\newcommand{\zipBoundPctFedNine}{\textnormal{"         %4.1f  (`zip_bound_pct')  "}}" _n
-    file write  f "\newcommand{\AvgChangeFedNine}{\textnormal{"           %4.1f  (`avg_change')     "}}" _n
+    file write  f "\newcommand{\gammaCf}{\textnormal{"                    %5.4f  (`gamma')           "}}" _n
+    file write  f "\newcommand{\betaCf}{\textnormal{"                     %5.4f  (`beta')            "}}" _n
+    file write  f "\newcommand{\epsilonCf}{\textnormal{"                  %5.4f  (`epsilon')         "}}" _n
+    file write  f "\newcommand{\totIncidenceFedNine}{\textnormal{"        %4.3f  (`tot_inc')         "}}" _n
+    file write  f "\newcommand{\totIncidenceCentsFedNine}{\textnormal{"   %4.1f  (`tot_inc_cents')   "}}" _n
+    file write  f "\newcommand{\rhoMedianFedNine}{\textnormal{"           %4.3f  (`rho_median')      "}}" _n
+    file write  f "\newcommand{\rhoMedianCentsFedNine}{\textnormal{"      %4.0f  (`rho_med_cents')   "}}" _n
+    file write  f "\newcommand{\rhoMedCentsIndirFedNine}{\textnormal{"    %4.1f  (`rho_medind_cent') "}}" _n
+    file write  f "\newcommand{\rhoMedCentsDirFedNine}{\textnormal{"      %4.1f  (`rho_meddir_cent') "}}" _n
+    file write  f "\newcommand{\zipcodesFedNine}{\textnormal{"            %5.0fc (`zip_total')       "}}" _n
+    file write  f "\newcommand{\zipNoIncFedNine}{\textnormal{"            %5.0fc (`zip_no_treat')    "}}" _n
+    file write  f "\newcommand{\zipBoundFedNine}{\textnormal{"            %5.0fc (`zip_bound')       "}}" _n
+    file write  f "\newcommand{\zipNoIncPctFedNine}{\textnormal{"         %4.1f  (`zip_notr_pct')    "}}" _n
+    file write  f "\newcommand{\zipBoundPctFedNine}{\textnormal{"         %4.1f  (`zip_bound_pct')   "}}" _n
+    file write  f "\newcommand{\AvgChangeMWResFedNine}{\textnormal{"      %4.1f  (`avg_change_mw_res') "}}" _n
+    file write  f "\newcommand{\MedChangeMWResFedNine}{\textnormal{"      %4.1f  (`med_change_mw_res') "}}" _n
     file close  f
 end
 
