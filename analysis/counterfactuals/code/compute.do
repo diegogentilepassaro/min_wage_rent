@@ -25,13 +25,6 @@ program main
     flag_unaffected_cbsas
     flag_treatment_status
 
-    qui sum s
-    local N_s = r(N)
-    qui sum s_imputed
-    local N_s_imp = r(N)
-    local unimp_sh_s = `N_s'/`N_s_imp'
-    di "Share of unimputed s: `unimp_sh_s'"
-
     foreach cf in fed_10pc fed_9usd fed_15usd {
 
         qui unique cbsa if counterfactual == "`cf'"

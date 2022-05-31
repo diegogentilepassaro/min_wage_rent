@@ -1,5 +1,5 @@
 
- make.py started: 2022-05-30 15:30:29 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\code 
+ make.py started: 2022-05-31 05:49:50 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\code 
 
 
 
@@ -63,47 +63,38 @@ running c:\ado\personal\profile.do ...
  15.     flag_unaffected_cbsas
  16.     flag_treatment_status
  17. 
-.     qui sum s
- 18.     local N_s = r(N)
- 19.     qui sum s_imputed
- 20.     local N_s_imp = r(N)
- 21.     local unimp_sh_s = `N_s'/`N_s_imp'
- 22.     di "Share of unimputed s: `unimp_sh_s'"
- 23. 
 .     foreach cf in fed_10pc fed_9usd fed_15usd {
- 24. 
+ 18. 
 .         qui unique cbsa if counterfactual == "`cf'"
- 25.         local n_cbsas           = `r(unique)'
- 26.         qui unique cbsa if cbsa_low_inc_increase == 0 & counterfactual == 
+ 19.         local n_cbsas           = `r(unique)'
+ 20.         qui unique cbsa if cbsa_low_inc_increase == 0 & counterfactual == 
 > "`cf'"
- 27.         local n_cbsas_affected = `r(unique)'
- 28. 
+ 21.         local n_cbsas_affected = `r(unique)'
+ 22. 
 .         di "{bf: Counterfactual: `cf'}"
- 29.         di "    Unique CBAs: `n_cbsas'"
- 30.         di "    Unique CBAs strongly affected: `n_cbsas_affected'"
- 31. 
+ 23.         di "    Unique CBAs: `n_cbsas'"
+ 24.         di "    Unique CBAs strongly affected: `n_cbsas_affected'"
+ 25. 
 .         di "    Distribution of rho"
- 32.         sum rho if counterfactual == "`cf'" & year == 2020, d
- 33.         di "    Distribution of rho for strongly affected CBAs"
- 34.         sum rho if counterfactual == "`cf'" & year == 2020 & cbsa_low_inc_
+ 26.         sum rho if counterfactual == "`cf'" & year == 2020, d
+ 27.         di "    Distribution of rho for strongly affected CBAs"
+ 28.         sum rho if counterfactual == "`cf'" & year == 2020 & cbsa_low_inc_
 > increase == 0, d
- 35.     }
- 36. 
+ 29.     }
+ 30. 
 .     save             "../output/data_counterfactuals.dta", replace
- 37.     export delimited "../output/data_counterfactuals.csv", replace
- 38. 
+ 31.     export delimited "../output/data_counterfactuals.csv", replace
+ 32. 
 .     preserve
- 39.         compute_tot_incidence
- 40. 
+ 33.         compute_tot_incidence
+ 34. 
 .         qui sum tot_incidence if counterfactual == "fed_9usd"
- 41.         local tot_inc = r(mean)
- 42. 
+ 35.         local tot_inc = r(mean)
+ 36. 
 .         export delimited "../output/tot_incidence.csv", replace
- 43.     restore
- 44. 
-.     make_autofill_values, beta(`beta') gamma(`gamma') epsilon(`epsilon') tot_
-> inc(`tot_inc')
- 45. end
+ 37.     restore
+ 38. 
+. end
 
 . 
 . program load_parameters, rclass
@@ -227,99 +218,6 @@ running c:\ado\personal\profile.do ...
   8. end
 
 . 
-. program make_autofill_values
-  1.     syntax, gamma(real) beta(real) epsilon(real) tot_inc(real)
-  2. 
-.     local tot_inc_cents = `tot_inc'*100
-  3. 
-.     keep if counterfactual == "fed_9usd" & cbsa_low_inc_increase == 0
-  4.     gen nonmiss_cond = !missing(s_imputed) & !missing(perc_incr_rent)  ///
->                                            & !missing(perc_incr_wagebill)
-  5. 
-.     qui sum rho if nonmiss_cond == 1, d
-  6.         
-.     local rho_median    = r(p50)
-  7.     local rho_med_cents = r(p50)*100
-  8. 
-.     qui sum rho if nonmiss_cond == 1 & year == 2020 & no_direct_treatment == 
-> 0, d
-  9.     local rho_meddir_cent = 100 * r(p50)
- 10. 
-.     qui sum rho if nonmiss_cond == 1 & year == 2020 & no_direct_treatment == 
-> 1, d
- 11.     local rho_medind_cent = 100 * r(p50)
- 12.         
-.     qui count if nonmiss_cond == 1 & year == 2020
- 13.     local zip_total = r(N)
- 14. 
-.     qui count if nonmiss_cond == 1 & year == 2020 & no_direct_treatment == 1
- 15.     local zip_no_treat = r(N)
- 16.     local zip_notr_pct = 100*`zip_no_treat'/`zip_total'
- 17.         
-.     qui count if nonmiss_cond == 1 & year == 2020 & no_direct_treatment == 0
- 18.     local zip_treat    = r(N)
- 19.     local zip_tr_pct   = 100*`zip_treat'/`zip_total'
- 20. 
-.     qui count if year == 2019 & no_direct_treatment == 0 & statutory_mw == 7.
-> 25
- 21.     local zip_bound     = r(N)  
- 22.     local zip_bound_pct = 100*`zip_bound'/`zip_total'
- 23.         
-.     qui sum d_mw_res if nonmiss_cond == 1, d
- 24.     local avg_change_mw_res = 100 * r(mean)
- 25.     local med_change_mw_res = 100 * r(p50)
- 26. 
-.     qui sum d_mw_wkp if nonmiss_cond == 1, d
- 27.     local avg_change_mw_wkp = 100 * r(mean)
- 28.     local med_change_mw_wkp = 100 * r(p50)
- 29. 
-.     cap file close f
- 30.     file open   f using "../output/autofill_counterfactuals.tex", write re
-> place
- 31.     file write  f "\newcommand{\gammaCf}{\textnormal{"                    
-> %5.4f  (`gamma')           "}}" _n
- 32.     file write  f "\newcommand{\betaCf}{\textnormal{"                     
-> %5.4f  (`beta')            "}}" _n
- 33.     file write  f "\newcommand{\epsilonCf}{\textnormal{"                  
-> %5.4f  (`epsilon')         "}}" _n
- 34.     file write  f "\newcommand{\totIncidenceFedNine}{\textnormal{"        
-> %4.3f  (`tot_inc')         "}}" _n
- 35.     file write  f "\newcommand{\totIncidenceCentsFedNine}{\textnormal{"   
-> %4.1f  (`tot_inc_cents')   "}}" _n
- 36.     file write  f "\newcommand{\rhoMedianFedNine}{\textnormal{"           
-> %4.3f  (`rho_median')      "}}" _n
- 37.     file write  f "\newcommand{\rhoMedianCentsFedNine}{\textnormal{"      
-> %4.0f  (`rho_med_cents')   "}}" _n
- 38.     file write  f "\newcommand{\rhoMedCentsIndirFedNine}{\textnormal{"    
-> %4.1f  (`rho_medind_cent') "}}" _n
- 39.     file write  f "\newcommand{\rhoMedCentsDirFedNine}{\textnormal{"      
-> %4.1f  (`rho_meddir_cent') "}}" _n
- 40.     file write  f "\newcommand{\zipcodesFedNine}{\textnormal{"            
-> %5.0fc (`zip_total')       "}}" _n
- 41.     file write  f "\newcommand{\zipNoIncFedNine}{\textnormal{"            
-> %5.0fc (`zip_no_treat')    "}}" _n
- 42.     file write  f "\newcommand{\zipIncFedNine}{\textnormal{"              
-> %5.0fc (`zip_treat')       "}}" _n
- 43.     file write  f "\newcommand{\zipBoundFedNine}{\textnormal{"            
-> %5.0fc (`zip_bound')       "}}" _n
- 44.     file write  f "\newcommand{\zipNoIncPctFedNine}{\textnormal{"         
-> %4.1f  (`zip_notr_pct')    "}}" _n
- 45.     file write  f "\newcommand{\zipIncPctFedNine}{\textnormal{"           
-> %4.1f  (`zip_tr_pct')      "}}" _n
- 46.     file write  f "\newcommand{\zipBoundPctFedNine}{\textnormal{"         
-> %4.1f  (`zip_bound_pct')   "}}" _n
- 47.     file write  f "\newcommand{\AvgChangeMWResFedNine}{\textnormal{"      
-> %4.1f  (`avg_change_mw_res') "}}" _n
- 48.     file write  f "\newcommand{\MedChangeMWResFedNine}{\textnormal{"      
-> %4.1f  (`med_change_mw_res') "}}" _n
- 49.     file write  f "\newcommand{\AvgChangeMWWkpFedNine}{\textnormal{"      
-> %4.1f  (`avg_change_mw_wkp') "}}" _n
- 50.     file write  f "\newcommand{\MedChangeMWWkpFedNine}{\textnormal{"      
-> %4.1f  (`med_change_mw_wkp') "}}" _n
- 51.     file close  f
- 52. end
-
-. 
 . main
 (6 observations deleted)
 Beta, Gamma, and Epsilon: .0680193975567818, -.0220795720815659, .1083480641245
@@ -347,8 +245,8 @@ Beta, Gamma, and Epsilon: .0680193975567818, -.0220795720815659, .1083480641245
 (34,415 missing values generated)
 (36,827 missing values generated)
 (34,852 missing values generated)
-(note: file C:\Users\shermo\AppData\Local\Temp\5\ST_232ec_000003.tmp not found)
-file C:\Users\shermo\AppData\Local\Temp\5\ST_232ec_000003.tmp saved
+(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_24c04_000003.tmp not found)
+file C:\Users\diegog\AppData\Local\Temp\2\ST_24c04_000003.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -358,8 +256,8 @@ file C:\Users\shermo\AppData\Local\Temp\5\ST_232ec_000003.tmp saved
 (34,473 observations deleted)
 (10,355 missing values generated)
 (10,355 missing values generated)
-(note: file C:\Users\shermo\AppData\Local\Temp\5\ST_232ec_000003.tmp not found)
-file C:\Users\shermo\AppData\Local\Temp\5\ST_232ec_000003.tmp saved
+(note: file C:\Users\diegog\AppData\Local\Temp\2\ST_24c04_000003.tmp not found)
+file C:\Users\diegog\AppData\Local\Temp\2\ST_24c04_000003.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -369,7 +267,6 @@ file C:\Users\shermo\AppData\Local\Temp\5\ST_232ec_000003.tmp saved
 
     matched                            66,102  
     -----------------------------------------
-Share of unimputed s: .9322987566929849
  Counterfactual: fed_10pc
     Unique CBAs: 176
     Unique CBAs strongly affected: 79
@@ -483,8 +380,6 @@ file ../output/data_counterfactuals.csv saved
 (0 observations deleted)
 (note: file ../output/tot_incidence.csv not found)
 file ../output/tot_incidence.csv saved
-(53,620 observations deleted)
-(note: file ../output/autofill_counterfactuals.tex not found)
 
 . 
 end of do-file
@@ -674,6 +569,193 @@ running c:\ado\personal\profile.do ...
 end of do-file
 
 
+Execute:  StataMP-64 /e do "./autofill_values.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+
+running c:\ado\personal\profile.do ...
+
+. do ./autofill_values.do 
+
+. clear all
+
+. set more off
+
+. set maxvar 32000
+
+
+. 
+. program main
+  1.     local in_data        "../output"
+  2.     local in_baseline    "../../fd_baseline/output"
+  3.     local in_wages     "../../twfe_wages/output"
+  4.     local out_autofill   "../output"
+  5. 
+.     load_parameters, in_baseline(`in_baseline') in_wages(`in_wages')
+  6.     local beta    = r(beta)
+  7.     local gamma   = r(gamma)
+  8.     local epsilon = r(epsilon)
+  9. 
+.     import delimited `in_data'/tot_incidence.csv, clear
+ 10.     qui sum tot_incidence if counterfactual == "fed_9usd"
+ 11.     local tot_inc = r(mean)
+ 12. 
+.     use `in_data'/data_counterfactuals.dta, clear
+ 13. 
+.     make_autofill_values, beta(`beta') gamma(`gamma') epsilon(`epsilon') tot_
+> inc(`tot_inc')
+ 14. 
+. end
+
+. 
+. program load_parameters, rclass
+  1.     syntax, in_baseline(str) in_wages(str)
+  2. 
+.     use `in_baseline'/estimates_static.dta, clear
+  3.     keep if model == "static_both"
+  4. 
+.     qui sum b if var == "mw_res"
+  5.     return local gamma = r(mean)
+  6.     qui sum b if var == "mw_wkp_tot_17"
+  7.     return local beta = r(mean)
+  8. 
+.     use `in_wages'/estimates_all.dta if model == "cbsa_time", clear
+  9.     qui sum b
+ 10.     return local epsilon = r(mean)
+ 11. end
+
+. 
+. program make_autofill_values
+  1.     syntax, gamma(real) beta(real) epsilon(real) tot_inc(real)
+  2. 
+.     local tot_inc_cents = `tot_inc'*100
+  3. 
+.     qui tab cbsa if cbsa_low_inc_increase == 1 & counterfactual == "fed_9usd"
+  4.     local cbsa_low_inc = r(r)
+  5. 
+.     keep if counterfactual == "fed_9usd" & cbsa_low_inc_increase == 0
+  6.     gen nonmiss_cond = !missing(s_imputed) & !missing(perc_incr_rent)  ///
+>                                            & !missing(perc_incr_wagebill)
+  7. 
+.     qui sum rho if nonmiss_cond == 1, d
+  8.         
+.     local rho_median    = r(p50)
+  9.     local rho_med_cents = r(p50)*100
+ 10. 
+.     qui sum rho if nonmiss_cond == 1 & year == 2020 & no_direct_treatment == 
+> 0, d
+ 11.     local rho_meddir_cent = 100 * r(p50)
+ 12. 
+.     qui sum rho if nonmiss_cond == 1 & year == 2020 & no_direct_treatment == 
+> 1, d
+ 13.     local rho_medind_cent = 100 * r(p50)
+ 14.         
+.     qui count if nonmiss_cond == 1 & year == 2020
+ 15.     local zip_total = r(N)
+ 16. 
+.     qui count if nonmiss_cond == 1 & year == 2020 & no_direct_treatment == 1
+ 17.     local zip_no_treat = r(N)
+ 18.     local zip_notr_pct = 100*`zip_no_treat'/`zip_total'
+ 19.         
+.     qui count if nonmiss_cond == 1 & year == 2020 & no_direct_treatment == 0
+ 20.     local zip_treat    = r(N)
+ 21.     local zip_tr_pct   = 100*`zip_treat'/`zip_total'
+ 22. 
+.     qui count if year == 2019 & no_direct_treatment == 0 & statutory_mw == 7.
+> 25
+ 23.     local zip_bound     = r(N)  
+ 24.     local zip_bound_pct = 100*`zip_bound'/`zip_total'
+ 25. 
+.     qui sum d_mw_res if nonmiss_cond == 1, d
+ 26.     local avg_change_mw_res = 100 * r(mean)
+ 27.     local med_change_mw_res = 100 * r(p50)
+ 28. 
+.     qui sum d_mw_wkp if nonmiss_cond == 1, d
+ 29.     local avg_change_mw_wkp = 100 * r(mean)
+ 30.     local med_change_mw_wkp = 100 * r(p50)
+ 31. 
+.     cap file close f
+ 32.     file open   f using "../output/autofill_counterfactuals.tex", write re
+> place
+ 33.     file write  f "\newcommand{\gammaCf}{\textnormal{"                    
+> %5.4f  (`gamma')           "}}" _n
+ 34.     file write  f "\newcommand{\betaCf}{\textnormal{"                     
+> %5.4f  (`beta')            "}}" _n
+ 35.     file write  f "\newcommand{\epsilonCf}{\textnormal{"                  
+> %5.4f  (`epsilon')         "}}" _n
+ 36.     file write  f "\newcommand{\totIncidenceFedNine}{\textnormal{"        
+> %4.3f  (`tot_inc')         "}}" _n
+ 37.     file write  f "\newcommand{\totIncidenceCentsFedNine}{\textnormal{"   
+> %3.1f  (`tot_inc_cents')   "}}" _n
+ 38.     file write  f "\newcommand{\rhoMedianFedNine}{\textnormal{"           
+> %4.3f  (`rho_median')      "}}" _n
+ 39.     file write  f "\newcommand{\rhoMedianCentsFedNine}{\textnormal{"      
+> %1.0f  (`rho_med_cents')   "}}" _n
+ 40.     file write  f "\newcommand{\rhoMedCentsIndirFedNine}{\textnormal{"    
+> %4.1f  (`rho_medind_cent') "}}" _n
+ 41.     file write  f "\newcommand{\rhoMedCentsDirFedNine}{\textnormal{"      
+> %4.1f  (`rho_meddir_cent') "}}" _n
+ 42.     file write  f "\newcommand{\zipcodesFedNine}{\textnormal{"            
+> %5.0fc (`zip_total')       "}}" _n
+ 43.     file write  f "\newcommand{\zipNoIncFedNine}{\textnormal{"            
+> %5.0fc (`zip_no_treat')    "}}" _n
+ 44.     file write  f "\newcommand{\zipIncFedNine}{\textnormal{"              
+> %5.0fc (`zip_treat')       "}}" _n
+ 45.     file write  f "\newcommand{\zipBoundFedNine}{\textnormal{"            
+> %5.0fc (`zip_bound')       "}}" _n
+ 46.     file write  f "\newcommand{\zipNoIncPctFedNine}{\textnormal{"         
+> %4.1f  (`zip_notr_pct')    "}}" _n
+ 47.     file write  f "\newcommand{\zipIncPctFedNine}{\textnormal{"           
+> %4.1f  (`zip_tr_pct')      "}}" _n
+ 48.     file write  f "\newcommand{\zipBoundPctFedNine}{\textnormal{"         
+> %4.1f  (`zip_bound_pct')   "}}" _n
+ 49.     file write  f "\newcommand{\AvgChangeMWResFedNine}{\textnormal{"      
+> %4.1f  (`avg_change_mw_res') "}}" _n
+ 50.     file write  f "\newcommand{\MedChangeMWResFedNine}{\textnormal{"      
+> %4.1f  (`med_change_mw_res') "}}" _n
+ 51.     file write  f "\newcommand{\AvgChangeMWWkpFedNine}{\textnormal{"      
+> %4.1f  (`avg_change_mw_wkp') "}}" _n
+ 52.     file write  f "\newcommand{\MedChangeMWWkpFedNine}{\textnormal{"      
+> %4.1f  (`med_change_mw_wkp') "}}" _n
+ 53.     file write  f "\newcommand{\cbsaLowIncFedNine}{\textnormal{"          
+> %2.0f  (`cbsa_low_inc')     "}}" _n
+ 54.     file close  f
+ 55. end
+
+. 
+. main
+(6 observations deleted)
+(5 vars, 3 obs)
+(53,620 observations deleted)
+(note: file ../output/autofill_counterfactuals.tex not found)
+
+. 
+. 
+.         
+. 
+end of do-file
+
+
 Execute:  R CMD BATCH --no-save "./tables.R" tables.Rout
 
 R version 4.1.1 (2021-08-10) -- "Kick Things"
@@ -770,7 +852,7 @@ Type 'q()' to quit R.
 > 
 > proc.time()
    user  system elapsed 
-   0.65    0.14    0.65 
+   0.65    0.18    0.68 
 
 
 Execute:  R CMD BATCH --no-save "./map_cfs.R" map_cfs.Rout
@@ -916,40 +998,40 @@ repos='https://nowosad.github.io/drat/', type='source')`
 + }
 > 
 > main()
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res.png
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res.eps
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res.eps
 Size: 6.117331 by 8.010029 inches
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp.png
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp.eps
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp.eps
 Size: 6.117331 by 8.010029 inches
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents.png
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents.eps
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents.eps
 Size: 6.117331 by 8.010029 inches
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill.png
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill.eps
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill.eps
 Size: 6.117331 by 8.010029 inches
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_s_imputed.png
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_s_imputed.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_s_imputed.eps
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_s_imputed.eps
 Size: 6.117331 by 8.010029 inches
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_rho_with_imputed.png
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_rho_with_imputed.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_rho_with_imputed.eps
+Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_rho_with_imputed.eps
 Size: 6.117331 by 8.010029 inches
 There were 22 warnings (use warnings() to see them)
 > 
 > proc.time()
    user  system elapsed 
-  72.01   54.04  129.09 
+  72.54   54.48  127.42 
 
- make.py ended: 2022-05-30 15:33:01
+ make.py ended: 2022-05-31 05:54:12

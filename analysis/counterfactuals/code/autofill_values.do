@@ -107,7 +107,7 @@ program make_autofill_values
     file write  f "\newcommand{\MedChangeMWResFedNine}{\textnormal{"      %4.1f  (`med_change_mw_res') "}}" _n
     file write  f "\newcommand{\AvgChangeMWWkpFedNine}{\textnormal{"      %4.1f  (`avg_change_mw_wkp') "}}" _n
     file write  f "\newcommand{\MedChangeMWWkpFedNine}{\textnormal{"      %4.1f  (`med_change_mw_wkp') "}}" _n
-    file write  f "\newcommand{\cbsaLowInc}{\textnormal{"                 %2.0f  (`cbsa_low_inc')     "}}" _n
+    file write  f "\newcommand{\cbsaLowIncFedNine}{\textnormal{"          %2.0f  (`cbsa_low_inc')     "}}" _n
     file close  f
 end
 

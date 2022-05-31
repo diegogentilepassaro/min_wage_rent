@@ -32,6 +32,19 @@ program main
     keep zipcode s safmr2br wage_per_whhld_monthly *imputed
     save_data "`outstub'/s_by_zip.dta", key(zipcode) ///
         log(../output/data_file_manifest.log) replace
+
+    select_urban_zipcodes, instub(`in_zipcode')
+
+    qui sum s
+    local N_s = r(N)
+    qui sum s_imputed
+    local N_s_imp = r(N)
+    local unimp_sh_s = `N_s'/`N_s_imp'
+
+    cap file close f
+    file open   f using "../output/share_missing_s.txt", write replace
+    file write  f "Share of unimputed s in urban zipcodes: `unimp_sh_s'" _n
+    file close  f
 end
 
 program create_vars
@@ -80,6 +93,15 @@ program impute_var
 	winsor `var'_imputed, p(.005) generate(w`var'_imputed)
     replace `var'_imputed = w`var'_imputed
 	drop w`var'_imputed
+end
+
+program select_urban_zipcodes
+    syntax, instub(str)
+
+    merge m:1 zipcode using `instub'/zipcode_cross.dta,  ///
+        assert(2 3) keep(3) nogen keepusing(cbsa urban_cbsa)
+
+    keep if urban_cbsa
 end
 
 main
