@@ -25,17 +25,13 @@ program main
     clean_qcew,        instub(`in_qcew')
     
     use "../temp/mw_rents_data.dta", clear
-    merge 1:1 zipcode countyfips cbsa year ///
-        using "../temp/safmr_2012_2016.dta", nogen keep(1 3)
-    merge 1:1 zipcode cbsa year ///
-        using "../temp/safmr_2017_2019.dta", nogen keep(1 3)
-
-    merge 1:1 zipcode    year using "../temp/irs_data.dta",         nogen keep(1 3)
-    merge 1:1 zipcode    year using "../temp/workplace_shares.dta", nogen keep(1 3)
-    merge 1:1 zipcode    year using "../temp/residence_shares.dta", nogen keep(1 3)
-    merge m:1 countyfips year using "../temp/qcew_data.dta",        nogen keep(1 3)
-	gen ln_wkp_jobs_tot = log(wkp_jobs_tot) 
-	gen ln_res_jobs_tot = log(res_jobs_tot)
+    merge 1:1 zipcode year using "../temp/safmr.dta",            nogen keep(1 3)
+    merge 1:1 zipcode year using "../temp/irs_data.dta",         nogen keep(1 3)
+    merge 1:1 zipcode year using "../temp/workplace_shares.dta", nogen keep(1 3)
+    merge 1:1 zipcode year using "../temp/residence_shares.dta", nogen keep(1 3)
+    merge m:1 countyfips year using "../temp/qcew_data.dta",     nogen keep(1 3)
+    gen ln_wkp_jobs_tot = log(wkp_jobs_tot) 
+    gen ln_res_jobs_tot = log(res_jobs_tot)
 
     save_data "`outstub'/zipcode_year.dta", key(zipcode year) ///
         log(`logfile') replace
@@ -95,21 +91,24 @@ end
 program clean_safmr_data
     syntax, instub(str)
     
-    use "`instub'/safmr_2012_2016_by_zipcode_county_cbsa.dta", clear
-    qui describe safmr*, varlist
-    local safmr_vars = r(varlist)
-    foreach var of local safmr_vars {
-        gen ln_`var' = log(`var')
-    }
-    save "../temp/safmr_2012_2016.dta", replace
-    
     use "`instub'/safmr_2017_2019_by_zipcode_cbsa.dta", clear
+    collapse (mean) safmr*, by(zipcode year)
     qui describe safmr*, varlist
     local safmr_vars = r(varlist)
     foreach var of local safmr_vars {
         gen ln_`var' = log(`var')
     }
     save "../temp/safmr_2017_2019.dta", replace
+
+    use  "`instub'/safmr_2012_2016_by_zipcode_county_cbsa.dta", clear
+    collapse (mean) safmr*, by(zipcode year)
+    qui describe safmr*, varlist
+    local safmr_vars = r(varlist)
+    foreach var of local safmr_vars {
+        gen ln_`var' = log(`var')
+    }
+    append using "../temp/safmr_2017_2019.dta"
+    save "../temp/safmr.dta", replace
 end
 
 program clean_irs_data
@@ -127,7 +126,8 @@ program clean_irs_data
     drop if inlist(zipcode, "0", "00000", "99999") /* I guess these are "other zipcodes", so dropping
                                                       There is one per state, which generates dups */ 
 
-    keep zipcode year ln_*
+    keep zipcode year ln_* agi_per_hhld wage_per_wage_hhld       ///
+        wage_per_hhld bussines_rev_per_owner
 
     save "../temp/irs_data.dta", replace
 end

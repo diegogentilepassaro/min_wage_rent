@@ -1,0 +1,597 @@
+
+ make.py started: 2022-05-31 05:49:10 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\expenditure_shares\code 
+
+
+
+
+Execute:  StataMP-64 /e do "./estimate.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+
+running c:\ado\personal\profile.do ...
+
+. do ./estimate.do 
+
+. clear all
+
+. set more off
+
+. set maxvar 32000
+
+
+. set matsize 10000
+
+. 
+. program main
+  1.     local in_zipcode  "../../../drive/derived_large/zipcode"
+  2.     local in_zip_yr   "../../../drive/derived_large/zipcode_year"
+  3.     local outstub     "../../../drive/analysis_large/expenditure_shares"
+  4. 
+.     use "`in_zip_yr'/zipcode_year.dta", clear
+  5.     keep if year == 2018
+  6.     keep zipcode statefips countyfips cbsa agi_per_hhld wage_per_wage_hhld
+>        ///
+>         wage_per_hhld bussines_rev_per_owner safmr1br safmr2br safmr3br
+  7.     save "../temp/irs_safmr_2018.dta", replace
+  8. 
+.     use zipcode countyfips statefips cbsa ///
+>         place_code *_cens2010 *_acs2014 sh_residents_* sh_workers_* ///
+>         using "`in_zipcode'/zipcode_cross.dta", clear
+  9.     merge 1:1 zipcode using "../temp/irs_safmr_2018.dta", ///
+>         nogen keep(1 3)
+ 10.     
+.     create_vars
+ 11. 
+.     gen wage_per_whhld_monthly = wage_per_wage_hhld/12
+ 12.     gen s = safmr2br/wage_per_whhld_monthly
+ 13.     
+.     impute_var, var(safmr2br)
+ 14.     impute_var, var(wage_per_whhld_monthly)
+ 15.     impute_var, var(s)
+ 16.     
+.     keep zipcode s safmr2br wage_per_whhld_monthly *imputed
+ 17.     save_data "`outstub'/s_by_zip.dta", key(zipcode) ///
+>         log(../output/data_file_manifest.log) replace
+ 18. 
+.     select_urban_zipcodes, instub(`in_zipcode')
+ 19. 
+.     qui sum s
+ 20.     local N_s = r(N)
+ 21.     qui sum s_imputed
+ 22.     local N_s_imp = r(N)
+ 23.     local unimp_sh_s = `N_s'/`N_s_imp'
+ 24. 
+.     cap file close f
+ 25.     file open   f using "../output/share_missing_s.txt", write replace
+ 26.     file write  f "Share of unimputed s in urban zipcodes: `unimp_sh_s'" _
+> n
+ 27.     file close  f
+ 28. end
+
+. 
+. program create_vars
+  1. 
+.     rename *hhlds_renteroccup* *hhl_ro*
+  2.     rename *hhlds_urban*       *hhld_ur*
+  3. 
+.     gen med_hhld_inc    = med_hhld_inc_acs2014
+  4.     gen med_hhld_inc_sq = med_hhld_inc_acs2014^2
+  5.     gen n_workers       = n_workers_acs2014
+  6.     gen inc_x_n_workers = med_hhld_inc*n_workers_acs2014
+  7. 
+.     foreach var in population n_male n_white n_black n_hhlds n_hhld_ur n_hhl_
+> ro {
+  8.         gen inc_x_`var' = med_hhld_inc*`var'_cens2010
+  9.     }
+ 10. 
+.     foreach var in white black male urb_pop hhl_ro hhld_ur {
+ 11.         foreach var in white black male urb_pop hhl_ro hhld_ur {
+ 12.             cap gen sh_`var'_x_sh_`var' = sh_`var'_cens2010*sh_`var'_cens2
+> 010
+ 13.         }
+ 14.     }
+ 15.     
+.     foreach var in statefips cbsa countyfips place_code {
+ 16.         replace `var' = "missing" if missing(`var')
+ 17.     }
+ 18.     egen geo_group = group(statefips cbsa countyfips) //place_code
+ 19. end
+
+. 
+. program impute_var
+  1.     syntax, var(str)
+  2.     reghdfe `var' med_hhld_inc n_workers inc_x* ///
+>         population_cens2010 n_male_cens2010 n_white_cens2010 n_black_cens2010
+>  urb_pop_cens2010 ///
+>         n_hhlds_cens2010 n_hhld_ur_cens2010 n_hhl_ro_cens2010 ///
+>         sh_white* sh_black* sh_male* sh_urb_pop* sh_hhld* ///
+>         sh_residents* sh_workers*, absorb(FE = geo_group) savefe resid
+  3. 
+.     bys geo_group (FE): replace FE = FE[1]
+  4.     replace FE = 0 if missing(FE)
+  5.     predict xb, xb
+  6.     gen `var'_pred = xb + FE
+  7.         drop FE xb
+  8. 
+.     gen     `var'_imputed = `var'
+  9.     replace `var'_imputed = `var'_pred if (missing(`var') & !missing(`var'
+> _pred))
+ 10. 
+.         winsor `var'_imputed, p(.005) generate(w`var'_imputed)
+ 11.     replace `var'_imputed = w`var'_imputed
+ 12.         drop w`var'_imputed
+ 13. end
+
+. 
+. program select_urban_zipcodes
+  1.     syntax, instub(str)
+  2. 
+.     merge m:1 zipcode using `instub'/zipcode_cross.dta,  ///
+>         assert(2 3) keep(3) nogen keepusing(cbsa urban_cbsa)
+  3. 
+.     keep if urban_cbsa
+  4. end
+
+. 
+. main
+(286,434 observations deleted)
+(note: file ../temp/irs_safmr_2018.dta not found)
+file ../temp/irs_safmr_2018.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            31,826  
+    -----------------------------------------
+(666 missing values generated)
+(666 missing values generated)
+(600 missing values generated)
+(1,160 missing values generated)
+(666 missing values generated)
+(666 missing values generated)
+(666 missing values generated)
+(666 missing values generated)
+(666 missing values generated)
+(666 missing values generated)
+(666 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(4,290 missing values generated)
+(14,009 missing values generated)
+(dropped 395 singleton observations)
+(MWFE estimator converged in 1 iterations)
+note: sh_residents_above55_2014 omitted because of collinearity
+note: sh_residents_above3333_2014 omitted because of collinearity
+note: sh_residents_College_2014 omitted because of collinearity
+note: sh_residents_above55_2017 omitted because of collinearity
+note: sh_residents_above3333_2017 omitted because of collinearity
+note: sh_residents_College_2017 omitted because of collinearity
+note: sh_workers_above55_2014 omitted because of collinearity
+note: sh_workers_above3333_2014 omitted because of collinearity
+note: sh_workers_College_2014 omitted because of collinearity
+note: sh_workers_above55_2017 omitted because of collinearity
+note: sh_workers_above3333_2017 omitted because of collinearity
+note: sh_workers_College_2017 omitted because of collinearity
+
+HDFE Linear regression                            Number of obs   =     17,636
+Absorbing 1 HDFE group                            F(  72,  15984) =     128.85
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.9049
+                                                  Adj R-squared   =     0.8951
+                                                  Within R-sq.    =     0.3672
+                                                  Root MSE        =   144.0112
+
+------------------------------------------------------------------------------
+    safmr2br |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+med_hhld_inc |   .0019088   .0000974    19.59   0.000     .0017178    .0020998
+   n_workers |   .0055586   .0025074     2.22   0.027     .0006438    .0104734
+inc_x_n_wo~s |  -1.45e-07   4.59e-08    -3.16   0.002    -2.35e-07   -5.51e-08
+inc_x_popu~n |  -1.32e-07   9.45e-08    -1.40   0.163    -3.17e-07    5.34e-08
+inc_x_n_male |   3.62e-07   1.75e-07     2.06   0.039     1.78e-08    7.06e-07
+inc_x_n_wh~e |  -1.65e-07   2.24e-08    -7.35   0.000    -2.09e-07   -1.21e-07
+inc_x_n_bl~k |  -1.62e-07   3.00e-08    -5.40   0.000    -2.21e-07   -1.03e-07
+inc_x_n_hh~s |   6.04e-07   8.82e-08     6.85   0.000     4.31e-07    7.77e-07
+inc_x_n_hh~r |   5.14e-09   7.00e-08     0.07   0.941    -1.32e-07    1.42e-07
+inc_x_n_hh~o |  -3.29e-07   5.86e-08    -5.60   0.000    -4.43e-07   -2.14e-07
+populat~2010 |  -.0073786   .0057649    -1.28   0.201    -.0186785    .0039212
+n_male_~2010 |  -.0063839   .0094582    -0.67   0.500    -.0249231    .0121553
+n_white~2010 |   .0092938   .0014934     6.22   0.000     .0063666    .0122209
+n_black~2010 |   .0121181   .0016451     7.37   0.000     .0088935    .0153427
+urb_pop~2010 |   .0063278   .0022989     2.75   0.006     .0018217    .0108339
+n_hhlds~2010 |  -.0225142   .0061415    -3.67   0.000    -.0345522   -.0104762
+n_hhld_~2010 |  -.0054417   .0058055    -0.94   0.349    -.0168211    .0059377
+n_hhl_r~2010 |   .0108077   .0031951     3.38   0.001     .0045448    .0170705
+sh_whit~2010 |   525.7639   66.72841     7.88   0.000     394.9687    656.5591
+sh_white_x~e |   -473.986   49.19955    -9.63   0.000    -570.4226   -377.5493
+sh_blac~2010 |  -170.6503   46.59017    -3.66   0.000    -261.9723   -79.32835
+sh_black_x~k |   375.1763   54.00515     6.95   0.000     269.3201    481.0324
+sh_male~2010 |   460.4992   207.6913     2.22   0.027      53.4009    867.5976
+sh_male_x_~e |  -338.5781   176.8907    -1.91   0.056    -685.3038    8.147602
+sh_urb_~2010 |   -97.3829   150.0622    -0.65   0.516    -391.5217    196.7559
+sh_urb_pop~p |   169.8251   135.0842     1.26   0.209    -94.95519    434.6054
+sh_hhld~2010 |   69.90247   150.1344     0.47   0.642    -224.3778    364.1827
+sh_hhld_ur~r |   -157.902   134.9201    -1.17   0.242    -422.3605    106.5566
+sh_re~9_2014 |  -102.5544    72.3554    -1.42   0.156    -244.3791    39.27034
+sh_re~4_2014 |   282.4828   47.90041     5.90   0.000     188.5927     376.373
+sh_re~5_2014 |          0  (omitted)
+sh_re~0_2014 |  -202.5134   56.15632    -3.61   0.000    -312.5861   -92.44072
+sh_residen.. |  -327.1862   46.15089    -7.09   0.000    -417.6471   -236.7253
+sh_residen.. |          0  (omitted)
+sh_re~S_2014 |  -676.0819   89.94981    -7.52   0.000    -852.3936   -499.7702
+sh_residen.. |  -366.0455   69.22663    -5.29   0.000    -501.7375   -230.3536
+sh_residen.. |  -516.8673   71.17013    -7.26   0.000    -656.3688   -377.3659
+sh_r~ge_2014 |          0  (omitted)
+sh_re~f_2014 |   77.10203   64.70117     1.19   0.233    -49.71955    203.9236
+sh_r~il_2014 |   16.40105   66.16005     0.25   0.804    -113.2801    146.0822
+sh_r~ce_2014 |   327.1639   115.8768     2.82   0.005     100.0323    554.2954
+sh_re~d_2014 |    217.209   79.72392     2.72   0.006     60.94119    373.4769
+sh_re~9_2017 |  -183.5241   75.93986    -2.42   0.016    -332.3748   -34.67348
+sh_re~4_2017 |   175.8533   48.76118     3.61   0.000     80.27591    271.4307
+sh_re~5_2017 |          0  (omitted)
+sh_re~0_2017 |  -85.76894   60.25357    -1.42   0.155    -203.8727    32.33484
+sh_residen.. |   -335.753   49.12287    -6.83   0.000    -432.0393   -239.4667
+sh_residen.. |          0  (omitted)
+sh_re~S_2017 |  -633.4094   88.86709    -7.13   0.000    -807.5988   -459.2199
+sh_residen.. |  -561.5901   79.66266    -7.05   0.000    -717.7379   -405.4424
+sh_residen.. |  -456.3244   72.66482    -6.28   0.000    -598.7556   -313.8932
+sh_r~ge_2017 |          0  (omitted)
+sh_re~f_2017 |  -31.09018   71.61275    -0.43   0.664    -171.4592    109.2789
+sh_r~il_2017 |    245.216   72.92889     3.36   0.001     102.2672    388.1648
+sh_r~ce_2017 |   586.0451   113.8432     5.15   0.000     362.8997    809.1905
+sh_re~d_2017 |   12.08908   79.08911     0.15   0.879    -142.9345    167.1126
+sh_wo~9_2014 |   15.38469   32.01663     0.48   0.631     -47.3715    78.14089
+sh_wo~4_2014 |   66.17793   22.76316     2.91   0.004     21.55957    110.7963
+sh_wo~5_2014 |          0  (omitted)
+sh_wo~0_2014 |  -34.16945   16.99319    -2.01   0.044      -67.478   -.8608928
+sh_workers.. |    -27.269   17.21992    -1.58   0.113    -61.02197    6.483973
+sh_workers.. |          0  (omitted)
+sh_wo~S_2014 |   26.66125   36.14396     0.74   0.461    -44.18497    97.50748
+sh_workers.. |  -33.36513   28.79608    -1.16   0.247    -89.80869    23.07842
+sh_workers.. |   -62.9273   31.37477    -2.01   0.045    -124.4254   -1.429226
+sh_w~ge_2014 |          0  (omitted)
+sh_wo~f_2014 |  -26.76898   15.44556    -1.73   0.083    -57.04402    3.506062
+sh_w~il_2014 |  -16.45994   16.99466    -0.97   0.333    -49.77138     16.8515
+sh_w~ce_2014 |  -4.321372   33.93905    -0.13   0.899    -70.84573    62.20299
+sh_wo~d_2014 |    36.0021   19.14347     1.88   0.060    -1.521253    73.52545
+sh_wo~9_2017 |   25.59072   31.22301     0.82   0.412     -35.6099    86.79134
+sh_wo~4_2017 |  -25.38526   22.56854    -1.12   0.261    -69.62214    18.85162
+sh_wo~5_2017 |          0  (omitted)
+sh_wo~0_2017 |  -27.62211   17.45444    -1.58   0.114    -61.83478    6.590552
+sh_workers.. |  -8.303035   17.32141    -0.48   0.632    -42.25495    25.64888
+sh_workers.. |          0  (omitted)
+sh_wo~S_2017 |   3.510064   35.83325     0.10   0.922    -66.72714    73.74726
+sh_workers.. |  -20.50189   28.01973    -0.73   0.464    -75.42372    34.41994
+sh_workers.. |  -39.62322   30.74571    -1.29   0.198    -99.88828    20.64183
+sh_w~ge_2017 |          0  (omitted)
+sh_wo~f_2017 |  -29.49148   16.07268    -1.83   0.067    -60.99575    2.012786
+sh_w~il_2017 |   .7041417   17.13214     0.04   0.967    -32.87678    34.28506
+sh_w~ce_2017 |    16.1496   35.74343     0.45   0.651    -53.91155    86.21075
+sh_wo~d_2017 |  -6.276845   19.07526    -0.33   0.742    -43.66649     31.1128
+       _cons |   1433.111   89.01272    16.10   0.000     1258.636    1607.586
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+   geo_group |      1580           0        1580     |
+-----------------------------------------------------+
+(4546 real changes made)
+(9,644 real changes made)
+(2,476 missing values generated)
+(2,476 missing values generated)
+(12,575 missing values generated)
+(11,319 real changes made)
+(302 real changes made)
+(dropped 205 singleton observations)
+(MWFE estimator converged in 1 iterations)
+note: sh_residents_above55_2014 omitted because of collinearity
+note: sh_residents_above3333_2014 omitted because of collinearity
+note: sh_residents_College_2014 omitted because of collinearity
+note: sh_residents_above55_2017 omitted because of collinearity
+note: sh_residents_above3333_2017 omitted because of collinearity
+note: sh_residents_College_2017 omitted because of collinearity
+note: sh_workers_above55_2014 omitted because of collinearity
+note: sh_workers_above3333_2014 omitted because of collinearity
+note: sh_workers_College_2014 omitted because of collinearity
+note: sh_workers_above55_2017 omitted because of collinearity
+note: sh_workers_above3333_2017 omitted because of collinearity
+note: sh_workers_College_2017 omitted because of collinearity
+
+HDFE Linear regression                            Number of obs   =     26,247
+Absorbing 1 HDFE group                            F(  72,  23291) =     430.30
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.7442
+                                                  Adj R-squared   =     0.7117
+                                                  Within R-sq.    =     0.5708
+                                                  Root MSE        =  1345.7862
+
+------------------------------------------------------------------------------
+wage_per_w~y |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+med_hhld_inc |   .0334301   .0009126    36.63   0.000     .0316413    .0352189
+   n_workers |   .2017041   .0229822     8.78   0.000     .1566575    .2467507
+inc_x_n_wo~s |  -.0000109   4.25e-07   -25.58   0.000    -.0000117     -.00001
+inc_x_popu~n |   1.39e-06   8.80e-07     1.58   0.114    -3.35e-07    3.12e-06
+inc_x_n_male |   5.55e-07   1.63e-06     0.34   0.734    -2.65e-06    3.76e-06
+inc_x_n_wh~e |   2.16e-06   2.06e-07    10.50   0.000     1.76e-06    2.57e-06
+inc_x_n_bl~k |  -1.26e-07   2.78e-07    -0.45   0.650    -6.72e-07    4.19e-07
+inc_x_n_hh~s |   1.01e-07   7.48e-07     0.13   0.893    -1.37e-06    1.57e-06
+inc_x_n_hh~r |   8.34e-06   5.80e-07    14.38   0.000     7.20e-06    9.48e-06
+inc_x_n_hh~o |  -3.49e-06   5.39e-07    -6.48   0.000    -4.55e-06   -2.44e-06
+populat~2010 |  -.0575974   .0514811    -1.12   0.263    -.1585038    .0433089
+n_male_~2010 |   .1613746   .0874645     1.85   0.065    -.0100615    .3328107
+n_white~2010 |  -.0799553   .0134856    -5.93   0.000    -.1063879   -.0535228
+n_black~2010 |   .0450465   .0150153     3.00   0.003     .0156155    .0744774
+urb_pop~2010 |  -.0197973    .017016    -1.16   0.245    -.0531498    .0135551
+n_hhlds~2010 |  -.1506804   .0434232    -3.47   0.001    -.2357926   -.0655681
+n_hhld_~2010 |  -.2446464   .0414927    -5.90   0.000    -.3259749    -.163318
+n_hhl_r~2010 |   .3040258   .0291882    10.42   0.000     .2468151    .3612365
+sh_whit~2010 |   605.6502   545.1096     1.11   0.267    -462.8006    1674.101
+sh_white_x~e |   141.4433   407.3931     0.35   0.728    -657.0739    939.9605
+sh_blac~2010 |  -84.02742   393.5898    -0.21   0.831    -855.4894    687.4345
+sh_black_x~k |   1232.131   461.6214     2.67   0.008     327.3223    2136.939
+sh_male~2010 |  -2570.421     2960.6    -0.87   0.385    -8373.393     3232.55
+sh_male_x_~e |    1528.54   2522.982     0.61   0.545    -3416.672    6473.752
+sh_urb_~2010 |  -401.8801    1154.22    -0.35   0.728    -2664.228    1860.468
+sh_urb_pop~p |   907.4507   1049.974     0.86   0.387    -1150.568    2965.469
+sh_hhld~2010 |   785.2434   1159.901     0.68   0.498    -1488.239    3058.726
+sh_hhld_ur~r |  -1699.694   1050.732    -1.62   0.106    -3759.199    359.8105
+sh_re~9_2014 |  -8915.232   642.8277   -13.87   0.000    -10175.22   -7655.248
+sh_re~4_2014 |  -2302.138   419.3782    -5.49   0.000    -3124.147   -1480.129
+sh_re~5_2014 |          0  (omitted)
+sh_re~0_2014 |  -1759.606   472.1471    -3.73   0.000    -2685.045   -834.1663
+sh_residen.. |   -3454.42    387.404    -8.92   0.000    -4213.757   -2695.083
+sh_residen.. |          0  (omitted)
+sh_re~S_2014 |   -3433.24   786.4644    -4.37   0.000    -4974.762   -1891.718
+sh_residen.. |  -6976.004   610.7719   -11.42   0.000    -8173.157   -5778.851
+sh_residen.. |  -8535.608   621.1346   -13.74   0.000    -9753.073   -7318.144
+sh_r~ge_2014 |          0  (omitted)
+sh_re~f_2014 |   -48.0808   490.8579    -0.10   0.922    -1010.195    914.0331
+sh_r~il_2014 |  -4096.244   540.3663    -7.58   0.000    -5155.398   -3037.091
+sh_r~ce_2014 |   13852.11   1045.453    13.25   0.000     11802.95    15901.26
+sh_re~d_2014 |   1990.777   668.0363     2.98   0.003     681.3814    3300.172
+sh_re~9_2017 |  -9069.117   631.9446   -14.35   0.000    -10307.77   -7830.464
+sh_re~4_2017 |  -617.7631   425.2321    -1.45   0.146    -1451.246    215.7198
+sh_re~5_2017 |          0  (omitted)
+sh_re~0_2017 |  -3152.975   475.3186    -6.63   0.000    -4084.631    -2221.32
+sh_residen.. |  -4402.212   399.7029   -11.01   0.000    -5185.656   -3618.768
+sh_residen.. |          0  (omitted)
+sh_re~S_2017 |  -7447.223   741.9282   -10.04   0.000    -8901.451   -5992.995
+sh_residen.. |  -9997.703   614.2396   -16.28   0.000    -11201.65   -8793.753
+sh_residen.. |  -12112.65   626.4084   -19.34   0.000    -13340.45   -10884.85
+sh_r~ge_2017 |          0  (omitted)
+sh_re~f_2017 |   1345.654   525.3679     2.56   0.010     315.8987     2375.41
+sh_r~il_2017 |  -2283.248   611.7367    -3.73   0.000    -3482.292   -1084.203
+sh_r~ce_2017 |   15098.96   1005.982    15.01   0.000     13127.17    17070.75
+sh_re~d_2017 |   1436.114   651.7652     2.20   0.028     158.6111    2713.617
+sh_wo~9_2014 |  -610.0451   244.2066    -2.50   0.012    -1088.706    -131.384
+sh_wo~4_2014 |   -71.9176   169.5666    -0.42   0.671    -404.2794    260.4442
+sh_wo~5_2014 |          0  (omitted)
+sh_wo~0_2014 |  -423.3155   129.0643    -3.28   0.001      -676.29   -170.3411
+sh_workers.. |  -54.25143   126.9858    -0.43   0.669     -303.152    194.6491
+sh_workers.. |          0  (omitted)
+sh_wo~S_2014 |  -294.2528   288.4048    -1.02   0.308    -859.5452    271.0395
+sh_workers.. |  -444.7374   224.5587    -1.98   0.048    -884.8872   -4.587654
+sh_workers.. |  -852.6842   249.2685    -3.42   0.001    -1341.267   -364.1015
+sh_w~ge_2014 |          0  (omitted)
+sh_wo~f_2014 |  -124.4113   104.8702    -1.19   0.236    -329.9639    81.14125
+sh_w~il_2014 |  -215.6155    126.851    -1.70   0.089    -464.2518    33.02078
+sh_w~ce_2014 |  -43.52527    267.921    -0.16   0.871    -568.6682    481.6176
+sh_wo~d_2014 |   297.4077   157.6887     1.89   0.059    -11.67251    606.4879
+sh_wo~9_2017 |  -308.7057   243.5825    -1.27   0.205    -786.1435     168.732
+sh_wo~4_2017 |  -13.16379    176.703    -0.07   0.941    -359.5133    333.1858
+sh_wo~5_2017 |          0  (omitted)
+sh_wo~0_2017 |  -392.7519    133.539    -2.94   0.003    -654.4972   -131.0066
+sh_workers.. |  -189.3818    130.264    -1.45   0.146    -444.7078    65.94421
+sh_workers.. |          0  (omitted)
+sh_wo~S_2017 |  -185.7479   279.9563    -0.66   0.507    -734.4807    362.9849
+sh_workers.. |  -695.7635   220.9888    -3.15   0.002    -1128.916   -262.6108
+sh_workers.. |  -890.0225   241.9778    -3.68   0.000    -1364.315     -415.73
+sh_w~ge_2017 |          0  (omitted)
+sh_wo~f_2017 |  -274.3298   106.8711    -2.57   0.010    -483.8043   -64.85531
+sh_w~il_2017 |  -37.44959   125.1223    -0.30   0.765    -282.6975    207.7983
+sh_w~ce_2017 |   612.5858   272.2291     2.25   0.024      78.9988    1146.173
+sh_wo~d_2017 |   5.583244   155.7062     0.04   0.971    -299.6111    310.7776
+       _cons |   24578.79   1011.092    24.31   0.000     22596.99     26560.6
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+   geo_group |      2884           0        2884     |
+-----------------------------------------------------+
+(4873 real changes made)
+(706 real changes made)
+(2,476 missing values generated)
+(2,476 missing values generated)
+(4,290 missing values generated)
+(2,898 real changes made)
+(304 real changes made)
+(dropped 391 singleton observations)
+(MWFE estimator converged in 1 iterations)
+note: sh_residents_above55_2014 omitted because of collinearity
+note: sh_residents_above3333_2014 omitted because of collinearity
+note: sh_residents_College_2014 omitted because of collinearity
+note: sh_residents_above55_2017 omitted because of collinearity
+note: sh_residents_above3333_2017 omitted because of collinearity
+note: sh_residents_College_2017 omitted because of collinearity
+note: sh_workers_above55_2014 omitted because of collinearity
+note: sh_workers_above3333_2014 omitted because of collinearity
+note: sh_workers_College_2014 omitted because of collinearity
+note: sh_workers_above55_2017 omitted because of collinearity
+note: sh_workers_above3333_2017 omitted because of collinearity
+note: sh_workers_College_2017 omitted because of collinearity
+
+HDFE Linear regression                            Number of obs   =     16,584
+Absorbing 1 HDFE group                            F(  72,  14951) =     353.04
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.7675
+                                                  Adj R-squared   =     0.7421
+                                                  Within R-sq.    =     0.6297
+                                                  Root MSE        =     0.0391
+
+------------------------------------------------------------------------------
+           s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+med_hhld_inc |  -3.87e-07   3.04e-08   -12.74   0.000    -4.46e-07   -3.27e-07
+   n_workers |  -3.05e-06   6.96e-07    -4.38   0.000    -4.41e-06   -1.68e-06
+inc_x_n_wo~s |   1.36e-10   1.27e-11    10.72   0.000     1.11e-10    1.61e-10
+inc_x_popu~n |  -1.91e-10   2.65e-11    -7.22   0.000    -2.43e-10   -1.39e-10
+inc_x_n_male |   2.52e-10   4.93e-11     5.10   0.000     1.55e-10    3.48e-10
+inc_x_n_wh~e |  -2.42e-11   6.22e-12    -3.89   0.000    -3.63e-11   -1.20e-11
+inc_x_n_bl~k |  -4.99e-12   8.31e-12    -0.60   0.548    -2.13e-11    1.13e-11
+inc_x_n_hh~s |   1.63e-10   2.48e-11     6.60   0.000     1.15e-10    2.12e-10
+inc_x_n_hh~r |  -1.08e-10   1.95e-11    -5.56   0.000    -1.47e-10   -7.01e-11
+inc_x_n_hh~o |  -7.93e-11   1.61e-11    -4.92   0.000    -1.11e-10   -4.77e-11
+populat~2010 |    .000011   1.67e-06     6.58   0.000     7.71e-06    .0000143
+n_male_~2010 |  -.0000207   2.75e-06    -7.51   0.000     -.000026   -.0000153
+n_white~2010 |   9.16e-07   4.18e-07     2.19   0.028     9.65e-08    1.73e-06
+n_black~2010 |  -1.18e-07   4.59e-07    -0.26   0.798    -1.02e-06    7.83e-07
+urb_pop~2010 |   2.79e-06   6.59e-07     4.24   0.000     1.50e-06    4.09e-06
+n_hhlds~2010 |  -5.71e-06   1.75e-06    -3.26   0.001    -9.15e-06   -2.27e-06
+n_hhld_~2010 |  -7.44e-07   1.65e-06    -0.45   0.652    -3.98e-06    2.49e-06
+n_hhl_r~2010 |   1.85e-06   8.82e-07     2.10   0.036     1.19e-07    3.58e-06
+sh_whit~2010 |  -.0854959    .019627    -4.36   0.000    -.1239672   -.0470245
+sh_white_x~e |    .004731   .0143212     0.33   0.741    -.0233402    .0328023
+sh_blac~2010 |  -.0532125   .0136278    -3.90   0.000    -.0799246   -.0265004
+sh_black_x~k |    .019019   .0153055     1.24   0.214    -.0109817    .0490197
+sh_male~2010 |  -.1098918    .113241    -0.97   0.332     -.331858    .1120744
+sh_male_x_~e |   .1396326    .096074     1.45   0.146    -.0486842    .3279494
+sh_urb_~2010 |  -.0968317   .0462519    -2.09   0.036     -.187491   -.0061723
+sh_urb_pop~p |   .0591474   .0405254     1.46   0.144    -.0202874    .1385823
+sh_hhld~2010 |    .069366   .0463038     1.50   0.134    -.0213951     .160127
+sh_hhld_ur~r |  -.0201458   .0404549    -0.50   0.619    -.0994423    .0591507
+sh_re~9_2014 |   .2223132   .0277347     8.02   0.000     .1679497    .2766767
+sh_re~4_2014 |   .1296532   .0184483     7.03   0.000     .0934923    .1658141
+sh_re~5_2014 |          0  (omitted)
+sh_re~0_2014 |   .0778485   .0205938     3.78   0.000     .0374821     .118215
+sh_residen.. |   .0589736    .017272     3.41   0.001     .0251183    .0928288
+sh_residen.. |          0  (omitted)
+sh_re~S_2014 |   .0765781   .0335221     2.28   0.022     .0108706    .1422856
+sh_residen.. |   .0296594   .0271875     1.09   0.275    -.0236314    .0829501
+sh_residen.. |   .1173819    .026991     4.35   0.000     .0644761    .1702876
+sh_r~ge_2014 |          0  (omitted)
+sh_re~f_2014 |   .0539141   .0227742     2.37   0.018     .0092738    .0985544
+sh_r~il_2014 |   .1496385    .023814     6.28   0.000     .1029602    .1963169
+sh_r~ce_2014 |  -.1508751   .0421298    -3.58   0.000    -.2334546   -.0682956
+sh_re~d_2014 |  -.0503374   .0297239    -1.69   0.090    -.1085998    .0079251
+sh_re~9_2017 |   .3761753   .0267151    14.08   0.000     .3238103    .4285402
+sh_re~4_2017 |   .0738536   .0185969     3.97   0.000     .0374014    .1103057
+sh_re~5_2017 |          0  (omitted)
+sh_re~0_2017 |   .2635112   .0212004    12.43   0.000     .2219557    .3050667
+sh_residen.. |   .2101595   .0179161    11.73   0.000     .1750418    .2452772
+sh_residen.. |          0  (omitted)
+sh_re~S_2017 |    .205837   .0310152     6.64   0.000     .1450434    .2666306
+sh_residen.. |   .2615045    .027936     9.36   0.000     .2067464    .3162625
+sh_residen.. |   .3081716   .0280683    10.98   0.000     .2531542     .363189
+sh_r~ge_2017 |          0  (omitted)
+sh_re~f_2017 |  -.0741897   .0245461    -3.02   0.003    -.1223031   -.0260762
+sh_r~il_2017 |   .2081258   .0274253     7.59   0.000     .1543689    .2618828
+sh_r~ce_2017 |  -.0837757   .0393122    -2.13   0.033    -.1608323    -.006719
+sh_re~d_2017 |   .0064881   .0302432     0.21   0.830    -.0527923    .0657685
+sh_wo~9_2014 |   .0065409   .0111616     0.59   0.558    -.0153372     .028419
+sh_wo~4_2014 |   .0027379   .0086151     0.32   0.751    -.0141488    .0196246
+sh_wo~5_2014 |          0  (omitted)
+sh_wo~0_2014 |   .0036396   .0059478     0.61   0.541    -.0080188    .0152979
+sh_workers.. |  -.0156609   .0058109    -2.70   0.007    -.0270509   -.0042709
+sh_workers.. |          0  (omitted)
+sh_wo~S_2014 |   .0271205    .013125     2.07   0.039      .001394    .0528471
+sh_workers.. |   .0113484   .0101421     1.12   0.263    -.0085313    .0312282
+sh_workers.. |   .0271051   .0113789     2.38   0.017     .0048011    .0494091
+sh_w~ge_2014 |          0  (omitted)
+sh_wo~f_2014 |  -.0038965   .0046975    -0.83   0.407    -.0131042    .0053112
+sh_w~il_2014 |  -.0025154   .0056932    -0.44   0.659    -.0136747    .0086439
+sh_w~ce_2014 |   .0007463   .0115399     0.06   0.948    -.0218732    .0233659
+sh_wo~d_2014 |  -.0034475   .0071427    -0.48   0.629    -.0174482    .0105531
+sh_wo~9_2017 |  -.0056576   .0108111    -0.52   0.601    -.0268486    .0155335
+sh_wo~4_2017 |   .0058604    .008483     0.69   0.490    -.0107673    .0224881
+sh_wo~5_2017 |          0  (omitted)
+sh_wo~0_2017 |   .0209411   .0061596     3.40   0.001     .0088675    .0330147
+sh_workers.. |   .0121865   .0058447     2.09   0.037     .0007303    .0236428
+sh_workers.. |          0  (omitted)
+sh_wo~S_2017 |   .0067073   .0125658     0.53   0.594    -.0179232    .0313378
+sh_workers.. |  -.0071548   .0099081    -0.72   0.470    -.0265759    .0122662
+sh_workers.. |   .0042772   .0108404     0.39   0.693    -.0169713    .0255257
+sh_w~ge_2017 |          0  (omitted)
+sh_wo~f_2017 |   .0063995   .0048744     1.31   0.189     -.003155    .0159539
+sh_w~il_2017 |   .0027556   .0056813     0.49   0.628    -.0083804    .0138917
+sh_w~ce_2017 |  -.0183733   .0121115    -1.52   0.129    -.0421133    .0053667
+sh_wo~d_2017 |    .002682   .0071188     0.38   0.706    -.0112717    .0166358
+       _cons |  -.3217139   .0383915    -8.38   0.000    -.3969659   -.2464619
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+   geo_group |      1561           0        1561     |
+-----------------------------------------------------+
+(5419 real changes made)
+(9,823 real changes made)
+(2,476 missing values generated)
+(2,476 missing values generated)
+(14,009 missing values generated)
+(12,375 real changes made)
+(300 real changes made)
+(data now sorted by zipcode)
+  variable safmr2br was float now int
+  (63,652 bytes saved)
+===============================================================================
+File: ../../../drive/analysis_large/expenditure_shares/s_by_zip.dta
+Key: zipcode
+===============================================================================
+  31826:7(70518):3563425259:873527047
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+    safmr2br |     19,251    1086.116    444.9644        610       4680
+wage_per_w~y |     27,536    4566.036    2516.048   734.2105   83906.45
+           s |     17,817    .2331114      .07867   .0229275    1.39691
+safmr2br_i~d |     30,570    1016.054    355.6413    619.341       2810
+-------------+---------------------------------------------------------
+wage_per_w~d |     30,434    4445.522    2101.422    1247.48   17753.74
+   s_imputed |     30,192    .2435684    .0664682   .0913048   .5074598
+
+
+
+
+file ../../../drive/analysis_large/expenditure_shares/s_by_zip.dta saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            31,826  
+    -----------------------------------------
+(20,472 observations deleted)
+(note: file ../output/share_missing_s.txt not found)
+
+. 
+end of do-file
+
+ make.py ended: 2022-05-31 05:49:17

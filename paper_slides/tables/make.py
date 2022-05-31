@@ -101,10 +101,6 @@ tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals_fed_9usd.txt"),
           template = "input/counterfactuals_fed_9usd.tex",
           output   = "output/counterfactuals_fed_9usd.tex")
 
-tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals_fed_9usd.txt"),
-          template = "input/slides_counterfactuals_fed_9usd.tex",
-          output   = "output/slides_counterfactuals_fed_9usd.tex")
-
 tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals_other.txt"),
           template = "input/counterfactuals_other.tex",
           output   = "output/counterfactuals_other.tex")
