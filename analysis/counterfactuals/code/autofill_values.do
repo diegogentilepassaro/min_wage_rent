@@ -44,7 +44,7 @@ program make_autofill_values
 
     local tot_inc_cents = `tot_inc'*100
 
-    qui tab cbsa if cbsa_low_inc_increase == 1 & year == 2020 & counterfactual == "fed_9usd"
+    qui tab cbsa if cbsa_low_inc_increase == 1 & counterfactual == "fed_9usd"
     local cbsa_low_inc = r(r)
 
     keep if counterfactual == "fed_9usd" & cbsa_low_inc_increase == 0

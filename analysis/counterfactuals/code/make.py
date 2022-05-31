@@ -35,6 +35,7 @@ start_make_logging()
 
 run_stata(program  = 'compute.do', executable = stata)
 run_stata(program  = 'figures.do', executable = stata)
+run_stata(program  = 'autofill_values.do', executable = stata)
 run_rbatch(program = 'tables.R')
 run_rbatch(program = 'map_cfs.R')
 
