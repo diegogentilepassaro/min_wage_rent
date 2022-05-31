@@ -17,7 +17,7 @@ end
 
 program build_entry_plot
     syntax, instub(str) rent_var(str) target_ym(str) ///
-        geo(str) geo_name(str)
+        geo(str) geo_name(str) [width(int 2221) height(int 1615)]
     
     use "`instub'/`geo'_months.dta", clear
     keep if !missing(`rent_var')
@@ -40,12 +40,13 @@ program build_entry_plot
     label var cum_share_entrant  "Cumulative share of entrants"
     label var min_year_month     "Monthly date"
     
-    twoway (line nbr_entrant min_year_month, yaxis(1)) ///
-           (line cum_share_entrant min_year_month, yaxis(2)), ///
-        text(0.8 `=tm(`target_ym')' "`cum_share_at_target'", yaxis(2)) ///
-        xline(`=tm(`target_ym')') legend(row(2)) ///
+    twoway (line nbr_entrant min_year_month, yaxis(1))                  ///
+           (line cum_share_entrant min_year_month, yaxis(2)),           ///
+        text(0.8 `=tm(`target_ym')' "`cum_share_at_target'", yaxis(2))  ///
+        xline(`=tm(`target_ym')') legend(row(2))                        ///
         graphregion(color(white)) bgcolor(white)
-    graph export "../output/`geo'_entrants.png", replace
+    
+    graph export "../output/`geo'_entrants.png", replace width(`width') height(`height')
 end
 
 main

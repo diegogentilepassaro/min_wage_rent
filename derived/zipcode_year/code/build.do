@@ -125,7 +125,8 @@ program clean_irs_data
     drop if inlist(zipcode, "0", "00000", "99999") /* I guess these are "other zipcodes", so dropping
                                                       There is one per state, which generates dups */ 
 
-    keep zipcode year ln_*
+    keep zipcode year ln_* agi_per_hhld wage_per_wage_hhld       ///
+        wage_per_hhld bussines_rev_per_owner
 
     save "../temp/irs_data.dta", replace
 end
