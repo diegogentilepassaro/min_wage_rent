@@ -1,0 +1,273 @@
+
+ make.py started: 2022-06-03 12:37:10 C:\Users\diegog\Desktop\Diego\min_wage_rent\descriptive\mw_US\code 
+
+
+
+
+Execute:  StataMP-64 /e do "./plot_mw.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+
+running c:\ado\personal\profile.do ...
+
+. do ./plot_mw.do 
+
+. clear all
+
+. set more off
+
+. 
+. program main
+  1.     local in_mw_panels   "../../../drive/derived_large/min_wage_panels"
+  2.     local in_zip_master  "../../../drive/base_large/zipcode_master"
+  3.     local outstub        "../output"
+  4. 
+.     use "`in_mw_panels'/zip_statutory_mw.dta", clear
+  5.     merge m:1 zipcode using "`in_zip_master'/zipcode_master.dta", nogen //
+> /
+>             assert(3) keepusing(place_code countyfips cbsa statefips)
+  6.         drop if year == 2020
+  7.         destring(statefips), gen(statefips_num)
+  8.         gen year_month = ym(year, month)
+  9.         format year_month %tm
+ 10.         drop year month
+ 11.                 
+.     flag_states_with_mw
+ 12.         flag_county_or_local_with_mw
+ 13.         
+.     plot_state_mw_levels, outstub(`outstub')
+ 14. end
+
+. 
+. program flag_states_with_mw
+  1.     preserve
+  2.             collapse (mean) fed_mw state_mw, by(statefips statefips_num ye
+> ar_month)
+  3.                 keep if !missing(state_mw)
+  4.                 bysort statefips: egen max_state_mw = max(state_mw)
+  5.                 keep if max_state_mw > fed_mw
+  6.                 unique statefips
+  7.                 local nbr_state_with_mw = r(unique)
+  8.         di "There are `nbr_state_with_mw' states that ever had a binding M
+> W policy in the 2010s"
+  9.                 save_data "../temp/states_with_mw_and_their_levels_over_ti
+> me.dta", ///
+>                     replace key(statefips year_month) log(none)
+ 10.         restore
+ 11. end
+
+. 
+. program flag_county_or_local_with_mw
+  1.     preserve
+  2.             collapse (mean) fed_mw state_mw county_mw, ///
+>                     by(countyfips statefips year_month)
+  3.                 egen max_state_fed = rowmax(state_mw fed_mw)
+  4.                 keep if !missing(county_mw)
+  5.                 keep if (county_mw > max_state_fed)
+  6.                 unique countyfips
+  7.                 local nbr_county_with_mw = r(unique)
+  8.         di "There are `nbr_county_with_mw' counties that ever had a bindin
+> g MW policy in the 2010s"
+  9.                 keep countyfips year_month county_mw
+ 10.                 save_data "../temp/counties_with_mw_and_their_levels_over_
+> time.dta", ///
+>                     replace key(countyfips year_month) log(none)             
+>    
+ 11.         restore 
+ 12.                 
+.         preserve
+ 13.             collapse (mean) fed_mw state_mw county_mw local_mw, ///
+>                     by(place_code countyfips statefips year_month)
+ 14.                 egen max_county_state_fed = rowmax(county_mw state_mw fed_
+> mw)
+ 15.                 keep if !missing(local_mw)
+ 16.                 keep if (local_mw > max_county_state_fed)
+ 17.                 duplicates drop place_code year_month, force /* Some place
+> s are in more than one county*/
+ 18.                 unique place_code
+ 19.                 local nbr_places_with_mw = r(unique)
+ 20.         di "There are `nbr_places_with_mw' places that ever had a binding 
+> MW policy in the 2010s"
+ 21.                 keep place_code year_month local_mw
+ 22.                 save_data "../temp/places_with_mw_and_their_levels_over_ti
+> me.dta", ///
+>                     replace key(place_code year_month) log(none)        
+ 23.         restore
+ 24. end
+
+. 
+. program plot_state_mw_levels
+  1.     syntax, outstub(str) [width(int 2221) height(int 1615)]
+  2. 
+.     use "../temp/states_with_mw_and_their_levels_over_time.dta", clear
+  3.         xtset statefips_num year_month
+  4.     xtline state_mw, overlay      ///
+>         xtitle("Year-month") ytitle("MW level")   ///
+>         xlabel(`=mofd(td(01jun2010))'(6)`=mofd(td(01dec2019))', labsize(small
+> ) angle(45)) ///
+>         ylabel(7(2)17, labsize(small))                  ///
+>         graphregion(color(white)) bgcolor(white) legend(off)
+  5.     graph export `outstub'/state_mw_levels.png, replace width(`width') hei
+> ght(`height')
+  6.     graph export `outstub'/state_mw_levels.eps, replace
+  7. 
+.     use "../temp/counties_with_mw_and_their_levels_over_time.dta", clear
+  8.         append using "../temp/places_with_mw_and_their_levels_over_time.dt
+> a"
+  9.         gen jur_code = countyfips
+ 10.         replace jur_code = place_code if missing(jur_code)
+ 11.         destring(jur_code), gen(jur_code_num)
+ 12.         gen jur_mw = county_mw
+ 13.         replace jur_mw = local_mw if missing(jur_mw)
+ 14.         
+.         xtset jur_code_num year_month
+ 15.     xtline jur_mw, overlay      ///
+>         xtitle("Year-month") ytitle("MW level")   ///
+>         xlabel(`=mofd(td(01jun2010))'(6)`=mofd(td(01dec2019))', labsize(small
+> ) angle(45)) ///
+>         ylabel(7(2)17, labsize(small))                  ///
+>         graphregion(color(white)) bgcolor(white) legend(off)
+ 16.     graph export `outstub'/local_mw_levels.png, replace width(`width') hei
+> ght(`height')
+ 17.     graph export `outstub'/local_mw_levels.eps, replace
+ 18. end
+
+. 
+. 
+. main
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                         4,201,032  
+    -----------------------------------------
+(381,912 observations deleted)
+statefips: all characters numeric; statefips_num generated as byte
+(0 observations deleted)
+(1,680 observations deleted)
+Number of unique values of statefips is  37
+Number of records is  4440
+There are 37 states that ever had a binding MW policy in the 2010s
+(data now sorted by statefips year_month)
+  variable year_month was float now int
+  (8,880 bytes saved)
+===============================================================================
+File: ../temp/states_with_mw_and_their_levels_over_time.dta
+Key: statefips year_month
+===============================================================================
+  4440:6(71642):3627693189:3377714810
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+   statefips |          0
+  year_month |      4,440       659.5    34.64371        600        719
+statefips_~m |      4,440    26.43243    14.64431          2         54
+      fed_mw |      4,440        7.25           0       7.25       7.25
+    state_mw |      4,440    8.215188    1.156818       7.25         14
+-------------+---------------------------------------------------------
+max_state_mw |      4,440    9.514565     1.70867   7.250001         14
+
+
+
+
+(note: file ../temp/states_with_mw_and_their_levels_over_time.dta not found)
+file ../temp/states_with_mw_and_their_levels_over_time.dta saved
+(375,000 observations deleted)
+(650 observations deleted)
+Number of unique values of countyfips is  10
+Number of records is  550
+There are 10 counties that ever had a binding MW policy in the 2010s
+(data now sorted by countyfips year_month)
+  variable year_month was float now int
+  (1,100 bytes saved)
+===============================================================================
+File: ../temp/counties_with_mw_and_their_levels_over_time.dta
+Key: countyfips year_month
+===============================================================================
+  550:3(41526):4139234944:4273000937
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  countyfips |          0
+  year_month |        550    683.3364    26.52066        600        719
+   county_mw |        550    10.15244     1.53983          8      14.25
+
+
+
+
+(note: file ../temp/counties_with_mw_and_their_levels_over_time.dta not found)
+file ../temp/counties_with_mw_and_their_levels_over_time.dta saved
+(1,723,200 observations deleted)
+(3,189 observations deleted)
+
+Duplicates in terms of place_code year_month
+
+(148 observations deleted)
+Number of unique values of place_code is  28
+Number of records is  1463
+There are 28 places that ever had a binding MW policy in the 2010s
+(data now sorted by place_code year_month)
+  variable year_month was float now int
+  (2,926 bytes saved)
+===============================================================================
+File: ../temp/places_with_mw_and_their_levels_over_time.dta
+Key: place_code year_month
+===============================================================================
+  1463:3(32776):1062981810:842720832
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+  place_code |          0
+  year_month |      1,463    679.4108    28.69251        600        719
+    local_mw |      1,463    11.40751    2.369043       7.31      16.09
+
+
+
+
+(note: file ../temp/places_with_mw_and_their_levels_over_time.dta not found)
+file ../temp/places_with_mw_and_their_levels_over_time.dta saved
+       panel variable:  statefips_num (strongly balanced)
+        time variable:  year_month, 2010m1 to 2019m12
+                delta:  1 month
+(note: file ../output/state_mw_levels.png not found)
+(file ../output/state_mw_levels.png written in PNG format)
+(note: file ../output/state_mw_levels.eps not found)
+(file ../output/state_mw_levels.eps written in EPS format)
+(1,463 missing values generated)
+variable jur_code was str5 now str7
+(1,463 real changes made)
+jur_code: all characters numeric; jur_code_num generated as long
+(1,463 missing values generated)
+(1,463 real changes made)
+       panel variable:  jur_code_num (unbalanced)
+        time variable:  year_month, 2010m1 to 2019m12, but with gaps
+                delta:  1 month
+(note: file ../output/local_mw_levels.png not found)
+(file ../output/local_mw_levels.png written in PNG format)
+(note: file ../output/local_mw_levels.eps not found)
+(file ../output/local_mw_levels.eps written in EPS format)
+
+. 
+end of do-file
+
+ make.py ended: 2022-06-03 12:38:08
