@@ -32,13 +32,13 @@ program make_plot
     syntax, xvar(str) yvar(str) y_title(str) ///
         x_title(str) color(str) name(str) [width(int 2221) height(int 1615)]
 
-        import delimited "../output/`name'.csv", clear
+    import delimited "../output/`name'.csv", clear
 
-        graph bar `yvar', over(`xvar') ytitle(`y_title') ///
+    graph bar `yvar', over(`xvar') ytitle(`y_title') ///
         b1title(`x_title') graphregion(color(white)) bgcolor(white) bar(1, fcolor(`color'))
 
-        graph export "../output/`name'.png", replace width(`width') height(`height')
-        graph export "../output/`name'.eps", replace
+    graph export "../output/`name'.png", replace width(`width') height(`height')
+    graph export "../output/`name'.eps", replace
 
 end
 
@@ -46,14 +46,14 @@ program make_stacked_plot
     syntax, xvar1(str) xvar2(str) yvar(str) y_title(str) ///
         x_title(str) name(str) [width(int 2221) height(int 1615)]
 
-        import delimited "../output/`name'.csv", clear
+    import delimited "../output/`name'.csv", clear
 
-        graph bar `yvar', over(`xvar1') over(`xvar2') ytitle(`y_title') ///
+    graph bar `yvar', over(`xvar1') over(`xvar2') ytitle(`y_title') ///
         b1title(`x_title') graphregion(color(white)) bgcolor(white) ///
         asyvars stack
 
-        graph export "../output/`name'.png", replace width(`width') height(`height')
-        graph export "../output/`name'.eps", replace
+    graph export "../output/`name'.png", replace width(`width') height(`height')
+    graph export "../output/`name'.eps", replace
 
 end
 
