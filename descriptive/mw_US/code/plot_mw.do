@@ -30,9 +30,6 @@ program flag_states_with_mw
         keep if !missing(state_mw)
         bysort statefips: egen max_state_mw = max(state_mw)
         keep if max_state_mw > fed_mw
-        unique statefips
-        local nbr_state_with_mw = r(unique)
-        di "There are `nbr_state_with_mw' states that ever had a binding MW policy in the 2010s"
         save_data "../temp/states_with_mw_and_their_levels_over_time.dta", ///
             replace key(statefips year_month) log(none)
     restore
@@ -45,9 +42,6 @@ program flag_county_or_local_with_mw
         egen max_state_fed = rowmax(state_mw fed_mw)
         keep if !missing(county_mw)
         keep if (county_mw > max_state_fed)
-        unique countyfips
-        local nbr_county_with_mw = r(unique)
-        di "There are `nbr_county_with_mw' counties that ever had a binding MW policy in the 2010s"
         keep countyfips year_month county_mw
         save_data "../temp/counties_with_mw_and_their_levels_over_time.dta", ///
             replace key(countyfips year_month) log(none)		
@@ -61,8 +55,6 @@ program flag_county_or_local_with_mw
         keep if (local_mw > max_county_state_fed)
         duplicates drop place_code year_month, force /* Some places are in more than one county*/
         unique place_code
-        local nbr_places_with_mw = r(unique)
-        di "There are `nbr_places_with_mw' places that ever had a binding MW policy in the 2010s"
         keep place_code year_month local_mw
         save_data "../temp/places_with_mw_and_their_levels_over_time.dta", ///
             replace key(place_code year_month) log(none)	
@@ -114,12 +106,15 @@ program make_autofill_values
         use "../temp/places_with_mw_and_their_levels_over_time.dta", clear
         unique place_code
         local nbr_places_with_mw = r(unique)
+		
+		local nbr_local_with_mw = `nbr_county_with_mw' + `nbr_places_with_mw'
 
         cap file close f
         file open   f using "../output/autofill.tex", write replace
         file write  f "\newcommand{\stateBindingMW}{\textnormal{"  %2.0f  (`nbr_state_with_mw')  "}}" _n
         file write  f "\newcommand{\countyBindingMW}{\textnormal{" %2.0f  (`nbr_county_with_mw') "}}" _n
         file write  f "\newcommand{\placeBindingMW}{\textnormal{"  %2.0f  (`nbr_places_with_mw')  "}}" _n
+		file write  f "\newcommand{\localBindingMW}{\textnormal{"  %2.0f  (`nbr_local_with_mw')  "}}" _n
         file close  f
     restore
 end
