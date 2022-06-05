@@ -21,7 +21,7 @@ program main
 
     make_autofill_values
 
-    plot_state_mw_levels, outstub(`outstub')
+    plot_mw_levels, outstub(`outstub')
 end
 
 program flag_states_with_mw
@@ -69,7 +69,7 @@ program flag_county_or_local_with_mw
     restore
 end
 
-program plot_state_mw_levels
+program plot_mw_levels
     syntax, outstub(str) [width(int 2221) height(int 1615)]
 
     use "../temp/states_with_mw_and_their_levels_over_time.dta", clear
@@ -101,8 +101,8 @@ program plot_state_mw_levels
 end
 
 program make_autofill_values 
-	
-	preserve
+
+    preserve
         use "../temp/states_with_mw_and_their_levels_over_time.dta", clear
         unique statefips
         local nbr_state_with_mw = r(unique)
@@ -110,7 +110,7 @@ program make_autofill_values
         use "../temp/counties_with_mw_and_their_levels_over_time.dta", clear
         unique countyfips
         local nbr_county_with_mw = r(unique)
-	
+
         use "../temp/places_with_mw_and_their_levels_over_time.dta", clear
         unique place_code
         local nbr_places_with_mw = r(unique)
@@ -121,7 +121,7 @@ program make_autofill_values
         file write  f "\newcommand{\countyBindingMW}{\textnormal{" %2.0f  (`nbr_county_with_mw') "}}" _n
         file write  f "\newcommand{\placeBindingMW}{\textnormal{"  %2.0f  (`nbr_places_with_mw')  "}}" _n
         file close  f
-	restore
+    restore
 end
 
 main
