@@ -16,7 +16,7 @@ main <- function() {
                "mw_res", "mw_wkp_tot_17", "mw_wkp_age_under29_17", 
                "mw_wkp_earn_under1250_17", "fullbal_sample")
 
-  dt <- fread(file.path(in_sample, 'zipcode_months_march2020.csv'),
+  dt <- fread(file.path(in_sample, 'zipcode_months_march2022.csv'),
                 colClasses = list(character = varchar,
                                   numeric   = varnum))
   
@@ -29,7 +29,7 @@ main <- function() {
                        type = "text",
                        out  = file.path(outstub, "corrmatrix.txt"))
   
-  # MW summary statistics  
+  # MW summary statistics
   geographies <- c("state", "county", "local")
   
   old_names <- c("statefips", "countyfips", "place_code")
