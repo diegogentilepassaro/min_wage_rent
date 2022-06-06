@@ -29,7 +29,7 @@ program flag_states_with_mw
         collapse (mean) fed_mw state_mw, by(statefips statefips_num year_month)
         keep if !missing(state_mw)
         bysort statefips: egen max_state_mw = max(state_mw)
-        keep if max_state_mw > fed_mw
+        keep if (round(max_state_mw, 0.001) > round(fed_mw, 0.001))
         save_data "../temp/states_with_mw_and_their_levels_over_time.dta", ///
             replace key(statefips year_month) log(none)
     restore
@@ -41,7 +41,7 @@ program flag_county_or_local_with_mw
             by(countyfips statefips year_month)
         egen max_state_fed = rowmax(state_mw fed_mw)
         keep if !missing(county_mw)
-        keep if (county_mw > max_state_fed)
+        keep if (round(county_mw, 0.001) > round(max_state_fed, 0.001))
         keep countyfips year_month county_mw
         save_data "../temp/counties_with_mw_and_their_levels_over_time.dta", ///
             replace key(countyfips year_month) log(none)		
@@ -52,7 +52,7 @@ program flag_county_or_local_with_mw
             by(place_code countyfips statefips year_month)
         egen max_county_state_fed = rowmax(county_mw state_mw fed_mw)
         keep if !missing(local_mw)
-        keep if (local_mw > max_county_state_fed)
+        keep if (round(local_mw, 0.001) > round(max_county_state_fed, 0.001))
         duplicates drop place_code year_month, force /* Some places are in more than one county*/
         unique place_code
         keep place_code year_month local_mw
@@ -65,12 +65,23 @@ program plot_mw_levels
     syntax, outstub(str) [width(int 2221) height(int 1615)]
 
     use "../temp/states_with_mw_and_their_levels_over_time.dta", clear
+	bysort statefips: egen min_year_month = min(year_month)
+	gen state_mw_at_min_year_month = state_mw if year_month == min_year_month
     xtset statefips_num year_month
+	unique statefips
+	local n_states = r(unique)
+	local plotopts ""
+	forval i = 1(1)`n_states'{
+	    local plotopts "`plotopts' plot`i'(lcol(gray))"
+	}
+	
     xtline state_mw, overlay      ///
-        xtitle("Year-month") ytitle("MW level")   ///
+        xtitle("Monthly date") ytitle("Minimum wage level ($)")   ///
         xlabel(`=mofd(td(01jun2010))'(6)`=mofd(td(01dec2019))', labsize(small) angle(45)) ///
         ylabel(7(2)17, labsize(small))                  ///
-        graphregion(color(white)) bgcolor(white) legend(off)
+        graphregion(color(white)) bgcolor(white) legend(off) ///
+		addplot(scatter state_mw_at_min_year_month min_year_month, ///
+		msymbol(diamond) mcolor(gray)) `plotopts'
     graph export `outstub'/state_mw_levels.png, replace width(`width') height(`height')
     graph export `outstub'/state_mw_levels.eps, replace
 
@@ -83,11 +94,22 @@ program plot_mw_levels
     replace jur_mw = local_mw if missing(jur_mw)
 
     xtset jur_code_num year_month
+	unique jur_code
+	local n_jur = r(unique)
+	local plotopts ""
+	forval i = 1(1)`n_jur'{
+	    local plotopts "`plotopts' plot`i'(lcol(gray))"
+	}
+	
+	bysort jur_code: egen min_year_month = min(year_month)
+	gen jur_mw_at_min_year_month = jur_mw if year_month == min_year_month
     xtline jur_mw, overlay      ///
-        xtitle("Year-month") ytitle("MW level")   ///
+        xtitle("Monthly date") ytitle("Minimum wage level ($)")   ///
         xlabel(`=mofd(td(01jun2010))'(6)`=mofd(td(01dec2019))', labsize(small) angle(45)) ///
         ylabel(7(2)17, labsize(small))                  ///
-        graphregion(color(white)) bgcolor(white) legend(off)
+        graphregion(color(white)) bgcolor(white) legend(off) ///
+		addplot(scatter jur_mw_at_min_year_month min_year_month, ///
+		msymbol(diamond) mcolor(gray)) `plotopts'
     graph export `outstub'/local_mw_levels.png, replace width(`width') height(`height')
     graph export `outstub'/local_mw_levels.eps, replace
 end
