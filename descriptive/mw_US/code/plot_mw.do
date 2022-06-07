@@ -65,51 +65,58 @@ program plot_mw_levels
     syntax, outstub(str) [width(int 2221) height(int 1615)]
 
     use "../temp/states_with_mw_and_their_levels_over_time.dta", clear
-	bysort statefips: egen min_year_month = min(year_month)
-	gen state_mw_at_min_year_month = state_mw if year_month == min_year_month
+    
+    bysort statefips: egen min_year_month = min(year_month)
+    gen state_mw_at_min_year_month = state_mw if year_month == min_year_month
+    
     xtset statefips_num year_month
-	unique statefips
-	local n_states = r(unique)
-	local plotopts ""
-	forval i = 1(1)`n_states'{
-	    local plotopts "`plotopts' plot`i'(lcol(gray))"
-	}
-	
-    xtline state_mw, overlay      ///
-        xtitle("Monthly date") ytitle("Minimum wage level ($)")   ///
+    unique statefips
+    
+    local n_states = r(unique)
+    local plotopts ""
+    forval i = 1(1)`n_states'{
+        local plotopts "`plotopts' plot`i'(lcol(gray))"
+    }
+
+    xtline state_mw, overlay                                                 ///
+        xtitle("Monthly date") ytitle("Minimum wage level ($)")              ///
         xlabel(`=mofd(td(01jun2010))'(6)`=mofd(td(01dec2019))', labsize(small) angle(45)) ///
-        ylabel(7(2)17, labsize(small))                  ///
-        graphregion(color(white)) bgcolor(white) legend(off) ///
-		addplot(scatter state_mw_at_min_year_month min_year_month, ///
-		msymbol(diamond) mcolor(gray)) `plotopts'
+        ylabel(7(2)17, labsize(small))                                       ///
+        graphregion(color(white)) bgcolor(white) legend(off)                 ///
+        addplot(scatter state_mw_at_min_year_month min_year_month,           ///
+        msymbol(diamond) mcolor(gray)) `plotopts'
+    
     graph export `outstub'/state_mw_levels.png, replace width(`width') height(`height')
     graph export `outstub'/state_mw_levels.eps, replace
 
     use "../temp/counties_with_mw_and_their_levels_over_time.dta", clear
     append using "../temp/places_with_mw_and_their_levels_over_time.dta"
-    gen jur_code = countyfips
+    gen     jur_code = countyfips
     replace jur_code = place_code if missing(jur_code)
     destring(jur_code), gen(jur_code_num)
+    
     gen jur_mw = county_mw
     replace jur_mw = local_mw if missing(jur_mw)
 
     xtset jur_code_num year_month
-	unique jur_code
-	local n_jur = r(unique)
-	local plotopts ""
-	forval i = 1(1)`n_jur'{
-	    local plotopts "`plotopts' plot`i'(lcol(gray))"
-	}
-	
-	bysort jur_code: egen min_year_month = min(year_month)
-	gen jur_mw_at_min_year_month = jur_mw if year_month == min_year_month
-    xtline jur_mw, overlay      ///
-        xtitle("Monthly date") ytitle("Minimum wage level ($)")   ///
+    unique jur_code
+    local n_jur = r(unique)
+    local plotopts ""
+    forval i = 1(1)`n_jur'{
+        local plotopts "`plotopts' plot`i'(lcol(gray))"
+    }
+
+    bysort jur_code: egen min_year_month = min(year_month)
+    gen jur_mw_at_min_year_month = jur_mw if year_month == min_year_month
+    
+    xtline jur_mw, overlay                                                   ///
+        xtitle("Monthly date") ytitle("Minimum wage level ($)")              ///
         xlabel(`=mofd(td(01jun2010))'(6)`=mofd(td(01dec2019))', labsize(small) angle(45)) ///
-        ylabel(7(2)17, labsize(small))                  ///
-        graphregion(color(white)) bgcolor(white) legend(off) ///
-		addplot(scatter jur_mw_at_min_year_month min_year_month, ///
-		msymbol(diamond) mcolor(gray)) `plotopts'
+        ylabel(7(2)17, labsize(small))                                       ///
+        graphregion(color(white)) bgcolor(white) legend(off)                 ///
+        addplot(scatter jur_mw_at_min_year_month min_year_month,             ///
+        msymbol(diamond) mcolor(gray)) `plotopts'
+    
     graph export `outstub'/local_mw_levels.png, replace width(`width') height(`height')
     graph export `outstub'/local_mw_levels.eps, replace
 end
@@ -135,7 +142,7 @@ program make_autofill_values
         file open   f using "../output/autofill.tex", write replace
         file write  f "\newcommand{\stateBindingMW}{\textnormal{"  %2.0f  (`nbr_state_with_mw')  "}}" _n
         file write  f "\newcommand{\countyBindingMW}{\textnormal{" %2.0f  (`nbr_county_with_mw') "}}" _n
-        file write  f "\newcommand{\placeBindingMW}{\textnormal{"  %2.0f  (`nbr_places_with_mw')  "}}" _n
+        file write  f "\newcommand{\placeBindingMW}{\textnormal{"  %2.0f  (`nbr_places_with_mw') "}}" _n
 		file write  f "\newcommand{\localBindingMW}{\textnormal{"  %2.0f  (`nbr_local_with_mw')  "}}" _n
         file close  f
     restore
