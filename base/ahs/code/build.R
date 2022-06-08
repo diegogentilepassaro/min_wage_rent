@@ -29,10 +29,10 @@ main <- function() {
     n_units %in% c(3, 4) , '3 to 4 units',
     n_units > 4          , '5+ units')]
   
-  data[,`:=`(house_apartment_unit    = 1 * (type ==1),
+  data[,`:=`(house_apartment_unit    = 1 * (type == 1),
              mobile_unit             = 1 * (type %in% c(2,3)),
              hotel_unit              = 1 * (type %in% c(4,5)),
-             rooming_unit            = 1 * (type ==6),
+             rooming_unit            = 1 * (type == 6),
              boat_other_unit         = 1 * (type %in% c(7,8,9)),
              is_condo_coop           = 1 * (is_condo_coop == 1),
              is_tenant               = 1 * (tenure == 2),
@@ -55,7 +55,10 @@ main <- function() {
   
   setnames(data, varnum, names_new)
   
-  data[, hh_head := 1 * (relation_to_hh_head == 1 | relation_to_hh_head == 2)]
+  data[, `:=`(hh_head = 1 * (relation_to_hh_head == 1 | relation_to_hh_head == 2),
+              female  = 1 * (sex == 2))]
+  
+  set(data, j=c('smsa', 'sex'), value=NULL)
   
   save_data(data, c('household_id', 'person_num'),
             file.path(out_data, 'person_2011_2013.csv'),
