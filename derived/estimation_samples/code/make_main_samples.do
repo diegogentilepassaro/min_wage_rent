@@ -92,7 +92,7 @@ program create_unbalanced_panel
             }
             
             forvalues i = 1(1)`w' {
-                local if_statement "`if_statement' | !missing(F`i'.`rent_var'_`stub')"
+                local if_statement "`if_statement' | !missing(F`i'.`rent_var'_`stub') | !missing(L`i'.`rent_var'_`stub')"
             }
             local j = `j' + 1
         }
@@ -231,7 +231,7 @@ program create_monthly_listings_panel
     local if_statement "if !missing(Monthlylistings_NSA_SFCC)"
     foreach var of local SFCC_vars {
         forvalues i = 1(1)`w' {
-            local if_statement "`if_statement' | !missing(F`i'.`var')"
+            local if_statement "`if_statement' | !missing(F`i'.`var') | !missing(L`i'.`var')"
         }
     }
     keep `if_statement'
