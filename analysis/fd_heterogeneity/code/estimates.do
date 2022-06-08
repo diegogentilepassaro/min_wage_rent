@@ -21,8 +21,8 @@ program main
         controls(`controls') absorb(`absorb') cluster(`cluster_vars') ///
         model_name(static_both)
         
-    reghdfe D.ln_rents c.D.mw_res#ib0.high_work_mw                    ///
-        c.D.mw_wkp_tot_17#ib0.high_res_mw                             ///
+    reghdfe D.ln_rents c.D.mw_res c.D.mw_res#1.high_work_mw                    ///
+        c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#1..high_res_mw                             ///
         D.(`controls'), nocons                                        ///
         absorb(`absorb'##high_work_mw##high_res_mw)                   ///
         cluster(`cluster_vars')
@@ -30,8 +30,8 @@ program main
     process_estimates, res_var(mw_res_high_work_mw)                   ///
         wkp_var(mw_wkp_high_res_mw) model(het_mw_shares)
 
-    reghdfe D.ln_rents c.D.mw_res#ib0.public_housing                  ///
-        c.D.mw_wkp_tot_17#ib0.public_housing                          ///
+	reghdfe D.ln_rents c.D.mw_res c.D.mw_res#1.public_housing                  ///
+        c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#1.public_housing                          ///
         D.(`controls'), nocons                                        ///
         absorb(year_month##public_housing) cluster(`cluster_vars')
     
