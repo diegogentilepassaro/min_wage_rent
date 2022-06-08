@@ -14,7 +14,7 @@ program main
     local rentvar_stubs     "SFCC SF CC Studio 1BR 2BR 3BR 4BR 5BR MFdxtx Mfr5Plus"
 
     local start_year_month         "2010m1"
-    local end_year_month           "2019m12"
+    local end_year_month           "2020m6"
     local fullbal_start_year_month "2015m1"
     #delimit ;
     local target_vars  "sh_hhlds_renteroccup_cens2010 
