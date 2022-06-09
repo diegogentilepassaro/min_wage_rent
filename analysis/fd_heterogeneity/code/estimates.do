@@ -21,10 +21,10 @@ program main
         controls(`controls') absorb(`absorb') cluster(`cluster_vars') ///
         model_name(static_both)
         
-    reghdfe D.ln_rents c.D.mw_res c.D.mw_res#1.sh_mw_wkrs_statutory_above_med                    ///
-        c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#1.sh_mw_wkrs_statutory_above_med                             ///
+    reghdfe D.ln_rents c.D.mw_res c.D.mw_res#1.sh_mw_wkrs_statutory_above_stmed                    ///
+        c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#1.sh_mw_wkrs_statutory_above_stmed                             ///
         D.(`controls'), nocons                                        ///
-        absorb(`absorb'##sh_mw_wkrs_statutory_above_med)                   ///
+        absorb(`absorb'##sh_mw_wkrs_statutory_above_stmed)                   ///
         cluster(`cluster_vars')
     
     process_estimates, res_var(mw_res_high_st_work_mw)                   ///
