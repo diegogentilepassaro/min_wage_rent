@@ -19,6 +19,8 @@ main <- function(){
   start_ym <- c(2010, 1)
   end_ym   <- c(2020, 12)
   
+  cf_ym <- c(2019, 12)
+  
   dt_geo <- load_geographies(in_master)
   dt_mw  <- load_mw(in_mw_data)
   
@@ -50,8 +52,8 @@ main <- function(){
         
         dt <- assemble_statutory_mw(dt, dt_mw)
         
-        if (yy == end_ym[1] & mm == end_ym[2]) {                # Save block level data for cfs
-          dt_blocklevel_last <- copy(dt)
+        if (yy == cf_ym[1] & mm == cf_ym[2]) {                # Save block level data for cfs
+          dt_blocklevel_for_cf <- copy(dt)
         }
         
         dt_year_zip <- rbindlist(
@@ -99,8 +101,8 @@ main <- function(){
          file = file.path(outstub, "county_statutory_mw.csv"))
   
   ## MW Counterfactuals
-  dt_cf <- compute_counterfactual(dt_blocklevel_last)
-  rm(dt_blocklevel_last)
+  dt_cf <- compute_counterfactual(dt_blocklevel_for_cf)
+  rm(dt_blocklevel_for_cf)
   
   save_data(dt_cf, key = c("zipcode", "year", "month"),
             filename = file.path(outstub, "zipcode_cfs.dta"),
