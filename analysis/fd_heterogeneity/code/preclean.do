@@ -52,9 +52,11 @@ program load_and_clean
     rename *residents* *res*
     rename *workers* *wkrs*
 
-    foreach var in sh_mw_wkrs_statutory sh_wkrs_accomm_food           ///
-                   sh_wkrs_underHS sh_res_accomm_food sh_res_underHS  ///
-                   sh_res_under1250 sh_wkrs_under1250 {
+    foreach var in sh_mw_wkrs_statutory ///
+	               sh_wkrs_accomm_food sh_res_accomm_food    ///
+                   sh_wkrs_underHS sh_res_underHS  ///
+                   sh_wkrs_under1250 sh_res_under1250 ///
+				   sh_wkrs_under29 sh_res_under29 {
         egen `var'_med = median(`var')
         gen `var'_above_med = (`var'   > `var'_med)
         drop `var'_med
