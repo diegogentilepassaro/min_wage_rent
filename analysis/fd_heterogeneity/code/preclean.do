@@ -17,8 +17,6 @@ program main
     save_data "`outstub'/public_housing_2017.dta", key(zipcode) replace log(none)
 
     load_and_clean, instub(`instub') incross(`incross')
-    gen high_st_res_mw  = sh_res_underHS_above_stmed*sh_res_under1250_above_stmed
-    gen high_st_work_mw = sh_wkrs_underHS_above_stmed*sh_wkrs_under1250_above_stmed
 
     merge m:1 zipcode using "`outstub'/public_housing_2017.dta",    ///
         nogen keep(1 3)
@@ -43,32 +41,13 @@ program load_and_clean
     xtset zipcode_num year_month
 
     merge m:1 zipcode using "`incross'/zipcode_cross.dta", nogen       ///
-        keep(3) keepusing(sh_mw_wkrs_statutory sh_workers_under29_2014 ///
-            sh_residents_under29_2014 sh_residents_underHS_2014        ///
-            sh_residents_under1250_2014 sh_workers_underHS_2014        ///
-            sh_workers_under1250_2014 sh_residents_accomm_food_2014    ///
-            sh_workers_accomm_food_2014)
-    rename *_2014 *
-    rename *residents* *res*
-    rename *workers* *wkrs*
+        keep(3) keepusing(sh_mw_wkrs_statutory)
 
-    foreach var in sh_mw_wkrs_statutory ///
-	               sh_wkrs_accomm_food sh_res_accomm_food    ///
-                   sh_wkrs_underHS sh_res_underHS  ///
-                   sh_wkrs_under1250 sh_res_under1250 ///
-				   sh_wkrs_under29 sh_res_under29 {
-        egen `var'_med = median(`var')
-        gen `var'_above_med = (`var'   > `var'_med)
-        drop `var'_med
-
-        bys statefips: egen `var'_stmed = median(`var')
-        gen `var'_above_stmed = (`var'   > `var'_stmed)
-        drop `var'_stmed
-
-        bys cbsa: egen `var'_cbmed = median(`var')
-        gen `var'_above_cbmed = (`var'   > `var'_cbmed)
-        drop `var'_cbmed
-    }
+    gen pc_mw_wkrs_statutory = sh_mw_wkrs_statutory*100
+    
+    egen pc_mw_wkrs_statutory_med = median(pc_mw_wkrs_statutory)
+    gen pc_mw_wkrs_statutory_diff_med = pc_mw_wkrs_statutory - pc_mw_wkrs_statutory_med
+    drop pc_mw_wkrs_statutory_med
 end
 
 
