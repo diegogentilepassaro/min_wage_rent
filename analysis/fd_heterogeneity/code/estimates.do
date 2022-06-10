@@ -24,7 +24,7 @@ program main
     reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.pc_mw_wkrs_statutory_diff_med                    ///
         c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.pc_mw_wkrs_statutory_diff_med                              ///
         D.(`controls'), nocons                                        ///
-        absorb(`absorb')                   ///
+        absorb(`absorb'#c.pc_mw_wkrs_statutory_diff_med)                   ///
         cluster(`cluster_vars')
     
     process_estimates, res_var(mw_res_high_st_work_mw)                   ///
@@ -33,7 +33,7 @@ program main
 	reghdfe D.ln_rents c.D.mw_res c.D.mw_res#1.public_housing                  ///
         c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#1.public_housing                          ///
         D.(`controls'), nocons                                        ///
-        absorb(year_month##public_housing) cluster(`cluster_vars')
+        absorb(year_month) cluster(`cluster_vars')
     
     process_estimates, res_var(mw_res_high_public_hous)               ///
         wkp_var(mw_wkp_high_public_hous) model(het_public_hous)
