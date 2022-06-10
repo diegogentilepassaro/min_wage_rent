@@ -1,5 +1,5 @@
 
- make.py started: 2022-06-10 11:30:02 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\fd_heterogeneity\code 
+ make.py started: 2022-06-10 11:51:55 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\fd_heterogeneity\code 
 
 
 
@@ -99,7 +99,7 @@ running c:\ado\personal\profile.do ...
   6.     xtset zipcode_num year_month
   7. 
 .     merge m:1 zipcode using "`incross'/zipcode_cross.dta", nogen       ///
->         keep(3) keepusing(sh_mw_wkrs_statutory)
+>         keep(3) keepusing(sh_mw_wkrs_statutory med_hhld_inc_acs2014)
   8. 
 .     gen pc_mw_wkrs_statutory = sh_mw_wkrs_statutory*100
   9.     
@@ -107,7 +107,10 @@ running c:\ado\personal\profile.do ...
  10.     gen pc_mw_wkrs_statutory_diff_med = pc_mw_wkrs_statutory - pc_mw_wkrs_
 > statutory_med
  11.     drop pc_mw_wkrs_statutory_med
- 12. end
+ 12.         
+.         gen th_med_hhld_inc = med_hhld_inc_acs2014/1000
+ 13.         drop med_hhld_inc_acs2014
+ 14. end
 
 . 
 . 
@@ -144,6 +147,7 @@ file ../temp/public_housing_2017.dta saved
     -----------------------------------------
 (4,920 missing values generated)
 (4,920 missing values generated)
+(3,060 missing values generated)
 
     Result                           # of obs.
     -----------------------------------------
@@ -162,7 +166,7 @@ file ../temp/public_housing_2017.dta saved
 File: ../temp/fullbal_sample_with_vars_for_het.dta
 Key: zipcode year_month
 ===============================================================================
-  80700:22(38923):2583465146:3210997911
+  80700:23(27848):3841081518:1544998296
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -190,6 +194,7 @@ sh_mw_wkrs~y |     75,780    .1496538    .0468091   .0132085   .5346981
 pc_mw_wkrs~y |     75,780    14.96538    4.680913   1.320845   53.46981
 pc_mw_wkrs~d |     75,780    .5324682    4.680913  -13.11206   39.03691
 -------------+---------------------------------------------------------
+th_med_hhl~c |     77,640    60.45692    22.91414     15.041   176.1697
  total_units |     26,820     232.047    616.2516          0      10966
 public_hou~g |     80,700     .330855    .4705239          0          1
 
@@ -284,8 +289,9 @@ running c:\ado\personal\profile.do ...
 > /
 >         cluster(`cluster_vars')
  11.     
-.     process_estimates, res_var(mw_res_high_st_work_mw)                   ///
->         wkp_var(mw_wkp_high_st_res_mw) model(het_mw_shares)
+.     process_estimates, res_var(mw_res_pc_mw_wkrs_diff_med)                   
+> ///
+>         wkp_var(mw_wkp_pc_mw_wkrs_diff_med) model(het_mw_shares)
  12. 
 .         reghdfe D.ln_rents c.D.mw_res c.D.mw_res#1.public_housing            
 >       ///
@@ -297,11 +303,23 @@ running c:\ado\personal\profile.do ...
 .     process_estimates, res_var(mw_res_high_public_hous)               ///
 >         wkp_var(mw_wkp_high_public_hous) model(het_public_hous)
  14. 
+.     reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.th_med_hhld_inc               
+>      ///
+>         c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.th_med_hhld_inc                
+>               ///
+>         D.(`controls'), nocons                                        ///
+>         absorb(`absorb'#c.th_med_hhld_inc)                   ///
+>         cluster(`cluster_vars')
+ 15.     
+.     process_estimates, res_var(mw_res_th_med_hhld_inc)                   ///
+>         wkp_var(mw_wkp_th_med_hhld_inc) model(het_med_inc)
+ 16. 
 .     use "../temp/estimates_static_both.dta", clear
- 15.     append using "../temp/estimates_het_mw_shares.dta"
- 16.     append using "../temp/estimates_het_public_hous.dta"
- 17.     export delimited "../output/estimates_het.csv", replace
- 18. end
+ 17.     append using "../temp/estimates_het_mw_shares.dta"
+ 18.     append using "../temp/estimates_het_public_hous.dta"
+ 19.     append using "../temp/estimates_het_med_inc.dta"
+ 20.     export delimited "../output/estimates_het.csv", replace
+ 21. end
 
 . 
 . program process_estimates
@@ -569,10 +587,82 @@ Absorbed degrees of freedom:
 (2 real changes made)
 (note: file ../temp/estimates_het_public_hous.dta not found)
 file ../temp/estimates_het_public_hous.dta saved
-(note: variable var was str13, now str22 to accommodate using data's values)
+(warning: no intercepts terms in absorb(); regression lacks constant term)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =     75,919
+Absorbing 1 HDFE group                            F(  13,     39) =       9.60
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.0263
+                                                  Adj R-squared   =     0.0254
+                                                  Within R-sq.    =     0.0012
+Number of clusters (statefips) =         40       Root MSE        =     0.0296
+
+                             (Std. Err. adjusted for 40 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+      mw_res |
+         D1. |  -.2548118   .0962682    -2.65   0.012    -.4495327    -.060091
+             |
+   cD.mw_res#|
+          c. |
+th_med_hhl~c |   .0032792   .0011695     2.80   0.008     .0009136    .0056447
+             |
+mw_wkp_to~17 |
+         D1. |   .4294648   .1154413     3.72   0.001     .1959628    .6629668
+             |
+         cD. |
+mw_wkp_to~17#|
+          c. |
+th_med_hhl~c |  -.0050442   .0014151    -3.56   0.001    -.0079065    -.002182
+             |
+ln_emp_biz~v |
+         D1. |   .0213983    .009624     2.22   0.032     .0019319    .0408647
+             |
+ ln_emp_info |
+         D1. |   .0020567   .0046203     0.45   0.659    -.0072888    .0114022
+             |
+  ln_emp_fin |
+         D1. |   .0141892   .0080785     1.76   0.087     -.002151    .0305295
+             |
+ln_estcoun~v |
+         D1. |   .0194285   .0209867     0.93   0.360    -.0230211    .0618781
+             |
+ln_estcoun~o |
+         D1. |   .0052959   .0089315     0.59   0.557    -.0127697    .0233615
+             |
+ln_estcoun~n |
+         D1. |  -.0192948   .0228566    -0.84   0.404    -.0655266    .0269369
+             |
+ln_avgwwag~v |
+         D1. |   .0011713   .0036826     0.32   0.752    -.0062775    .0086201
+             |
+ln_avgwwag~o |
+         D1. |  -.0001277   .0015349    -0.08   0.934    -.0032323    .0029768
+             |
+ln_avgwwag~n |
+         D1. |  -.0023011   .0019394    -1.19   0.243     -.006224    .0016217
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+----------------------------------------------------------------------+
+                  Absorbed FE | Categories  - Redundant  = Num. Coefs |
+------------------------------+---------------------------------------|
+ year_month#c.th_med_hhld_inc |        59           0          59    ?|
+----------------------------------------------------------------------+
+? = number of redundant parameters may be higher
+(80,696 observations deleted)
+(0 observations deleted)
+(4 real changes made)
+(2 real changes made)
+(2 real changes made)
+(note: file ../temp/estimates_het_med_inc.dta not found)
+file ../temp/estimates_het_med_inc.dta saved
+(note: variable var was str13, now str26 to accommodate using data's values)
 (note: variable model was str11, now str13 to accommodate using data's
        values)
-(note: variable var was str22, now str23 to accommodate using data's values)
 (note: variable model was str13, now str15 to accommodate using data's
        values)
 (note: file ../output/estimates_het.csv not found)
@@ -614,19 +704,21 @@ Type 'q()' to quit R.
 +   txt <- c("<tab:heterogeneity>")
 +   txt <- c(txt, 
 +            paste(est[model == "static_both"    & var == "mw_res",]$b,
-+                  est[model == "het_mw_shares"  & var == "mw_res_high_st_work_mw" & at == 0,]$b,
++                  est[model == "het_mw_shares"  & var == "mw_res_pc_mw_wkrs_diff_med" & at == 0,]$b,
 +                  est[model == "het_public_hous"& var == "mw_res_high_public_hous" & at == 0,]$b,
++                  est[model == "het_med_inc"    & var == "mw_res_th_med_hhld_inc" & at == 0,]$b,
 +                  sep = "\t"))
 +   txt <- c(txt, 
 +            paste(est[model == "static_both"    & var == "mw_res",]$se,
-+                  est[model == "het_mw_shares"  & var == "mw_res_high_st_work_mw" & at == 0,]$se,
++                  est[model == "het_mw_shares"  & var == "mw_res_pc_mw_wkrs_diff_med" & at == 0,]$se,
 +                  est[model == "het_public_hous"& var == "mw_res_high_public_hous" & at == 0,]$se,
++                  est[model == "het_med_inc"    & var == "mw_res_th_med_hhld_inc" & at == 0,]$se,
 +                  sep = "\t"))
 + 
 +   txt <- c(txt, 
-+            paste(est[model == "het_mw_shares" & var == "mw_res_high_st_work_mw" & at == 1,]$b, 
++            paste(est[model == "het_mw_shares" & var == "mw_res_pc_mw_wkrs_diff_med" & at == 1,]$b, 
 +                  sep = "\t"),
-+             paste(est[model == "het_mw_shares" & var == "mw_res_high_st_work_mw" & at == 1,]$se, 
++             paste(est[model == "het_mw_shares" & var == "mw_res_pc_mw_wkrs_diff_med" & at == 1,]$se, 
 +                  sep = "\t"))
 +   
 +   txt <- c(txt, 
@@ -636,20 +728,28 @@ Type 'q()' to quit R.
 +                  sep = "\t"))
 + 
 +   txt <- c(txt, 
-+            paste(est[model == "static_both"    & var == "mw_wkp_tot_17",]$b,
-+                  est[model == "het_mw_shares"  & var == "mw_wkp_high_st_res_mw" & at == 0,]$b,
-+                  est[model == "het_public_hous"& var == "mw_wkp_high_public_hous" & at == 0,]$b,
-+                  sep = "\t"))
-+   txt <- c(txt, 
-+            paste(est[model == "static_both"    & var == "mw_wkp_tot_17",]$se,
-+                  est[model == "het_mw_shares"  & var == "mw_wkp_high_st_res_mw" & at == 0,]$se,
-+                  est[model == "het_public_hous"& var == "mw_wkp_high_public_hous" & at == 0,]$se,
++            paste(est[model == "het_med_inc" & var == "mw_res_th_med_hhld_inc" & at == 1,]$b, 
++                  sep = "\t"),
++             paste(est[model == "het_med_inc" & var == "mw_res_th_med_hhld_inc" & at == 1,]$se, 
 +                  sep = "\t"))
 + 
 +   txt <- c(txt, 
-+            paste(est[model == "het_mw_shares" & var == "mw_wkp_high_st_res_mw" & at == 1,]$b, 
++            paste(est[model == "static_both"    & var == "mw_wkp_tot_17",]$b,
++                  est[model == "het_mw_shares"  & var == "mw_wkp_pc_mw_wkrs_diff_med" & at == 0,]$b,
++                  est[model == "het_public_hous"& var == "mw_wkp_high_public_hous" & at == 0,]$b,
++                  est[model == "het_med_inc"    & var == "mw_wkp_th_med_hhld_inc" & at == 0,]$b,
++                  sep = "\t"))
++   txt <- c(txt, 
++            paste(est[model == "static_both"    & var == "mw_wkp_tot_17",]$se,
++                  est[model == "het_mw_shares"  & var == "mw_wkp_pc_mw_wkrs_diff_med" & at == 0,]$se,
++                  est[model == "het_public_hous"& var == "mw_wkp_high_public_hous" & at == 0,]$se,
++                  est[model == "het_med_inc"    & var == "mw_wkp_th_med_hhld_inc" & at == 0,]$se,
++                  sep = "\t"))
++ 
++   txt <- c(txt, 
++            paste(est[model == "het_mw_shares" & var == "mw_wkp_pc_mw_wkrs_diff_med" & at == 1,]$b, 
 +                  sep = "\t"),
-+             paste(est[model == "het_mw_shares" & var == "mw_wkp_high_st_res_mw" & at == 1,]$se, 
++             paste(est[model == "het_mw_shares" & var == "mw_wkp_pc_mw_wkrs_diff_med" & at == 1,]$se, 
 +                  sep = "\t"))
 +   
 +    txt <- c(txt, 
@@ -657,16 +757,24 @@ Type 'q()' to quit R.
 +                  sep = "\t"),
 +             paste(est[model == "het_public_hous" & var == "mw_wkp_high_public_hous" & at == 1,]$se, 
 +                  sep = "\t"))
++ 
++   txt <- c(txt, 
++            paste(est[model == "het_med_inc" & var == "mw_wkp_th_med_hhld_inc" & at == 1,]$b, 
++                  sep = "\t"),
++             paste(est[model == "het_med_inc" & var == "mw_wkp_th_med_hhld_inc" & at == 1,]$se, 
++                  sep = "\t"))
 +   
 +   txt <- c(txt, 
 +            paste(est[model == "static_both"    & var == "mw_wkp_tot_17",]$r2,
-+                  est[model == "het_mw_shares"  & var == "mw_wkp_high_st_res_mw" & at == 0,]$r2,
-+                  est[model == "het_public_hous"& var == "mw_wkp_high_public_hous" & at == 0,]$r2, 
++                  est[model == "het_mw_shares"  & var == "mw_wkp_pc_mw_wkrs_diff_med" & at == 0,]$r2,
++                  est[model == "het_public_hous"& var == "mw_wkp_high_public_hous" & at == 0,]$r2,
++                  est[model == "het_med_inc"    & var == "mw_wkp_th_med_hhld_inc" & at == 0,]$r2, 
 +                  sep = "\t"))
 +   txt <- c(txt, 
 +            paste(est[model == "static_both"    & var == "mw_wkp_tot_17",]$N,
-+                  est[model == "het_mw_shares"  & var == "mw_wkp_high_st_res_mw" & at == 0,]$N,
-+                  est[model == "het_public_hous"& var == "mw_wkp_high_public_hous" & at == 0,]$N, 
++                  est[model == "het_mw_shares"  & var == "mw_wkp_pc_mw_wkrs_diff_med" & at == 0,]$N,
++                  est[model == "het_public_hous"& var == "mw_wkp_high_public_hous" & at == 0,]$N,
++                  est[model == "het_med_inc"    & var == "mw_wkp_th_med_hhld_inc" & at == 0,]$N, 
 +                  sep = "\t"))
 + 
 +   fileConn <- file(file.path(outstub, "heterogeneity.txt"))
@@ -678,6 +786,6 @@ Type 'q()' to quit R.
 > 
 > proc.time()
    user  system elapsed 
-   0.70    0.20    0.93 
+   0.90    0.39    1.57 
 
- make.py ended: 2022-06-10 11:30:22
+ make.py ended: 2022-06-10 11:52:19

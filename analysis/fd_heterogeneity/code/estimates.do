@@ -27,8 +27,8 @@ program main
         absorb(`absorb'#c.pc_mw_wkrs_statutory_diff_med)                   ///
         cluster(`cluster_vars')
     
-    process_estimates, res_var(mw_res_high_st_work_mw)                   ///
-        wkp_var(mw_wkp_high_st_res_mw) model(het_mw_shares)
+    process_estimates, res_var(mw_res_pc_mw_wkrs_diff_med)                   ///
+        wkp_var(mw_wkp_pc_mw_wkrs_diff_med) model(het_mw_shares)
 
 	reghdfe D.ln_rents c.D.mw_res c.D.mw_res#1.public_housing                  ///
         c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#1.public_housing                          ///
@@ -38,9 +38,19 @@ program main
     process_estimates, res_var(mw_res_high_public_hous)               ///
         wkp_var(mw_wkp_high_public_hous) model(het_public_hous)
 
+    reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.th_med_hhld_inc                    ///
+        c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.th_med_hhld_inc                              ///
+        D.(`controls'), nocons                                        ///
+        absorb(`absorb'#c.th_med_hhld_inc)                   ///
+        cluster(`cluster_vars')
+    
+    process_estimates, res_var(mw_res_th_med_hhld_inc)                   ///
+        wkp_var(mw_wkp_th_med_hhld_inc) model(het_med_inc)
+
     use "../temp/estimates_static_both.dta", clear
     append using "../temp/estimates_het_mw_shares.dta"
     append using "../temp/estimates_het_public_hous.dta"
+    append using "../temp/estimates_het_med_inc.dta"
     export delimited "../output/estimates_het.csv", replace
 end
 
