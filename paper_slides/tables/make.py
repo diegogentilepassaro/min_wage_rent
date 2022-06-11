@@ -40,7 +40,7 @@ fd_cf_dir            = "../../analysis/counterfactuals/output"
 fd_robust_dir        = "../../analysis/fd_robustness/output"
 fd_county_dir        = "../../analysis/fd_county/output"
 fd_het_dir           = "../../analysis/fd_heterogeneity/output"
-share_migration     = "../../analysis/alternative_outcomes/output"
+migration_dir        = "../../analysis/alternative_outcomes/output"
 
 tablefill(input    = os.path.join(desc_est_samples_dir, "stats_zip_samples.txt"), 
           template = "input/stats_zip_samples.tex", 
@@ -110,9 +110,13 @@ tablefill(input    = os.path.join(fd_het_dir, "heterogeneity.txt"),
           template = "input/heterogeneity.tex", 
           output   = "output/heterogeneity.tex")
 
-tablefill(input    = os.path.join(share_migration, "share_migration.txt"), 
+tablefill(input    = os.path.join(migration_dir, "share_migration.txt"), 
           template = "input/share_migration.tex", 
           output   = "output/share_migration.tex")
+
+tablefill(input    = os.path.join(migration_dir, "total_migration.txt"), 
+          template = "input/total_migration.tex", 
+          output   = "output/total_migration.tex")
 
 end_make_logging()
 

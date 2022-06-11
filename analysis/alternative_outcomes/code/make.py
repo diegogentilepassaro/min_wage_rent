@@ -32,7 +32,7 @@ if "StataSE" in envir_vars:
 start_make_logging()
 
 run_stata(program = 'alt_outcomes.do', executable = stata)
-run_rbatch(program = 'table.R')
+run_rbatch(program = 'tables.R')
 
 end_make_logging()
 
