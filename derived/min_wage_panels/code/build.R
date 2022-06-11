@@ -18,8 +18,7 @@ main <- function(){
   
   start_ym <- c(2010, 1)
   end_ym   <- c(2020, 12)
-  
-  cf_ym <- c(2019, 12)
+  cf_ym    <- c(2019, 12)  
   
   dt_geo <- load_geographies(in_master)
   dt_mw  <- load_mw(in_mw_data)
