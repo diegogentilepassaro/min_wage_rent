@@ -1,7 +1,103 @@
 
- make.py started: 2022-06-05 14:03:59 C:\Users\shermo\Documents\GitHub\min_wage_rent\descriptive\document_claims\code 
+ make.py started: 2022-06-13 14:40:59 C:\Users\diegog\Desktop\Diego\min_wage_rent\descriptive\document_claims\code 
 
 
+
+
+Execute:  StataMP-64 /e do "./document.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+
+running c:\ado\personal\profile.do ...
+
+. do ./document.do 
+
+. clear all
+
+. set more off
+
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
+. set maxvar 32000
+
+
+. 
+. program main
+  1.     local in_zip        "../../../drive/derived_large/zipcode"
+  2.     local in_h_exp_sh   "../../../drive/analysis_large/expenditure_shares/
+> "
+  3.         
+.         use "`in_zip'/zipcode_cross.dta", clear
+  4.         corr med_hhld_inc_acs2014 sh_mw_wkrs_statutory
+  5.         local rho_inc_mw_sh = r(rho)
+  6.         
+.         merge 1:1 zipcode using "`in_h_exp_sh'/s_by_zip.dta", nogen assert(3)
+  7.         corr sh_mw_wkrs_statutory s
+  8.         local rho_s_mw_sh = r(rho)
+  9.         
+.     cap file close f
+ 10.     file open   f using "../output/corr_sh_mw_workers_inc_and_s.txt", writ
+> e replace
+ 11.     file write  f "Correlation between sh_mw_workers and med hhld inc: `rh
+> o_inc_mw_sh'" _n
+ 12.     file write  f "Correlation between sh_mw_workers and s: `rho_s_mw_sh'"
+>  _n
+ 13.     file close  f
+ 14. end
+
+. 
+. main
+(obs=30,662)
+
+             | med~2014 sh_mw_~y
+-------------+------------------
+med_hhl~2014 |   1.0000
+sh_mw_wkrs~y |  -0.2634   1.0000
+
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                            31,826  
+    -----------------------------------------
+(obs=17,341)
+
+             | sh_mw_~y        s
+-------------+------------------
+sh_mw_wkrs~y |   1.0000
+           s |   0.3039   1.0000
+
+(note: file ../output/corr_sh_mw_workers_inc_and_s.txt not found)
+
+. 
+end of do-file
 
 
 Execute:  R CMD BATCH --no-save "./event_counts.R" event_counts.Rout
@@ -40,15 +136,16 @@ Type 'q()' to quit R.
 +   varchar <- c("zipcode", "countyfips", "statefips", "place_code", "year_month")
 +   varnum <-  c("statutory_mw", "binding_mw", "binding_mw_max", 
 +                "mw_res", "mw_wkp_tot_17", "mw_wkp_age_under29_17", 
-+                "mw_wkp_earn_under1250_17", "fullbal_sample")
-+ 
-+   dt <- fread(file.path(in_sample, 'zipcode_months_march2022.csv'),
-+                 colClasses = list(character = varchar,
-+                                   numeric   = varnum))
++                "mw_wkp_earn_under1250_17", "fullbal_sample_SFCC",
++                "unbalanced_sample_SFCC")
++   
++   dt <- fread(file.path(in_sample, 'zipcode_months.csv'),
++               colClasses = list(character = varchar,
++                                 numeric   = varnum))
 +   
 +   # Correlation matrix  
 +   vars <- c("mw_wkp_tot_17", "mw_wkp_age_under29_17", "mw_wkp_earn_under1250_17")
-+   dt_unbal <- dt #[unbalanced_sample_SFCC == 1]
++   dt_unbal <- dt[unbalanced_sample_SFCC == 1]
 +   corrmatrix <- cor(na.omit(dt_unbal[, ..vars]))
 +   
 +   stargazer::stargazer(corrmatrix, summary = F, digits = 4,
@@ -62,15 +159,14 @@ Type 'q()' to quit R.
 +   
 +   setnames(dt, old_names, geographies)
 +   
-+   dt[, event_mw := fifelse(statutory_mw > shift(statutory_mw), 1, 0),
-+        by = "zipcode"]
-+   
 +   output_summary <- ""
 +   
 +   for (panels in c("Unbalanced", "Baseline")) {
 +     output_summary <- paste0(output_summary, count_events(dt, panels, geographies))
 +     output_summary <- paste0(output_summary, count_local(dt, panels))
 +   }
++   
++   dt <- filter_data(dt, "Unbalanced")$dt_sample
 +   
 +   # Average percent change among Zillow ZIP codes (line 143 of data_sample.tex)  
 +   dt[, mean_mw := fifelse(event_mw == 1, statutory_mw / shift(statutory_mw), 0)]  
@@ -91,7 +187,7 @@ Type 'q()' to quit R.
 +   sample_data <- filter_data(data, panel)
 +   short_name  <- sample_data$short_name
 +   dt_sample   <- sample_data$dt_sample
-+ 
++   
 +   events <- sum(dt_sample$event_mw, na.rm = T)
 +   
 +   text <- write_command(paste0("ZIPMWevents", short_name), format(events, big.mark = ','))
@@ -113,36 +209,39 @@ Type 'q()' to quit R.
 +     
 +     output_events <- paste0(output_events, text)    
 +   }
-+ 
++   
 +   return(output_events)
 + }
 > 
 > 
 > count_local <- function(data, panel) {
-+ 
++   
 +   sample_data <- filter_data(data, panel)
 +   short_name  <- sample_data$short_name
 +   dt_sample   <- sample_data$dt_sample
-+ 
++   
 +   data_agg <- dt_sample[binding_mw_max %in% c(3, 4),
 +                         .(event_local = max(event_mw)),
 +                         by = c("county", "year_month")]
 +   
 +   events <- sum(data_agg$event_local, na.rm = T)
-+     
++   
 +   return(write_command(paste0("CityCountyMWevents", short_name), format(events, big.mark = ',')))
 + }
 > 
 > filter_data <- function(data, panel) {
-+ 
++   
 +   if (panel == "Unbalanced") {
-+     dt_sample  <- data  #[unbalanced_sample_SFCC == 1]
++     dt_sample  <- data[unbalanced_sample_SFCC == 1]
 +     short_name <- "Unbal"
 +   } else if (panel == "Baseline") {
-+     dt_sample  <- data[fullbal_sample == 1]
++     dt_sample  <- data[fullbal_sample_SFCC == 1]
 +     short_name <- "Base"
 +   }
-+ 
++   
++   dt_sample[, event_mw := fifelse(statutory_mw > shift(statutory_mw), 1, 0),
++             by = "zipcode"]
++   
 +   return(list("dt_sample" = dt_sample, "short_name" = short_name))
 + }
 > 
@@ -163,6 +262,6 @@ mw_wkp_earn_under1250_17    0.9989            0.9995                    1
 > 
 > proc.time()
    user  system elapsed 
-   4.85    2.71    2.64 
+   8.34    5.12  557.89 
 
- make.py ended: 2022-06-05 14:04:02
+ make.py ended: 2022-06-13 14:50:20

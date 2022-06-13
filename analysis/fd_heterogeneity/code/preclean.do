@@ -43,14 +43,15 @@ program load_and_clean
     merge m:1 zipcode using "`incross'/zipcode_cross.dta", nogen       ///
         keep(3) keepusing(sh_mw_wkrs_statutory med_hhld_inc_acs2014)
 
-    gen pc_mw_wkrs_statutory = sh_mw_wkrs_statutory*100
-    
-    egen pc_mw_wkrs_statutory_med = median(pc_mw_wkrs_statutory)
-    gen pc_mw_wkrs_statutory_diff_med = pc_mw_wkrs_statutory - pc_mw_wkrs_statutory_med
-    drop pc_mw_wkrs_statutory_med
+    foreach var in sh_mw_wkrs_statutory med_hhld_inc_acs2014 {
+        local avg_`var' = r(mean)
+        local sd_`var' = r(sd)
+        gen 
+    }
+
+
 	
-	gen th_med_hhld_inc = med_hhld_inc_acs2014/1000
-	drop med_hhld_inc_acs2014
+	drop 
 end
 
 
