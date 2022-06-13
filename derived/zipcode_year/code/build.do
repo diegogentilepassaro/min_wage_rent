@@ -25,18 +25,13 @@ program main
     clean_qcew,        instub(`in_qcew')
     
     use "../temp/mw_rents_data.dta", clear
-    merge 1:1 zipcode year using "../temp/safmr.dta", nogen keep(1 3)
+    merge 1:1 zipcode    year using "../temp/safmr.dta", nogen keep(1 3)
     merge 1:1 zipcode    year using "../temp/irs_data.dta",         nogen keep(1 3)
     merge 1:1 zipcode    year using "../temp/workplace_shares.dta", nogen keep(1 3)
     merge 1:1 zipcode    year using "../temp/residence_shares.dta", nogen keep(1 3)
     merge m:1 countyfips year using "../temp/qcew_data.dta",        nogen keep(1 3)
     gen ln_wkp_jobs_tot = log(wkp_jobs_tot) 
     gen ln_res_jobs_tot = log(res_jobs_tot)
-
-    foreach cat in accomm_food underHS {
-        gen ln_res_jobs_`cat' = log(res_jobs_tot * sh_residents_`cat')
-        gen ln_wkp_jobs_`cat' = log(wkp_jobs_tot * sh_workers_`cat')
-    }
 
     save_data "`outstub'/zipcode_year.dta", key(zipcode year) ///
         log(`logfile') replace
@@ -144,16 +139,18 @@ program clean_area_shares
     preserve
         keep if jobs_by == "residence"
         
-        keep zipcode year jobs_tot jobs_age_under29 jobs_earn_under1250 ///
+        keep zipcode year jobs_tot jobs_age_under29                     ///
+            jobs_earn_under1250 jobs_naics_accomm_food jobs_sch_underHS ///
             share_age_* share_earn_* share_naics_* share_sch_*
         rename share_age_*   sh_residents_*
         rename share_earn_*  sh_residents_*
         rename share_naics_* sh_residents_*
         rename share_sch_*   sh_residents_*
         
-        rename jobs_tot      res_jobs_tot 
-        rename jobs_age_under29 res_jobs_age_under29 
-        rename jobs_earn_under1250 res_jobs_earn_under1250
+        rename (jobs_tot      jobs_age_under29     jobs_earn_under1250)     ///
+               (res_jobs_tot  res_jobs_age_under29 res_jobs_earn_under1250)
+        rename (jobs_naics_accomm_food  jobs_sch_underHS)                   ///
+               (res_jobs_naics_ac_food  res_jobs_sch_underHS)
         
         save "../temp/residence_shares.dta", replace
     restore
@@ -161,16 +158,18 @@ program clean_area_shares
     preserve
         keep if jobs_by == "workplace"
         
-        keep zipcode year jobs_tot jobs_age_under29 jobs_earn_under1250 ///
+        keep zipcode year jobs_tot jobs_age_under29                     ///
+            jobs_earn_under1250 jobs_naics_accomm_food jobs_sch_underHS ///
             share_age_* share_earn_* share_naics_* share_sch_*
         rename share_age_*   sh_workers_*
         rename share_earn_*  sh_workers_*
         rename share_naics_* sh_workers_*
         rename share_sch_*   sh_workers_*
         
-        rename jobs_tot      wkp_jobs_tot 
-        rename jobs_age_under29 wkp_jobs_age_under29 
-        rename jobs_earn_under1250 wkp_jobs_earn_under1250
+        rename (jobs_tot      jobs_age_under29     jobs_earn_under1250)     ///
+               (wkp_jobs_tot  wkp_jobs_age_under29 wkp_jobs_earn_under1250)
+        rename (jobs_naics_accomm_food  jobs_sch_underHS)                   ///
+               (wkp_jobs_naics_ac_food  wkp_jobs_sch_underHS)
         
         save "../temp/workplace_shares.dta", replace
     restore
