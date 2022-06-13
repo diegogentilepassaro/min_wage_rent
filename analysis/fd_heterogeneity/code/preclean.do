@@ -44,14 +44,11 @@ program load_and_clean
         keep(3) keepusing(sh_mw_wkrs_statutory med_hhld_inc_acs2014)
 
     foreach var in sh_mw_wkrs_statutory med_hhld_inc_acs2014 {
+	    qui sum `var'
         local avg_`var' = r(mean)
         local sd_`var' = r(sd)
-        gen 
+        gen std_`var' = (`var' - `avg_`var'')/`sd_`var''
     }
-
-
-	
-	drop 
 end
 
 

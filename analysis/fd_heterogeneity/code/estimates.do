@@ -21,23 +21,23 @@ program main
         controls(`controls') absorb(`absorb') cluster(`cluster_vars') ///
         model_name(static_both)
         
-    reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.pc_mw_wkrs_statutory_diff_med                    ///
-        c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.pc_mw_wkrs_statutory_diff_med                              ///
+    reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_sh_mw_wkrs_statutory                    ///
+        c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_sh_mw_wkrs_statutory                              ///
         D.(`controls'), nocons                                        ///
         absorb(`absorb')                   ///
         cluster(`cluster_vars')
     
-    process_estimates, res_var(mw_res_pc_mw_wkrs_diff_med)                   ///
-        wkp_var(mw_wkp_pc_mw_wkrs_diff_med) model(het_mw_shares)
+    process_estimates, res_var(mw_res_std_sh_mw_wkrs_statutory)                   ///
+        wkp_var(mw_wkp_std_sh_mw_wkrs_statutory) model(het_mw_shares)
 
-    reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.th_med_hhld_inc                    ///
-        c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.th_med_hhld_inc                              ///
+    reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_med_hhld_inc_acs2014                    ///
+        c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_med_hhld_inc_acs2014                              ///
         D.(`controls'), nocons                                        ///
         absorb(`absorb')                   ///
         cluster(`cluster_vars')
     
-    process_estimates, res_var(mw_res_th_med_hhld_inc)                   ///
-        wkp_var(mw_wkp_th_med_hhld_inc) model(het_med_inc)
+    process_estimates, res_var(mw_res_std_med_hhld_inc)                   ///
+        wkp_var(mw_wkp_std_med_hhld_inc) model(het_med_inc)
 
 	reghdfe D.ln_rents c.D.mw_res c.D.mw_res#1.public_housing                  ///
         c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#1.public_housing                          ///
