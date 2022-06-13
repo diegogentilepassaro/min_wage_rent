@@ -20,6 +20,12 @@ program main
     file write  f "Correlation between sh_mw_workers and med hhld inc: `rho_inc_mw_sh'" _n
     file write  f "Correlation between sh_mw_workers and s: `rho_s_mw_sh'" _n
     file close  f
+	
+	cap file close f
+    file open   f using "../output/autofill_sh_mw_workers.tex", write replace
+    file write  f "\newcommand{\corrShWkrMedInc}{\textnormal{"  %3.2f  (`rho_inc_mw_sh')  "}}" _n
+    file write  f "\newcommand{\corrShWkrS}{\textnormal{"       %3.2f  (`rho_s_mw_sh')    "}}" _n
+    file close  f
 end
 
 main
