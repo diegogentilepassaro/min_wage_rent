@@ -33,6 +33,11 @@ program main
     gen ln_wkp_jobs_tot = log(wkp_jobs_tot) 
     gen ln_res_jobs_tot = log(res_jobs_tot)
 
+    foreach cat in accomm_food underHS {
+        gen ln_res_jobs_`cat' = log(res_jobs_tot * sh_residents_`cat')
+        gen ln_wkp_jobs_`cat' = log(wkp_jobs_tot * sh_workers_`cat')
+    }
+
     save_data "`outstub'/zipcode_year.dta", key(zipcode year) ///
         log(`logfile') replace
 end
