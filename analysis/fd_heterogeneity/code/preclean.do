@@ -20,15 +20,9 @@ program main
 
     merge m:1 zipcode using "`outstub'/public_housing_2017.dta",    ///
         nogen keep(1 3)
-    gen public_housing = (total_units > 0) if !missing(total_units)
-    replace public_housing = 0 if missing(total_units)
-	gen sh_public_housing = total_units/n_hhlds_cens2010
-    replace sh_public_housing = 0 if missing(total_units)
-	qui sum sh_public_housing
-	local avg_sh_public_housing = r(mean)
-	local sd_sh_public_housing = r(sd)
-	gen std_sh_public_housing = (sh_public_housing - `avg_sh_public_housing')/`sd_sh_public_housing'
-		
+
+    prepare_public_housing
+
     save_data "`outstub'/fullbal_sample_with_vars_for_het.dta",     ///
         key(zipcode year_month) replace log(none)
 end
@@ -57,5 +51,19 @@ program load_and_clean
     }
 end
 
+program prepare_public_housing
+
+    gen     public_housing = (total_units > 0) if !missing(total_units)
+    replace public_housing = 0 if missing(total_units)
+
+    gen     sh_public_housing = total_units/n_hhlds_cens2010
+    replace sh_public_housing = 0 if missing(total_units)
+
+    qui sum sh_public_housing
+    local avg_sh_public_housing = r(mean)
+    local sd_sh_public_housing  = r(sd)
+
+    gen std_sh_public_housing   = (sh_public_housing - `avg_sh_public_housing')/`sd_sh_public_housing'
+end
 
 main
