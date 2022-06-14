@@ -21,30 +21,28 @@ program main
         controls(`controls') absorb(`absorb') cluster(`cluster_vars') ///
         model_name(static_both)
         
-    reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_sh_mw_wkrs_statutory                    ///
-        c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_sh_mw_wkrs_statutory                              ///
-        D.(`controls'), nocons                                        ///
-        absorb(`absorb')                   ///
-        cluster(`cluster_vars')
+    reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_sh_mw_wkrs_statutory ///
+        c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_sh_mw_wkrs_statutory  ///
+        D.(`controls'), nocons                                          ///
+        absorb(`absorb') cluster(`cluster_vars')
     
-    process_estimates, res_var(mw_res_std_sh_mw_wkrs_statutory)                   ///
+    process_estimates, res_var(mw_res_std_sh_mw_wkrs_statutory)         ///
         wkp_var(mw_wkp_std_sh_mw_wkrs_statutory) model(het_mw_shares)
 
-    reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_med_hhld_inc_acs2014                    ///
-        c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_med_hhld_inc_acs2014                              ///
-        D.(`controls'), nocons                                        ///
-        absorb(`absorb')                   ///
-        cluster(`cluster_vars')
+    reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_med_hhld_inc_acs2014 ///
+        c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_med_hhld_inc_acs2014  ///
+        D.(`controls'), nocons                                          ///
+        absorb(`absorb') cluster(`cluster_vars')
     
-    process_estimates, res_var(mw_res_std_med_hhld_inc)                   ///
+    process_estimates, res_var(mw_res_std_med_hhld_inc)                 ///
         wkp_var(mw_wkp_std_med_hhld_inc) model(het_med_inc)
 
-	reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_sh_public_housing                  ///
-        c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_sh_public_housing                          ///
-        D.(`controls'), nocons                                        ///
+    reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_sh_public_housing    ///
+        c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_sh_public_housing     ///
+        D.(`controls'), nocons                                          ///
         absorb(year_month) cluster(`cluster_vars')
     
-    process_estimates, res_var(mw_res_high_public_hous)               ///
+    process_estimates, res_var(mw_res_high_public_hous)                 ///
         wkp_var(mw_wkp_high_public_hous) model(het_public_hous)
 
     use "../temp/estimates_static_both.dta", clear
