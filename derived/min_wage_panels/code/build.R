@@ -83,7 +83,7 @@ main <- function(){
      dt_year_zip, dt_year_zip_prev, dt_year_cnty, dt_year_cnty_prev)
 
   ## Save data
-  keep_vars <- names(mw_panel_zip)[!grepl("sh_", names(mw_panel_zip))]   
+  keep_vars <- names(mw_panel_zip)[!grepl("sh_|cbsa", names(mw_panel_zip))]   
   save_data(mw_panel_zip[, ..keep_vars],   
             key      = c("zipcode", "year", "month"),
             filename = file.path(outstub, "zip_statutory_mw.dta"),
@@ -91,7 +91,7 @@ main <- function(){
   fwrite(mw_panel_zip[, ..keep_vars],
          file = file.path(outstub, "zip_statutory_mw.csv"))
   
-  keep_vars <- names(mw_panel_cnty)[!grepl("sh_", names(mw_panel_cnty))]  
+  keep_vars <- names(mw_panel_cnty)[!grepl("sh_|cbsa", names(mw_panel_cnty))]  
   save_data(mw_panel_cnty[, ..keep_vars],  
             key      = c("countyfips", "year", "month"),
             filename = file.path(outstub, "county_statutory_mw.dta"),
@@ -115,7 +115,8 @@ load_geographies <- function(instub) {
   dt <- fread(file.path(instub, "census_block_master.csv"),
               select = list(character = c("statefips",  "countyfips", 
                                           "county_name", "block",
-                                          "place_code", "place_name", "zipcode"), 
+                                          "place_code", "place_name", 
+                                          "zipcode", "cbsa"), 
                             numeric   = "num_house10"))
   
   # Drop small % of census blocks do not have a zip code
@@ -179,7 +180,7 @@ collapse_data <- function(dt, key_vars = c("zipcode", "year", "month")) {
   dt[sum_houses_geo == 0, num_house10 := 1]
   dt[, sum_houses_geo := NULL]
 
-  dt <- dt[, .(statutory_mw            = weighted.mean(statutory_mw,             num_house10),
+  dt <- dt[, .(statutory_mw             = weighted.mean(statutory_mw,             num_house10),
                statutory_mw_ignorelocal = weighted.mean(statutory_mw_ignorelocal, num_house10),
                local_mw                 = weighted.mean(local_mw,                 num_house10),
                county_mw                = weighted.mean(county_mw,                num_house10),
@@ -208,10 +209,10 @@ compute_counterfactual <- function(dt) {
   dt <- rbindlist(list(dt_cf_2019, dt_cf_2020))
   rm(dt_cf_2019, dt_cf_2020)
   
-  dt[, fed_mw_cf_10pc  := fifelse(year == 2019, fed_mw, fed_mw*1.1)]
-  dt[, fed_mw_cf_9usd  := fifelse(year == 2019, fed_mw, 9)]
-  dt[, fed_mw_cf_15usd := fifelse(year == 2019, fed_mw, 15)]
-  
+  dt[, fed_mw_cf_10pc     := fifelse(year == 2019, fed_mw, fed_mw*1.1)]
+  dt[, fed_mw_cf_9usd     := fifelse(year == 2019, fed_mw, 9)]
+  dt[, fed_mw_cf_15usd    := fifelse(year == 2019, fed_mw, 15)]
+  dt[cbsa == "16980", county_mw_cf_chi14 := fifelse(year == 2019 & countyfips == "17031", county_mw, county_mw+1)]
   
   for (stub in c("_10pc", "_9usd", "_15usd")) {
     cf_mw_var <- paste0("fed_mw_cf", stub)
@@ -220,14 +221,18 @@ compute_counterfactual <- function(dt) {
     dt[, c(new_var) := pmax(local_mw, county_mw, state_mw, get(cf_mw_var), na.rm = T)]
   }
   
+  dt[cbsa == "16980", statutory_mw_cf_chi14 := pmax(local_mw, county_mw_cf_chi14, state_mw, fed_mw, na.rm = T)]
+  
   dt <- dt[, .(statutory_mw_cf_10pc  = weighted.mean(statutory_mw_cf_10pc,  num_house10),
                statutory_mw_cf_9usd  = weighted.mean(statutory_mw_cf_9usd,  num_house10),
                statutory_mw_cf_15usd = weighted.mean(statutory_mw_cf_15usd, num_house10),
+               statutory_mw_cf_chi14 = weighted.mean(statutory_mw_cf_chi14, num_house10),
                fed_mw_cf_10pc        = weighted.mean(fed_mw_cf_10pc,        num_house10),
                fed_mw_cf_9usd        = weighted.mean(fed_mw_cf_9usd,        num_house10),
                fed_mw_cf_15usd       = weighted.mean(fed_mw_cf_15usd,       num_house10),
                local_mw              = weighted.mean(local_mw,              num_house10),
                county_mw             = weighted.mean(county_mw,             num_house10),
+               county_mw_cf_chi14    = weighted.mean(county_mw_cf_chi14,    num_house10),
                state_mw              = weighted.mean(state_mw,              num_house10)),
            by = .(zipcode, year, month)]
   

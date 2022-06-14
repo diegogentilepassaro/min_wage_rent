@@ -15,7 +15,7 @@ main <- function(){
   geo   = "zipcode"
   w_var = paste0("w_", geo)
   r_var = paste0("r_", geo)
-  cf_stub <- c("10pc", "9usd", "15usd")
+  cf_stub <- c("10pc", "9usd", "15usd", "chi14")
   
   dt <- fread(file.path(in_mw, "zipcode_cfs.csv"),
                   colClasses = c(zipcode = "character"))
@@ -150,7 +150,12 @@ add_statutory_mw <- function(dt.wkp, dt, stub) {
   dt.wkp <- merge(dt.wkp, dt.res,
                   by = c("zipcode", "year_month"))
   
-  dt.wkp[, counterfactual := paste0("fed_", stub)]
+  if (stub == "chi14") {
+    dt.wkp[, counterfactual := "chi14"]  
+    dt.wkp <- dt.wkp[!is.na(get(statutory_mw_var))]
+  } else {
+    dt.wkp[, counterfactual := paste0("fed_", stub)]
+  }
   
   return(dt.wkp)
 }
