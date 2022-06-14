@@ -22,7 +22,13 @@ program main
         nogen keep(1 3)
     gen public_housing = (total_units > 0) if !missing(total_units)
     replace public_housing = 0 if missing(total_units)
-
+	gen sh_public_housing = total_units/n_hhlds_cens2010
+    replace sh_public_housing = 0 if missing(total_units)
+	qui sum sh_public_housing
+	local avg_sh_public_housing = r(mean)
+	local sd_sh_public_housing = r(sd)
+	gen std_sh_public_housing = (sh_public_housing - `avg_sh_public_housing')/`sd_sh_public_housing'
+		
     save_data "`outstub'/fullbal_sample_with_vars_for_het.dta",     ///
         key(zipcode year_month) replace log(none)
 end
@@ -41,7 +47,7 @@ program load_and_clean
     xtset zipcode_num year_month
 
     merge m:1 zipcode using "`incross'/zipcode_cross.dta", nogen       ///
-        keep(3) keepusing(sh_mw_wkrs_statutory med_hhld_inc_acs2014)
+        keep(3) keepusing(sh_mw_wkrs_statutory med_hhld_inc_acs2014 n_hhlds_cens2010)
 
     foreach var in sh_mw_wkrs_statutory med_hhld_inc_acs2014 {
 	    qui sum `var'

@@ -39,8 +39,8 @@ program main
     process_estimates, res_var(mw_res_std_med_hhld_inc)                   ///
         wkp_var(mw_wkp_std_med_hhld_inc) model(het_med_inc)
 
-	reghdfe D.ln_rents c.D.mw_res c.D.mw_res#1.public_housing                  ///
-        c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#1.public_housing                          ///
+	reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_sh_public_housing                  ///
+        c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_sh_public_housing                          ///
         D.(`controls'), nocons                                        ///
         absorb(year_month) cluster(`cluster_vars')
     
