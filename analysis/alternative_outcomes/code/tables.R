@@ -31,8 +31,9 @@ main <- function() {
   close(fileConn)
   
   
-  models <- c("tot_res_accomm_food", "tot_wkp_accomm_food", 
-              "tot_res_underHS",     "tot_wkp_underHS")
+  models <- c("ln_res_jobs_tot", "ln_wkp_jobs_tot",
+              "ln_res_jobs_naics_ac_food", "ln_wkp_jobs_naics_ac_food", 
+              "ln_res_jobs_sch_underHS",     "ln_wkp_jobs_sch_underHS")
   
   txt <- c("<tab:total_migration>")
   

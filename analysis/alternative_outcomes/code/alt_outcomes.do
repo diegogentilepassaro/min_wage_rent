@@ -17,12 +17,14 @@ program main
 
     xtset zipcode_num year
 
-    foreach cat in accomm_food underHS {
-        gen tot_res_`cat' = ln(res_jobs_tot * sh_residents_`cat')
-        gen tot_wkp_`cat' = ln(wkp_jobs_tot * sh_workers_`cat')
-    }
-
-    local depvars tot_wkp_underHS tot_res_underHS tot_wkp_accomm_food tot_res_accomm_food
+    local depvars wkp_jobs_sch_underHS res_jobs_sch_underHS wkp_jobs_naics_ac_food res_jobs_naics_ac_food
+	
+	foreach depvar of local depvars {
+	    gen ln_`depvar' = log(`depvar')
+	}
+	
+	local depvars ln_wkp_jobs_sch_underHS ln_res_jobs_sch_underHS ln_wkp_jobs_naics_ac_food ///
+	    ln_res_jobs_naics_ac_food ln_wkp_jobs_tot ln_res_jobs_tot
 
     foreach depvar of local depvars {
 
@@ -42,8 +44,9 @@ program main
 
     use "../temp/estimates_sh_residents_accomm_food.dta", clear
     gen p_equality = .
-    foreach ff in sh_workers_accomm_food sh_residents_underHS sh_workers_underHS tot_wkp_underHS ///
-        tot_res_underHS tot_wkp_accomm_food tot_res_accomm_food {
+    foreach ff in sh_workers_accomm_food sh_residents_underHS sh_workers_underHS   ///
+        ln_wkp_jobs_sch_underHS ln_res_jobs_sch_underHS ln_wkp_jobs_naics_ac_food  ///
+	    ln_res_jobs_naics_ac_food ln_wkp_jobs_tot ln_res_jobs_tot {
         append using ../temp/estimates_`ff'.dta
     }
     save             "`outstub'/estimates_static.dta", replace
