@@ -113,9 +113,8 @@ main <- function(){
 load_geographies <- function(instub) {
   
   dt <- fread(file.path(instub, "census_block_master.csv"),
-              select = list(character = c("statefips",  "countyfips", 
-                                          "county_name", "block",
-                                          "place_code", "place_name", 
+              select = list(character = c("statefips", "countyfips", "county_name", 
+                                          "block", "place_code", "place_name", 
                                           "zipcode", "cbsa"), 
                             numeric   = "num_house10"))
   
@@ -198,7 +197,7 @@ collapse_data <- function(dt, key_vars = c("zipcode", "year", "month")) {
 
 compute_counterfactual <- function(dt) {
 
-  dt <- dt[, .(block, zipcode, num_house10,
+  dt <- dt[, .(block, zipcode, cbsa, countyfips, num_house10,
                fed_mw, state_mw, county_mw, local_mw, statutory_mw)]
   
   dt_cf_2019 <- copy(dt)
@@ -212,7 +211,6 @@ compute_counterfactual <- function(dt) {
   dt[, fed_mw_cf_10pc     := fifelse(year == 2019, fed_mw, fed_mw*1.1)]
   dt[, fed_mw_cf_9usd     := fifelse(year == 2019, fed_mw, 9)]
   dt[, fed_mw_cf_15usd    := fifelse(year == 2019, fed_mw, 15)]
-  dt[cbsa == "16980", county_mw_cf_chi14 := fifelse(year == 2019 & countyfips == "17031", county_mw, county_mw+1)]
   
   for (stub in c("_10pc", "_9usd", "_15usd")) {
     cf_mw_var <- paste0("fed_mw_cf", stub)
@@ -221,7 +219,10 @@ compute_counterfactual <- function(dt) {
     dt[, c(new_var) := pmax(local_mw, county_mw, state_mw, get(cf_mw_var), na.rm = T)]
   }
   
-  dt[cbsa == "16980", statutory_mw_cf_chi14 := pmax(local_mw, county_mw_cf_chi14, state_mw, fed_mw, na.rm = T)]
+  dt[cbsa == "16980", 
+     county_mw_cf_chi14    := fifelse(year == 2019 & countyfips == "17031", county_mw, county_mw + 1)]
+  dt[cbsa == "16980", 
+     statutory_mw_cf_chi14 := pmax(local_mw, county_mw_cf_chi14, state_mw, fed_mw, na.rm = T)]
   
   dt <- dt[, .(statutory_mw_cf_10pc  = weighted.mean(statutory_mw_cf_10pc,  num_house10),
                statutory_mw_cf_9usd  = weighted.mean(statutory_mw_cf_9usd,  num_house10),
@@ -236,7 +237,10 @@ compute_counterfactual <- function(dt) {
                state_mw              = weighted.mean(state_mw,              num_house10)),
            by = .(zipcode, year, month)]
   
+  dt[, c("cbsa", "countyfips") := NULL]
+  
   return(dt)
 }
+
 
 main()

@@ -1,5 +1,5 @@
 
- make.py started: 2022-06-09 08:24:21 C:\Users\diegog\Desktop\Diego\min_wage_rent\derived\min_wage_panels\code 
+ make.py started: 2022-06-14 12:32:05 C:\Users\shermo\Documents\GitHub\min_wage_rent\derived\min_wage_panels\code 
 
 
 
@@ -72,8 +72,7 @@ The following objects are masked from 'package:base':
 +   
 +   start_ym <- c(2010, 1)
 +   end_ym   <- c(2020, 12)
-+   
-+   cf_ym <- c(2019, 12)
++   cf_ym    <- c(2019, 12)  
 +   
 +   dt_geo <- load_geographies(in_master)
 +   dt_mw  <- load_mw(in_mw_data)
@@ -138,7 +137,7 @@ The following objects are masked from 'package:base':
 +      dt_year_zip, dt_year_zip_prev, dt_year_cnty, dt_year_cnty_prev)
 + 
 +   ## Save data
-+   keep_vars <- names(mw_panel_zip)[!grepl("sh_", names(mw_panel_zip))]   
++   keep_vars <- names(mw_panel_zip)[!grepl("sh_|cbsa", names(mw_panel_zip))]   
 +   save_data(mw_panel_zip[, ..keep_vars],   
 +             key      = c("zipcode", "year", "month"),
 +             filename = file.path(outstub, "zip_statutory_mw.dta"),
@@ -146,7 +145,7 @@ The following objects are masked from 'package:base':
 +   fwrite(mw_panel_zip[, ..keep_vars],
 +          file = file.path(outstub, "zip_statutory_mw.csv"))
 +   
-+   keep_vars <- names(mw_panel_cnty)[!grepl("sh_", names(mw_panel_cnty))]  
++   keep_vars <- names(mw_panel_cnty)[!grepl("sh_|cbsa", names(mw_panel_cnty))]  
 +   save_data(mw_panel_cnty[, ..keep_vars],  
 +             key      = c("countyfips", "year", "month"),
 +             filename = file.path(outstub, "county_statutory_mw.dta"),
@@ -168,9 +167,9 @@ The following objects are masked from 'package:base':
 > load_geographies <- function(instub) {
 +   
 +   dt <- fread(file.path(instub, "census_block_master.csv"),
-+               select = list(character = c("statefips",  "countyfips", 
-+                                           "county_name", "block",
-+                                           "place_code", "place_name", "zipcode"), 
++               select = list(character = c("statefips", "countyfips", "county_name", 
++                                           "block", "place_code", "place_name", 
++                                           "zipcode", "cbsa"), 
 +                             numeric   = "num_house10"))
 +   
 +   # Drop small % of census blocks do not have a zip code
@@ -234,7 +233,7 @@ The following objects are masked from 'package:base':
 +   dt[sum_houses_geo == 0, num_house10 := 1]
 +   dt[, sum_houses_geo := NULL]
 + 
-+   dt <- dt[, .(statutory_mw            = weighted.mean(statutory_mw,             num_house10),
++   dt <- dt[, .(statutory_mw             = weighted.mean(statutory_mw,             num_house10),
 +                statutory_mw_ignorelocal = weighted.mean(statutory_mw_ignorelocal, num_house10),
 +                local_mw                 = weighted.mean(local_mw,                 num_house10),
 +                county_mw                = weighted.mean(county_mw,                num_house10),
@@ -252,7 +251,7 @@ The following objects are masked from 'package:base':
 > 
 > compute_counterfactual <- function(dt) {
 + 
-+   dt <- dt[, .(block, zipcode, num_house10,
++   dt <- dt[, .(block, zipcode, cbsa, countyfips, num_house10,
 +                fed_mw, state_mw, county_mw, local_mw, statutory_mw)]
 +   
 +   dt_cf_2019 <- copy(dt)
@@ -263,10 +262,9 @@ The following objects are masked from 'package:base':
 +   dt <- rbindlist(list(dt_cf_2019, dt_cf_2020))
 +   rm(dt_cf_2019, dt_cf_2020)
 +   
-+   dt[, fed_mw_cf_10pc  := fifelse(year == 2019, fed_mw, fed_mw*1.1)]
-+   dt[, fed_mw_cf_9usd  := fifelse(year == 2019, fed_mw, 9)]
-+   dt[, fed_mw_cf_15usd := fifelse(year == 2019, fed_mw, 15)]
-+   
++   dt[, fed_mw_cf_10pc     := fifelse(year == 2019, fed_mw, fed_mw*1.1)]
++   dt[, fed_mw_cf_9usd     := fifelse(year == 2019, fed_mw, 9)]
++   dt[, fed_mw_cf_15usd    := fifelse(year == 2019, fed_mw, 15)]
 +   
 +   for (stub in c("_10pc", "_9usd", "_15usd")) {
 +     cf_mw_var <- paste0("fed_mw_cf", stub)
@@ -275,19 +273,29 @@ The following objects are masked from 'package:base':
 +     dt[, c(new_var) := pmax(local_mw, county_mw, state_mw, get(cf_mw_var), na.rm = T)]
 +   }
 +   
++   dt[cbsa == "16980", 
++      county_mw_cf_chi14    := fifelse(year == 2019 & countyfips == "17031", county_mw, county_mw + 1)]
++   dt[cbsa == "16980", 
++      statutory_mw_cf_chi14 := pmax(local_mw, county_mw_cf_chi14, state_mw, fed_mw, na.rm = T)]
++   
 +   dt <- dt[, .(statutory_mw_cf_10pc  = weighted.mean(statutory_mw_cf_10pc,  num_house10),
 +                statutory_mw_cf_9usd  = weighted.mean(statutory_mw_cf_9usd,  num_house10),
 +                statutory_mw_cf_15usd = weighted.mean(statutory_mw_cf_15usd, num_house10),
++                statutory_mw_cf_chi14 = weighted.mean(statutory_mw_cf_chi14, num_house10),
 +                fed_mw_cf_10pc        = weighted.mean(fed_mw_cf_10pc,        num_house10),
 +                fed_mw_cf_9usd        = weighted.mean(fed_mw_cf_9usd,        num_house10),
 +                fed_mw_cf_15usd       = weighted.mean(fed_mw_cf_15usd,       num_house10),
 +                local_mw              = weighted.mean(local_mw,              num_house10),
 +                county_mw             = weighted.mean(county_mw,             num_house10),
++                county_mw_cf_chi14    = weighted.mean(county_mw_cf_chi14,    num_house10),
 +                state_mw              = weighted.mean(state_mw,              num_house10)),
 +            by = .(zipcode, year, month)]
 +   
++   dt[, c("cbsa", "countyfips") := NULL]
++   
 +   return(dt)
 + }
+> 
 > 
 > main()
 [1] "Computing MW for year 2010 and month 1"
@@ -353,9 +361,14 @@ The following objects are masked from 'package:base':
 [1] "File '../../../drive/derived_large/min_wage_panels/zip_statutory_mw.dta' saved successfully."
 [1] "File '../../../drive/derived_large/min_wage_panels/county_statutory_mw.dta' saved successfully."
 [1] "File '../../../drive/derived_large/min_wage_panels/zipcode_cfs.dta' saved successfully."
+Warning messages:
+1: In `[.data.table`(dt, , `:=`(c("cbsa", "countyfips"), NULL)) :
+  Column 'cbsa' does not exist to remove
+2: In `[.data.table`(dt, , `:=`(c("cbsa", "countyfips"), NULL)) :
+  Column 'countyfips' does not exist to remove
 > 
 > proc.time()
    user  system elapsed 
-3475.29 1076.25 4096.46 
+2587.23  705.60 2507.23 
 
- make.py ended: 2022-06-09 09:32:42
+ make.py ended: 2022-06-14 13:13:55
