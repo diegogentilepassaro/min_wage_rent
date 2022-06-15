@@ -12,7 +12,7 @@ program main
 
     substate_min_wage_change, instub(`raw') outstub(`temp') temp(`temp')
     prepare_local, temp(`temp')
-    prepare_state, outstub(`outstub') temp(`temp') finaldate(31Jan2020)
+    prepare_state, outstub(`outstub') temp(`temp') finaldate(31Dec2020)
 
     local mw_list = "mw mw_smallbusiness"
     prepare_finaldata, temp(`temp') finaldate(31Jan2020) target_mw(`mw_list')
