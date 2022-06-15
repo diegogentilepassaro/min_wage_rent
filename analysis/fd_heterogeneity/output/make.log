@@ -1,5 +1,5 @@
 
- make.py started: 2022-06-14 09:10:05 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\fd_heterogeneity\code 
+ make.py started: 2022-06-15 07:23:41 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\fd_heterogeneity\code 
 
 
 
@@ -76,19 +76,12 @@ running c:\ado\personal\profile.do ...
  11. 
 .     merge m:1 zipcode using "`outstub'/public_housing_2017.dta",    ///
 >         nogen keep(1 3)
- 12.     gen public_housing = (total_units > 0) if !missing(total_units)
- 13.     replace public_housing = 0 if missing(total_units)
- 14.         gen sh_public_housing = total_units/n_hhlds_cens2010
- 15.     replace sh_public_housing = 0 if missing(total_units)
- 16.         qui sum sh_public_housing
- 17.         local avg_sh_public_housing = r(mean)
- 18.         local sd_sh_public_housing = r(sd)
- 19.         gen std_sh_public_housing = (sh_public_housing - `avg_sh_public_ho
-> using')/`sd_sh_public_housing'
- 20.                 
+ 12. 
+.     prepare_public_housing
+ 13. 
 .     save_data "`outstub'/fullbal_sample_with_vars_for_het.dta",     ///
 >         key(zipcode year_month) replace log(none)
- 21. end
+ 14. end
 
 . 
 . 
@@ -118,6 +111,22 @@ running c:\ado\personal\profile.do ...
  14. end
 
 . 
+. program prepare_public_housing
+  1. 
+.     gen     public_housing = (total_units > 0) if !missing(total_units)
+  2.     replace public_housing = 0 if missing(total_units)
+  3. 
+.     gen     sh_public_housing = total_units/n_hhlds_cens2010
+  4.     replace sh_public_housing = 0 if missing(total_units)
+  5. 
+.     qui sum sh_public_housing
+  6.     local avg_sh_public_housing = r(mean)
+  7.     local sd_sh_public_housing  = r(sd)
+  8. 
+.     gen std_sh_public_housing   = (sh_public_housing - `avg_sh_public_housing
+> ')/`sd_sh_public_housing'
+  9. end
+
 . 
 . main
 (310,972 observations deleted)
@@ -291,45 +300,42 @@ running c:\ado\personal\profile.do ...
 >         controls(`controls') absorb(`absorb') cluster(`cluster_vars') ///
 >         model_name(static_both)
  10.         
-.     reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_sh_mw_wkrs_statutory      
->               ///
->         c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_sh_mw_wkrs_statutory       
->                        ///
->         D.(`controls'), nocons                                        ///
->         absorb(`absorb')                   ///
->         cluster(`cluster_vars')
- 11.     
-.     process_estimates, res_var(mw_res_std_sh_mw_wkrs_statutory)              
->      ///
+.     reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_sh_mw_wkrs_statutory ///
+>         c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_sh_mw_wkrs_statutory  ///
+>         D.(`controls'), nocons                                          ///
+>         absorb(`absorb') cluster(`cluster_vars')
+ 11.         process_sum, het_var(std_sh_mw_wkrs_statutory) ///
+>                 model(het_mw_shares)
+ 12.     process_estimates, res_var(mw_res_std_sh_mw_wkrs_statutory)         //
+> /
 >         wkp_var(mw_wkp_std_sh_mw_wkrs_statutory) model(het_mw_shares)
- 12. 
-.     reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_med_hhld_inc_acs2014      
->               ///
->         c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_med_hhld_inc_acs2014       
->                        ///
->         D.(`controls'), nocons                                        ///
->         absorb(`absorb')                   ///
->         cluster(`cluster_vars')
- 13.     
-.     process_estimates, res_var(mw_res_std_med_hhld_inc)                   ///
+ 13. 
+.     reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_med_hhld_inc_acs2014 ///
+>         c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_med_hhld_inc_acs2014  ///
+>         D.(`controls'), nocons                                          ///
+>         absorb(`absorb') cluster(`cluster_vars')
+ 14.         process_sum, het_var(std_med_hhld_inc_acs2014) ///
+>                 model(het_med_inc)   
+ 15.     process_estimates, res_var(mw_res_std_med_hhld_inc)                 //
+> /
 >         wkp_var(mw_wkp_std_med_hhld_inc) model(het_med_inc)
- 14. 
-.         reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_sh_public_housing     
->              ///
->         c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_sh_public_housing          
->                 ///
->         D.(`controls'), nocons                                        ///
->         absorb(year_month) cluster(`cluster_vars')
- 15.     
-.     process_estimates, res_var(mw_res_high_public_hous)               ///
->         wkp_var(mw_wkp_high_public_hous) model(het_public_hous)
  16. 
+.     reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_sh_public_housing    ///
+>         c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_sh_public_housing     ///
+>         D.(`controls'), nocons                                          ///
+>         absorb(year_month) cluster(`cluster_vars')
+ 17.         process_sum, het_var(std_sh_public_housing) ///
+>                 model(het_public_hous)    
+ 18.     process_estimates, res_var(mw_res_high_public_hous)                 //
+> /
+>         wkp_var(mw_wkp_high_public_hous) model(het_public_hous)
+ 19. 
 .     use "../temp/estimates_static_both.dta", clear
- 17.     append using "../temp/estimates_het_mw_shares.dta"
- 18.     append using "../temp/estimates_het_public_hous.dta"
- 19.     append using "../temp/estimates_het_med_inc.dta"
- 20.     export delimited "../output/estimates_het.csv", replace
- 21. end
+ 20.     append using "../temp/estimates_het_mw_shares.dta"
+ 21.     append using "../temp/estimates_het_public_hous.dta"
+ 22.     append using "../temp/estimates_het_med_inc.dta"
+ 23.     export delimited "../output/estimates_het.csv", replace
+ 24. end
 
 . 
 . program process_estimates
@@ -354,10 +360,32 @@ running c:\ado\personal\profile.do ...
 .         gen N = `N'
  15.         gen r2 = `r2'
  16.         gen model = "`model'"
- 17. 
-.         save "../temp/estimates_`model'.dta", replace
- 18.     restore
- 19. end
+ 17.                 
+.                 append using "../temp/sum_`model'.dta"
+ 18.         save "../temp/estimates_`model'.dta", replace
+ 19.     restore
+ 20. end
+
+. 
+. program process_sum
+  1.     syntax, het_var(str) model(str)
+  2. 
+.     lincom c.D.mw_res + c.D.mw_res#c.`het_var'
+  3.     matrix sum_res = (0, r(estimate), r(se))
+  4.         lincom c.D.mw_wkp_tot_17 + c.D.mw_wkp_tot_17#c.`het_var'
+  5.     matrix sum_wkp = (0, r(estimate), r(se))
+  6.     matrix sum = (sum_res \ sum_wkp)
+  7.         preserve
+  8.             svmat sum
+  9.                 keep sum1 sum2 sum3
+ 10.                 rename (sum1 sum2 sum3) (at b se)
+ 11.                 drop if missing(at)
+ 12.         gen     var = "sum_res"  
+ 13.         replace var = "sum_wkp" if _n == 2
+ 14.         gen model = "`model'"
+ 15.             save "../temp/sum_`model'.dta", replace
+ 16.         restore
+ 17. end
 
 . 
 . main
@@ -510,11 +538,32 @@ Absorbed degrees of freedom:
 -------------+---------------------------------------|
   year_month |        59           0          59     |
 -----------------------------------------------------+
+
+ ( 1)  D.mw_res + cD.mw_res#c.std_sh_mw_wkrs_statutory = 0
+
+------------------------------------------------------------------------------
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |  -.1237426   .0553154    -2.24   0.031    -.2357228   -.0117623
+------------------------------------------------------------------------------
+
+ ( 1)  D.mw_wkp_tot_17 + cD.mw_wkp_tot_17#c.std_sh_mw_wkrs_statutory = 0
+
+------------------------------------------------------------------------------
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .1769847   .0672777     2.63   0.012     .0407881    .3131812
+------------------------------------------------------------------------------
+(80,698 observations deleted)
+(1 real change made)
+(note: file ../temp/sum_het_mw_shares.dta not found)
+file ../temp/sum_het_mw_shares.dta saved
 (80,696 observations deleted)
 (0 observations deleted)
 (4 real changes made)
 (2 real changes made)
 (2 real changes made)
+(note: variable at was byte, now float to accommodate using data's values)
 (note: file ../temp/estimates_het_mw_shares.dta not found)
 file ../temp/estimates_het_mw_shares.dta saved
 (MWFE estimator converged in 1 iterations)
@@ -581,11 +630,32 @@ Absorbed degrees of freedom:
 -------------+---------------------------------------|
   year_month |        59           0          59     |
 -----------------------------------------------------+
+
+ ( 1)  D.mw_res + cD.mw_res#c.std_med_hhld_inc_acs2014 = 0
+
+------------------------------------------------------------------------------
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0184468   .0226524     0.81   0.420     -.027372    .0642656
+------------------------------------------------------------------------------
+
+ ( 1)  D.mw_wkp_tot_17 + cD.mw_wkp_tot_17#c.std_med_hhld_inc_acs2014 = 0
+
+------------------------------------------------------------------------------
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0200124   .0284503     0.70   0.486    -.0375338    .0775586
+------------------------------------------------------------------------------
+(80,698 observations deleted)
+(1 real change made)
+(note: file ../temp/sum_het_med_inc.dta not found)
+file ../temp/sum_het_med_inc.dta saved
 (80,696 observations deleted)
 (0 observations deleted)
 (4 real changes made)
 (2 real changes made)
 (2 real changes made)
+(note: variable at was byte, now float to accommodate using data's values)
 (note: file ../temp/estimates_het_med_inc.dta not found)
 file ../temp/estimates_het_med_inc.dta saved
 (MWFE estimator converged in 1 iterations)
@@ -652,11 +722,32 @@ Absorbed degrees of freedom:
 -------------+---------------------------------------|
   year_month |        59           0          59     |
 -----------------------------------------------------+
+
+ ( 1)  D.mw_res + cD.mw_res#c.std_sh_public_housing = 0
+
+------------------------------------------------------------------------------
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |  -.0472927   .0370075    -1.28   0.209    -.1220877    .0275023
+------------------------------------------------------------------------------
+
+ ( 1)  D.mw_wkp_tot_17 + cD.mw_wkp_tot_17#c.std_sh_public_housing = 0
+
+------------------------------------------------------------------------------
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0940915   .0469413     2.00   0.052    -.0007805    .1889635
+------------------------------------------------------------------------------
+(80,698 observations deleted)
+(1 real change made)
+(note: file ../temp/sum_het_public_hous.dta not found)
+file ../temp/sum_het_public_hous.dta saved
 (80,696 observations deleted)
 (0 observations deleted)
 (4 real changes made)
 (2 real changes made)
 (2 real changes made)
+(note: variable at was byte, now float to accommodate using data's values)
 (note: file ../temp/estimates_het_public_hous.dta not found)
 file ../temp/estimates_het_public_hous.dta saved
 (note: variable var was str13, now str31 to accommodate using data's values)
@@ -788,6 +879,6 @@ Type 'q()' to quit R.
 > 
 > proc.time()
    user  system elapsed 
-   0.73    0.20    0.98 
+   0.56    0.18    0.71 
 
- make.py ended: 2022-06-14 09:10:22
+ make.py ended: 2022-06-15 07:23:55
