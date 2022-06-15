@@ -18,7 +18,7 @@ main <- function(){
   cf_stub <- c("10pc", "9usd", "15usd", "chi14")
   
   dt <- fread(file.path(in_mw, "zipcode_cfs.csv"),
-                  colClasses = c(zipcode = "character"))
+              colClasses = c(zipcode = "character"))
   dt[, year_month := as.yearmon(paste0(year, "-", month))]
   
   periods <- unique(dt$year_month)
@@ -112,12 +112,12 @@ compute_wkp_mw_ym <- function(ym, odm, dt_geo, stub, jobs_vars,
   mw_var <- paste0("statutory_mw_cf_", stub)      
   
   dt_ym <- dt_geo[year_month == ym, ]             # Select given date
-  dt_ym[, c(.w_var) := get(.geo)]                  # Create matching variable
+  dt_ym[, c(.w_var) := get(.geo)]                 # Create matching variable
 
   vars_to_keep <- c(.w_var, mw_var, "year_month")
   dt_ym <- dt_ym[, ..vars_to_keep]
 
-  dt_ym <- dt_ym[odm, on = .w_var]         # Paste MW to every residence(h)-workplace(w) combination in 'dt_od'
+  dt_ym <- dt_ym[odm, on = .w_var]        # Paste MW to every residence(h)-workplace(w) combination in 'dt_od'
   dt_ym <- dt_ym[!is.na(year_month),]     # Drop missings (geo not showing up in mw data)
 
   dt_ym <- dt_ym[,
@@ -152,7 +152,7 @@ add_statutory_mw <- function(dt.wkp, dt, stub) {
   
   if (stub == "chi14") {
     dt.wkp[, counterfactual := "chi14"]  
-    dt.wkp <- dt.wkp[!is.na(get(statutory_mw_var))]
+    dt.wkp <- dt.wkp[!is.na(statutory_mw)]
   } else {
     dt.wkp[, counterfactual := paste0("fed_", stub)]
   }
