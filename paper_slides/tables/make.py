@@ -40,6 +40,7 @@ fd_cf_dir            = "../../analysis/counterfactuals/output"
 fd_robust_dir        = "../../analysis/fd_robustness/output"
 fd_county_dir        = "../../analysis/fd_county/output"
 fd_het_dir           = "../../analysis/fd_heterogeneity/output"
+migration_dir        = "../../analysis/alternative_outcomes/output"
 
 tablefill(input    = os.path.join(desc_est_samples_dir, "stats_zip_samples.txt"), 
           template = "input/stats_zip_samples.tex", 
@@ -73,13 +74,13 @@ tablefill(input    = os.path.join(fd_robust_dir, "static_sample.txt"),
           template = "input/static_sample.tex",
           output   = "output/static_sample.tex")
 
+tablefill(input    = os.path.join(fd_robust_dir, "arellano_bond.txt"),
+          template = "input/arellano_bond.tex", 
+          output   = "output/arellano_bond.tex")
+
 tablefill(input    = os.path.join(fd_robust_dir, "static_sample.txt"),
           template = "input/slides_static_sample.tex",
           output   = "output/slides_static_sample.tex")
-
-tablefill(input    = os.path.join(fd_robust_dir, "static_ab.txt"),
-          template = "input/static_ab.tex", 
-          output   = "output/static_ab.tex")
 
 tablefill(input    = os.path.join(fd_geos_times, "static_geos_times.txt"),
           template = "input/static_geos_times.tex",
@@ -101,10 +102,6 @@ tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals_fed_9usd.txt"),
           template = "input/counterfactuals_fed_9usd.tex",
           output   = "output/counterfactuals_fed_9usd.tex")
 
-tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals_fed_9usd.txt"),
-          template = "input/slides_counterfactuals_fed_9usd.tex",
-          output   = "output/slides_counterfactuals_fed_9usd.tex")
-
 tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals_other.txt"),
           template = "input/counterfactuals_other.tex",
           output   = "output/counterfactuals_other.tex")
@@ -112,6 +109,14 @@ tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals_other.txt"),
 tablefill(input    = os.path.join(fd_het_dir, "heterogeneity.txt"), 
           template = "input/heterogeneity.tex", 
           output   = "output/heterogeneity.tex")
+
+tablefill(input    = os.path.join(migration_dir, "share_migration.txt"), 
+          template = "input/share_migration.tex", 
+          output   = "output/share_migration.tex")
+
+tablefill(input    = os.path.join(migration_dir, "total_migration.txt"), 
+          template = "input/total_migration.tex", 
+          output   = "output/total_migration.tex")
 
 end_make_logging()
 

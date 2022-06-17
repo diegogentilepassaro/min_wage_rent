@@ -14,37 +14,37 @@ main <- function() {
   varchar <- c("zipcode", "countyfips", "statefips", "place_code", "year_month")
   varnum <-  c("statutory_mw", "binding_mw", "binding_mw_max", 
                "mw_res", "mw_wkp_tot_17", "mw_wkp_age_under29_17", 
-               "mw_wkp_earn_under1250_17","baseline_sample", "fullbal_sample")
-
+               "mw_wkp_earn_under1250_17", "fullbal_sample_SFCC",
+               "unbalanced_sample_SFCC")
+  
   dt <- fread(file.path(in_sample, 'zipcode_months.csv'),
-                colClasses = list(character = varchar,
-                                  numeric   = varnum))
+              colClasses = list(character = varchar,
+                                numeric   = varnum))
   
   # Correlation matrix  
-  vars <- c("mw_wkp_tot_17", "mw_wkp_age_under29_17", "mw_wkp_earn_under1250_17")  
-  corrmatrix <- cor(dt[, ..vars])
+  vars <- c("mw_wkp_tot_17", "mw_wkp_age_under29_17", "mw_wkp_earn_under1250_17")
+  dt_unbal <- dt[unbalanced_sample_SFCC == 1]
+  corrmatrix <- cor(na.omit(dt_unbal[, ..vars]))
   
   stargazer::stargazer(corrmatrix, summary = F, digits = 4,
                        type = "text",
                        out  = file.path(outstub, "corrmatrix.txt"))
   
-  
-  # MW summary statistics  
+  # MW summary statistics
   geographies <- c("state", "county", "local")
   
   old_names <- c("statefips", "countyfips", "place_code")
   
   setnames(dt, old_names, geographies)
   
-  dt[, event_mw := fifelse(statutory_mw > shift(statutory_mw), 1, 0),
-       by = "zipcode"]
-  
   output_summary <- ""
   
-  for (panels in c("Unbalanced", "Fully Balanced", "Baseline")) {
+  for (panels in c("Unbalanced", "Baseline")) {
     output_summary <- paste0(output_summary, count_events(dt, panels, geographies))
     output_summary <- paste0(output_summary, count_local(dt, panels))
   }
+  
+  dt <- filter_data(dt, "Unbalanced")$dt_sample
   
   # Average percent change among Zillow ZIP codes (line 143 of data_sample.tex)  
   dt[, mean_mw := fifelse(event_mw == 1, statutory_mw / shift(statutory_mw), 0)]  
@@ -65,7 +65,7 @@ count_events <- function(data, panel, geographies) {
   sample_data <- filter_data(data, panel)
   short_name  <- sample_data$short_name
   dt_sample   <- sample_data$dt_sample
-
+  
   events <- sum(dt_sample$event_mw, na.rm = T)
   
   text <- write_command(paste0("ZIPMWevents", short_name), format(events, big.mark = ','))
@@ -87,39 +87,39 @@ count_events <- function(data, panel, geographies) {
     
     output_events <- paste0(output_events, text)    
   }
-
+  
   return(output_events)
 }
 
 
 count_local <- function(data, panel) {
-
+  
   sample_data <- filter_data(data, panel)
   short_name  <- sample_data$short_name
   dt_sample   <- sample_data$dt_sample
-
+  
   data_agg <- dt_sample[binding_mw_max %in% c(3, 4),
                         .(event_local = max(event_mw)),
                         by = c("county", "year_month")]
   
   events <- sum(data_agg$event_local, na.rm = T)
-    
+  
   return(write_command(paste0("CityCountyMWevents", short_name), format(events, big.mark = ',')))
 }
 
 filter_data <- function(data, panel) {
-
+  
   if (panel == "Unbalanced") {
-    dt_sample  <- data
+    dt_sample  <- data[unbalanced_sample_SFCC == 1]
     short_name <- "Unbal"
-  } else if (panel == "Fully Balanced") {
-    dt_sample  <- data[fullbal_sample == 1]
-    short_name <- "Fullbal"
   } else if (panel == "Baseline") {
-    dt_sample  <- data[baseline_sample == 1]
+    dt_sample  <- data[fullbal_sample_SFCC == 1]
     short_name <- "Base"
   }
-
+  
+  dt_sample[, event_mw := fifelse(statutory_mw > shift(statutory_mw), 1, 0),
+            by = "zipcode"]
+  
   return(list("dt_sample" = dt_sample, "short_name" = short_name))
 }
 
