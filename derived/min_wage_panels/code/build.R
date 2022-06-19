@@ -219,10 +219,8 @@ compute_counterfactual <- function(dt) {
     dt[, c(new_var) := pmax(local_mw, county_mw, state_mw, get(cf_mw_var), na.rm = T)]
   }
   
-  dt[cbsa == "16980", 
-     county_mw_cf_chi14    := fifelse(year == 2019 & countyfips == "17031", county_mw, county_mw + 1)]
-  dt[cbsa == "16980", 
-     statutory_mw_cf_chi14 := pmax(local_mw, county_mw_cf_chi14, state_mw, fed_mw, na.rm = T)]
+  dt[, local_mw_cf_chi14     := fifelse(year == 2019 & place_code == "1714000", local_mw, local_mw + 1)]
+  dt[, statutory_mw_cf_chi14 := pmax(local_mw_cf_chi14, county_mw, state_mw, fed_mw, na.rm = T)]
   
   dt <- dt[, .(statutory_mw_cf_10pc  = weighted.mean(statutory_mw_cf_10pc,  num_house10),
                statutory_mw_cf_9usd  = weighted.mean(statutory_mw_cf_9usd,  num_house10),
@@ -232,8 +230,8 @@ compute_counterfactual <- function(dt) {
                fed_mw_cf_9usd        = weighted.mean(fed_mw_cf_9usd,        num_house10),
                fed_mw_cf_15usd       = weighted.mean(fed_mw_cf_15usd,       num_house10),
                local_mw              = weighted.mean(local_mw,              num_house10),
+               local_mw_cf_chi14     = weighted.mean(local_mw_cf_chi14,     num_house10),
                county_mw             = weighted.mean(county_mw,             num_house10),
-               county_mw_cf_chi14    = weighted.mean(county_mw_cf_chi14,    num_house10),
                state_mw              = weighted.mean(state_mw,              num_house10)),
            by = .(zipcode, year, month)]
   
