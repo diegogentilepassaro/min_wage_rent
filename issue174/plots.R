@@ -7,7 +7,7 @@ library(ggplot2)
 dt_month      <- fread("../drive/analysis_large/non_parametric/data_any_change_in_month.csv ")
 dt_cbsa_month <- fread("../drive/analysis_large/non_parametric/data_any_change_in_cbsa_month.csv ")
 
-for (var in names(dt_cbsa_month)[grepl("decile", names(dt_cbsa_month))]) {
+for (var in names(dt_cbsa_month)[grepl("decile|50group", names(dt_cbsa_month))]) {
   dt_cbsa_month[, c(var) := as.factor(get(var))]
 }
 
@@ -20,10 +20,10 @@ dt_cbsa_month <- dt_cbsa_month[!is.na(d_ln_rents)
 ## Workplace MW
 
 dt_cbsa_month[, d_mw_wkp_resid_mw_res_dec := resid(
-  feols(d_mw_wkp ~ - 1 | mw_res_deciles, dt_cbsa_month)
+  feols(d_mw_wkp ~ -1 | mw_res_50groups, dt_cbsa_month)
 )]
 dt_cbsa_month[, d_ln_rents_resid_mw_res_dec := resid(
-  feols(d_ln_rents ~ - 1 | mw_res_deciles, dt_cbsa_month)
+  feols(d_ln_rents ~ -1 | mw_res_50groups, dt_cbsa_month)
 )]
 
 for (stub in c("", "_resid_mw_res_dec")) {
@@ -37,7 +37,7 @@ for (stub in c("", "_resid_mw_res_dec")) {
                      breaks = quantile(dt_cbsa_month[[paste0("d_mw_wkp", stub)]], 
                                        probs = 0:10/10), 
                      color = "red") +
-    coord_cartesian(ylim = c(-0.05, 0.05))
+    coord_cartesian(ylim = c(-0.05, 0.05)) +
     theme_bw()
   
   ggsave(paste0("plots/mw_wkp_cbsa_month", stub, ".png"),
@@ -47,10 +47,10 @@ for (stub in c("", "_resid_mw_res_dec")) {
 ## Workplace MW
 
 dt_cbsa_month[, d_mw_res_resid_mw_wkp_dec := resid(
-  feols(d_mw_res ~ - 1 | mw_wkp_deciles, dt_cbsa_month)
+  feols(d_mw_res ~ -1 | mw_wkp_50groups, dt_cbsa_month)
 )]
 dt_cbsa_month[, d_ln_rents_resid_mw_wkp_dec := resid(
-  feols(d_ln_rents ~ - 1 | mw_wkp_deciles, dt_cbsa_month)
+  feols(d_ln_rents ~ -1 | mw_wkp_50groups, dt_cbsa_month)
 )]
 
 for (stub in c("", "_resid_mw_wkp_dec")) {
@@ -64,8 +64,8 @@ for (stub in c("", "_resid_mw_wkp_dec")) {
                      breaks = quantile(dt_cbsa_month[[paste0("d_mw_res", stub)]], 
                                        probs = 0:10/10), 
                      color = "red") +
-    coord_cartesian(ylim = c(-0.05, 0.05))
-  theme_bw()
+    coord_cartesian(ylim = c(-0.05, 0.05)) +
+    theme_bw()
   
   ggsave(paste0("plots/mw_res_cbsa_month", stub, ".png"),
          height = 5, width = 7)
