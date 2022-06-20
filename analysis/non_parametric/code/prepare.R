@@ -114,6 +114,12 @@ compute_cuts <- function(dt, vars_to_cut) {
                             labels = 1:50, ordered_result = F,
                             include.lowest = T)]
     
+    dt[, c(paste0(var, "_100groups")) 
+                    := cut(get(var_rank), 
+                            breaks = quantile(get(var_rank), probs = 0:100/100),
+                            labels = 1:100, ordered_result = F,
+                            include.lowest = T)]
+    
     dt[, c(var_rank) := NULL]
   }
   
