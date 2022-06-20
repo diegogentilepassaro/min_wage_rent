@@ -197,7 +197,7 @@ collapse_data <- function(dt, key_vars = c("zipcode", "year", "month")) {
 
 compute_counterfactual <- function(dt) {
 
-  dt <- dt[, .(block, zipcode, cbsa, countyfips, num_house10,
+  dt <- dt[, .(block, zipcode, cbsa, countyfips, place_code, num_house10,
                fed_mw, state_mw, county_mw, local_mw, statutory_mw)]
   
   dt_cf_2019 <- copy(dt)
