@@ -43,7 +43,10 @@ for (tipo in c("cbsa_month", "month")) {
     
     if (grepl("resid", stub)) {
       plt <- plt + coord_cartesian(ylim = c(-0.2,  0.2), 
-                                   xlim = c(-0.15, 0.15))
+                                   xlim = c(-0.15, 0.15)) +
+        labs(x = "Workplace MW (residualized)", y = "Log rents (residualized)")
+    } else {
+      plt <- plt + labs(x = "Workplace MW", y = "Log rents")
     }
     
     ggsave(paste0("plots/", tipo, "_mw_wkp", stub, ".png"),
@@ -62,6 +65,7 @@ for (tipo in c("cbsa_month", "month")) {
   for (stub in c("", "_resid_mw_wkp_dec")) {
     
     bins = 30
+    if (stub == "") dt[, mw_res := mw_res - .001 + .001*runif(.N)]
     
     ggplot(dt, 
            aes_string(x = paste0("mw_res", stub), 
@@ -76,7 +80,10 @@ for (tipo in c("cbsa_month", "month")) {
     
     if (grepl("resid", stub)) {
       plt <- plt + coord_cartesian(ylim = c(-0.2,  0.2), 
-                                   xlim = c(-0.15, 0.15))
+                                   xlim = c(-0.15, 0.15)) +
+        labs(x = "Residence MW (residualized)", y = "Log rents (residualized)")
+    } else {
+      plt <- plt + labs(x = "Residence MW", y = "Log rents")
     }
     
     ggsave(paste0("plots/", tipo, "_mw_res", stub, ".png"),
