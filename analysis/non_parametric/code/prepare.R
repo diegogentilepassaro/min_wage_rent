@@ -18,6 +18,10 @@ main <- function() {
   dt_all[, any_change_in_month      := 1*any(d_statutory_mw > 0), 
           by = .(year, month)]
   
+  dt_all[, resid_timeFE_ln_rents := resid(feols(ln_rents ~ -1 | year^month, dt_all), na.rm = F)]
+  dt_all[, resid_timeFE_mw_res   := resid(feols(mw_res ~ -1   | year^month, dt_all), na.rm = F)]
+  dt_all[, resid_timeFE_mw_wkp   := resid(feols(mw_wkp ~ -1   | year^month, dt_all), na.rm = F)]
+  
   dt_all[, resid_timeFE_d_ln_rents := resid(feols(d_ln_rents ~ -1 | year^month, dt_all), na.rm = F)]
   dt_all[, resid_timeFE_d_mw_res   := resid(feols(d_mw_res ~ -1   | year^month, dt_all), na.rm = F)]
   dt_all[, resid_timeFE_d_mw_wkp   := resid(feols(d_mw_wkp ~ -1   | year^month, dt_all), na.rm = F)]
@@ -30,6 +34,7 @@ main <- function() {
     dt <- compute_cuts(dt, c("statutory_mw",   "mw_res",   "mw_wkp",
                              "l_statutory_mw", "l_mw_res", "l_mw_wkp",
                              "d_statutory_mw", "d_mw_res", "d_mw_wkp",
+                             "resid_timeFE_mw_res", "resid_timeFE_mw_wkp",
                              "resid_timeFE_d_mw_res", "resid_timeFE_d_mw_wkp"))
     
     save_data(dt, key = c("zipcode", "year", "month"),
