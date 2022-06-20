@@ -27,8 +27,8 @@ main <- function() {
     dt <- dt_all[get(group_var) == 1]
     dt[, c(group_var) := NULL]
     
-    dt <- compute_cuts(dt, c("statutory_mw", "mw_res", "mw_wkp", 
-                             "d_mw_res", "d_mw_wkp",
+    dt <- compute_cuts(dt, c("statutory_mw",   "mw_res",   "mw_wkp", 
+                             "d_statutory_mw", "d_mw_res", "d_mw_wkp",
                              "resid_timeFE_d_mw_res", "resid_timeFE_d_mw_wkp"))
     
     save_data(dt, key = c("zipcode", "year", "month"),
@@ -107,6 +107,14 @@ compute_cuts <- function(dt, vars_to_cut) {
                             breaks = quantile(get(var_rank), probs = 0:10/10),
                             labels = 1:10, ordered_result = F,
                             include.lowest = T)]
+    
+    if (grepl("wkp", var)) {
+      dt[, c(paste0(var, "_50groups")) 
+                      := cut(get(var_rank), 
+                              breaks = quantile(get(var_rank), probs = 0:50/50),
+                              labels = 1:50, ordered_result = F,
+                              include.lowest = T)]
+    }
     
     dt[, c(var_rank) := NULL]
   }
