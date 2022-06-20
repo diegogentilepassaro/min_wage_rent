@@ -151,8 +151,7 @@ add_statutory_mw <- function(dt.wkp, dt, stub) {
                   by = c("zipcode", "year_month"))
   
   if (stub == "chi14") {
-    dt.wkp[, counterfactual := "chi14"]  
-    dt.wkp <- dt.wkp[!is.na(statutory_mw)]
+    dt.wkp[, counterfactual := "chi14"]
   } else {
     dt.wkp[, counterfactual := paste0("fed_", stub)]
   }
