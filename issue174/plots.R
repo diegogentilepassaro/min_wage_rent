@@ -28,15 +28,17 @@ for (tipo in c("cbsa_month", "month")) {
   
   for (stub in c("", "_resid_mw_res_dec")) {
     
+    bins = 30
+    
     ggplot(dt, 
            aes_string(x = paste0("mw_wkp", stub), 
                       y = paste0("ln_rents", stub))) +
-      geom_point(alpha = 0.15) +
-      geom_smooth(formula = "y ~ x", method = "lm") + 
+      geom_point(alpha = 0.1, color = "grey30") +
       stat_summary_bin(fun = "mean", 
-                       breaks = quantile(dt[[paste0("d_mw_wkp", stub)]], 
-                                         probs = 0:10/10), 
-                       color = "red") +
+                       breaks = quantile(dt[[paste0("mw_wkp", stub)]], 
+                                         probs = 0:bins/bins), 
+                       color = "red2",
+                       size  = 0.4, alpha = 0.6) +
       theme_bw() -> plt
     
     if (grepl("resid", stub)) {
@@ -59,15 +61,17 @@ for (tipo in c("cbsa_month", "month")) {
   
   for (stub in c("", "_resid_mw_wkp_dec")) {
     
+    bins = 30
+    
     ggplot(dt, 
            aes_string(x = paste0("mw_res", stub), 
                       y = paste0("ln_rents", stub))) +
-      geom_point(alpha = 0.15) +
-      geom_smooth(formula = "y ~ x", method = "lm") + 
+      geom_point(alpha = 0.1, color = "grey30") +
       stat_summary_bin(fun = "mean", 
-                       breaks = quantile(dt[[paste0("d_mw_res", stub)]], 
-                                         probs = 0:10/10), 
-                       color = "red") +
+                       breaks = quantile(dt[[paste0("mw_res", stub)]], 
+                                         probs = 0:bins/bins), 
+                       color = "red2",
+                       size  = 0.4, alpha = 0.6) +
       theme_bw() -> plt
     
     if (grepl("resid", stub)) {
