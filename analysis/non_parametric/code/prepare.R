@@ -27,7 +27,7 @@ main <- function() {
     dt <- dt_all[get(group_var) == 1]
     dt[, c(group_var) := NULL]
     
-    dt <- compute_cuts(dt, c("mw_res", "mw_wkp", 
+    dt <- compute_cuts(dt, c("statutory_mw", "mw_res", "mw_wkp", 
                              "d_mw_res", "d_mw_wkp",
                              "resid_timeFE_d_mw_res", "resid_timeFE_d_mw_wkp"))
     
