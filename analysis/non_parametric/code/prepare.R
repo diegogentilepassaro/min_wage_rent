@@ -27,7 +27,8 @@ main <- function() {
     dt <- dt_all[get(group_var) == 1]
     dt[, c(group_var) := NULL]
     
-    dt <- compute_cuts(dt, c("statutory_mw",   "mw_res",   "mw_wkp", 
+    dt <- compute_cuts(dt, c("statutory_mw",   "mw_res",   "mw_wkp",
+                             "l_statutory_mw", "l_mw_res", "l_mw_wkp",
                              "d_statutory_mw", "d_mw_res", "d_mw_wkp",
                              "resid_timeFE_d_mw_res", "resid_timeFE_d_mw_wkp"))
     
@@ -83,6 +84,8 @@ load_data <- function(instub, min_year = 2015) {
   for (mw_var in mw_vars) {
     dt[, paste0("d_", mw_var) := get(mw_var) - shift(get(mw_var)),
        by = .(zipcode)]
+    dt[, paste0("l_", mw_var) := shift(get(mw_var)),
+       by = .(zipcode)]
   }
   
   dt <- dt[year >= min_year & !is.na(ln_rents)]
@@ -90,7 +93,7 @@ load_data <- function(instub, min_year = 2015) {
   keep_vars <- c("zipcode", "countyfips", "statefips", "cbsa", 
                  "ln_rents", "d_ln_rents",
                  "year", "month", 
-                 mw_vars, paste0("d_", mw_vars))
+                 mw_vars, paste0("d_", mw_vars), paste0("l_", mw_vars))
   
   return(dt[, ..keep_vars])
 }
