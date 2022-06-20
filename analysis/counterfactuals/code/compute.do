@@ -25,7 +25,7 @@ program main
     flag_unaffected_cbsas
     flag_treatment_status
 
-    foreach cf in fed_10pc fed_9usd fed_15usd {
+    foreach cf in fed_10pc fed_9usd fed_15usd chi14 {
 
         qui unique cbsa if counterfactual == "`cf'"
         local n_cbsas           = `r(unique)'
