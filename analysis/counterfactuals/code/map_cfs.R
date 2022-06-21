@@ -123,18 +123,7 @@ main <- function() {
             var_legend ="Change in\nlog total wages", 
             break_values = c(min_break_wagebill, (min_break_wagebill + max_break_wagebill)/2, max_break_wagebill), 
             map_name = "chicago_d_ln_wagebill_chi14")
-  
-  df <- df_chicago %>% 
-    filter(is.na(s_imputed) == FALSE)
-  min_break_s_imputed <- round(min(df$s_imputed, na.rm = TRUE), digits = 5)
-  max_break_s_imputed <- round(max(df$s_imputed, na.rm = TRUE), digits = 5)
-  
-  build_map(data = df, 
-            var = "s_imputed", 
-            var_legend ="Share of expenditure in housing", 
-            break_values = c(min_break_s_imputed, (min_break_s_imputed + max_break_s_imputed)/2, max_break_s_imputed), 
-            map_name = "chicago_s_imputed_chi14")
-  
+
   min_break_rho_with_imputed <- round(min(df_chicago$rho_with_imputed, na.rm = TRUE), digits = 6)
   max_break_rho_with_imputed <- round(max(df_chicago$rho_with_imputed, na.rm = TRUE), digits = 6)
   
