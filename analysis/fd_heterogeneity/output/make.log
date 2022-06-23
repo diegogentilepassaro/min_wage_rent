@@ -1,5 +1,5 @@
 
- make.py started: 2022-06-08 08:40:37 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\fd_heterogeneity\code 
+ make.py started: 2022-06-23 16:07:39 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\fd_heterogeneity\code 
 
 
 
@@ -73,18 +73,15 @@ running c:\ado\personal\profile.do ...
 > g(none)
  10. 
 .     load_and_clean, instub(`instub') incross(`incross')
- 11.     gen high_res_mw  = sh_res_underHS_above_med*sh_res_under1250_above_med
- 12.     gen high_work_mw = sh_workers_underHS_above_med*sh_workers_under1250_a
-> bove_med
- 13. 
+ 11. 
 .     merge m:1 zipcode using "`outstub'/public_housing_2017.dta",    ///
 >         nogen keep(1 3)
- 14.     gen public_housing = (total_units > 0) if !missing(total_units)
- 15.     replace public_housing = 0 if missing(total_units)
- 16. 
+ 12. 
+.     prepare_public_housing
+ 13. 
 .     save_data "`outstub'/fullbal_sample_with_vars_for_het.dta",     ///
 >         key(zipcode year_month) replace log(none)
- 17. end
+ 14. end
 
 . 
 . 
@@ -102,27 +99,34 @@ running c:\ado\personal\profile.do ...
   6.     xtset zipcode_num year_month
   7. 
 .     merge m:1 zipcode using "`incross'/zipcode_cross.dta", nogen       ///
->         keep(3) keepusing(sh_mw_wkrs_statutory sh_workers_under29_2014 ///
->             sh_residents_under29_2014 sh_residents_underHS_2014        ///
->             sh_residents_under1250_2014 sh_workers_underHS_2014        ///
->             sh_workers_under1250_2014 sh_residents_accomm_food_2014    ///
->             sh_workers_accomm_food_2014)
-  8.     rename *_2014 *
-  9.     rename *residents* *res*
- 10. 
-.     foreach var in sh_mw_wkrs_statutory sh_workers_accomm_food           ///
->                    sh_workers_underHS sh_res_accomm_food sh_res_underHS  ///
->                    sh_res_under1250 sh_workers_under1250 {
- 11.         bys statefips: egen `var'_med = median(`var')
- 12.         gen `var'_above_med = (`var'   > `var'_med)
- 13.         drop `var'_med
- 14. 
-.         gen resint_`var' = mw_res*`var'_above_med
- 15.         gen wkpint_`var' = mw_wkp_tot_17*`var'_above_med
- 16.     }
- 17. end
+>         keep(3) keepusing(sh_mw_wkrs_statutory med_hhld_inc_acs2014 n_hhlds_c
+> ens2010)
+  8. 
+.     foreach var in sh_mw_wkrs_statutory med_hhld_inc_acs2014 {
+  9.             qui sum `var'
+ 10.         local avg_`var' = r(mean)
+ 11.         local sd_`var' = r(sd)
+ 12.         gen std_`var' = (`var' - `avg_`var'')/`sd_`var''
+ 13.     }
+ 14. end
 
 . 
+. program prepare_public_housing
+  1. 
+.     gen     public_housing = (total_units > 0) if !missing(total_units)
+  2.     replace public_housing = 0 if missing(total_units)
+  3. 
+.     gen     sh_public_housing = total_units/n_hhlds_cens2010
+  4.     replace sh_public_housing = 0 if missing(total_units)
+  5. 
+.     qui sum sh_public_housing
+  6.     local avg_sh_public_housing = r(mean)
+  7.     local sd_sh_public_housing  = r(sd)
+  8. 
+.     gen std_sh_public_housing   = (sh_public_housing - `avg_sh_public_housing
+> ')/`sd_sh_public_housing'
+  9. end
+
 . 
 . main
 (310,972 observations deleted)
@@ -155,7 +159,8 @@ file ../temp/public_housing_2017.dta saved
     not matched                             0
     matched                            80,700  
     -----------------------------------------
-(600 missing values generated)
+(4,920 missing values generated)
+(3,060 missing values generated)
 
     Result                           # of obs.
     -----------------------------------------
@@ -167,23 +172,17 @@ file ../temp/public_housing_2017.dta saved
     -----------------------------------------
 (53,880 missing values generated)
 (53,880 real changes made)
+(54,180 missing values generated)
+(53,880 real changes made)
+(300 missing values generated)
 (data now sorted by zipcode year_month)
-  variable sh_mw_wkrs_statutory_above_med was float now byte
-  variable sh_workers_accomm_food_above_med was float now byte
-  variable sh_workers_underHS_above_med was float now byte
-  variable sh_res_accomm_food_above_med was float now byte
-  variable sh_res_underHS_above_med was float now byte
-  variable sh_res_under1250_above_med was float now byte
-  variable sh_workers_under1250_above_med was float now byte
-  variable high_res_mw was float now byte
-  variable high_work_mw was float now byte
   variable public_housing was float now byte
-  (2,421,000 bytes saved)
+  (242,100 bytes saved)
 ===============================================================================
 File: ../temp/fullbal_sample_with_vars_for_het.dta
 Key: zipcode year_month
 ===============================================================================
-  80700:51(68190):2453573132:4193218324
+  80700:26(93693):3179026602:376132390
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
@@ -207,47 +206,17 @@ ln_avgwwag~v |     80,700    7.143119    .3080602   5.726848   8.178078
 -------------+---------------------------------------------------------
 ln_avgwwag~o |     80,352    7.327531    .3554562   5.891644   8.906665
 ln_avgwwag~n |     80,688    7.311874    .3682792   6.326149   9.163982
+n_hhlds~2010 |     80,700    16080.83    5901.083          0      48073
+med_hhl~2014 |     77,640    60456.92    22914.14      15041   176169.7
 sh_mw_wkrs~y |     75,780    .1496538    .0468091   .0132085   .5346981
-sh_res_un~29 |     80,700     .222439     .037931   .1175516   .4469967
-sh_res_~1250 |     80,700    .2261313    .0474313   .0777202    .385433
 -------------+---------------------------------------------------------
-sh_res_und~S |     80,700    .1030454    .0310812   .0454065   .2485696
-sh_res_ac~od |     80,700    .1048834    .0419784   .0483592   .3872122
-sh_worker~29 |     80,700     .244581    .0490624   .1078271   .4348348
-sh_work~1250 |     80,700    .2709894    .0786266    .046502     .53989
-sh_workers~S |     80,700    .1115221    .0323393   .0490927   .3340807
--------------+---------------------------------------------------------
-sh_worker~od |     80,700    .1234222    .0731471   .0044248   .7661766
-sh_mw_wkrs~d |     80,700    .5211896    .4995539          0          1
-resint_sh_~y |     80,700    1.109825    1.070171          0    2.74663
-wkpint_sh_~y |     80,700    1.111562    1.071721          0    2.68035
-sh_workers.. |     80,700    .4996283     .500003          0          1
--------------+---------------------------------------------------------
-resint_sh_.. |     80,700    1.065271    1.072612          0   2.772589
-wkpint_sh_.. |     80,700    1.066725    1.073714          0   2.689826
-sh_workers.. |     80,700    .4988848    .5000019          0          1
-r~rs_underHS |     80,700    1.063867    1.072683          0    2.74663
-w~rs_underHS |     80,700    1.065694    1.074174          0   2.682458
--------------+---------------------------------------------------------
-sh_res_ac~ed |     80,700    .5018587    .4999996          0          1
-resint_sh_.. |     80,700    1.069692    1.072112          0   2.772589
-wkpint_sh_.. |     80,700    1.070969    1.073109          0   2.694137
-sh_res_und.. |     80,700    .5003717     .500003          0          1
-r~es_underHS |     80,700    1.066228    1.071743          0    2.74663
--------------+---------------------------------------------------------
-w~es_underHS |     80,700    1.067703    1.072949          0    2.68035
-sh_res_und.. |     80,700    .4988848    .5000019          0          1
-resint_sh_.. |     80,700    1.062954    1.071688          0    2.70805
-wkpint_sh_.. |     80,700    1.063893    1.072396          0   2.675717
-sh_workers.. |     80,700    .4988848    .5000019          0          1
--------------+---------------------------------------------------------
-resint_sh_.. |     80,700    1.062605    1.071267          0    2.74663
-wkpint_sh_.. |     80,700    1.064073    1.072533          0   2.682458
- high_res_mw |     80,700    .3568773    .4790811          0          1
-high_work_mw |     80,700     .270632     .444289          0          1
+std_sh_mw_~y |     75,780   -1.93e-10           1  -2.914929   8.225839
+std_med~2014 |     77,640    1.07e-09           1  -1.982004    5.04984
  total_units |     26,820     232.047    616.2516          0      10966
--------------+---------------------------------------------------------
 public_hou~g |     80,700     .330855    .4705239          0          1
+sh_public_~g |     80,400    .0043692    .0173066          0   .3458869
+-------------+---------------------------------------------------------
+std_sh_pub~g |     80,400   -7.78e-09           1  -.2524565   19.73339
 
 
 
@@ -331,28 +300,64 @@ running c:\ado\personal\profile.do ...
 >         controls(`controls') absorb(`absorb') cluster(`cluster_vars') ///
 >         model_name(static_both)
  10.         
-.     reghdfe D.ln_rents c.D.mw_res#ib0.high_work_mw                    ///
->         c.D.mw_wkp_tot_17#ib0.high_res_mw                             ///
->         D.(`controls'), nocons                                        ///
->         absorb(`absorb'##high_work_mw##high_res_mw)                   ///
->         cluster(`cluster_vars')
- 11.     
-.     process_estimates, res_var(mw_res_high_work_mw)                   ///
->         wkp_var(mw_wkp_high_res_mw) model(het_mw_shares)
- 12. 
-.     reghdfe D.ln_rents c.D.mw_res#ib0.public_housing                  ///
->         c.D.mw_wkp_tot_17#ib0.public_housing                          ///
->         D.(`controls'), nocons                                        ///
->         absorb(year_month##public_housing) cluster(`cluster_vars')
- 13.     
-.     process_estimates, res_var(mw_res_high_public_hous)               ///
+.     reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_sh_mw_wkrs_statutory ///
+>         c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_sh_mw_wkrs_statutory  ///
+>         D.(`controls'), nocons                                          ///
+>         absorb(`absorb') cluster(`cluster_vars')
+ 11.     process_sum, het_var(std_sh_mw_wkrs_statutory) model(het_mw_shares)
+ 12.     process_estimates, res_var(mw_res_std_sh_mw_wkrs_statutory)         //
+> /
+>         wkp_var(mw_wkp_std_sh_mw_wkrs_statutory) model(het_mw_shares)
+ 13. 
+.     reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_med_hhld_inc_acs2014 ///
+>         c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_med_hhld_inc_acs2014  ///
+>         D.(`controls'), nocons                                          ///
+>         absorb(`absorb') cluster(`cluster_vars')
+ 14.     process_sum, het_var(std_med_hhld_inc_acs2014) model(het_med_inc)   
+ 15.     process_estimates, res_var(mw_res_std_med_hhld_inc)                 //
+> /
+>         wkp_var(mw_wkp_std_med_hhld_inc) model(het_med_inc)
+ 16. 
+.     reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_sh_public_housing    ///
+>         c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_sh_public_housing     ///
+>         D.(`controls'), nocons                                          ///
+>         absorb(year_month) cluster(`cluster_vars')
+ 17.         process_sum, het_var(std_sh_public_housing) model(het_public_hous)
+>     
+ 18.     process_estimates, res_var(mw_res_high_public_hous)                 //
+> /
 >         wkp_var(mw_wkp_high_public_hous) model(het_public_hous)
- 14. 
+ 19. 
 .     use "../temp/estimates_static_both.dta", clear
- 15.     append using "../temp/estimates_het_mw_shares.dta"
- 16.     append using "../temp/estimates_het_public_hous.dta"
- 17.     export delimited "../output/estimates_het.csv", replace
- 18. end
+ 20.     append using "../temp/estimates_het_mw_shares.dta"
+ 21.     append using "../temp/estimates_het_public_hous.dta"
+ 22.     append using "../temp/estimates_het_med_inc.dta"
+ 23.     export delimited "../output/estimates_het.csv", replace
+ 24. end
+
+. 
+. program process_sum
+  1.     syntax, het_var(str) model(str)
+  2. 
+.     lincom c.D.mw_res + c.D.mw_res#c.`het_var'
+  3.     matrix sum_res = (0, r(estimate), r(se))
+  4.     lincom c.D.mw_wkp_tot_17 + c.D.mw_wkp_tot_17#c.`het_var'
+  5.     matrix sum_wkp = (0, r(estimate), r(se))
+  6.     matrix sum = (sum_res \ sum_wkp)
+  7.     
+.     preserve
+  8.         svmat sum
+  9.         keep sum1 sum2 sum3
+ 10.         rename (sum1 sum2 sum3) (at b se)
+ 11.         drop if missing(at)
+ 12.         
+.         gen     var = "sum_res"  
+ 13.         replace var = "sum_wkp" if _n == 2
+ 14.         gen model = "`model'"
+ 15. 
+.         save "../temp/sum_`model'.dta", replace
+ 16.     restore
+ 17. end
 
 . 
 . program process_estimates
@@ -377,10 +382,11 @@ running c:\ado\personal\profile.do ...
 .         gen N = `N'
  15.         gen r2 = `r2'
  16.         gen model = "`model'"
- 17. 
-.         save "../temp/estimates_`model'.dta", replace
- 18.     restore
- 19. end
+ 17.         
+.         append using "../temp/sum_`model'.dta"
+ 18.         save "../temp/estimates_`model'.dta", replace
+ 19.     restore
+ 20. end
 
 . 
 . main
@@ -471,86 +477,196 @@ file ../temp/estimates_static_both.dta saved
 file ../temp/estimates_static_both.csv saved
 (MWFE estimator converged in 1 iterations)
 
-HDFE Linear regression                            Number of obs   =     78,912
-Absorbing 1 HDFE group                            F(  13,     40) =       5.58
+HDFE Linear regression                            Number of obs   =     74,082
+Absorbing 1 HDFE group                            F(  13,     38) =      11.05
 Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.0243
-                                                  Adj R-squared   =     0.0212
+                                                  R-squared       =     0.0214
+                                                  Adj R-squared   =     0.0205
                                                   Within R-sq.    =     0.0005
-Number of clusters (statefips) =         41       Root MSE        =     0.0296
+Number of clusters (statefips) =         39       Root MSE        =     0.0297
 
-                             (Std. Err. adjusted for 41 clusters in statefips)
+                             (Std. Err. adjusted for 39 clusters in statefips)
 ------------------------------------------------------------------------------
              |               Robust
   D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-high_work_mw#|
-   cD.mw_res |
-          0  |  -.0180949   .0212701    -0.85   0.400    -.0610834    .0248937
-          1  |  -.0201636   .0199863    -1.01   0.319    -.0605575    .0202303
+      mw_res |
+         D1. |  -.0448882   .0204356    -2.20   0.034    -.0862579   -.0035185
              |
- high_res_mw#|
-         cD. |
+   cD.mw_res#|
+          c. |
+std_sh_mw_~y |  -.0788543    .040351    -1.95   0.058    -.1605406     .002832
+             |
 mw_wkp_to~17 |
-          0  |   .0657515   .0324898     2.02   0.050      .000087    .1314159
-          1  |   .0695796   .0297248     2.34   0.024     .0095035    .1296556
+         D1. |   .0949789    .030744     3.09   0.004      .032741    .1572168
+             |
+         cD. |
+mw_wkp_to~17#|
+          c. |
+std_sh_mw_~y |   .0820057   .0461414     1.78   0.084    -.0114026    .1754141
              |
 ln_emp_biz~v |
-         D1. |   .0170336   .0086052     1.98   0.055    -.0003582    .0344253
+         D1. |   .0171718   .0080144     2.14   0.039     .0009475    .0333961
              |
  ln_emp_info |
-         D1. |   .0023891   .0044156     0.54   0.591    -.0065351    .0113133
+         D1. |   .0010573   .0040834     0.26   0.797    -.0072092    .0093238
              |
   ln_emp_fin |
-         D1. |    .012171   .0076711     1.59   0.120    -.0033328    .0276748
+         D1. |   .0098113   .0073213     1.34   0.188      -.00501    .0246325
              |
 ln_estcoun~v |
-         D1. |    .012875   .0175253     0.73   0.467    -.0225449    .0482949
+         D1. |   .0070663   .0187478     0.38   0.708    -.0308866    .0450193
              |
 ln_estcoun~o |
-         D1. |   .0035951   .0087723     0.41   0.684    -.0141344    .0213245
+         D1. |   .0024872   .0094661     0.26   0.794    -.0166759    .0216502
              |
 ln_estcoun~n |
-         D1. |  -.0112108   .0185265    -0.61   0.549    -.0486543    .0262326
+         D1. |  -.0081428    .015922    -0.51   0.612    -.0403751    .0240895
              |
 ln_avgwwag~v |
-         D1. |   .0026987   .0041036     0.66   0.515    -.0055951    .0109924
+         D1. |   .0012845   .0043179     0.30   0.768    -.0074566    .0100256
              |
 ln_avgwwag~o |
-         D1. |  -.0005134   .0016751    -0.31   0.761     -.003899    .0028721
+         D1. |  -.0008115   .0017263    -0.47   0.641    -.0043061    .0026832
              |
 ln_avgwwag~n |
-         D1. |  -.0021095   .0015667    -1.35   0.186    -.0052759     .001057
+         D1. |   -.001371   .0015673    -0.87   0.387    -.0045438    .0018018
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
--------------------------------------------------------------------------------
-> --+
-                             Absorbed FE | Categories  - Redundant  = Num. Coef
-> s                                                                            
->   |
------------------------------------------+-------------------------------------
-> --|
-     year_month#high_work_mw#high_res_mw |       236           0         236   
->                                                                              
->   |
--------------------------------------------------------------------------------
-> --+
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |        59           0          59     |
+-----------------------------------------------------+
+
+ ( 1)  D.mw_res + cD.mw_res#c.std_sh_mw_wkrs_statutory = 0
+
+------------------------------------------------------------------------------
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |  -.1237426   .0553154    -2.24   0.031    -.2357228   -.0117623
+------------------------------------------------------------------------------
+
+ ( 1)  D.mw_wkp_tot_17 + cD.mw_wkp_tot_17#c.std_sh_mw_wkrs_statutory = 0
+
+------------------------------------------------------------------------------
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .1769847   .0672777     2.63   0.012     .0407881    .3131812
+------------------------------------------------------------------------------
+(80,698 observations deleted)
+(1 real change made)
+(note: file ../temp/sum_het_mw_shares.dta not found)
+file ../temp/sum_het_mw_shares.dta saved
 (80,696 observations deleted)
 (0 observations deleted)
 (4 real changes made)
 (2 real changes made)
 (2 real changes made)
+(note: variable at was byte, now float to accommodate using data's values)
 (note: file ../temp/estimates_het_mw_shares.dta not found)
 file ../temp/estimates_het_mw_shares.dta saved
 (MWFE estimator converged in 1 iterations)
 
-HDFE Linear regression                            Number of obs   =     78,912
-Absorbing 1 HDFE group                            F(  13,     40) =       4.32
-Statistics robust to heteroskedasticity           Prob > F        =     0.0002
-                                                  R-squared       =     0.0226
-                                                  Adj R-squared   =     0.0210
-                                                  Within R-sq.    =     0.0005
+HDFE Linear regression                            Number of obs   =     75,919
+Absorbing 1 HDFE group                            F(  13,     39) =       6.06
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.0214
+                                                  Adj R-squared   =     0.0205
+                                                  Within R-sq.    =     0.0006
+Number of clusters (statefips) =         40       Root MSE        =     0.0295
+
+                             (Std. Err. adjusted for 40 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+      mw_res |
+         D1. |  -.0357181   .0262562    -1.36   0.182    -.0888262    .0173901
+             |
+   cD.mw_res#|
+          c. |
+std_med~2014 |   .0541648   .0282063     1.92   0.062    -.0028878    .1112174
+             |
+mw_wkp_to~17 |
+         D1. |   .0871405   .0351824     2.48   0.018     .0159774    .1583037
+             |
+         cD. |
+mw_wkp_to~17#|
+          c. |
+std_med~2014 |  -.0671281   .0349591    -1.92   0.062    -.1378395    .0035833
+             |
+ln_emp_biz~v |
+         D1. |    .017936   .0087421     2.05   0.047     .0002535    .0356185
+             |
+ ln_emp_info |
+         D1. |   .0020204    .004604     0.44   0.663    -.0072922    .0113329
+             |
+  ln_emp_fin |
+         D1. |   .0103271   .0079914     1.29   0.204     -.005837    .0264912
+             |
+ln_estcoun~v |
+         D1. |   .0156769     .01707     0.92   0.364    -.0188506    .0502043
+             |
+ln_estcoun~o |
+         D1. |   .0032369   .0085866     0.38   0.708    -.0141311    .0206049
+             |
+ln_estcoun~n |
+         D1. |  -.0100381   .0188169    -0.53   0.597    -.0480989    .0280228
+             |
+ln_avgwwag~v |
+         D1. |   .0034621   .0043537     0.80   0.431    -.0053442    .0122683
+             |
+ln_avgwwag~o |
+         D1. |  -.0002334   .0016916    -0.14   0.891     -.003655    .0031882
+             |
+ln_avgwwag~n |
+         D1. |  -.0021597   .0017586    -1.23   0.227    -.0057169    .0013975
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |        59           0          59     |
+-----------------------------------------------------+
+
+ ( 1)  D.mw_res + cD.mw_res#c.std_med_hhld_inc_acs2014 = 0
+
+------------------------------------------------------------------------------
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0184468   .0226524     0.81   0.420     -.027372    .0642656
+------------------------------------------------------------------------------
+
+ ( 1)  D.mw_wkp_tot_17 + cD.mw_wkp_tot_17#c.std_med_hhld_inc_acs2014 = 0
+
+------------------------------------------------------------------------------
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0200124   .0284503     0.70   0.486    -.0375338    .0775586
+------------------------------------------------------------------------------
+(80,698 observations deleted)
+(1 real change made)
+(note: file ../temp/sum_het_med_inc.dta not found)
+file ../temp/sum_het_med_inc.dta saved
+(80,696 observations deleted)
+(0 observations deleted)
+(4 real changes made)
+(2 real changes made)
+(2 real changes made)
+(note: variable at was byte, now float to accommodate using data's values)
+(note: file ../temp/estimates_het_med_inc.dta not found)
+file ../temp/estimates_het_med_inc.dta saved
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =     78,617
+Absorbing 1 HDFE group                            F(  13,     40) =       5.60
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.0216
+                                                  Adj R-squared   =     0.0207
+                                                  Within R-sq.    =     0.0006
 Number of clusters (statefips) =         41       Root MSE        =     0.0296
 
                              (Std. Err. adjusted for 41 clusters in statefips)
@@ -558,62 +674,86 @@ Number of clusters (statefips) =         41       Root MSE        =     0.0296
              |               Robust
   D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-public_hou~g#|
-   cD.mw_res |
-          0  |   .0041974   .0255971     0.16   0.871    -.0475363     .055931
-          1  |  -.0627986   .0587111    -1.07   0.291    -.1814582     .055861
+      mw_res |
+         D1. |  -.0173892   .0174732    -1.00   0.326    -.0527039    .0179255
              |
-public_hou~g#|
-         cD. |
+   cD.mw_res#|
+          c. |
+std_sh_pub~g |  -.0299035   .0335827    -0.89   0.379    -.0977766    .0379696
+             |
 mw_wkp_to~17 |
-          0  |   .0472601    .031404     1.50   0.140    -.0162098    .1107301
-          1  |   .1067232   .0636548     1.68   0.101    -.0219279    .2353743
+         D1. |   .0678158    .027628     2.45   0.019     .0119775    .1236541
+             |
+         cD. |
+mw_wkp_to~17#|
+          c. |
+std_sh_pub~g |   .0262757   .0376862     0.70   0.490    -.0498909    .1024423
              |
 ln_emp_biz~v |
-         D1. |    .018861    .008352     2.26   0.029     .0019809     .035741
+         D1. |   .0184338   .0087523     2.11   0.042     .0007448    .0361228
              |
  ln_emp_info |
-         D1. |    .002343   .0043542     0.54   0.593    -.0064572    .0111431
+         D1. |   .0023501   .0044279     0.53   0.599    -.0065991    .0112992
              |
   ln_emp_fin |
-         D1. |   .0117639   .0077961     1.51   0.139    -.0039927    .0275204
+         D1. |   .0116931   .0078296     1.49   0.143     -.004131    .0275172
              |
 ln_estcoun~v |
-         D1. |   .0135007   .0174464     0.77   0.444    -.0217598    .0487613
+         D1. |   .0138538    .017313     0.80   0.428    -.0211372    .0488447
              |
 ln_estcoun~o |
-         D1. |   .0031518   .0088668     0.36   0.724    -.0147686    .0210722
+         D1. |   .0033287   .0088124     0.38   0.708    -.0144819    .0211393
              |
 ln_estcoun~n |
-         D1. |  -.0121965    .019824    -0.62   0.542    -.0522622    .0278692
+         D1. |  -.0129358   .0195043    -0.66   0.511    -.0523555    .0264839
              |
 ln_avgwwag~v |
-         D1. |   .0023391   .0040547     0.58   0.567    -.0058556    .0105339
+         D1. |   .0021998   .0041762     0.53   0.601    -.0062407    .0106402
              |
 ln_avgwwag~o |
-         D1. |  -.0005896   .0016846    -0.35   0.728    -.0039942     .002815
+         D1. |  -.0004411   .0016418    -0.27   0.790    -.0037593    .0028772
              |
 ln_avgwwag~n |
-         D1. |   -.002248   .0015114    -1.49   0.145    -.0053026    .0008067
+         D1. |  -.0018003   .0015947    -1.13   0.266    -.0050233    .0014226
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
----------------------------------------------------------------------+
-                 Absorbed FE | Categories  - Redundant  = Num. Coefs |
------------------------------+---------------------------------------|
-   year_month#public_housing |       118           0         118     |
----------------------------------------------------------------------+
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+  year_month |        59           0          59     |
+-----------------------------------------------------+
+
+ ( 1)  D.mw_res + cD.mw_res#c.std_sh_public_housing = 0
+
+------------------------------------------------------------------------------
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |  -.0472927   .0370075    -1.28   0.209    -.1220877    .0275023
+------------------------------------------------------------------------------
+
+ ( 1)  D.mw_wkp_tot_17 + cD.mw_wkp_tot_17#c.std_sh_public_housing = 0
+
+------------------------------------------------------------------------------
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0940915   .0469413     2.00   0.052    -.0007805    .1889635
+------------------------------------------------------------------------------
+(80,698 observations deleted)
+(1 real change made)
+(note: file ../temp/sum_het_public_hous.dta not found)
+file ../temp/sum_het_public_hous.dta saved
 (80,696 observations deleted)
 (0 observations deleted)
 (4 real changes made)
 (2 real changes made)
 (2 real changes made)
+(note: variable at was byte, now float to accommodate using data's values)
 (note: file ../temp/estimates_het_public_hous.dta not found)
 file ../temp/estimates_het_public_hous.dta saved
-(note: variable var was str13, now str19 to accommodate using data's values)
+(note: variable var was str13, now str31 to accommodate using data's values)
 (note: variable model was str11, now str13 to accommodate using data's
        values)
-(note: variable var was str19, now str23 to accommodate using data's values)
 (note: variable model was str13, now str15 to accommodate using data's
        values)
 (note: file ../output/estimates_het.csv not found)
@@ -655,21 +795,30 @@ Type 'q()' to quit R.
 +   txt <- c("<tab:heterogeneity>")
 +   txt <- c(txt, 
 +            paste(est[model == "static_both"    & var == "mw_res",]$b,
-+                  est[model == "het_mw_shares"  & var == "mw_res_high_work_mw" & at == 0,]$b,
++                  est[model == "het_mw_shares"  & var == "mw_res_std_sh_mw_wkrs_statutory" & at == 0,]$b,
++                  est[model == "het_med_inc"    & var == "mw_res_std_med_hhld_inc" & at == 0,]$b,
 +                  est[model == "het_public_hous"& var == "mw_res_high_public_hous" & at == 0,]$b,
 +                  sep = "\t"))
++ 
 +   txt <- c(txt, 
 +            paste(est[model == "static_both"    & var == "mw_res",]$se,
-+                  est[model == "het_mw_shares"  & var == "mw_res_high_work_mw" & at == 0,]$se,
++                  est[model == "het_mw_shares"  & var == "mw_res_std_sh_mw_wkrs_statutory" & at == 0,]$se,
++                  est[model == "het_med_inc"    & var == "mw_res_std_med_hhld_inc" & at == 0,]$se,
 +                  est[model == "het_public_hous"& var == "mw_res_high_public_hous" & at == 0,]$se,
 +                  sep = "\t"))
 + 
 +   txt <- c(txt, 
-+            paste(est[model == "het_mw_shares" & var == "mw_res_high_work_mw" & at == 1,]$b, 
++            paste(est[model == "het_mw_shares" & var == "mw_res_std_sh_mw_wkrs_statutory" & at == 1,]$b, 
 +                  sep = "\t"),
-+             paste(est[model == "het_mw_shares" & var == "mw_res_high_work_mw" & at == 1,]$se, 
++             paste(est[model == "het_mw_shares" & var == "mw_res_std_sh_mw_wkrs_statutory" & at == 1,]$se, 
 +                  sep = "\t"))
-+   
++ 
++   txt <- c(txt, 
++            paste(est[model == "het_med_inc" & var == "mw_res_std_med_hhld_inc" & at == 1,]$b, 
++                  sep = "\t"),
++             paste(est[model == "het_med_inc" & var == "mw_res_std_med_hhld_inc" & at == 1,]$se, 
++                  sep = "\t"))
++ 
 +   txt <- c(txt, 
 +            paste(est[model == "het_public_hous" & var == "mw_res_high_public_hous" & at == 1,]$b, 
 +                  sep = "\t"),
@@ -678,21 +827,30 @@ Type 'q()' to quit R.
 + 
 +   txt <- c(txt, 
 +            paste(est[model == "static_both"    & var == "mw_wkp_tot_17",]$b,
-+                  est[model == "het_mw_shares"  & var == "mw_wkp_high_res_mw" & at == 0,]$b,
++                  est[model == "het_mw_shares"  & var == "mw_wkp_std_sh_mw_wkrs_statutory" & at == 0,]$b,
++                  est[model == "het_med_inc"    & var == "mw_wkp_std_med_hhld_inc" & at == 0,]$b,
 +                  est[model == "het_public_hous"& var == "mw_wkp_high_public_hous" & at == 0,]$b,
 +                  sep = "\t"))
++ 
 +   txt <- c(txt, 
 +            paste(est[model == "static_both"    & var == "mw_wkp_tot_17",]$se,
-+                  est[model == "het_mw_shares"  & var == "mw_wkp_high_res_mw" & at == 0,]$se,
++                  est[model == "het_mw_shares"  & var == "mw_wkp_std_sh_mw_wkrs_statutory" & at == 0,]$se,
++                  est[model == "het_med_inc"    & var == "mw_wkp_std_med_hhld_inc" & at == 0,]$se,
 +                  est[model == "het_public_hous"& var == "mw_wkp_high_public_hous" & at == 0,]$se,
 +                  sep = "\t"))
 + 
 +   txt <- c(txt, 
-+            paste(est[model == "het_mw_shares" & var == "mw_wkp_high_res_mw" & at == 1,]$b, 
++            paste(est[model == "het_mw_shares" & var == "mw_wkp_std_sh_mw_wkrs_statutory" & at == 1,]$b, 
 +                  sep = "\t"),
-+             paste(est[model == "het_mw_shares" & var == "mw_wkp_high_res_mw" & at == 1,]$se, 
++             paste(est[model == "het_mw_shares" & var == "mw_wkp_std_sh_mw_wkrs_statutory" & at == 1,]$se, 
 +                  sep = "\t"))
-+   
++ 
++   txt <- c(txt, 
++            paste(est[model == "het_med_inc" & var == "mw_wkp_std_med_hhld_inc" & at == 1,]$b, 
++                  sep = "\t"),
++             paste(est[model == "het_med_inc" & var == "mw_wkp_std_med_hhld_inc" & at == 1,]$se, 
++                  sep = "\t"))
++ 
 +    txt <- c(txt, 
 +            paste(est[model == "het_public_hous" & var == "mw_wkp_high_public_hous" & at == 1,]$b, 
 +                  sep = "\t"),
@@ -701,13 +859,16 @@ Type 'q()' to quit R.
 +   
 +   txt <- c(txt, 
 +            paste(est[model == "static_both"    & var == "mw_wkp_tot_17",]$r2,
-+                  est[model == "het_mw_shares"  & var == "mw_wkp_high_res_mw" & at == 0,]$r2,
-+                  est[model == "het_public_hous"& var == "mw_wkp_high_public_hous" & at == 0,]$r2, 
++                  est[model == "het_mw_shares"  & var == "mw_wkp_std_sh_mw_wkrs_statutory" & at == 0,]$r2,
++                  est[model == "het_med_inc"    & var == "mw_wkp_std_med_hhld_inc" & at == 0,]$r2,
++                  est[model == "het_public_hous"& var == "mw_wkp_high_public_hous" & at == 0,]$r2,
 +                  sep = "\t"))
++ 
 +   txt <- c(txt, 
 +            paste(est[model == "static_both"    & var == "mw_wkp_tot_17",]$N,
-+                  est[model == "het_mw_shares"  & var == "mw_wkp_high_res_mw" & at == 0,]$N,
-+                  est[model == "het_public_hous"& var == "mw_wkp_high_public_hous" & at == 0,]$N, 
++                  est[model == "het_mw_shares"  & var == "mw_wkp_std_sh_mw_wkrs_statutory" & at == 0,]$N,
++                  est[model == "het_med_inc"    & var == "mw_wkp_std_med_hhld_inc" & at == 0,]$N,
++                  est[model == "het_public_hous"& var == "mw_wkp_high_public_hous" & at == 0,]$N,
 +                  sep = "\t"))
 + 
 +   fileConn <- file(file.path(outstub, "heterogeneity.txt"))
@@ -719,6 +880,100 @@ Type 'q()' to quit R.
 > 
 > proc.time()
    user  system elapsed 
-   0.98    0.23    1.36 
+   0.50    0.17    0.64 
 
- make.py ended: 2022-06-08 08:41:07
+
+Execute:  StataMP-64 /e do "./make_autofill_values.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+
+running c:\ado\personal\profile.do ...
+
+. do ./make_autofill_values.do 
+
+. clear all
+
+. version 15
+
+. set more off
+
+. 
+. program main
+  1.     local in_estimates  "../output"
+  2. 
+.     import delimited `in_estimates'/estimates_het.csv
+  3. 
+.     keep if model == "het_mw_shares" & at == 0
+  4. 
+.     qui sum b if var == "mw_res_std_sh_mw_wkrs_statutory"
+  5.     local tilde_gamma_zero = r(mean)
+  6.     qui sum se if var == "mw_res_std_sh_mw_wkrs_statutory"
+  7.     local tilde_gamma_zero_se = r(mean)
+  8. 
+.     qui sum b if var == "mw_wkp_std_sh_mw_wkrs_statutory"
+  9.     local tilde_beta_zero = r(mean)
+ 10.     qui sum se if var == "mw_wkp_std_sh_mw_wkrs_statutory"
+ 11.     local tilde_beta_zero_se = r(mean)
+ 12. 
+.     qui sum b if var == "sum_res"
+ 13.     local tilde_gamma_zero_plus_one = r(mean)
+ 14.     qui sum se if var == "sum_res"
+ 15.     local tilde_gamma_zero_plus_one_se = r(mean)
+ 16. 
+.     qui sum b if var == "sum_wkp"
+ 17.     local tilde_beta_zero_plus_one = r(mean)
+ 18.     qui sum se if var == "sum_wkp"
+ 19.     local tilde_beta_zero_plus_one_se = r(mean)
+ 20. 
+.     cap file close f
+ 21.     file open   f using "../output/autofill_heterogeneity.tex", write repl
+> ace
+ 22.     file write  f "\newcommand{\TildeGammaZero}{\textnormal{"             
+>   %4.3f  (`tilde_gamma_zero')             "}}" _n
+ 23.     file write  f "\newcommand{\TildeGammaZeroSE}{\textnormal{"           
+>   %4.3f  (`tilde_gamma_zero_se')          "}}" _n
+ 24.     file write  f "\newcommand{\TildeBetaZero}{\textnormal{"              
+>   %4.3f  (`tilde_beta_zero')              "}}" _n
+ 25.     file write  f "\newcommand{\TildeBetaZeroSE}{\textnormal{"            
+>   %4.3f  (`tilde_beta_zero_se')           "}}" _n
+ 26.     file write  f "\newcommand{\TildeGammaZeroPlusGammaOne}{\textnormal{" 
+>   %4.3f  (`tilde_gamma_zero_plus_one')    "}}" _n
+ 27.     file write  f "\newcommand{\TildeGammaZeroPlusGammaOneSE}{\textnormal{
+> " %4.3f  (`tilde_gamma_zero_plus_one_se') "}}" _n
+ 28.     file write  f "\newcommand{\TildeBetaZeroPlusBetaOne}{\textnormal{"   
+>   %4.3f  (`tilde_beta_zero_plus_one')     "}}" _n
+ 29.     file write  f "\newcommand{\TildeBetaZeroPlusBetaOneSE}{\textnormal{" 
+>   %4.3f  (`tilde_beta_zero_plus_one_se')  "}}" _n
+ 30.     file close  f
+ 31. end
+
+. 
+. main
+(7 vars, 21 obs)
+(17 observations deleted)
+(note: file ../output/autofill_heterogeneity.tex not found)
+
+. 
+end of do-file
+
+ make.py ended: 2022-06-23 16:07:55

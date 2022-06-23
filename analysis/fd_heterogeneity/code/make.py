@@ -34,6 +34,7 @@ start_make_logging()
 run_stata(program = 'preclean.do', executable = stata)
 run_stata(program = 'estimates.do', executable = stata)
 run_rbatch(program = 'tables.R')
+run_stata(program = 'make_autofill_values.do', executable = stata)
 
 end_make_logging()
 

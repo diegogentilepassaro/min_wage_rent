@@ -1,5 +1,5 @@
 
- make.py started: 2022-06-08 08:44:49 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\twfe_wages\code 
+ make.py started: 2022-06-20 14:18:48 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\twfe_wages\code 
 
 
 
@@ -59,80 +59,91 @@ running c:\ado\personal\profile.do ...
 . program main
   1.     local in_est     "../../../drive/derived_large/estimation_samples"
   2.     local in_zip_yr  "../../../drive/derived_large/zipcode_year"
-  3.     local outstub "../output"
-  4.         
+  3.     local incross    "../../../drive/derived_large/zipcode"
+  4.     local outstub    "../output"
+  5.         
 .     local mw_wkp_var "mw_wkp_tot_17"
-  5. 
+  6. 
 .     use "`in_zip_yr'/zipcode_year.dta", clear
-  6.     xtset zipcode_num year
-  7. 
+  7.     xtset zipcode_num year
+  8. 
+.     keep if year >= 2014    // To be consistent with baseline
+  9. 
 .     add_baseline_zipcodes, instub(`in_est')
-  8.         destring cbsa, gen(cbsa_num)
-  9.         
+ 10.     add_share_mw_workers,  instub(`incross')
+ 11. 
 .     define_controls
- 10.     local controls "`r(economic_controls)'"
- 11.     local cluster "statefips"
- 12. 
+ 12.     local controls "`r(economic_controls)'"
+ 13.     local cluster "statefips"
+ 14. 
 .     estimate_twfe_model, ///
 >         yvar(ln_wagebill) xvars(`mw_wkp_var'_avg) controls(" ")            //
 > /
 >         absorb(zipcode year) cluster(`cluster') model_name(naive)
- 13. 
+ 15. 
 .     estimate_twfe_model, ///
 >         yvar(ln_wagebill) xvars(`mw_wkp_var'_avg) controls(`controls')     //
 > /
 >         absorb(zipcode year) cluster(`cluster') model_name(ctrls)
- 14. 
+ 16. 
 .     estimate_twfe_model, ///
 >         yvar(ln_wagebill) xvars(`mw_wkp_var'_avg) controls(`controls')     //
 > /
 >         absorb(zipcode year#cbsa_num) cluster(`cluster') model_name(cbsa_time
 > )
- 15. 
+ 17. 
+.     estimate_twfe_model, ///
+>         yvar(ln_wagebill) xvars(`mw_wkp_var'_avg c.`mw_wkp_var'_avg##c.std_sh
+> _mw_wkrs_statutory) ///
+>         controls(`controls') absorb(zipcode year#cbsa_num) cluster(`cluster')
+>  ///
+>         model_name(cbsa_time_het)
+ 18. 
 .     estimate_twfe_model, ///
 >         yvar(ln_wagebill) xvars(`mw_wkp_var'_avg) controls(`controls')     //
 > /
 >         absorb(zipcode year#county_num) cluster(`cluster') model_name(county_
 > time)
- 16.     
+ 19.     
 .     estimate_twfe_model if fullbal_sample_SFCC, ///
 >         yvar(ln_wagebill) xvars(`mw_wkp_var'_avg) controls(`controls')     //
 > /
 >         absorb(zipcode year#cbsa_num) cluster(`cluster') model_name(cbsa_time
 > _baseline)
- 17. 
+ 20. 
 .     estimate_twfe_model, ///
 >         yvar(ln_wagebill) xvars(mw_wkp_tot_14_avg) controls(`controls')     /
 > //
 >         absorb(zipcode year#cbsa_num) cluster(`cluster') model_name(mw_wkp_to
 > t_14)
- 18.     
+ 21.     
 .     estimate_twfe_model, ///
 >         yvar(ln_wagebill) xvars(mw_wkp_tot_18_avg) controls(`controls')     /
 > //
 >         absorb(zipcode year#cbsa_num) cluster(`cluster') model_name(mw_wkp_to
 > t_18)
- 19.     
+ 22.     
 .     estimate_twfe_model, ///
 >         yvar(ln_wagebill) xvars(mw_wkp_tot_tvar_avg) controls(`controls')    
 >    ///
 >         absorb(zipcode year#cbsa_num) cluster(`cluster') model_name(mw_wkp_to
 > t_timvar)
- 20.     
+ 23.     
 .     estimate_twfe_model, ///
 >         yvar(ln_dividends) xvars(`mw_wkp_var'_avg) controls(`controls')    //
 > /
 >         absorb(zipcode year#cbsa_num) cluster(`cluster') model_name(dividends
 > )
- 21. 
+ 24. 
 .     use ../temp/estimates_naive.dta, clear
- 22.     foreach ff in ctrls cbsa_time county_time cbsa_time_baseline ///
->                   mw_wkp_tot_14 mw_wkp_tot_18 mw_wkp_tot_timvar dividends {
- 23.         append using ../temp/estimates_`ff'.dta
- 24.     }
- 25.     save             `outstub'/estimates_all.dta, replace
- 26.     export delimited `outstub'/estimates_all.csv, replace
- 27. end
+ 25.     foreach ff in ctrls cbsa_time cbsa_time_het cbsa_time_baseline ///
+>                   county_time mw_wkp_tot_14 mw_wkp_tot_18 mw_wkp_tot_timvar d
+> ividends {
+ 26.         append using ../temp/estimates_`ff'.dta
+ 27.     }
+ 28.     save             `outstub'/estimates_all.dta, replace
+ 29.     export delimited `outstub'/estimates_all.csv, replace
+ 30. end
 
 . 
 . program add_baseline_zipcodes
@@ -152,53 +163,79 @@ running c:\ado\personal\profile.do ...
 .     merge m:1 zipcode using `zipcode_years_baseline', keep(1 3) nogen
  11. 
 .     replace fullbal_sample_SFCC = 0 if fullbal_sample_SFCC != 1
- 12. end
+ 12.     
+.     destring cbsa, gen(cbsa_num)
+ 13. end
 
+. 
+. program add_share_mw_workers
+  1.     syntax, instub(str)
+  2. 
+.     merge m:1 zipcode using "`instub'/zipcode_cross.dta", nogen       ///
+>         keep(3) keepusing(sh_mw_wkrs_statutory)
+  3. 
+.     foreach var in sh_mw_wkrs_statutory {
+  4.         qui sum `var'
+  5.         local avg_`var' = r(mean)
+  6.         local sd_`var' = r(sd)
+  7.         gen std_`var' = (`var' - `avg_`var'')/`sd_`var''
+  8.     }
+  9. end
+
+. 
 . 
 . 
 . main
        panel variable:  zipcode_num (strongly balanced)
         time variable:  year, 2010 to 2020
                 delta:  1 unit
+(127,304 observations deleted)
 (235,482 observations deleted)
 (79,355 observations deleted)
-file C:\Users\diegog\AppData\Local\Temp\6\ST_3ecc_000002.tmp saved
+file C:\Users\shermo\AppData\Local\Temp\5\ST_74a68_000002.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
-    not matched                       335,291
-        from master                   335,291  
+    not matched                       213,367
+        from master                   213,367  
         from using                          0  
 
-    matched                            14,795  
+    matched                             9,415  
     -----------------------------------------
-(335,291 real changes made)
+(213,367 real changes made)
 cbsa: all characters numeric; cbsa_num generated as long
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                           222,782  
+    -----------------------------------------
+(5,866 missing values generated)
 (dropped 1344 singleton observations)
 (MWFE estimator converged in 4 iterations)
 
-HDFE Linear regression                            Number of obs   =    274,271
-Absorbing 2 HDFE groups                           F(   1,     50) =       4.47
-Statistics robust to heteroskedasticity           Prob > F        =     0.0395
-                                                  R-squared       =     0.9982
-                                                  Adj R-squared   =     0.9980
-                                                  Within R-sq.    =     0.0165
-Number of clusters (statefips) =         51       Root MSE        =     0.0754
+HDFE Linear regression                            Number of obs   =    163,417
+Absorbing 2 HDFE groups                           F(   1,     50) =       5.96
+Statistics robust to heteroskedasticity           Prob > F        =     0.0182
+                                                  R-squared       =     0.9990
+                                                  Adj R-squared   =     0.9989
+                                                  Within R-sq.    =     0.0158
+Number of clusters (statefips) =         51       Root MSE        =     0.0577
 
                              (Std. Err. adjusted for 51 clusters in statefips)
 ------------------------------------------------------------------------------
              |               Robust
  ln_wagebill |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-mw_~t_17_avg |   .1487174   .0703572     2.11   0.040     .0074008     .290034
+mw_~t_17_avg |   .1274509   .0521967     2.44   0.018     .0226108    .2322909
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
 -----------------------------------------------------+
  Absorbed FE | Categories  - Redundant  = Num. Coefs |
 -------------+---------------------------------------|
-     zipcode |     27835       27835           0    *|
-        year |        10           0          10     |
+     zipcode |     27722       27722           0    *|
+        year |         6           0           6     |
 -----------------------------------------------------+
 * = FE nested within cluster; treated as redundant for DoF computation
 (note: file ../temp/estimates.dta not found)
@@ -221,46 +258,46 @@ __df            byte    %9.0g                 degrees of freedom
 __pval          float   %9.0g                 p-value
 __ll1           float   %9.0g                 CI1: lower limit
 __ul1           float   %9.0g                 CI1: upper limit
-(350,085 missing values generated)
-(350,085 observations deleted)
+(222,781 missing values generated)
+(222,781 observations deleted)
 (note: file ../temp/estimates_naive.dta not found)
 file ../temp/estimates_naive.dta saved
 (note: file ../temp/estimates_naive.csv not found)
 file ../temp/estimates_naive.csv saved
-(dropped 1412 singleton observations)
+(dropped 1550 singleton observations)
 (MWFE estimator converged in 5 iterations)
 
-HDFE Linear regression                            Number of obs   =    247,962
-Absorbing 2 HDFE groups                           F(  10,     50) =      26.22
+HDFE Linear regression                            Number of obs   =    146,824
+Absorbing 2 HDFE groups                           F(  10,     50) =      24.16
 Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9984
-                                                  Adj R-squared   =     0.9983
-                                                  Within R-sq.    =     0.1395
-Number of clusters (statefips) =         51       Root MSE        =     0.0697
+                                                  R-squared       =     0.9991
+                                                  Adj R-squared   =     0.9989
+                                                  Within R-sq.    =     0.0953
+Number of clusters (statefips) =         51       Root MSE        =     0.0545
 
                              (Std. Err. adjusted for 51 clusters in statefips)
 ------------------------------------------------------------------------------
              |               Robust
  ln_wagebill |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-mw_~t_17_avg |   .1110895   .0405127     2.74   0.008     .0297175    .1924616
-ln_emp_biz~v |    .047545   .0066256     7.18   0.000     .0342372    .0608529
- ln_emp_info |   .0251666   .0051591     4.88   0.000     .0148042     .035529
-  ln_emp_fin |   .0950151   .0106617     8.91   0.000     .0736005    .1164297
-ln_estcou~rv |   .1070814   .0170192     6.29   0.000     .0728974    .1412654
-ln_estcoun~o |   .0282848    .007247     3.90   0.000     .0137287    .0428409
-ln_estcoun~n |   .1396362   .0195764     7.13   0.000     .1003158    .1789566
-ln_avgwwa~rv |   .0350365   .0062872     5.57   0.000     .0224083    .0476648
-ln_avgwwag~o |   .0125185   .0060998     2.05   0.045     .0002667    .0247703
-ln_avgwwag~n |   .0598326   .0134823     4.44   0.000     .0327526    .0869125
+mw_~t_17_avg |   .0909171   .0336007     2.71   0.009     .0234281    .1584062
+ln_emp_biz~v |   .0368204   .0059326     6.21   0.000     .0249045    .0487363
+ ln_emp_info |   .0182655   .0040717     4.49   0.000     .0100873    .0264436
+  ln_emp_fin |   .0681668   .0120378     5.66   0.000     .0439882    .0923453
+ln_estcou~rv |   .0986174   .0166938     5.91   0.000     .0650868     .132148
+ln_estcoun~o |   .0170553   .0053004     3.22   0.002     .0064091    .0277014
+ln_estcoun~n |   .1148327   .0168575     6.81   0.000     .0809735    .1486919
+ln_avgwwa~rv |   .0280084   .0075369     3.72   0.001     .0128701    .0431466
+ln_avgwwag~o |   .0081887   .0035519     2.31   0.025     .0010545    .0153229
+ln_avgwwag~n |   .0378935   .0103651     3.66   0.001     .0170745    .0587125
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
 -----------------------------------------------------+
  Absorbed FE | Categories  - Redundant  = Num. Coefs |
 -------------+---------------------------------------|
-     zipcode |     26252       26252           0    *|
-        year |        10           0          10     |
+     zipcode |     25641       25641           0    *|
+        year |         6           0           6     |
 -----------------------------------------------------+
 * = FE nested within cluster; treated as redundant for DoF computation
 file ../temp/estimates.dta saved
@@ -282,46 +319,46 @@ __df            byte    %9.0g                 degrees of freedom
 __pval          float   %9.0g                 p-value
 __ll1           float   %9.0g                 CI1: lower limit
 __ul1           float   %9.0g                 CI1: upper limit
-(350,085 missing values generated)
-(350,085 observations deleted)
+(222,781 missing values generated)
+(222,781 observations deleted)
 (note: file ../temp/estimates_ctrls.dta not found)
 file ../temp/estimates_ctrls.dta saved
 (note: file ../temp/estimates_ctrls.csv not found)
 file ../temp/estimates_ctrls.csv saved
-(dropped 1522 singleton observations)
+(dropped 1615 singleton observations)
 (MWFE estimator converged in 10 iterations)
 
-HDFE Linear regression                            Number of obs   =    247,852
-Absorbing 2 HDFE groups                           F(  10,     50) =      19.06
+HDFE Linear regression                            Number of obs   =    146,759
+Absorbing 2 HDFE groups                           F(  10,     50) =      21.39
 Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9987
-                                                  Adj R-squared   =     0.9985
-                                                  Within R-sq.    =     0.0266
-Number of clusters (statefips) =         51       Root MSE        =     0.0639
+                                                  R-squared       =     0.9993
+                                                  Adj R-squared   =     0.9991
+                                                  Within R-sq.    =     0.0165
+Number of clusters (statefips) =         51       Root MSE        =     0.0502
 
                              (Std. Err. adjusted for 51 clusters in statefips)
 ------------------------------------------------------------------------------
              |               Robust
  ln_wagebill |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-mw_~t_17_avg |   .1083556   .0389619     2.78   0.008     .0300984    .1866128
-ln_emp_biz~v |   .0236634   .0068969     3.43   0.001     .0098105    .0375163
- ln_emp_info |   .0120452    .003092     3.90   0.000     .0058347    .0182557
-  ln_emp_fin |   .0395668    .007744     5.11   0.000     .0240126     .055121
-ln_estcou~rv |   .0714718    .014344     4.98   0.000     .0426609    .1002827
-ln_estcoun~o |   .0199168   .0040442     4.92   0.000     .0117939    .0280397
-ln_estcoun~n |   .0703287   .0107154     6.56   0.000     .0488062    .0918513
-ln_avgwwa~rv |   .0191403   .0054958     3.48   0.001     .0081018    .0301789
-ln_avgwwag~o |   .0057697   .0042953     1.34   0.185    -.0028576     .014397
-ln_avgwwag~n |    .039539   .0153213     2.58   0.013     .0087653    .0703128
+mw_~t_17_avg |   .1013499    .027383     3.70   0.001     .0463494    .1563503
+ln_emp_biz~v |   .0169808   .0044372     3.83   0.000     .0080684    .0258933
+ ln_emp_info |    .007011   .0024468     2.87   0.006     .0020965    .0119255
+  ln_emp_fin |   .0199864   .0062672     3.19   0.002     .0073983    .0325745
+ln_estcou~rv |   .0637136   .0115668     5.51   0.000      .040481    .0869463
+ln_estcoun~o |   .0130041   .0040265     3.23   0.002     .0049166    .0210916
+ln_estcoun~n |   .0552619   .0100845     5.48   0.000     .0350067    .0755172
+ln_avgwwa~rv |   .0140242     .00501     2.80   0.007     .0039613    .0240871
+ln_avgwwag~o |    .003538   .0029037     1.22   0.229    -.0022944    .0093703
+ln_avgwwag~n |   .0113612    .008164     1.39   0.170    -.0050366    .0277591
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
 ---------------------------------------------------------+
      Absorbed FE | Categories  - Redundant  = Num. Coefs |
 -----------------+---------------------------------------|
-         zipcode |     26243       26243           0    *|
-   year#cbsa_num |      9085           0        9085     |
+         zipcode |     25631       25631           0    *|
+   year#cbsa_num |      5440           0        5440     |
 ---------------------------------------------------------+
 * = FE nested within cluster; treated as redundant for DoF computation
 file ../temp/estimates.dta saved
@@ -343,13 +380,88 @@ __df            byte    %9.0g                 degrees of freedom
 __pval          float   %9.0g                 p-value
 __ll1           float   %9.0g                 CI1: lower limit
 __ul1           float   %9.0g                 CI1: upper limit
-(350,085 missing values generated)
-(350,085 observations deleted)
+(222,781 missing values generated)
+(222,781 observations deleted)
 (note: file ../temp/estimates_cbsa_time.dta not found)
 file ../temp/estimates_cbsa_time.dta saved
 (note: file ../temp/estimates_cbsa_time.csv not found)
 file ../temp/estimates_cbsa_time.csv saved
-(dropped 2100 singleton observations)
+(dropped 1601 singleton observations)
+note: std_sh_mw_wkrs_statutory is probably collinear with the fixed effects (al
+> l partialled-out values are close to zero; tol = 1.0e-09)
+(MWFE estimator converged in 10 iterations)
+note: mw_wkp_tot_17_avg omitted because of collinearity
+note: std_sh_mw_wkrs_statutory omitted because of collinearity
+
+HDFE Linear regression                            Number of obs   =    143,752
+Absorbing 2 HDFE groups                           F(  11,     49) =      21.79
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9993
+                                                  Adj R-squared   =     0.9991
+                                                  Within R-sq.    =     0.0170
+Number of clusters (statefips) =         50       Root MSE        =     0.0500
+
+                             (Std. Err. adjusted for 50 clusters in statefips)
+------------------------------------------------------------------------------
+             |               Robust
+ ln_wagebill |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+mw_~t_17_avg |   .1012729   .0271876     3.72   0.001     .0466374    .1559084
+mw_~t_17_avg |          0  (omitted)
+std_sh_mw_~y |          0  (omitted)
+             |
+          c. |
+mw_~t_17_avg#|
+          c. |
+std_sh_mw_~y |   .0216309   .0089637     2.41   0.020     .0036177    .0396441
+             |
+ln_emp_biz~v |   .0169233    .004436     3.81   0.000     .0080088    .0258378
+ ln_emp_info |   .0072545   .0024421     2.97   0.005     .0023469    .0121621
+  ln_emp_fin |   .0196329   .0062268     3.15   0.003     .0071197    .0321461
+ln_estcou~rv |   .0631085   .0115536     5.46   0.000     .0398908    .0863263
+ln_estcoun~o |   .0122675    .003923     3.13   0.003      .004384     .020151
+ln_estcoun~n |    .055253   .0100052     5.52   0.000     .0351468    .0753592
+ln_avgwwa~rv |   .0137059   .0049454     2.77   0.008     .0037677    .0236442
+ln_avgwwag~o |   .0036742   .0029228     1.26   0.215    -.0021995    .0095479
+ln_avgwwag~n |   .0099325   .0082524     1.20   0.235    -.0066514    .0265164
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+---------------------------------------------------------+
+     Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-----------------+---------------------------------------|
+         zipcode |     25114       25114           0    *|
+   year#cbsa_num |      5422           0        5422     |
+---------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+file ../temp/estimates.dta saved
+
+Generated variables:
+              storage   display    value
+variable name   type    format     label      variable label
+-------------------------------------------------------------------------------
+__by            byte    %9.0g      __by       subgraph ID
+__plot          byte    %9.0g      __plot     plot ID
+__at            byte    %9.0g                 plot position (category axis)
+__mlbl          str1    %9s                   marker label
+__mlpos         byte    %9.0g                 marker label position
+__b             float   %9.0g                 coefficient
+__V             float   %9.0g                 variance
+__se            float   %9.0g                 standard error
+__t             float   %9.0g                 t or z statistic
+__df            byte    %9.0g                 degrees of freedom
+__pval          float   %9.0g                 p-value
+__ll1           float   %9.0g                 CI1: lower limit
+__ul1           float   %9.0g                 CI1: upper limit
+(222,781 missing values generated)
+variable var was str17 now str47
+(1 real change made)
+(222,780 observations deleted)
+(note: file ../temp/estimates_cbsa_time_het.dta not found)
+file ../temp/estimates_cbsa_time_het.dta saved
+(note: file ../temp/estimates_cbsa_time_het.csv not found)
+file ../temp/estimates_cbsa_time_het.csv saved
+(dropped 1945 singleton observations)
 note: ln_emp_bizserv is probably collinear with the fixed effects (all partiall
 > ed-out values are close to zero; tol = 1.0e-09)
 note: ln_emp_info is probably collinear with the fixed effects (all partialled-
@@ -368,7 +480,7 @@ note: ln_avgwwage_info is probably collinear with the fixed effects (all partia
 > lled-out values are close to zero; tol = 1.0e-09)
 note: ln_avgwwage_fin is probably collinear with the fixed effects (all partial
 > led-out values are close to zero; tol = 1.0e-09)
-(MWFE estimator converged in 9 iterations)
+(MWFE estimator converged in 8 iterations)
 note: ln_emp_bizserv omitted because of collinearity
 note: ln_emp_info omitted because of collinearity
 note: ln_emp_fin omitted because of collinearity
@@ -379,20 +491,20 @@ note: ln_avgwwage_bizserv omitted because of collinearity
 note: ln_avgwwage_info omitted because of collinearity
 note: ln_avgwwage_fin omitted because of collinearity
 
-HDFE Linear regression                            Number of obs   =    247,274
-Absorbing 2 HDFE groups                           F(   1,     50) =      10.56
-Statistics robust to heteroskedasticity           Prob > F        =     0.0021
-                                                  R-squared       =     0.9990
-                                                  Adj R-squared   =     0.9987
-                                                  Within R-sq.    =     0.0009
-Number of clusters (statefips) =         51       Root MSE        =     0.0603
+HDFE Linear regression                            Number of obs   =    146,429
+Absorbing 2 HDFE groups                           F(   1,     50) =      10.19
+Statistics robust to heteroskedasticity           Prob > F        =     0.0024
+                                                  R-squared       =     0.9994
+                                                  Adj R-squared   =     0.9992
+                                                  Within R-sq.    =     0.0006
+Number of clusters (statefips) =         51       Root MSE        =     0.0482
 
                              (Std. Err. adjusted for 51 clusters in statefips)
 ------------------------------------------------------------------------------
              |               Robust
  ln_wagebill |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-mw_~t_17_avg |   .3679797   .1132117     3.25   0.002     .1405873     .595372
+mw_~t_17_avg |   .2440213   .0764591     3.19   0.002     .0904486    .3975939
 ln_emp_biz~v |          0  (omitted)
  ln_emp_info |          0  (omitted)
   ln_emp_fin |          0  (omitted)
@@ -408,8 +520,8 @@ Absorbed degrees of freedom:
 -----------------------------------------------------------+
        Absorbed FE | Categories  - Redundant  = Num. Coefs |
 -------------------+---------------------------------------|
-           zipcode |     26169       26169           0    *|
-   year#county_num |     23220       23220           0    *|
+           zipcode |     25570       25570           0    *|
+   year#county_num |     13690       13690           0    *|
 -----------------------------------------------------------+
 * = FE nested within cluster; treated as redundant for DoF computation
 file ../temp/estimates.dta saved
@@ -431,38 +543,38 @@ __df            byte    %9.0g                 degrees of freedom
 __pval          float   %9.0g                 p-value
 __ll1           float   %9.0g                 CI1: lower limit
 __ul1           float   %9.0g                 CI1: upper limit
-(350,085 missing values generated)
-(350,085 observations deleted)
+(222,781 missing values generated)
+(222,781 observations deleted)
 (note: file ../temp/estimates_county_time.dta not found)
 file ../temp/estimates_county_time.dta saved
 (note: file ../temp/estimates_county_time.csv not found)
 file ../temp/estimates_county_time.csv saved
-(dropped 395 singleton observations)
-(MWFE estimator converged in 5 iterations)
+(dropped 237 singleton observations)
+(MWFE estimator converged in 4 iterations)
 
-HDFE Linear regression                            Number of obs   =     12,943
-Absorbing 2 HDFE groups                           F(  10,     34) =       7.37
-Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9886
-                                                  Adj R-squared   =     0.9863
-                                                  Within R-sq.    =     0.0376
-Number of clusters (statefips) =         35       Root MSE        =     0.0673
+HDFE Linear regression                            Number of obs   =      7,745
+Absorbing 2 HDFE groups                           F(  10,     34) =       4.62
+Statistics robust to heteroskedasticity           Prob > F        =     0.0004
+                                                  R-squared       =     0.9940
+                                                  Adj R-squared   =     0.9922
+                                                  Within R-sq.    =     0.0219
+Number of clusters (statefips) =         35       Root MSE        =     0.0506
 
                              (Std. Err. adjusted for 35 clusters in statefips)
 ------------------------------------------------------------------------------
              |               Robust
  ln_wagebill |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-mw_~t_17_avg |   .1310932   .0916485     1.43   0.162     -.055159    .3173453
-ln_emp_biz~v |   .0572562   .0317372     1.80   0.080    -.0072417     .121754
- ln_emp_info |  -.0110446   .0191732    -0.58   0.568    -.0500091      .02792
-  ln_emp_fin |  -.0510289   .0420744    -1.21   0.234    -.1365345    .0344766
-ln_estcou~rv |   .2891269   .1673339     1.73   0.093    -.0509365    .6291903
-ln_estcoun~o |   .0164862    .044962     0.37   0.716    -.0748875      .10786
-ln_estcoun~n |    .176053   .0947539     1.86   0.072    -.0165101     .368616
-ln_avgwwa~rv |   .0655594   .0419599     1.56   0.127    -.0197134    .1508321
-ln_avgwwag~o |   .0292773    .027984     1.05   0.303     -.027593    .0861476
-ln_avgwwag~n |   .0089952   .0402364     0.22   0.824    -.0727751    .0907654
+mw_~t_17_avg |   .0110565   .0857598     0.13   0.898    -.1632284    .1853413
+ln_emp_biz~v |   .0433532   .0299697     1.45   0.157    -.0175525    .1042589
+ ln_emp_info |   -.000765   .0136258    -0.06   0.956     -.028456    .0269259
+  ln_emp_fin |  -.0356002   .0544879    -0.65   0.518     -.146333    .0751326
+ln_estcou~rv |   .2681709   .1190467     2.25   0.031      .026239    .5101029
+ln_estcoun~o |  -.0106037   .0301476    -0.35   0.727    -.0718711    .0506636
+ln_estcoun~n |     .11483   .0752806     1.53   0.136    -.0381586    .2678186
+ln_avgwwa~rv |    .026068   .0383647     0.68   0.501    -.0518984    .1040343
+ln_avgwwag~o |   .0365127   .0260287     1.40   0.170     -.016384    .0894093
+ln_avgwwag~n |  -.0246495   .0375542    -0.66   0.516    -.1009687    .0516697
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
@@ -470,7 +582,7 @@ Absorbed degrees of freedom:
      Absorbed FE | Categories  - Redundant  = Num. Coefs |
 -----------------+---------------------------------------|
          zipcode |      1303        1303           0    *|
-   year#cbsa_num |       888           0         888     |
+   year#cbsa_num |       531           0         531     |
 ---------------------------------------------------------+
 * = FE nested within cluster; treated as redundant for DoF computation
 file ../temp/estimates.dta saved
@@ -492,46 +604,46 @@ __df            byte    %9.0g                 degrees of freedom
 __pval          float   %9.0g                 p-value
 __ll1           float   %9.0g                 CI1: lower limit
 __ul1           float   %9.0g                 CI1: upper limit
-(350,085 missing values generated)
-(350,085 observations deleted)
+(222,781 missing values generated)
+(222,781 observations deleted)
 (note: file ../temp/estimates_cbsa_time_baseline.dta not found)
 file ../temp/estimates_cbsa_time_baseline.dta saved
 (note: file ../temp/estimates_cbsa_time_baseline.csv not found)
 file ../temp/estimates_cbsa_time_baseline.csv saved
-(dropped 1522 singleton observations)
+(dropped 1615 singleton observations)
 (MWFE estimator converged in 10 iterations)
 
-HDFE Linear regression                            Number of obs   =    247,857
-Absorbing 2 HDFE groups                           F(  10,     50) =      18.92
+HDFE Linear regression                            Number of obs   =    146,762
+Absorbing 2 HDFE groups                           F(  10,     50) =      21.37
 Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9987
-                                                  Adj R-squared   =     0.9985
-                                                  Within R-sq.    =     0.0266
-Number of clusters (statefips) =         51       Root MSE        =     0.0639
+                                                  R-squared       =     0.9993
+                                                  Adj R-squared   =     0.9991
+                                                  Within R-sq.    =     0.0165
+Number of clusters (statefips) =         51       Root MSE        =     0.0502
 
                              (Std. Err. adjusted for 51 clusters in statefips)
 ------------------------------------------------------------------------------
              |               Robust
  ln_wagebill |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-mw_~t_14_avg |   .1077403   .0389849     2.76   0.008     .0294369    .1860437
-ln_emp_biz~v |   .0236755   .0068971     3.43   0.001     .0098223    .0375288
- ln_emp_info |   .0120676   .0030937     3.90   0.000     .0058538    .0182815
-  ln_emp_fin |   .0396178   .0077388     5.12   0.000      .024074    .0551616
-ln_estcou~rv |   .0714307   .0143409     4.98   0.000      .042626    .1002353
-ln_estcoun~o |   .0199134   .0040475     4.92   0.000     .0117836    .0280431
-ln_estcoun~n |   .0701827   .0107332     6.54   0.000     .0486244    .0917409
-ln_avgwwa~rv |   .0191828   .0055011     3.49   0.001     .0081335     .030232
-ln_avgwwag~o |   .0057676   .0043058     1.34   0.186    -.0028809    .0144161
-ln_avgwwag~n |   .0395627   .0153156     2.58   0.013     .0088005    .0703249
+mw_~t_14_avg |   .1005483   .0273882     3.67   0.001     .0455376     .155559
+ln_emp_biz~v |   .0169699   .0044382     3.82   0.000     .0080555    .0258843
+ ln_emp_info |   .0070055    .002447     2.86   0.006     .0020905    .0119205
+  ln_emp_fin |   .0199387   .0062607     3.18   0.002     .0073637    .0325138
+ln_estcou~rv |   .0636167   .0115791     5.49   0.000     .0403595    .0868739
+ln_estcoun~o |   .0130483   .0040331     3.24   0.002     .0049475     .021149
+ln_estcoun~n |   .0551989   .0100924     5.47   0.000     .0349278    .0754701
+ln_avgwwa~rv |   .0140409   .0050141     2.80   0.007     .0039698    .0241119
+ln_avgwwag~o |   .0035339   .0029042     1.22   0.229    -.0022994    .0093672
+ln_avgwwag~n |   .0113098   .0081648     1.39   0.172    -.0050896    .0277092
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
 ---------------------------------------------------------+
      Absorbed FE | Categories  - Redundant  = Num. Coefs |
 -----------------+---------------------------------------|
-         zipcode |     26243       26243           0    *|
-   year#cbsa_num |      9085           0        9085     |
+         zipcode |     25631       25631           0    *|
+   year#cbsa_num |      5440           0        5440     |
 ---------------------------------------------------------+
 * = FE nested within cluster; treated as redundant for DoF computation
 file ../temp/estimates.dta saved
@@ -553,46 +665,46 @@ __df            byte    %9.0g                 degrees of freedom
 __pval          float   %9.0g                 p-value
 __ll1           float   %9.0g                 CI1: lower limit
 __ul1           float   %9.0g                 CI1: upper limit
-(350,085 missing values generated)
-(350,085 observations deleted)
+(222,781 missing values generated)
+(222,781 observations deleted)
 (note: file ../temp/estimates_mw_wkp_tot_14.dta not found)
 file ../temp/estimates_mw_wkp_tot_14.dta saved
 (note: file ../temp/estimates_mw_wkp_tot_14.csv not found)
 file ../temp/estimates_mw_wkp_tot_14.csv saved
-(dropped 1524 singleton observations)
+(dropped 1617 singleton observations)
 (MWFE estimator converged in 10 iterations)
 
-HDFE Linear regression                            Number of obs   =    247,857
-Absorbing 2 HDFE groups                           F(  10,     50) =      19.03
+HDFE Linear regression                            Number of obs   =    146,762
+Absorbing 2 HDFE groups                           F(  10,     50) =      21.40
 Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9987
-                                                  Adj R-squared   =     0.9985
-                                                  Within R-sq.    =     0.0265
-Number of clusters (statefips) =         51       Root MSE        =     0.0639
+                                                  R-squared       =     0.9993
+                                                  Adj R-squared   =     0.9991
+                                                  Within R-sq.    =     0.0165
+Number of clusters (statefips) =         51       Root MSE        =     0.0502
 
                              (Std. Err. adjusted for 51 clusters in statefips)
 ------------------------------------------------------------------------------
              |               Robust
  ln_wagebill |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-mw_~t_18_avg |   .1077183   .0386892     2.78   0.008     .0300089    .1854278
-ln_emp_biz~v |    .023667   .0068989     3.43   0.001     .0098101    .0375238
- ln_emp_info |    .012059   .0030926     3.90   0.000     .0058473    .0182706
-  ln_emp_fin |   .0396627   .0077473     5.12   0.000     .0241018    .0552237
-ln_estcou~rv |    .071479   .0143525     4.98   0.000     .0426512    .1003069
-ln_estcoun~o |   .0199397   .0040411     4.93   0.000     .0118228    .0280566
-ln_estcoun~n |   .0701895   .0107239     6.55   0.000     .0486498    .0917292
-ln_avgwwa~rv |   .0191708   .0054992     3.49   0.001     .0081254    .0302162
-ln_avgwwag~o |   .0057752   .0043044     1.34   0.186    -.0028704    .0144208
-ln_avgwwag~n |   .0395496   .0153145     2.58   0.013     .0087896    .0703096
+mw_~t_18_avg |   .1009927   .0273149     3.70   0.001     .0461291    .1558563
+ln_emp_biz~v |   .0169624   .0044366     3.82   0.000     .0080512    .0258737
+ ln_emp_info |   .0069961   .0024443     2.86   0.006     .0020866    .0119057
+  ln_emp_fin |   .0199962   .0062662     3.19   0.002     .0074103    .0325822
+ln_estcou~rv |   .0636718   .0115846     5.50   0.000     .0404036    .0869401
+ln_estcoun~o |   .0130572   .0040317     3.24   0.002     .0049593    .0211551
+ln_estcoun~n |   .0552266   .0100959     5.47   0.000     .0349483    .0755048
+ln_avgwwa~rv |   .0140379   .0050081     2.80   0.007     .0039788    .0240969
+ln_avgwwag~o |   .0035466   .0029056     1.22   0.228    -.0022895    .0093827
+ln_avgwwag~n |    .011314   .0081702     1.38   0.172    -.0050963    .0277242
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
 ---------------------------------------------------------+
      Absorbed FE | Categories  - Redundant  = Num. Coefs |
 -----------------+---------------------------------------|
-         zipcode |     26243       26243           0    *|
-   year#cbsa_num |      9085           0        9085     |
+         zipcode |     25631       25631           0    *|
+   year#cbsa_num |      5440           0        5440     |
 ---------------------------------------------------------+
 * = FE nested within cluster; treated as redundant for DoF computation
 file ../temp/estimates.dta saved
@@ -614,46 +726,46 @@ __df            byte    %9.0g                 degrees of freedom
 __pval          float   %9.0g                 p-value
 __ll1           float   %9.0g                 CI1: lower limit
 __ul1           float   %9.0g                 CI1: upper limit
-(350,085 missing values generated)
-(350,085 observations deleted)
+(222,781 missing values generated)
+(222,781 observations deleted)
 (note: file ../temp/estimates_mw_wkp_tot_18.dta not found)
 file ../temp/estimates_mw_wkp_tot_18.dta saved
 (note: file ../temp/estimates_mw_wkp_tot_18.csv not found)
 file ../temp/estimates_mw_wkp_tot_18.csv saved
-(dropped 1543 singleton observations)
+(dropped 1649 singleton observations)
 (MWFE estimator converged in 10 iterations)
 
-HDFE Linear regression                            Number of obs   =    222,991
-Absorbing 2 HDFE groups                           F(  10,     50) =      18.78
+HDFE Linear regression                            Number of obs   =    121,886
+Absorbing 2 HDFE groups                           F(  10,     50) =      17.79
 Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9989
-                                                  Adj R-squared   =     0.9987
-                                                  Within R-sq.    =     0.0243
-Number of clusters (statefips) =         51       Root MSE        =     0.0607
+                                                  R-squared       =     0.9994
+                                                  Adj R-squared   =     0.9992
+                                                  Within R-sq.    =     0.0148
+Number of clusters (statefips) =         51       Root MSE        =     0.0465
 
                              (Std. Err. adjusted for 51 clusters in statefips)
 ------------------------------------------------------------------------------
              |               Robust
  ln_wagebill |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-m~t_tvar_avg |   .1068973   .0461272     2.32   0.025     .0142481    .1995465
-ln_emp_biz~v |   .0236834    .007361     3.22   0.002     .0088984    .0384684
- ln_emp_info |    .010459   .0027784     3.76   0.000     .0048785    .0160396
-  ln_emp_fin |    .043324   .0085832     5.05   0.000     .0260841    .0605638
-ln_estcou~rv |   .0636681   .0141494     4.50   0.000     .0352481    .0920881
-ln_estcoun~o |   .0191217   .0043716     4.37   0.000     .0103412    .0279023
-ln_estcoun~n |   .0646872   .0101141     6.40   0.000     .0443725    .0850019
-ln_avgwwa~rv |   .0189768   .0049833     3.81   0.000     .0089676    .0289861
-ln_avgwwag~o |    .004767   .0047383     1.01   0.319    -.0047501     .014284
-ln_avgwwag~n |   .0444351   .0154796     2.87   0.006     .0133435    .0755268
+m~t_tvar_avg |   .0983351   .0314028     3.13   0.003     .0352608    .1614094
+ln_emp_biz~v |   .0177369    .004606     3.85   0.000     .0084854    .0269883
+ ln_emp_info |   .0061864   .0026368     2.35   0.023     .0008902    .0114826
+  ln_emp_fin |   .0281837   .0082629     3.41   0.001     .0115872    .0447802
+ln_estcou~rv |   .0509215   .0110668     4.60   0.000     .0286931    .0731499
+ln_estcoun~o |    .013381   .0045359     2.95   0.005     .0042703    .0224916
+ln_estcoun~n |   .0486217   .0103277     4.71   0.000     .0278779    .0693655
+ln_avgwwa~rv |   .0152903   .0053783     2.84   0.006     .0044877    .0260928
+ln_avgwwag~o |    .000654   .0035393     0.18   0.854    -.0064548    .0077628
+ln_avgwwag~n |   .0143364   .0081528     1.76   0.085     -.002039    .0307119
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
 ---------------------------------------------------------+
      Absorbed FE | Categories  - Redundant  = Num. Coefs |
 -----------------+---------------------------------------|
-         zipcode |     26151       26151           0    *|
-   year#cbsa_num |      8170           0        8170     |
+         zipcode |     25475       25475           0    *|
+   year#cbsa_num |      4525           0        4525     |
 ---------------------------------------------------------+
 * = FE nested within cluster; treated as redundant for DoF computation
 file ../temp/estimates.dta saved
@@ -675,46 +787,46 @@ __df            byte    %9.0g                 degrees of freedom
 __pval          float   %9.0g                 p-value
 __ll1           float   %9.0g                 CI1: lower limit
 __ul1           float   %9.0g                 CI1: upper limit
-(350,085 missing values generated)
-(350,085 observations deleted)
+(222,781 missing values generated)
+(222,781 observations deleted)
 (note: file ../temp/estimates_mw_wkp_tot_timvar.dta not found)
 file ../temp/estimates_mw_wkp_tot_timvar.dta saved
 (note: file ../temp/estimates_mw_wkp_tot_timvar.csv not found)
 file ../temp/estimates_mw_wkp_tot_timvar.csv saved
-(dropped 1842 singleton observations)
+(dropped 1264 singleton observations)
 (MWFE estimator converged in 10 iterations)
 
-HDFE Linear regression                            Number of obs   =    235,193
-Absorbing 2 HDFE groups                           F(  10,     50) =       7.31
+HDFE Linear regression                            Number of obs   =    138,286
+Absorbing 2 HDFE groups                           F(  10,     50) =       5.37
 Statistics robust to heteroskedasticity           Prob > F        =     0.0000
-                                                  R-squared       =     0.9764
-                                                  Adj R-squared   =     0.9724
-                                                  Within R-sq.    =     0.0018
-Number of clusters (statefips) =         51       Root MSE        =     0.3593
+                                                  R-squared       =     0.9931
+                                                  Adj R-squared   =     0.9912
+                                                  Within R-sq.    =     0.0016
+Number of clusters (statefips) =         51       Root MSE        =     0.2039
 
                              (Std. Err. adjusted for 51 clusters in statefips)
 ------------------------------------------------------------------------------
              |               Robust
 ln_dividends |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-mw_~t_17_avg |   .0261267   .0840843     0.31   0.757    -.1427616     .195015
-ln_emp_biz~v |   .0152673   .0142261     1.07   0.288    -.0133067    .0438413
- ln_emp_info |   .0218747   .0099202     2.21   0.032     .0019493    .0418001
-  ln_emp_fin |   .0651971   .0254455     2.56   0.013     .0140884    .1163059
-ln_estcou~rv |   .0900311   .0462293     1.95   0.057    -.0028232    .1828853
-ln_estcoun~o |   .0344909   .0199526     1.73   0.090     -.005585    .0745668
-ln_estcoun~n |   .1767431    .041574     4.25   0.000     .0932393    .2602469
-ln_avgwwa~rv |  -.0089877   .0207362    -0.43   0.667    -.0506376    .0326622
-ln_avgwwag~o |   .0160817   .0115573     1.39   0.170    -.0071318    .0392953
-ln_avgwwag~n |   .0279853   .0337549     0.83   0.411    -.0398133    .0957839
+mw_~t_17_avg |   .0168847   .0653393     0.26   0.797    -.1143531    .1481226
+ln_emp_biz~v |   .0092703   .0104524     0.89   0.379    -.0117239    .0302645
+ ln_emp_info |   .0105215   .0077084     1.36   0.178    -.0049612    .0260042
+  ln_emp_fin |   .0130445   .0186423     0.70   0.487    -.0243995    .0504886
+ln_estcou~rv |   .0770408   .0302256     2.55   0.014     .0163308    .1377507
+ln_estcoun~o |   .0252665   .0110201     2.29   0.026     .0031319     .047401
+ln_estcoun~n |   .1222607   .0254134     4.81   0.000     .0712164     .173305
+ln_avgwwa~rv |   .0208397   .0167018     1.25   0.218    -.0127068    .0543863
+ln_avgwwag~o |    .010962   .0076119     1.44   0.156     -.004327     .026251
+ln_avgwwag~n |   .0119505   .0161203     0.74   0.462     -.020428    .0443291
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
 ---------------------------------------------------------+
      Absorbed FE | Categories  - Redundant  = Num. Coefs |
 -----------------+---------------------------------------|
-         zipcode |     25296       25296           0    *|
-   year#cbsa_num |      9036           0        9036     |
+         zipcode |     24221       24221           0    *|
+   year#cbsa_num |      5409           0        5409     |
 ---------------------------------------------------------+
 * = FE nested within cluster; treated as redundant for DoF computation
 file ../temp/estimates.dta saved
@@ -736,17 +848,17 @@ __df            byte    %9.0g                 degrees of freedom
 __pval          float   %9.0g                 p-value
 __ll1           float   %9.0g                 CI1: lower limit
 __ul1           float   %9.0g                 CI1: upper limit
-(350,085 missing values generated)
-(350,085 observations deleted)
+(222,781 missing values generated)
+(222,781 observations deleted)
 (note: file ../temp/estimates_dividends.dta not found)
 file ../temp/estimates_dividends.dta saved
 (note: file ../temp/estimates_dividends.csv not found)
 file ../temp/estimates_dividends.csv saved
 (note: variable model was str5, now str9 to accommodate using data's values)
-(note: variable model was str9, now str11 to accommodate using data's values)
-(note: variable model was str11, now str18 to accommodate using data's
+(note: variable model was str9, now str13 to accommodate using data's values)
+(note: variable var was str17, now str47 to accommodate using data's values)
+(note: variable model was str13, now str18 to accommodate using data's
        values)
-(note: variable var was str17, now str19 to accommodate using data's values)
 (note: file ../output/estimates_all.dta not found)
 file ../output/estimates_all.dta saved
 (note: file ../output/estimates_all.csv not found)
@@ -788,28 +900,39 @@ Type 'q()' to quit R.
 +   
 +   tab_models <- list(
 +     list("static_wages", 
-+          c("naive", "ctrls", "cbsa_time", "cbsa_time_baseline", "dividends")),
-+     list("static_wages_robustness", 
-+          c("mw_wkp_tot_14", "mw_wkp_tot_18", "mw_wkp_tot_timvar", "county_time"))
++          c("naive", "ctrls", "cbsa_time", "cbsa_time_het", "dividends"))
 +   )
 +   
-+   for (model in tab_models) {
-+     txt <- c(sprintf("<tab:%s>", model[[1]]))
++   for (tab in tab_models) {
++     txt <- c(sprintf("<tab:%s>", tab[[1]]))
 +     
++     models <- tab[[2]]
++     
++     i = 1
 +     for (stat in c("b", "se", "r2_within", "N")) {
-+       for (mm in model[[2]]) {
++       for (mm in models) {
 +         
-+         if (mm == model[[2]][1]) {
-+           row <- est[model == mm][[stat]]
++         if (mm == models[1]) {
++           row <- est[model == mm & var == "mw_wkp_tot_17_avg"][[stat]]
 +         } else {
-+           row <- paste(row, est[model == mm][[stat]], sep = "\t")
++           row <- paste(row, est[model == mm & var == "mw_wkp_tot_17_avg"][[stat]], sep = "\t")
 +         }
 +       }
-+       
 +       txt <- c(txt, row)
++       i = i + 1
++       
++       if (i == 3 & tab[[1]] == "static_wages") {     # Add heterogeneity model
++         row <- est[model == "cbsa_time_het" 
++                    & var == "c.mw_wkp_tot_17_avg##c.std_sh_mw_wkrs_statutory"][["b"]]
++         txt <- c(txt, row)
++         
++         row <- est[model == "cbsa_time_het" 
++                    & var == "c.mw_wkp_tot_17_avg##c.std_sh_mw_wkrs_statutory"][["se"]]
++         txt <- c(txt, row)
++       }
 +     }
 +     
-+     fileConn <- file(file.path(outstub, sprintf("%s.txt", model[[1]])))
++     fileConn <- file(file.path(outstub, sprintf("%s.txt", tab[[1]])))
 +     writeLines(txt, fileConn)
 +     close(fileConn)
 +   }
@@ -821,6 +944,6 @@ Type 'q()' to quit R.
 > 
 > proc.time()
    user  system elapsed 
-   0.78    0.28    1.51 
+   0.51    0.21    0.68 
 
- make.py ended: 2022-06-08 08:49:52
+ make.py ended: 2022-06-20 14:20:53
