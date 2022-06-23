@@ -21,27 +21,58 @@ program main
         controls(`controls') absorb(`absorb') cluster(`cluster_vars') ///
         model_name(static_both)
         
-    reghdfe D.ln_rents c.D.mw_res#ib0.high_work_mw                    ///
-        c.D.mw_wkp_tot_17#ib0.high_res_mw                             ///
-        D.(`controls'), nocons                                        ///
-        absorb(`absorb'##high_work_mw##high_res_mw)                   ///
-        cluster(`cluster_vars')
-    
-    process_estimates, res_var(mw_res_high_work_mw)                   ///
-        wkp_var(mw_wkp_high_res_mw) model(het_mw_shares)
+    reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_sh_mw_wkrs_statutory ///
+        c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_sh_mw_wkrs_statutory  ///
+        D.(`controls'), nocons                                          ///
+        absorb(`absorb') cluster(`cluster_vars')
+    process_sum, het_var(std_sh_mw_wkrs_statutory) model(het_mw_shares)
+    process_estimates, res_var(mw_res_std_sh_mw_wkrs_statutory)         ///
+        wkp_var(mw_wkp_std_sh_mw_wkrs_statutory) model(het_mw_shares)
 
-    reghdfe D.ln_rents c.D.mw_res#ib0.public_housing                  ///
-        c.D.mw_wkp_tot_17#ib0.public_housing                          ///
-        D.(`controls'), nocons                                        ///
-        absorb(year_month##public_housing) cluster(`cluster_vars')
-    
-    process_estimates, res_var(mw_res_high_public_hous)               ///
+    reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_med_hhld_inc_acs2014 ///
+        c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_med_hhld_inc_acs2014  ///
+        D.(`controls'), nocons                                          ///
+        absorb(`absorb') cluster(`cluster_vars')
+    process_sum, het_var(std_med_hhld_inc_acs2014) model(het_med_inc)   
+    process_estimates, res_var(mw_res_std_med_hhld_inc)                 ///
+        wkp_var(mw_wkp_std_med_hhld_inc) model(het_med_inc)
+
+    reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_sh_public_housing    ///
+        c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_sh_public_housing     ///
+        D.(`controls'), nocons                                          ///
+        absorb(year_month) cluster(`cluster_vars')
+  	process_sum, het_var(std_sh_public_housing) model(het_public_hous)    
+    process_estimates, res_var(mw_res_high_public_hous)                 ///
         wkp_var(mw_wkp_high_public_hous) model(het_public_hous)
 
     use "../temp/estimates_static_both.dta", clear
     append using "../temp/estimates_het_mw_shares.dta"
     append using "../temp/estimates_het_public_hous.dta"
+    append using "../temp/estimates_het_med_inc.dta"
     export delimited "../output/estimates_het.csv", replace
+end
+
+program process_sum
+    syntax, het_var(str) model(str)
+
+    lincom c.D.mw_res + c.D.mw_res#c.`het_var'
+    matrix sum_res = (0, r(estimate), r(se))
+    lincom c.D.mw_wkp_tot_17 + c.D.mw_wkp_tot_17#c.`het_var'
+    matrix sum_wkp = (0, r(estimate), r(se))
+    matrix sum = (sum_res \ sum_wkp)
+    
+    preserve
+        svmat sum
+        keep sum1 sum2 sum3
+        rename (sum1 sum2 sum3) (at b se)
+        drop if missing(at)
+        
+        gen     var = "sum_res"  
+        replace var = "sum_wkp" if _n == 2
+        gen model = "`model'"
+
+        save "../temp/sum_`model'.dta", replace
+    restore
 end
 
 program process_estimates
@@ -66,7 +97,8 @@ program process_estimates
         gen N = `N'
         gen r2 = `r2'
         gen model = "`model'"
-
+        
+        append using "../temp/sum_`model'.dta"
         save "../temp/estimates_`model'.dta", replace
     restore
 end
