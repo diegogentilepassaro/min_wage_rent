@@ -1,41 +1,34 @@
 clear all
+version 15
 set more off
-adopath + ../../../lib/stata/gslab_misc/ado
-adopath + ../../../lib/stata/min_wage/ado
-set maxvar 32000 
 
 program main
-    local in_sum        "../temp"
     local in_estimates  "../output"
 
     import delimited `in_estimates'/estimates_het.csv
-	
-	keep if model == "het_mw_shares" & at == 0
-	
-	qui sum b if var == "mw_res_std_sh_mw_wkrs_statutory"  
+
+    keep if model == "het_mw_shares" & at == 0
+
+    qui sum b if var == "mw_res_std_sh_mw_wkrs_statutory"  
     local tilde_gamma_zero = r(mean)
-	
-	qui sum b if var == "mw_wkp_std_sh_mw_wkrs_statutory"  
-    local tilde_beta_zero = r(mean)
-
-	qui sum se if var == "mw_res_std_sh_mw_wkrs_statutory"
+    qui sum se if var == "mw_res_std_sh_mw_wkrs_statutory"
     local tilde_gamma_zero_se = r(mean)
-	
-	qui sum se if var == "mw_wkp_std_sh_mw_wkrs_statutory"
-    local tilde_beta_zero_se = r(mean)
-	
-	qui sum b if var == "sum_res"
-    local tilde_gamma_zero_plus_one = r(mean)
-	
-	qui sum b if var == "sum_wkp"
-    local tilde_beta_zero_plus_one = r(mean)
 
-	qui sum se if var == "sum_res"
+    qui sum b if var == "mw_wkp_std_sh_mw_wkrs_statutory"  
+    local tilde_beta_zero = r(mean)
+    qui sum se if var == "mw_wkp_std_sh_mw_wkrs_statutory"
+    local tilde_beta_zero_se = r(mean)
+
+    qui sum b if var == "sum_res"
+    local tilde_gamma_zero_plus_one = r(mean)
+    qui sum se if var == "sum_res"
     local tilde_gamma_zero_plus_one_se = r(mean)
-	
-	qui sum se if var == "sum_wkp"
+
+    qui sum b if var == "sum_wkp"
+    local tilde_beta_zero_plus_one = r(mean)
+    qui sum se if var == "sum_wkp"
     local tilde_beta_zero_plus_one_se = r(mean)
-	
+
     cap file close f
     file open   f using "../output/autofill_heterogeneity.tex", write replace
     file write  f "\newcommand{\TildeGammaZero}{\textnormal{"               %4.3f  (`tilde_gamma_zero')             "}}" _n
@@ -47,7 +40,6 @@ program main
     file write  f "\newcommand{\TildeBetaZeroPlusGammaOne}{\textnormal{"    %4.3f  (`tilde_gamma_zero_plus_one_se') "}}" _n
     file write  f "\newcommand{\TildeBetaZeroPlusGammaOneSE}{\textnormal{"  %4.3f  (`tilde_beta_zero_plus_one_se')  "}}" _n
     file close  f
-
 end
 
 main
