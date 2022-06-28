@@ -15,11 +15,14 @@ program main
 
     import delimited `in_data'/tot_incidence.csv, clear
     qui sum tot_incidence if counterfactual == "fed_9usd"
-    local tot_inc = r(mean)
+	local tot_inc_fed_9usd = r(mean)
+	qui sum tot_incidence if counterfactual == "chi14"
+    local tot_inc_chi14 = r(mean)
 
     use `in_data'/data_counterfactuals.dta, clear
 
-    make_autofill_values, beta(`beta') gamma(`gamma') epsilon(`epsilon') tot_inc(`tot_inc')
+    make_autofill_values, beta(`beta') gamma(`gamma') epsilon(`epsilon') ///
+	    tot_inc_fed_9usd(`tot_inc_fed_9usd') tot_inc_chi14(`tot_inc_chi14')
 
 end
 
@@ -40,7 +43,7 @@ program load_parameters, rclass
 end
 
 program make_autofill_values
-    syntax, gamma(real) beta(real) epsilon(real) tot_inc(real)
+    syntax, gamma(real) beta(real) epsilon(real) tot_inc_fed_9usd(real) tot_inc_chi14(real)
 
     cap file close f
     file open   f using "../output/autofill_counterfactuals.tex", write replace
@@ -57,6 +60,7 @@ program make_autofill_values
             local char3 = 5
             local char4 = 4
             local char5 = 3.1
+			local tot_inc = `tot_inc_fed_9usd'
         }
         else if "`cf'" == "chi14" {
             local cfname "Chic"
@@ -65,10 +69,10 @@ program make_autofill_values
             local char3 = 1
             local char4 = 3
             local char5 = 4.3
+			local tot_inc = `tot_inc_chi14'
         }
 
         preserve
-
             local tot_inc_cents = `tot_inc'*100
             
             qui tab cbsa if cbsa_low_inc_increase == 1 & counterfactual == "`cf'"
