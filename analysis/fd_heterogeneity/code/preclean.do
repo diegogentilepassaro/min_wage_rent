@@ -17,13 +17,11 @@ program main
     save_data "`outstub'/public_housing_2017.dta", key(zipcode) replace log(none)
 
     load_and_clean, instub(`instub') incross(`incross')
-    gen high_res_mw  = sh_res_underHS_above_med*sh_res_under1250_above_med
-    gen high_work_mw = sh_workers_underHS_above_med*sh_workers_under1250_above_med
 
     merge m:1 zipcode using "`outstub'/public_housing_2017.dta",    ///
         nogen keep(1 3)
-    gen public_housing = (total_units > 0) if !missing(total_units)
-    replace public_housing = 0 if missing(total_units)
+
+    prepare_public_housing
 
     save_data "`outstub'/fullbal_sample_with_vars_for_het.dta",     ///
         key(zipcode year_month) replace log(none)
@@ -43,25 +41,29 @@ program load_and_clean
     xtset zipcode_num year_month
 
     merge m:1 zipcode using "`incross'/zipcode_cross.dta", nogen       ///
-        keep(3) keepusing(sh_mw_wkrs_statutory sh_workers_under29_2014 ///
-            sh_residents_under29_2014 sh_residents_underHS_2014        ///
-            sh_residents_under1250_2014 sh_workers_underHS_2014        ///
-            sh_workers_under1250_2014 sh_residents_accomm_food_2014    ///
-            sh_workers_accomm_food_2014)
-    rename *_2014 *
-    rename *residents* *res*
+        keep(3) keepusing(sh_mw_wkrs_statutory med_hhld_inc_acs2014 n_hhlds_cens2010)
 
-    foreach var in sh_mw_wkrs_statutory sh_workers_accomm_food           ///
-                   sh_workers_underHS sh_res_accomm_food sh_res_underHS  ///
-                   sh_res_under1250 sh_workers_under1250 {
-        bys statefips: egen `var'_med = median(`var')
-        gen `var'_above_med = (`var'   > `var'_med)
-        drop `var'_med
-
-        gen resint_`var' = mw_res*`var'_above_med
-        gen wkpint_`var' = mw_wkp_tot_17*`var'_above_med
+    foreach var in sh_mw_wkrs_statutory med_hhld_inc_acs2014 {
+	    qui sum `var'
+        local avg_`var' = r(mean)
+        local sd_`var' = r(sd)
+        gen std_`var' = (`var' - `avg_`var'')/`sd_`var''
     }
 end
 
+program prepare_public_housing
+
+    gen     public_housing = (total_units > 0) if !missing(total_units)
+    replace public_housing = 0 if missing(total_units)
+
+    gen     sh_public_housing = total_units/n_hhlds_cens2010
+    replace sh_public_housing = 0 if missing(total_units)
+
+    qui sum sh_public_housing
+    local avg_sh_public_housing = r(mean)
+    local sd_sh_public_housing  = r(sd)
+
+    gen std_sh_public_housing   = (sh_public_housing - `avg_sh_public_housing')/`sd_sh_public_housing'
+end
 
 main
