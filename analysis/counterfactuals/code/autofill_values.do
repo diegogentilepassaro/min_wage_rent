@@ -15,14 +15,14 @@ program main
 
     import delimited `in_data'/tot_incidence.csv, clear
     qui sum tot_incidence if counterfactual == "fed_9usd"
-	local tot_inc_fed_9usd = r(mean)
-	qui sum tot_incidence if counterfactual == "chi14"
+    local tot_inc_fed_9usd = r(mean)
+    qui sum tot_incidence if counterfactual == "chi14"
     local tot_inc_chi14 = r(mean)
 
     use `in_data'/data_counterfactuals.dta, clear
 
     make_autofill_values, beta(`beta') gamma(`gamma') epsilon(`epsilon') ///
-	    tot_inc_fed_9usd(`tot_inc_fed_9usd') tot_inc_chi14(`tot_inc_chi14')
+        tot_inc_fed_9usd(`tot_inc_fed_9usd') tot_inc_chi14(`tot_inc_chi14')
 
 end
 
@@ -60,7 +60,7 @@ program make_autofill_values
             local char3 = 5
             local char4 = 4
             local char5 = 3.1
-			local tot_inc = `tot_inc_fed_9usd'
+            local tot_inc = `tot_inc_fed_9usd'
         }
         else if "`cf'" == "chi14" {
             local cfname "Chic"
@@ -69,7 +69,7 @@ program make_autofill_values
             local char3 = 1
             local char4 = 3
             local char5 = 4.3
-			local tot_inc = `tot_inc_chi14'
+            local tot_inc = `tot_inc_chi14'
         }
 
         preserve
