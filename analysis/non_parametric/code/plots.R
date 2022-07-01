@@ -3,7 +3,8 @@ library(data.table)
 library(fixest)
 library(ggplot2)
 
-instub = "../drive/analysis_large/non_parametric"
+instub  <- "../../../drive/analysis_large/non_parametric"
+outstub <- "../output"
 
 for (tipo in c("cbsa_month", "month")) {
   
@@ -49,7 +50,7 @@ for (tipo in c("cbsa_month", "month")) {
       plt <- plt + labs(x = "Workplace MW", y = "Log rents")
     }
     
-    ggsave(paste0("plots/", tipo, "_mw_wkp", stub, ".png"),
+    ggsave(paste0(outstub, tipo, "_mw_wkp", stub, ".png"),
            height = 5, width = 7)
   }
   
@@ -86,7 +87,7 @@ for (tipo in c("cbsa_month", "month")) {
       plt <- plt + labs(x = "Residence MW", y = "Log rents")
     }
     
-    ggsave(paste0("plots/", tipo, "_mw_res", stub, ".png"),
+    ggsave(paste0(outstub, tipo, "_mw_res", stub, ".png"),
            height = 5, width = 7)
   }
 }
