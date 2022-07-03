@@ -6,6 +6,7 @@ source("../../../lib/R/save_data.R")
 main <- function() {
   instub  <- "../../../drive/derived_large/estimation_samples"
   outstub <- "../../../drive/analysis_large/non_parametric"
+  outres  <- "../output"
   
   if (file.exists("../output/data_file_manifest.log")) {
     file.remove("../output/data_file_manifest.log")
@@ -26,7 +27,9 @@ main <- function() {
   dt_all[, resid_timeFE_d_mw_res   := resid(feols(d_mw_res ~ -1   | year^month, dt_all), na.rm = F)]
   dt_all[, resid_timeFE_d_mw_wkp   := resid(feols(d_mw_wkp ~ -1   | year^month, dt_all), na.rm = F)]
   
-  for (group_var in paste0("any_change_in_", c("cbsa_month", "month"))) {
+  for (ind_var in c("cbsa_month", "month")) {
+    
+    group_bar <- paste0("any_change_in_", ind_var)
     
     dt <- dt_all[get(group_var) == 1]
     dt[, c(group_var) := NULL]
@@ -40,6 +43,29 @@ main <- function() {
     save_data(dt, key = c("zipcode", "year", "month"),
               filename = sprintf("%s/data_%s.csv", outstub, group_var),
               logfile  = "../output/data_file_manifest.log")
+    
+    
+    for (var in names(dt)[grepl("decile|50group", names(dt))]) {
+      dt[, c(var) := as.factor(get(var))]
+    }
+    
+    dt <- dt[!is.na(d_ln_rents)
+             & !is.na(d_mw_wkp)
+             & !is.na(d_mw_res)]
+    
+    dt[, `:=`(
+      mw_wkp_resid_mw_res_dec = resid(
+        feols(mw_wkp ~ -1 | zipcode + mw_res_100groups, dt)),
+      ln_rents_resid_mw_res_dec = resid(
+        feols(ln_rents ~ -1 | zipcode + mw_res_100groups, dt)),
+      mw_res_resid_mw_wkp_dec = resid(
+        feols(mw_res ~ -1 | zipcode + mw_wkp_100groups, dt)),
+      ln_rents_resid_mw_wkp_dec = resid(
+        feols(ln_rents ~ -1 | zipcode + mw_wkp_100groups, dt)))]
+    
+    file_name <- paste0("non_par_res_", ind_var,".csv")
+    
+    fwrite(dt, file.path(outres, file_name))
   }
   
   
@@ -68,6 +94,7 @@ main <- function() {
   #   dt_sample <- rbindlist(list(dt_sample, dt_yy))
   # }
   }
+  #
 }
 
 load_data <- function(instub, min_year = 2015) {
