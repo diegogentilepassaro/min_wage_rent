@@ -43,14 +43,14 @@ for (tipo in c("cbsa_month", "month")) {
       theme_bw() -> plt
     
     if (grepl("resid", stub)) {
-      plt <- plt + coord_cartesian(ylim = c(-0.2,  0.2), 
-                                   xlim = c(-0.15, 0.15)) +
+      plt <- plt + coord_cartesian(ylim = c(-0.1,  0.1), 
+                                   xlim = c(-0.05, 0.05)) +
         labs(x = "Workplace MW (residualized)", y = "Log rents (residualized)")
     } else {
       plt <- plt + labs(x = "Workplace MW", y = "Log rents")
     }
     
-    ggsave(paste0(outstub, tipo, "_mw_wkp", stub, ".png"),
+    ggsave(file.path(outstub, paste0(tipo, "_mw_wkp", stub, ".png")),
            height = 5, width = 7)
   }
   
@@ -80,14 +80,14 @@ for (tipo in c("cbsa_month", "month")) {
       theme_bw() -> plt
     
     if (grepl("resid", stub)) {
-      plt <- plt + coord_cartesian(ylim = c(-0.2,  0.2), 
-                                   xlim = c(-0.15, 0.15)) +
+      plt <- plt + coord_cartesian(ylim = c(-0.1,  0.1), 
+                                   xlim = c(-0.05, 0.05)) +
         labs(x = "Residence MW (residualized)", y = "Log rents (residualized)")
     } else {
       plt <- plt + labs(x = "Residence MW", y = "Log rents")
     }
     
-    ggsave(paste0(outstub, tipo, "_mw_res", stub, ".png"),
+    ggsave(file.path(outstub, paste0(tipo, "_mw_res", stub, ".png")),
            height = 5, width = 7)
   }
 }
