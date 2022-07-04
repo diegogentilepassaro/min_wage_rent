@@ -100,8 +100,8 @@ end
 program compute_vars
     syntax, beta(str) gamma(str) epsilon(str)
 
-    gen change_ln_rents    = `beta'*d_mw_wkp + `gamma'*d_mw_res
-    gen change_ln_wagebill = `epsilon'*d_mw_wkp
+    gen change_ln_rents    = `beta'*d_mw_wkp + `gamma'*d_mw_res if !missing(d_mw_res)
+    gen change_ln_wagebill = `epsilon'*d_mw_wkp                 if !missing(d_mw_res)
 
     gen perc_incr_rent     = exp(change_ln_rents)    - 1
     gen perc_incr_wagebill = exp(change_ln_wagebill) - 1
