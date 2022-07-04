@@ -6,13 +6,13 @@ program main
     local instub   "../output"
     local outstub  "../output"
     
-    foreach group in cbsa_month {
-        import delimited `instub'/non_par_resid_`group'.csv, clear
+    foreach mgroup in cbsa_month {
+        import delimited `instub'/non_par_resid_`mgroup'.csv, clear
 
         foreach mw_var in mw_wkp mw_res {
             make_means, mw_var(`mw_var')
 
-            make_plots, mw_var(`mw_var') group(`group')
+            make_plots, mw_var(`mw_var') mgroup(`mgroup')
         }
     }
 end
@@ -56,7 +56,7 @@ end
 
 
 program make_plots
-    syntax, mw_var(str) group(str)                ///
+    syntax, mw_var(str) mgroup(str)                ///
             [width(int 2221) height(int 1615) xr(real .1) yr(real .05)]
 
     get_resid_name, mw_var(`mw_var')
@@ -71,9 +71,9 @@ program make_plots
         xtitle(`xlab1') ytitle("Log rents")                          ///
         graphregion(color(white)) bgcolor(white) legend(off) 
 
-    graph export "../output/`group'_`mw_var'.png", replace           ///
+    graph export "../output/`mgroup'_`mw_var'.png", replace           ///
         width(`width') height(`height')
-    graph export "../output/`group'_`mw_var'.pdf", replace
+    graph export "../output/`mgroup'_`mw_var'.pdf", replace
 
     local xrm = -`xr'
     local yrm = -`yr'
@@ -89,9 +89,9 @@ program make_plots
         xtitle(`xlab2') ytitle("Log rents (residualized)")              ///
         bgcolor(white) graphregion(color(white)) legend(off)
 
-    graph export "../output/`group'_`mw_var'`vtype'.png", replace       ///
+    graph export "../output/`mgroup'_`mw_var'`vtype'.png", replace       ///
         width(`width') height(`height')
-    graph export "../output/`group'_`mw_var'`vtype'.pdf", replace
+    graph export "../output/`mgroup'_`mw_var'`vtype'.pdf", replace
     
     drop x_range y_range both_r
 end

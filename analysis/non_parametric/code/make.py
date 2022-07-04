@@ -32,7 +32,7 @@ if "StataSE" in envir_vars:
 start_make_logging()
 
 run_rbatch(program = 'prepare.R')
-run_stata(program = 'plots.do', executable = stata)
+run_stata(program = 'plot.do', executable = stata)
 
 end_make_logging()
 
