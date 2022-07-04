@@ -29,7 +29,7 @@ main <- function() {
   
   for (ind_var in c("cbsa_month", "month")) {
     
-    group_bar <- paste0("any_change_in_", ind_var)
+    group_var <- paste0("any_change_in_", ind_var)
     
     dt <- dt_all[get(group_var) == 1]
     dt[, c(group_var) := NULL]
@@ -63,7 +63,7 @@ main <- function() {
       ln_rents_resid_mw_wkp_dec = resid(
         feols(ln_rents ~ -1 | zipcode + mw_wkp_100groups, dt)))]
     
-    file_name <- paste0("non_par_res_", ind_var,".csv")
+    file_name <- paste0("non_par_resid_", ind_var,".csv")
     
     fwrite(dt, file.path(outres, file_name))
   }
