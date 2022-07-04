@@ -87,8 +87,8 @@ program load_counterfactuals
     bysort zipcode counterfactual (year month): ///
         gen d_mw_res = mw_res[_n] - mw_res[_n - 1]
     
-    gen   diff_mw  = d_mw_wkp - d_mw_res
-    xtile diff_qts = diff_mw, nquantiles(10)
+    gen        diff_mw  = d_mw_wkp - d_mw_res
+    gquantiles diff_qts = diff_mw, xtile nquantiles(10) by(counterfactual)
 end
 
 program select_urban_zipcodes

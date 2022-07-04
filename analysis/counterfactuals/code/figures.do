@@ -47,18 +47,16 @@ program main
 
     collapse (mean) rho rho_with_imputed, by(diff_qts)
 
-    foreach stub in `""' `"_with_imputed"' {
 
-        twoway (line     rho`stub'  diff_qts, lcol(navy))                                   ///
-               (scatter  rho`stub'  diff_qts, mcol(navy)),                                  ///
-            xtitle("Difference between change in wrk. MW and change in res. MW (deciles)")  ///
-            ytitle("Mean share pocketed")                                                   ///
-            xlabel(1(1)10) ylabel(0.04(0.04)0.16)                                              ///
-            graphregion(color(white)) bgcolor(white) legend(off)
-            
-        graph export "../output/deciles_diff`stub'.png", width(2221) height(1615) replace
-        graph export "../output/deciles_diff`stub'.eps", replace
-    }
+    twoway (line     rho_with_imputed  diff_qts, lcol(navy))                       ///
+           (scatter  rho_with_imputed  diff_qts, mcol(navy)),                      ///
+        xtitle("Difference between ch. in wkp. MW and ch. in res. MW (deciles)")   ///
+        ytitle("Mean share pocketed")                                              ///
+        xlabel(1(1)10) ylabel(0.06(0.04)0.18)                                      ///
+        graphregion(color(white)) bgcolor(white) legend(off)
+        
+    graph export "../output/deciles_diff_with_imputed.png", width(2221) height(1615) replace
+    graph export "../output/deciles_diff_with_imputed.eps", replace
 end
 
 program get_xlabel, rclass
