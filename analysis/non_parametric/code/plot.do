@@ -3,7 +3,7 @@ set more off
 set maxvar 32000
 
 program main 
-    local instub   "../output"
+    local instub   "../../../drive/analysis_large/non_parametric"
     local outstub  "../output"
     
     foreach mgroup in cbsa_month {

@@ -40,11 +40,6 @@ main <- function() {
                              "resid_timeFE_mw_res", "resid_timeFE_mw_wkp",
                              "resid_timeFE_d_mw_res", "resid_timeFE_d_mw_wkp"))
     
-    save_data(dt, key = c("zipcode", "year", "month"),
-              filename = sprintf("%s/data_%s.csv", outstub, group_var),
-              logfile  = "../output/data_file_manifest.log")
-    
-    
     for (var in names(dt)[grepl("decile|50group", names(dt))]) {
       dt[, c(var) := as.factor(get(var))]
     }
@@ -65,36 +60,10 @@ main <- function() {
     
     file_name <- paste0("non_par_resid_", ind_var,".csv")
     
-    fwrite(dt, file.path(outres, file_name))
+    save_data(dt, key = c("zipcode", "year", "month"),
+              filename = file.path(outstub, file_name),
+              logfile  = "../output/data_file_manifest.log")
   }
-  
-  
-  {
-  # dt_sample <- data.table()
-  # for (yyyy in unique(dt$year)) {
-  #   dt_yy <- dt[year == yyyy]
-  #   
-  #   dt_yy[, relevant_zip := max((month == 1 & !is.na(ln_rents))),   by = .(zipcode)]
-  #   dt_yy[, change_jan   := max((month == 1 & d_statutory_mw > 0)), by = .(zipcode)]
-  #   dt_yy[, change_jul   := max((month == 7 & d_statutory_mw > 0)), by = .(zipcode)]
-  #   dt_yy[, no_change    := 1*(all(d_statutory_mw == 0)),           by = .(zipcode)]
-  #   
-  #   dt_yy <- dt_yy[relevant_zip == 1
-  #                 & (change_jan == 1 | change_jul == 1 | no_change == 1)]
-  #   
-  #   dt_yy[, relevant_zip := NULL]
-  #   
-  #   if (yyyy <= 2018) {
-  #     dt_yy[, mw_wkp := get(paste0("mw_wkp_tot_", yyyy - 2000))]
-  #   } else {
-  #     dt_yy[, mw_wkp := mw_wkp_tot_18]
-  #   }
-  #   dt_yy[, c(paste0("mw_wkp_tot_", 15:18)) := NULL]
-  #   
-  #   dt_sample <- rbindlist(list(dt_sample, dt_yy))
-  # }
-  }
-  #
 }
 
 load_data <- function(instub, min_year = 2015) {
