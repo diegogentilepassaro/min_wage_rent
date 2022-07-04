@@ -2,10 +2,11 @@ remove(list = ls())
 library(data.table)
 
 main <- function() {
-  instub  <- "../output"
-  outstub <- "../output"
+  instub   <- "../output"
+  in_large <- "../../../drive/analysis_large/counterfactuals"
+  outstub  <- "../output"
   
-  dt <- fread(file.path(instub, "data_counterfactuals.csv"))
+  dt <- fread(file.path(in_large, "data_counterfactuals.csv"))
   
   for (cf in c("fed_9usd", "chi14")) {
 

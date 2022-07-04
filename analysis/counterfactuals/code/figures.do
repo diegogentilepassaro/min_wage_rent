@@ -3,11 +3,11 @@ set more off
 set maxvar 32000
 
 program main
-    local instub      "../output"
-    local in_wages    "../../twfe_wages/output"
-    local in_zip      "../../../drive/derived_large/zipcode"
+    local in_large "../../../drive/analysis_large/counterfactuals"
+    local in_wages "../../twfe_wages/output"
+    local in_zip   "../../../drive/derived_large/zipcode"
 
-    use "`instub'/data_counterfactuals.dta", clear
+    use "`in_large'/data_counterfactuals.dta", clear
 
     keep if counterfactual == "fed_9usd" & year == 2020
     keep if !cbsa_low_inc_increase

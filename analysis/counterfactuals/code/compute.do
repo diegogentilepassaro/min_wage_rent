@@ -1,6 +1,7 @@
 clear all
 set more off
 set maxvar 32000
+adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
     local in_cf_mw     "../../../drive/derived_large/min_wage_measures"
@@ -8,6 +9,7 @@ program main
     local in_wages     "../../twfe_wages/output"
     local in_exp_share "../../../drive/analysis_large/expenditure_shares"
     local in_zip       "../../../drive/derived_large/zipcode"
+    local out_large    "../../../drive/analysis_large/counterfactuals"
 
     load_parameters, in_baseline(`in_baseline') in_wages(`in_wages')
     local beta    = r(beta)
@@ -42,8 +44,9 @@ program main
         sum rho if counterfactual == "`cf'" & year == 2020 & cbsa_low_inc_increase == 0, d
     }
 
-    save             "../output/data_counterfactuals.dta", replace
-    export delimited "../output/data_counterfactuals.csv", replace
+    save_data  "`out_large'/data_counterfactuals.dta", key(zipcode counterfactual year) ///
+        log("../output/data_file_manifest.log") replace
+    export delimited "`out_large'/data_counterfactuals.csv", replace
 
     preserve
         compute_tot_incidence

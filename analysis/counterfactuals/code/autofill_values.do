@@ -3,17 +3,17 @@ set more off
 set maxvar 32000
 
 program main
-    local in_data        "../output"
-    local in_baseline    "../../fd_baseline/output"
-    local in_wages     "../../twfe_wages/output"
-    local out_autofill   "../output"
+    local in_data       "../../../drive/analysis_large/counterfactuals"
+    local in_baseline   "../../fd_baseline/output"
+    local in_wages      "../../twfe_wages/output"
+    local out_autofill  "../output"
 
     load_parameters, in_baseline(`in_baseline') in_wages(`in_wages')
     local beta    = r(beta)
     local gamma   = r(gamma)
     local epsilon = r(epsilon)
 
-    import delimited `in_data'/tot_incidence.csv, clear
+    import delimited ../output/tot_incidence.csv, clear
     qui sum tot_incidence if counterfactual == "fed_9usd"
     local tot_inc_fed_9usd = r(mean)
     qui sum tot_incidence if counterfactual == "chi14"

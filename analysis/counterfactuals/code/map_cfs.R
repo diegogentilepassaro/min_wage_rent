@@ -9,8 +9,8 @@ library(tmaptools)
 library(ggplot2)
 
 main <- function() {
-  in_map  <- "../../../drive/raw_data/shapefiles/USPS_zipcodes"
-  in_data <- "../output/"
+  in_map   <- "../../../drive/raw_data/shapefiles/USPS_zipcodes"
+  in_large <- "../../../drive/analysis_large/counterfactuals"
 
   USPS_zipcodes <- read_sf(dsn = in_map, 
                            layer = "USPS_zipcodes_July2020") %>%
@@ -20,7 +20,7 @@ main <- function() {
   
   # fed_9usd counterfactual
   
-  df_all <- fread(file.path(in_data, "data_counterfactuals.csv"),
+  df_all <- fread(file.path(in_large, "data_counterfactuals.csv"),
                   colClasses = c(zipcode = "character")) %>%
     filter(counterfactual == "fed_9usd",
            year           == 2020)
@@ -83,7 +83,7 @@ main <- function() {
   
   # chi14 counterfactual
   
-  df_all <- fread(file.path(in_data, "data_counterfactuals.csv"),
+  df_all <- fread(file.path(in_large, "data_counterfactuals.csv"),
                   colClasses = c(zipcode = "character")) %>%
     filter(counterfactual == "chi14",
            year           == 2020)
