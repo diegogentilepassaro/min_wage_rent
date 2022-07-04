@@ -1,0 +1,359 @@
+
+ make.py started: 2022-07-04 08:44:21 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\non_parametric\code 
+
+
+
+
+Execute:  R CMD BATCH --no-save "./prepare.R" prepare.Rout
+
+R version 4.1.1 (2021-08-10) -- "Kick Things"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> remove(list=ls())
+> library(data.table)
+> library(fixest)
+(Permanently remove the following message with fixest_startup_msg(FALSE).)
+fixest 0.10.0:
+- vcov: new argument 'vcov' that replaces 'se' and 'cluster' in all
+functions (retro compatibility is ensured).
+- function 'dof()' has been renamed into 'ssc()' (which stands for small
+sample correction). Retro compatibility is ensured but will be removed at
+some point.
+From fixest 0.9.0 onward: BREAKING changes! 
+- In i():
+    + the first two arguments have been swapped! Now it's i(factor_var,
+continuous_var) for interactions.
+    + argument 'drop' has been removed (put everything in 'ref' now).
+- In feglm(): 
+    + the default family becomes 'gaussian' to be in line with glm(). Hence,
+for Poisson estimations, please use fepois() instead.
+> source("../../../lib/R/save_data.R")
+
+Please cite as: 
+
+ Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+ R package version 5.2.2. https://CRAN.R-project.org/package=stargazer 
+
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:data.table':
+
+    between, first, last
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+> 
+> main <- function() {
++   instub  <- "../../../drive/derived_large/estimation_samples"
++   outstub <- "../../../drive/analysis_large/non_parametric"
++   outres  <- "../output"
++   
++   if (file.exists("../output/data_file_manifest.log")) {
++     file.remove("../output/data_file_manifest.log")
++   }
++   
++   dt_all <- load_data(instub)
++   
++   dt_all[, any_change_in_cbsa_month := 1*any(d_statutory_mw > 0), 
++           by = .(cbsa, year, month)]
++   dt_all[, any_change_in_month      := 1*any(d_statutory_mw > 0), 
++           by = .(year, month)]
++   
++   dt_all[, resid_timeFE_ln_rents := resid(feols(ln_rents ~ -1 | year^month, dt_all), na.rm = F)]
++   dt_all[, resid_timeFE_mw_res   := resid(feols(mw_res ~ -1   | year^month, dt_all), na.rm = F)]
++   dt_all[, resid_timeFE_mw_wkp   := resid(feols(mw_wkp ~ -1   | year^month, dt_all), na.rm = F)]
++   
++   dt_all[, resid_timeFE_d_ln_rents := resid(feols(d_ln_rents ~ -1 | year^month, dt_all), na.rm = F)]
++   dt_all[, resid_timeFE_d_mw_res   := resid(feols(d_mw_res ~ -1   | year^month, dt_all), na.rm = F)]
++   dt_all[, resid_timeFE_d_mw_wkp   := resid(feols(d_mw_wkp ~ -1   | year^month, dt_all), na.rm = F)]
++   
++   for (ind_var in c("cbsa_month", "month")) {
++     
++     group_var <- paste0("any_change_in_", ind_var)
++     
++     dt <- dt_all[get(group_var) == 1]
++     dt[, c(group_var) := NULL]
++     
++     dt <- compute_cuts(dt, c("statutory_mw",   "mw_res",   "mw_wkp",
++                              "l_statutory_mw", "l_mw_res", "l_mw_wkp",
++                              "d_statutory_mw", "d_mw_res", "d_mw_wkp",
++                              "resid_timeFE_mw_res", "resid_timeFE_mw_wkp",
++                              "resid_timeFE_d_mw_res", "resid_timeFE_d_mw_wkp"))
++     
++     for (var in names(dt)[grepl("decile|50group", names(dt))]) {
++       dt[, c(var) := as.factor(get(var))]
++     }
++     
++     dt <- dt[!is.na(d_ln_rents)
++              & !is.na(d_mw_wkp)
++              & !is.na(d_mw_res)]
++     
++     dt[, `:=`(
++       mw_wkp_resid_mw_res_dec = resid(
++         feols(mw_wkp ~ -1 | zipcode + mw_res_100groups, dt)),
++       ln_rents_resid_mw_res_dec = resid(
++         feols(ln_rents ~ -1 | zipcode + mw_res_100groups, dt)),
++       mw_res_resid_mw_wkp_dec = resid(
++         feols(mw_res ~ -1 | zipcode + mw_wkp_100groups, dt)),
++       ln_rents_resid_mw_wkp_dec = resid(
++         feols(ln_rents ~ -1 | zipcode + mw_wkp_100groups, dt)))]
++     
++     file_name <- paste0("non_par_resid_", ind_var,".csv")
++     
++     save_data(dt, key = c("zipcode", "year", "month"),
++               filename = file.path(outstub, file_name),
++               logfile  = "../output/data_file_manifest.log")
++   }
++ }
+> 
+> load_data <- function(instub, min_year = 2015) {
++   
++   dt <- fread(file.path(instub, "zipcode_months.csv"),
++               colClasses = list(character = c("zipcode", "cbsa")))
++   
++   for (yy in 15:18) {
++     dt[year == 2000+yy, mw_wkp := get(paste0("mw_wkp_tot_", yy-1))]
++   }
++   dt[year > 2018, mw_wkp := mw_wkp_tot_18]
++   
++   mw_vars <- c("statutory_mw", "mw_res", 
++                paste0("mw_wkp_tot_", 14:18), "mw_wkp")
++   
++   setkey(dt, zipcode, year, month)
++   
++   dt[, d_ln_rents := ln_rents - shift(ln_rents), by = .(zipcode)]
++   for (mw_var in mw_vars) {
++     dt[, paste0("d_", mw_var) := get(mw_var) - shift(get(mw_var)),
++        by = .(zipcode)]
++     dt[, paste0("l_", mw_var) := shift(get(mw_var)),
++        by = .(zipcode)]
++   }
++   
++   dt <- dt[year >= min_year & !is.na(ln_rents)]
++   
++   keep_vars <- c("zipcode", "countyfips", "statefips", "cbsa", 
++                  "ln_rents", "d_ln_rents",
++                  "year", "month", 
++                  mw_vars, paste0("d_", mw_vars), paste0("l_", mw_vars))
++   
++   return(dt[, ..keep_vars])
++ }
+> 
+> 
+> compute_cuts <- function(dt, vars_to_cut) {
++   
++   for (var in vars_to_cut) {
++     var_rank = paste0(var, "_rank")
++     dt[, c(var_rank) := rank(get(var), ties.method = "first")]
++     
++     dt[, c(paste0(var, "_deciles")) 
++                      := cut(get(var_rank), 
++                             breaks = quantile(get(var_rank), probs = 0:10/10),
++                             labels = 1:10, ordered_result = F,
++                             include.lowest = T)]
++     
++     dt[, c(paste0(var, "_50groups")) 
++                     := cut(get(var_rank), 
++                             breaks = quantile(get(var_rank), probs = 0:50/50),
++                             labels = 1:50, ordered_result = F,
++                             include.lowest = T)]
++     
++     dt[, c(paste0(var, "_100groups")) 
++                     := cut(get(var_rank), 
++                             breaks = quantile(get(var_rank), probs = 0:100/100),
++                             labels = 1:100, ordered_result = F,
++                             include.lowest = T)]
++     
++     dt[, c(var_rank) := NULL]
++   }
++   
++   return(dt)
++ }
+> 
+> main()
+NOTE: 1,979 observations removed because of NA values (LHS: 1,979).
+NOTE: 1,345 observations removed because of NA values (LHS: 1,345).
+[1] "File '../../../drive/analysis_large/non_parametric/non_par_resid_cbsa_month.csv' saved successfully."
+[1] "File '../../../drive/analysis_large/non_parametric/non_par_resid_month.csv' saved successfully."
+> 
+> proc.time()
+   user  system elapsed 
+  28.51    4.73   23.46 
+
+
+Execute:  StataMP-64 /e do "./plot.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+
+running c:\ado\personal\profile.do ...
+
+. do ./plot.do 
+
+. clear all
+
+. set more off
+
+. set maxvar 32000
+
+
+. 
+. program main 
+  1.     local instub   "../../../drive/analysis_large/non_parametric"
+  2.     local outstub  "../output"
+  3.     
+.     foreach mgroup in cbsa_month {
+  4.         import delimited `instub'/non_par_resid_`mgroup'.csv, clear
+  5. 
+.         foreach mw_var in mw_wkp mw_res {
+  6.             make_means, mw_var(`mw_var')
+  7. 
+.             make_plots, mw_var(`mw_var') mgroup(`mgroup')
+  8.         }
+  9.     }
+ 10. end
+
+. 
+. program get_resid_name, rclass
+  1.     syntax, mw_var(str)
+  2.     
+.     if "`mw_var'" == "mw_wkp" {
+  3.         local vtype _resid_mw_res_dec
+  4.         local xlab1 "Workplace MW"
+  5.         local xlab2 "Workplace MW (residualized)"
+  6.     }
+  7.     else  {
+  8.         local vtype _resid_mw_wkp_dec
+  9.         local xlab1 "Residence MW"
+ 10.         local xlab2 "Residence MW (residualized)"
+ 11.     }
+ 12. 
+.     return local vtype `vtype'
+ 13.     return local xlab1 `xlab1'
+ 14.     return local xlab2 `xlab2'
+ 15. end
+
+. 
+. program make_means
+  1.     syntax, mw_var(str) 
+  2. 
+.     get_resid_name, mw_var(`mw_var')
+  3.     local vtype = r(vtype)
+  4. 
+.     xtile qnt_`mw_var' = `mw_var', nq(30)
+  5.     bys qnt_`mw_var': egen avgrents_`mw_var' = mean(ln_rents)
+  6.     bys qnt_`mw_var': egen avgqnt_`mw_var'   = mean(`mw_var')
+  7.     
+.     local varname `mw_var'`vtype'
+  8. 
+.     xtile qnt_`varname' = `varname', nq(30)
+  9.     bys qnt_`varname': egen avgrents_`varname' = mean(ln_rents`vtype')
+ 10.     bys qnt_`varname': egen avgqnt_`varname'   = mean(`varname')
+ 11.     
+. end
+
+. 
+. 
+. program make_plots
+  1.     syntax, mw_var(str) mgroup(str)                ///
+>             [width(int 2221) height(int 1615) xr(real .1) yr(real .05)]
+  2. 
+.     get_resid_name, mw_var(`mw_var')
+  3.     local vtype = r(vtype)
+  4.     local xlab1 = r(xlab1)
+  5.     local xlab2 = r(xlab2)
+  6. 
+.     twoway (scatter ln_rents `mw_var',                               ///
+>                                     mcolor(gray%4) msize(small))     ///
+>            (scatter avgrents_`mw_var' avgqnt_`mw_var',               ///
+>                                     mcolor(red%1) msize(small)),     ///
+>         xtitle(`xlab1') ytitle("Log rents")                          ///
+>         graphregion(color(white)) bgcolor(white) legend(off) 
+  7. 
+.     graph export "../output/`mgroup'_`mw_var'.png", replace           ///
+>         width(`width') height(`height')
+  8.     graph export "../output/`mgroup'_`mw_var'.pdf", replace
+  9. 
+.     local xrm = -`xr'
+ 10.     local yrm = -`yr'
+ 11.     gen x_range = inrange(`mw_var'`vtype', `xrm', `xr')
+ 12.     gen y_range = inrange(ln_rents`vtype', `yrm', `yr')
+ 13.     gen both_r   = x_range*y_range
+ 14. 
+.     twoway (scatter ln_rents`vtype'          `mw_var'`vtype' if both_r, ///
+>                                         mcolor(gray%4) msize(small))    ///
+>            (scatter avgrents_`mw_var'`vtype' avgqnt_`mw_var'`vtype' if both_r
+> ,    ///
+>                                         mcolor(red%1)  msize(small)),   ///
+>         xlab(`xrm'(.05)`xr') ylab(`yrm'(.025)`yr')                      ///
+>         xtitle(`xlab2') ytitle("Log rents (residualized)")              ///
+>         bgcolor(white) graphregion(color(white)) legend(off)
+ 15. 
+.     graph export "../output/`mgroup'_`mw_var'`vtype'.png", replace       ///
+>         width(`width') height(`height')
+ 16.     graph export "../output/`mgroup'_`mw_var'`vtype'.pdf", replace
+ 17.     
+.     drop x_range y_range both_r
+ 18. end
+
+. 
+. main
+(82 vars, 7,724 obs)
+(note: file ../output/cbsa_month_mw_wkp.png not found)
+(file ../output/cbsa_month_mw_wkp.png written in PNG format)
+(file ../output/cbsa_month_mw_wkp.pdf written in PDF format)
+(note: file ../output/cbsa_month_mw_wkp_resid_mw_res_dec.png not found)
+(file ../output/cbsa_month_mw_wkp_resid_mw_res_dec.png written in PNG format)
+(file ../output/cbsa_month_mw_wkp_resid_mw_res_dec.pdf written in PDF format)
+(note: file ../output/cbsa_month_mw_res.png not found)
+(file ../output/cbsa_month_mw_res.png written in PNG format)
+(file ../output/cbsa_month_mw_res.pdf written in PDF format)
+(note: file ../output/cbsa_month_mw_res_resid_mw_wkp_dec.png not found)
+(file ../output/cbsa_month_mw_res_resid_mw_wkp_dec.png written in PNG format)
+(file ../output/cbsa_month_mw_res_resid_mw_wkp_dec.pdf written in PDF format)
+
+. 
+end of do-file
+
+ make.py ended: 2022-07-04 08:45:14
