@@ -1,5 +1,5 @@
 
- make.py started: 2022-07-04 13:46:53 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\code 
+ make.py started: 2022-07-04 15:41:34 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\code 
 
 
 
@@ -157,10 +157,8 @@ running c:\ado\personal\profile.do ...
 . program compute_vars
   1.     syntax, beta(str) gamma(str) epsilon(str)
   2. 
-.     gen change_ln_rents    = `beta'*d_mw_wkp + `gamma'*d_mw_res if !missing(d
-> _mw_res)
-  3.     gen change_ln_wagebill = `epsilon'*d_mw_wkp                 if !missin
-> g(d_mw_res)
+.     gen change_ln_rents    = `beta'*d_mw_wkp + `gamma'*d_mw_res
+  3.     gen change_ln_wagebill = `epsilon'*d_mw_wkp
   4. 
 .     gen perc_incr_rent     = exp(change_ln_rents)    - 1
   5.     gen perc_incr_wagebill = exp(change_ln_wagebill) - 1
@@ -168,7 +166,14 @@ running c:\ado\personal\profile.do ...
   7. 
 .     gen rho              = s*ratio_increases
   8.     gen rho_with_imputed = s_imputed*ratio_increases
-  9. end
+  9. 
+.     foreach var in change_ln_rents change_ln_wagebill perc_incr_rent perc_inc
+> r_wagebill ///
+>                    ratio_increases rho rho_with_imputed {
+ 10.         
+.         replace `var' = . if missing(d_mw_res)
+ 11.     }
+ 12. end
 
 . 
 . program flag_unaffected_cbsas
@@ -253,15 +258,22 @@ Beta, Gamma, and Epsilon: .0685098394751549, -.0218667536973953, .1013498678803
     matched                            90,032  
     -----------------------------------------
 (45,244 missing values generated)
+(45,016 missing values generated)
 (45,244 missing values generated)
-(45,244 missing values generated)
-(45,244 missing values generated)
+(45,016 missing values generated)
 (51,537 missing values generated)
 (54,031 missing values generated)
 (51,987 missing values generated)
-(note: file C:\Users\shermo\AppData\Local\Temp\10\ST_8708c_000003.tmp not found
+(0 real changes made)
+(228 real changes made, 228 to missing)
+(0 real changes made)
+(228 real changes made, 228 to missing)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(note: file C:\Users\shermo\AppData\Local\Temp\10\ST_c0cc8_000003.tmp not found
 > )
-file C:\Users\shermo\AppData\Local\Temp\10\ST_8708c_000003.tmp saved
+file C:\Users\shermo\AppData\Local\Temp\10\ST_c0cc8_000003.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -271,9 +283,9 @@ file C:\Users\shermo\AppData\Local\Temp\10\ST_8708c_000003.tmp saved
 (45,964 observations deleted)
 (21,001 missing values generated)
 (21,001 missing values generated)
-(note: file C:\Users\shermo\AppData\Local\Temp\10\ST_8708c_000003.tmp not found
+(note: file C:\Users\shermo\AppData\Local\Temp\10\ST_c0cc8_000003.tmp not found
 > )
-file C:\Users\shermo\AppData\Local\Temp\10\ST_8708c_000003.tmp saved
+file C:\Users\shermo\AppData\Local\Temp\10\ST_c0cc8_000003.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
@@ -1013,7 +1025,7 @@ Type 'q()' to quit R.
 > 
 > proc.time()
    user  system elapsed 
-   0.68    0.46    0.76 
+   0.50    0.34    0.62 
 
 
 Execute:  R CMD BATCH --no-save "./map_cfs.R" map_cfs.Rout
@@ -1038,16 +1050,11 @@ Type 'q()' to quit R.
 
 > remove(list = ls())
 > 
-> library(data.table)
 > library(sf)
 Linking to GEOS 3.9.1, GDAL 3.2.1, PROJ 7.2.1
 > library(dplyr)
 
 Attaching package: 'dplyr'
-
-The following objects are masked from 'package:data.table':
-
-    between, first, last
 
 The following objects are masked from 'package:stats':
 
@@ -1075,120 +1082,71 @@ repos='https://nowosad.github.io/drat/', type='source')`
 +     rename(zipcode = ZIP_CODE, zipcode_name = PO_NAME,
 +            state_name = STATE)
 +   
-+   # fed_9usd counterfactual
++   df_cf_data <- data.table::fread(file.path(in_large, "data_counterfactuals.csv"),
++                                   colClasses = c(zipcode = "character")) %>%
++     filter(year == 2020)
 +   
-+   df_all <- fread(file.path(in_large, "data_counterfactuals.csv"),
-+                   colClasses = c(zipcode = "character")) %>%
-+     filter(counterfactual == "fed_9usd",
-+            year           == 2020)
++ 
++   # Housing expenditure  
++   df_all <- df_cf_data %>%
++     filter(counterfactual == "fed_9usd")
 + 
 +   df_all <- left_join(USPS_zipcodes, df_all, by = "zipcode")
 + 
 +   df_chicago <- df_all %>% filter(cbsa == 16980)
 + 
-+   max_break_mw <- round(max(df_chicago$d_mw_res, na.rm = TRUE), digits = 2)
++   min_break <- round(min(df_chicago$s_imputed, na.rm = TRUE), digits = 3)
++   max_break <- round(max(df_chicago$s_imputed, na.rm = TRUE), digits = 3)
 +   
-+   build_map(data = df_chicago, 
-+             var = "d_mw_res", 
-+             var_legend ="Change in\nresidence MW", 
-+             break_values = c(0, max_break_mw/2, max_break_mw), 
-+             map_name = "chicago_d_mw_res")
-+   
-+   build_map(data = df_chicago, 
-+             var = "d_mw_wkp", 
-+             var_legend ="Change in\nworkplace MW", 
-+             break_values = c(0, max_break_mw/2, max_break_mw), 
-+             map_name = "chicago_d_mw_wkp")
-+   
-+   min_break_rents <- round(min(df_chicago$change_ln_rents, na.rm = TRUE), digits = 2)
-+   max_break_rents <- round(max(df_chicago$change_ln_rents, na.rm = TRUE), digits = 2)
-+   
-+   build_map(data = df_chicago, 
-+             var = "change_ln_rents", 
-+             var_legend ="Change in log rents\nper sq. foot", 
-+             break_values = c(min_break_rents, (min_break_rents + max_break_rents)/2, max_break_rents), 
-+             map_name = "chicago_d_ln_rents")
++   build_map(data         = df_chicago, 
++             var          = "s_imputed", 
++             var_legend   ="Share of expenditure in housing", 
++             break_values = c(min_break, (min_break + max_break)/2, max_break), 
++             map_name     = "chicago_s_imputed")
 + 
-+   min_break_wagebill <- round(min(df_chicago$change_ln_wagebill, na.rm = TRUE), digits = 2)
-+   max_break_wagebill <- round(max(df_chicago$change_ln_wagebill, na.rm = TRUE), digits = 2)
++   # Maps for each counterfactual
 +   
-+   build_map(data = df_chicago, 
-+             var = "change_ln_wagebill", 
-+             var_legend ="Change in\nlog total wages", 
-+             break_values = c(min_break_wagebill, (min_break_wagebill + max_break_wagebill)/2, max_break_wagebill), 
-+             map_name = "chicago_d_ln_wagebill")
++   plotsdata_list <- list(
++     c("d_mw_res",           "Change in\nresidence MW",           "chicago_d_mw_res",      "d_mw_res"),
++     c("d_mw_wkp",           "Change in\nworkplace MW",           "chicago_d_mw_wkp",      "d_mw_res"),
++     c("change_ln_rents",    "Change in log rents\nper sq. foot", "chicago_d_ln_rents",    "change_ln_rents"),
++     c("change_ln_wagebill", "Change in\nlog total wages",        "chicago_d_ln_wagebill", "change_ln_wagebill"),
++     c("rho_with_imputed",   "Share pocketed\nby landlords",      "chicago_rho_with_imputed", "rho_with_imputed"))
++       # Var                 # Legend                             # Plot name              # Break var
++   
++   for (cf in c("fed_9usd", "chi14")) {
++     
++     df_all <- left_join(USPS_zipcodes, 
++                         df_cf_data %>% filter(counterfactual == cf), 
++                         by = "zipcode")
++     df_chicago <- df_all %>% filter(cbsa == 16980)
 + 
-+   df <- df_chicago %>% 
-+     filter(is.na(s_imputed) == FALSE)
-+   min_break_s_imputed <- round(min(df$s_imputed, na.rm = TRUE), digits = 3)
-+   max_break_s_imputed <- round(max(df$s_imputed, na.rm = TRUE), digits = 3)
-+   
-+   build_map(data = df, 
-+             var = "s_imputed", 
-+             var_legend ="Share of expenditure in housing", 
-+             break_values = c(min_break_s_imputed, (min_break_s_imputed + max_break_s_imputed)/2, max_break_s_imputed), 
-+             map_name = "chicago_s_imputed")
++     lapply(plotsdata_list, 
++       function(plt_data) {
 + 
-+   min_break_rho_with_imputed <- round(min(df_chicago$rho_with_imputed, na.rm = TRUE), digits = 3)
-+   max_break_rho_with_imputed <- round(max(df_chicago$rho_with_imputed, na.rm = TRUE), digits = 3)
-+   
-+   build_map(data = df_chicago, 
-+             var = "rho_with_imputed", 
-+             var_legend ="Share pocketed\nby landlords", 
-+             break_values = c(min_break_rho_with_imputed, (min_break_rho_with_imputed + max_break_rho_with_imputed)/2, max_break_rho_with_imputed), 
-+             map_name = "chicago_rho_with_imputed")
-+   
-+   # chi14 counterfactual
-+   
-+   df_all <- fread(file.path(in_large, "data_counterfactuals.csv"),
-+                   colClasses = c(zipcode = "character")) %>%
-+     filter(counterfactual == "chi14",
-+            year           == 2020)
-+   
-+   df_all <- left_join(USPS_zipcodes, df_all, by = "zipcode")
-+   
-+   df_chicago <- df_all %>% filter(cbsa == 16980)
-+   
-+   max_break_mw <- round(max(df_chicago$d_mw_res, na.rm = TRUE), digits = 4)
-+   
-+   build_map(data = df_chicago, 
-+             var = "d_mw_res", 
-+             var_legend ="Change in\nresidence MW", 
-+             break_values = c(0, max_break_mw/2, max_break_mw), 
-+             map_name = "chicago_d_mw_res_chi14")
-+   
-+   build_map(data = df_chicago, 
-+             var = "d_mw_wkp", 
-+             var_legend ="Change in\nworkplace MW", 
-+             break_values = c(0, max_break_mw/2, max_break_mw), 
-+             map_name = "chicago_d_mw_wkp_chi14")
-+   
-+   min_break_rents <- round(min(df_chicago$change_ln_rents, na.rm = TRUE), digits = 5)
-+   max_break_rents <- round(max(df_chicago$change_ln_rents, na.rm = TRUE), digits = 5)
-+   
-+   build_map(data = df_chicago, 
-+             var = "change_ln_rents", 
-+             var_legend ="Change in log rents\nper sq. foot", 
-+             break_values = c(min_break_rents, (min_break_rents + max_break_rents)/2, max_break_rents), 
-+             map_name = "chicago_d_ln_rents_chi14")
-+   
-+   min_break_wagebill <- round(min(df_chicago$change_ln_wagebill, na.rm = TRUE), digits = 4)
-+   max_break_wagebill <- round(max(df_chicago$change_ln_wagebill, na.rm = TRUE), digits = 4)
-+   
-+   build_map(data = df_chicago, 
-+             var = "change_ln_wagebill", 
-+             var_legend ="Change in\nlog total wages", 
-+             break_values = c(min_break_wagebill, (min_break_wagebill + max_break_wagebill)/2, max_break_wagebill), 
-+             map_name = "chicago_d_ln_wagebill_chi14")
++         yvar        <- plt_data[1]
++         legend_name <- plt_data[2]
++         plot_name   <- paste0(plt_data[3], "_", cf)
++         break_var   <- plt_data[4]
 + 
-+   min_break_rho_with_imputed <- round(min(df_chicago$rho_with_imputed, na.rm = TRUE), digits = 6)
-+   max_break_rho_with_imputed <- round(max(df_chicago$rho_with_imputed, na.rm = TRUE), digits = 6)
-+   
-+   build_map(data = df_chicago, 
-+             var = "rho_with_imputed", 
-+             var_legend ="Share pocketed\nby landlords", 
-+             break_values = c(min_break_rho_with_imputed, (min_break_rho_with_imputed + max_break_rho_with_imputed)/2, max_break_rho_with_imputed), 
-+             map_name = "chicago_rho_with_imputed_chi14")
++         min_break <- round(min(df_chicago[[break_var]], na.rm = TRUE), digits = 3)
++         max_break <- round(max(df_chicago[[break_var]], na.rm = TRUE), digits = 3)
++         print(min_break)
++         print(max_break)
++ 
++         if ("mw" %in% yvar) {
++           break_vals <- c(0, max_break/2, max_break)
++         } else {
++           break_vals <- c(min_break, (min_break + max_break)/2, max_break)
++         }
++         
++         build_map(data         = df_chicago, 
++                   var          = yvar, 
++                   var_legend   = legend_name, 
++                   break_values = break_vals, 
++                   map_name     = plot_name)
++     })
++   }
 + }
 > 
 > build_map <- function(data, var, var_legend, break_values,
@@ -1213,65 +1171,85 @@ repos='https://nowosad.github.io/drat/', type='source')`
 + }
 > 
 > main()
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res.png
-Resolution: 1529.333 by 2002.507 pixels
-Size: 6.117331 by 8.010029 inches (250 dpi)
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res.eps
-Size: 6.117331 by 8.010029 inches
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp.png
-Resolution: 1529.333 by 2002.507 pixels
-Size: 6.117331 by 8.010029 inches (250 dpi)
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp.eps
-Size: 6.117331 by 8.010029 inches
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents.png
-Resolution: 1529.333 by 2002.507 pixels
-Size: 6.117331 by 8.010029 inches (250 dpi)
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents.eps
-Size: 6.117331 by 8.010029 inches
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill.png
-Resolution: 1529.333 by 2002.507 pixels
-Size: 6.117331 by 8.010029 inches (250 dpi)
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill.eps
-Size: 6.117331 by 8.010029 inches
 Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_s_imputed.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
 Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_s_imputed.eps
 Size: 6.117331 by 8.010029 inches
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_rho_with_imputed.png
+[1] 0
+[1] 0.216
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res_fed_9usd.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
-Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_rho_with_imputed.eps
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res_fed_9usd.eps
 Size: 6.117331 by 8.010029 inches
+[1] 0
+[1] 0.216
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp_fed_9usd.png
+Resolution: 1529.333 by 2002.507 pixels
+Size: 6.117331 by 8.010029 inches (250 dpi)
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp_fed_9usd.eps
+Size: 6.117331 by 8.010029 inches
+[1] 0.001
+[1] 0.01
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents_fed_9usd.png
+Resolution: 1529.333 by 2002.507 pixels
+Size: 6.117331 by 8.010029 inches (250 dpi)
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents_fed_9usd.eps
+Size: 6.117331 by 8.010029 inches
+[1] 0.001
+[1] 0.021
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill_fed_9usd.png
+Resolution: 1529.333 by 2002.507 pixels
+Size: 6.117331 by 8.010029 inches (250 dpi)
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill_fed_9usd.eps
+Size: 6.117331 by 8.010029 inches
+[1] 0.025
+[1] 0.341
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_rho_with_imputed_fed_9usd.png
+Resolution: 1529.333 by 2002.507 pixels
+Size: 6.117331 by 8.010029 inches (250 dpi)
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_rho_with_imputed_fed_9usd.eps
+Size: 6.117331 by 8.010029 inches
+[1] 0
+[1] 0.074
 Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res_chi14.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
 Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res_chi14.eps
 Size: 6.117331 by 8.010029 inches
+[1] 0
+[1] 0.074
 Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp_chi14.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
 Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp_chi14.eps
 Size: 6.117331 by 8.010029 inches
+[1] 0
+[1] 0.002
 Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents_chi14.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
 Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents_chi14.eps
 Size: 6.117331 by 8.010029 inches
+[1] 0
+[1] 0.006
 Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill_chi14.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
 Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill_chi14.eps
 Size: 6.117331 by 8.010029 inches
+[1] 0.035
+[1] 0.343
 Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_rho_with_imputed_chi14.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
 Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_rho_with_imputed_chi14.eps
 Size: 6.117331 by 8.010029 inches
-There were 31 warnings (use warnings() to see them)
+There were 47 warnings (use warnings() to see them)
 > 
 > proc.time()
    user  system elapsed 
- 128.96  100.03  232.18 
+ 130.71   98.42  231.84 
 
- make.py ended: 2022-07-04 13:51:11
+ make.py ended: 2022-07-04 15:45:56

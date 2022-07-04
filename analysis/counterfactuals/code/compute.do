@@ -103,8 +103,8 @@ end
 program compute_vars
     syntax, beta(str) gamma(str) epsilon(str)
 
-    gen change_ln_rents    = `beta'*d_mw_wkp + `gamma'*d_mw_res if !missing(d_mw_res)
-    gen change_ln_wagebill = `epsilon'*d_mw_wkp                 if !missing(d_mw_res)
+    gen change_ln_rents    = `beta'*d_mw_wkp + `gamma'*d_mw_res
+    gen change_ln_wagebill = `epsilon'*d_mw_wkp
 
     gen perc_incr_rent     = exp(change_ln_rents)    - 1
     gen perc_incr_wagebill = exp(change_ln_wagebill) - 1
@@ -112,6 +112,12 @@ program compute_vars
 
     gen rho              = s*ratio_increases
     gen rho_with_imputed = s_imputed*ratio_increases
+
+    foreach var in change_ln_rents change_ln_wagebill perc_incr_rent perc_incr_wagebill ///
+                   ratio_increases rho rho_with_imputed {
+        
+        replace `var' = . if missing(d_mw_res)
+    }
 end
 
 program flag_unaffected_cbsas
