@@ -8,13 +8,14 @@ main <- function() {
   
   dt <- fread(file.path(in_large, "data_counterfactuals.csv"))
   
+  txt <- c("<tab:counterfactuals>")
+
   for (cf in c("fed_9usd", "chi14")) {
 
       dt_cf <- dt[counterfactual == cf
                   & year == 2020 
                   & cbsa_low_inc_increase == 0]
 
-      txt <- c(sprintf("<tab:counterfactuals_%s>", cf))
 
       for (sample in c("fully_affected", "no_direct_treatment")) {
       
@@ -35,11 +36,10 @@ main <- function() {
             paste(dt_tot_incidence$N,
                   dt_tot_incidence$tot_incidence,
                   sep = "\t"))
-      
-      fileConn <- file(file.path(outstub, sprintf("counterfactuals_%s.txt", cf)))
-      writeLines(txt, fileConn)
-      close(fileConn)
   }
+  fileConn <- file(file.path(outstub, "counterfactuals.txt"))
+  writeLines(txt, fileConn)
+  close(fileConn)
  
   # Other Federal cfs
   
