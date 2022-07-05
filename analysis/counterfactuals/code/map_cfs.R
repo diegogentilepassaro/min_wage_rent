@@ -1,6 +1,5 @@
 remove(list = ls())
 
-library(data.table)
 library(sf)
 library(dplyr)
 library(spData)
@@ -8,9 +7,9 @@ library(tmap)
 library(tmaptools)
 library(ggplot2)
 
-main <- function(){
-  in_map  <- "../../../drive/raw_data/shapefiles/USPS_zipcodes"
-  in_data <- "../output/"
+main <- function() {
+  in_map   <- "../../../drive/raw_data/shapefiles/USPS_zipcodes"
+  in_large <- "../../../drive/analysis_large/counterfactuals"
 
   USPS_zipcodes <- read_sf(dsn = in_map, 
                            layer = "USPS_zipcodes_July2020") %>%
@@ -18,66 +17,70 @@ main <- function(){
     rename(zipcode = ZIP_CODE, zipcode_name = PO_NAME,
            state_name = STATE)
   
-  df_all <- fread(file.path(in_data, "data_counterfactuals.csv"),
-                  colClasses = c(zipcode = "character")) %>%
-    filter(counterfactual == "fed_9usd",
-           year           == 2020)
+  df_cf_data <- data.table::fread(file.path(in_large, "data_counterfactuals.csv"),
+                                  colClasses = c(zipcode = "character")) %>%
+    filter(year == 2020)
+  
+  # Housing expenditure  
+  df_all <- df_cf_data %>%
+    filter(counterfactual == "fed_9usd")
 
   df_all <- left_join(USPS_zipcodes, df_all, by = "zipcode")
 
   df_chicago <- df_all %>% filter(cbsa == 16980)
 
-  max_break_mw <- round(max(df_chicago$d_mw_res, na.rm = TRUE), digits = 2)
+  min_break <- round(min(df_chicago$s_imputed, na.rm = TRUE), digits = 3)
+  max_break <- round(max(df_chicago$s_imputed, na.rm = TRUE), digits = 3)
   
-  build_map(data = df_chicago, 
-            var = "d_mw_res", 
-            var_legend ="Change in\nresidence MW", 
-            break_values = c(0, max_break_mw/2, max_break_mw), 
-            map_name = "chicago_d_mw_res")
-  
-  build_map(data = df_chicago, 
-            var = "d_mw_wkp", 
-            var_legend ="Change in\nworkplace MW", 
-            break_values = c(0, max_break_mw/2, max_break_mw), 
-            map_name = "chicago_d_mw_wkp")
-  
-  min_break_rents <- round(min(df_chicago$change_ln_rents, na.rm = TRUE), digits = 2)
-  max_break_rents <- round(max(df_chicago$change_ln_rents, na.rm = TRUE), digits = 2)
-  
-  build_map(data = df_chicago, 
-            var = "change_ln_rents", 
-            var_legend ="Change in log rents\nper sq. foot", 
-            break_values = c(min_break_rents, (min_break_rents + max_break_rents)/2, max_break_rents), 
-            map_name = "chicago_d_ln_rents")
+  build_map(data         = df_chicago, 
+            var          = "s_imputed", 
+            var_legend   ="Share of expenditure in housing", 
+            break_values = c(min_break, (min_break + max_break)/2, max_break), 
+            map_name     = "chicago_s_imputed")
 
-  min_break_wagebill <- round(min(df_chicago$change_ln_wagebill, na.rm = TRUE), digits = 2)
-  max_break_wagebill <- round(max(df_chicago$change_ln_wagebill, na.rm = TRUE), digits = 2)
+  # Maps for each counterfactual
   
-  build_map(data = df_chicago, 
-            var = "change_ln_wagebill", 
-            var_legend ="Change in\nlog total wages", 
-            break_values = c(min_break_wagebill, (min_break_wagebill + max_break_wagebill)/2, max_break_wagebill), 
-            map_name = "chicago_d_ln_wagebill")
+  plotsdata_list <- list(
+    c("d_mw_res",           "Change in\nresidence MW",           "chicago_d_mw_res",      "d_mw_res"),
+    c("d_mw_wkp",           "Change in\nworkplace MW",           "chicago_d_mw_wkp",      "d_mw_res"),
+    c("change_ln_rents",    "Change in log rents\nper sq. foot", "chicago_d_ln_rents",    "change_ln_rents"),
+    c("change_ln_wagebill", "Change in\nlog total wages",        "chicago_d_ln_wagebill", "change_ln_wagebill"),
+    c("rho_with_imputed",   "Share pocketed\nby landlords",      "chicago_rho_with_imputed", "rho_with_imputed"))
+      # Var                 # Legend                             # Plot name              # Break var
+  
+  for (cf in c("fed_9usd", "chi14")) {
+    
+    df_all <- left_join(USPS_zipcodes, 
+                        df_cf_data %>% filter(counterfactual == cf), 
+                        by = "zipcode")
+    df_chicago <- df_all %>% filter(cbsa == 16980)
 
-  df <- df_chicago %>% 
-    filter(is.na(s_imputed) == FALSE)
-  min_break_s_imputed <- round(min(df$s_imputed, na.rm = TRUE), digits = 3)
-  max_break_s_imputed <- round(max(df$s_imputed, na.rm = TRUE), digits = 3)
-  
-  build_map(data = df, 
-            var = "s_imputed", 
-            var_legend ="Share of expenditure in housing", 
-            break_values = c(min_break_s_imputed, (min_break_s_imputed + max_break_s_imputed)/2, max_break_s_imputed), 
-            map_name = "chicago_s_imputed")
+    lapply(plotsdata_list, 
+      function(plt_data) {
 
-  min_break_rho_with_imputed <- round(min(df_chicago$rho_with_imputed, na.rm = TRUE), digits = 3)
-  max_break_rho_with_imputed <- round(max(df_chicago$rho_with_imputed, na.rm = TRUE), digits = 3)
-  
-  build_map(data = df_chicago, 
-            var = "rho_with_imputed", 
-            var_legend ="Share pocketed\nby landlords", 
-            break_values = c(min_break_rho_with_imputed, (min_break_rho_with_imputed + max_break_rho_with_imputed)/2, max_break_rho_with_imputed), 
-            map_name = "chicago_rho_with_imputed")
+        yvar        <- plt_data[1]
+        legend_name <- plt_data[2]
+        plot_name   <- paste0(plt_data[3], "_", cf)
+        break_var   <- plt_data[4]
+
+        min_break <- round(min(df_chicago[[break_var]], na.rm = TRUE), digits = 3)
+        max_break <- round(max(df_chicago[[break_var]], na.rm = TRUE), digits = 3)
+        print(min_break)
+        print(max_break)
+
+        if ("mw" %in% yvar) {
+          break_vals <- c(0, max_break/2, max_break)
+        } else {
+          break_vals <- c(min_break, (min_break + max_break)/2, max_break)
+        }
+        
+        build_map(data         = df_chicago, 
+                  var          = yvar, 
+                  var_legend   = legend_name, 
+                  break_values = break_vals, 
+                  map_name     = plot_name)
+    })
+  }
 }
 
 build_map <- function(data, var, var_legend, break_values,

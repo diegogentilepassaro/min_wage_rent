@@ -3,61 +3,72 @@ set more off
 set maxvar 32000
 
 program main
-    local instub      "../output"
-    local in_wages    "../../twfe_wages/output"
-    local in_zip      "../../../drive/derived_large/zipcode"
+    local in_large "../../../drive/analysis_large/counterfactuals"
+    local in_wages "../../twfe_wages/output"
+    local in_zip   "../../../drive/derived_large/zipcode"
 
-    use "`instub'/data_counterfactuals.dta", clear
+    foreach cf in fed_9usd chi14 {
 
-    keep if counterfactual == "fed_9usd" & year == 2020
-    keep if !cbsa_low_inc_increase
+        use "`in_large'/data_counterfactuals.dta" ///
+            if counterfactual == "`cf'" & year == 2020, clear
 
-    foreach var in d_mw_res d_mw_wkp rho rho_with_imputed ///
-                   change_ln_rents change_ln_wagebill s_imputed {
-        
-        get_xlabel, var(`var')
-        local x_lab = r(x_lab)
-        
-        local scale_opts ""
-        local bin_opt    ""
-        if inlist("`var'", "d_mw_res", "d_mw_wkp") {
-            local scale_opts "yscale(r(0 53.5)) xscale(r(0 0.23))"
-            local bin_opt    "bin(25)"
+        keep if !cbsa_low_inc_increase
+
+        local vars "rho_with_imputed"
+        if "`cf'" == "fed_9usd" {
+            local vars "d_mw_res d_mw_wkp rho rho_with_imputed"
+            local vars "`vars' change_ln_rents change_ln_wagebill s_imputed"
         }
-        if inlist("`var'", "rho", "rho_with_imputed", "change_ln_rents", ///
-            "change_ln_wagebill") {
-            local bin_opt    "bin(30)"
-            if !inlist("`var'", "rho", "rho_with_imputed") {
-                local scale_opts "yscale(r(0 40))"
+
+        foreach var of local vars {
+            
+            get_xlabel, var(`var')
+            local x_lab = r(x_lab)
+            
+            local scale_opts ""
+            local lab_opts   ""
+            local bin_opt    ""
+            if inlist("`var'", "d_mw_res", "d_mw_wkp") {
+                local scale_opts "yscale(r(0 60)) xscale(r(0 0.23))"
+                local lab_opts   "ylab(0(15)60) xlab(0(0.05)0.2)"
+                local bin_opt    "bin(25)"
             }
+            if inlist("`var'", "rho", "rho_with_imputed", "change_ln_rents", "change_ln_wagebill") {
+                local bin_opt    "bin(30)"
+                if !inlist("`var'", "rho", "rho_with_imputed") {
+                    local scale_opts "yscale(r(0 40))"
+                }
+            }
+            if inlist("`var'", "s_imputed") {
+                local bin_opt    "bin(30)"
+                local scale_opts "yscale(r(0 8))"
+            }
+
+            hist `var', percent `bin_opt'                                      ///
+                xtitle("`x_lab'") ytitle("Percentage") `scale_opts' `lab_opts' ///
+                graphregion(color(white)) bgcolor(white)                       ///
+                plotregion(margin(b = 1.5))
+            
+            local filename "../output/hist_`var'_`cf'"
+            if inlist("`var'", "s_imputed") {
+                local filename "../output/hist_`var'"
+            }
+            
+            graph export "`filename'.png", replace width(2221) height(1615)
+            graph export "`filename'.eps", replace
         }
-        if inlist("`var'", "s_imputed") {
-            local bin_opt    "bin(30)"
-            local scale_opts "yscale(r(0 8))"
-        }
 
-        hist `var', percent `bin_opt'                                   ///
-            xtitle("`x_lab'") ytitle("Percentage") `scale_opts'         ///
-            graphregion(color(white)) bgcolor(white)                    ///
-            plotregion(margin(b = 1.5))
-        
-        graph export "../output/hist_`var'.png", replace width(2221) height(1615)
-        graph export "../output/hist_`var'.eps", replace
-    }
+        collapse (mean) rho_with_imputed, by(diff_qts)
 
-    collapse (mean) rho rho_with_imputed, by(diff_qts)
-
-    foreach stub in `""' `"_with_imputed"' {
-
-        twoway (line     rho`stub'  diff_qts, lcol(navy))                                   ///
-               (scatter  rho`stub'  diff_qts, mcol(navy)),                                  ///
-            xtitle("Difference between change in wrk. MW and change in res. MW (deciles)")  ///
-            ytitle("Mean share pocketed")                                                   ///
-            xlabel(1(1)10) ylabel(0.04(0.04)0.16)                                              ///
+        twoway (line     rho_with_imputed  diff_qts, lcol(navy))                       ///
+               (scatter  rho_with_imputed  diff_qts, mcol(navy)),                      ///
+            xtitle("Difference between ch. in wkp. MW and ch. in res. MW (deciles)")   ///
+            ytitle("Mean share pocketed by landlords")                                 ///
+            xlabel(1(1)10) ylabel(0.06(0.04)0.18)                                      ///
             graphregion(color(white)) bgcolor(white) legend(off)
             
-        graph export "../output/deciles_diff`stub'.png", width(2221) height(1615) replace
-        graph export "../output/deciles_diff`stub'.eps", replace
+        graph export "../output/deciles_diff_`cf'.png", width(2221) height(1615) replace
+        graph export "../output/deciles_diff_`cf'.eps", replace
     }
 end
 

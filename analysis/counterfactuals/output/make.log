@@ -1,5 +1,5 @@
 
- make.py started: 2022-06-09 13:38:25 C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\code 
+ make.py started: 2022-07-05 09:13:09 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\code 
 
 
 
@@ -39,6 +39,15 @@ running c:\ado\personal\profile.do ...
 . set maxvar 32000
 
 
+. adopath + ../../../lib/stata/gslab_misc/ado
+  [1]  (BASE)      "C:\Program Files\Stata15\ado\base/"
+  [2]  (SITE)      "C:\Program Files\Stata15\ado\site/"
+  [3]              "."
+  [4]  (PERSONAL)  "c:\ado\personal/"
+  [5]  (PLUS)      "c:\ado\plus/"
+  [6]  (OLDPLACE)  "c:\ado/"
+  [7]              "../../../lib/stata/gslab_misc/ado"
+
 . 
 . program main
   1.     local in_cf_mw     "../../../drive/derived_large/min_wage_measures"
@@ -46,54 +55,57 @@ running c:\ado\personal\profile.do ...
   3.     local in_wages     "../../twfe_wages/output"
   4.     local in_exp_share "../../../drive/analysis_large/expenditure_shares"
   5.     local in_zip       "../../../drive/derived_large/zipcode"
-  6. 
+  6.     local out_large    "../../../drive/analysis_large/counterfactuals"
+  7. 
 .     load_parameters, in_baseline(`in_baseline') in_wages(`in_wages')
-  7.     local beta    = r(beta)
-  8.     local gamma   = r(gamma)
-  9.     local epsilon = r(epsilon)
- 10. 
-.     di "Beta, Gamma, and Epsilon: `beta', `gamma', `epsilon'"
+  8.     local beta    = r(beta)
+  9.     local gamma   = r(gamma)
+ 10.     local epsilon = r(epsilon)
  11. 
+.     di "Beta, Gamma, and Epsilon: `beta', `gamma', `epsilon'"
+ 12. 
 .     load_counterfactuals,  instub(`in_cf_mw')
- 12.     select_urban_zipcodes, instub(`in_zip')
- 13.     merge m:1 zipcode using "`in_exp_share'/s_by_zip.dta", ///
+ 13.     select_urban_zipcodes, instub(`in_zip')
+ 14.     merge m:1 zipcode using "`in_exp_share'/s_by_zip.dta", ///
 >         nogen keep(1 3)
- 14.     
+ 15.     
 .     compute_vars,         beta(`beta') gamma(`gamma') epsilon(`epsilon')
- 15.     flag_unaffected_cbsas
- 16.     flag_treatment_status
- 17. 
-.     foreach cf in fed_10pc fed_9usd fed_15usd {
+ 16.     flag_unaffected_cbsas
+ 17.     flag_treatment_status
  18. 
+.     foreach cf in fed_10pc fed_9usd fed_15usd chi14 {
+ 19. 
 .         qui unique cbsa if counterfactual == "`cf'"
- 19.         local n_cbsas           = `r(unique)'
- 20.         qui unique cbsa if cbsa_low_inc_increase == 0 & counterfactual == 
+ 20.         local n_cbsas           = `r(unique)'
+ 21.         qui unique cbsa if cbsa_low_inc_increase == 0 & counterfactual == 
 > "`cf'"
- 21.         local n_cbsas_affected = `r(unique)'
- 22. 
+ 22.         local n_cbsas_affected = `r(unique)'
+ 23. 
 .         di "{bf: Counterfactual: `cf'}"
- 23.         di "    Unique CBAs: `n_cbsas'"
- 24.         di "    Unique CBAs strongly affected: `n_cbsas_affected'"
- 25. 
+ 24.         di "    Unique CBAs: `n_cbsas'"
+ 25.         di "    Unique CBAs strongly affected: `n_cbsas_affected'"
+ 26. 
 .         di "    Distribution of rho"
- 26.         sum rho if counterfactual == "`cf'" & year == 2020, d
- 27.         di "    Distribution of rho for strongly affected CBAs"
- 28.         sum rho if counterfactual == "`cf'" & year == 2020 & cbsa_low_inc_
+ 27.         sum rho if counterfactual == "`cf'" & year == 2020, d
+ 28.         di "    Distribution of rho for strongly affected CBAs"
+ 29.         sum rho if counterfactual == "`cf'" & year == 2020 & cbsa_low_inc_
 > increase == 0, d
- 29.     }
- 30. 
-.     save             "../output/data_counterfactuals.dta", replace
- 31.     export delimited "../output/data_counterfactuals.csv", replace
- 32. 
+ 30.     }
+ 31. 
+.     save_data  "`out_large'/data_counterfactuals.dta", key(zipcode counterfac
+> tual year) ///
+>         log("../output/data_file_manifest.log") replace
+ 32.     export delimited "`out_large'/data_counterfactuals.csv", replace
+ 33. 
 .     preserve
- 33.         compute_tot_incidence
- 34. 
+ 34.         compute_tot_incidence
+ 35. 
 .         qui sum tot_incidence if counterfactual == "fed_9usd"
- 35.         local tot_inc = r(mean)
- 36. 
+ 36.         local tot_inc = r(mean)
+ 37. 
 .         export delimited "../output/tot_incidence.csv", replace
- 37.     restore
- 38. 
+ 38.     restore
+ 39. 
 . end
 
 . 
@@ -127,8 +139,8 @@ running c:\ado\personal\profile.do ...
   5.     bysort zipcode counterfactual (year month): ///
 >         gen d_mw_res = mw_res[_n] - mw_res[_n - 1]
   6.     
-.     gen   diff_mw  = d_mw_wkp - d_mw_res
-  7.     xtile diff_qts = diff_mw, nquantiles(10)
+.     gen        diff_mw  = d_mw_wkp - d_mw_res
+  7.     gquantiles diff_qts = diff_mw, xtile nquantiles(10) by(counterfactual)
   8. end
 
 . 
@@ -154,7 +166,14 @@ running c:\ado\personal\profile.do ...
   7. 
 .     gen rho              = s*ratio_increases
   8.     gen rho_with_imputed = s_imputed*ratio_increases
-  9. end
+  9. 
+.     foreach var in change_ln_rents change_ln_wagebill perc_incr_rent perc_inc
+> r_wagebill ///
+>                    ratio_increases rho rho_with_imputed {
+ 10.         
+.         replace `var' = . if missing(d_mw_res)
+ 11.     }
+ 12. end
 
 . 
 . program flag_unaffected_cbsas
@@ -220,52 +239,61 @@ running c:\ado\personal\profile.do ...
 . 
 . main
 (6 observations deleted)
-Beta, Gamma, and Epsilon: .0685098394751549, -.0218667536973953, .1083556264638
-> 901
-(94,839 missing values generated)
-(95,157 missing values generated)
-(95,157 missing values generated)
+Beta, Gamma, and Epsilon: .0685098394751549, -.0218667536973953, .1013498678803
+> 444
+(126,452 missing values generated)
+(126,876 missing values generated)
+(126,876 missing values generated)
 
     Result                           # of obs.
     -----------------------------------------
     not matched                             0
-    matched                           189,678  
+    matched                           252,904  
     -----------------------------------------
-(122,154 observations deleted)
+(162,872 observations deleted)
 
     Result                           # of obs.
     -----------------------------------------
     not matched                             0
-    matched                            67,524  
+    matched                            90,032  
     -----------------------------------------
-(33,933 missing values generated)
-(33,762 missing values generated)
-(33,933 missing values generated)
-(33,762 missing values generated)
-(34,415 missing values generated)
-(36,827 missing values generated)
-(34,852 missing values generated)
-(note: file C:\Users\diegog\AppData\Local\Temp\6\ST_14a4c_000003.tmp not found)
-file C:\Users\diegog\AppData\Local\Temp\6\ST_14a4c_000003.tmp saved
+(45,244 missing values generated)
+(45,016 missing values generated)
+(45,244 missing values generated)
+(45,016 missing values generated)
+(51,537 missing values generated)
+(54,031 missing values generated)
+(51,987 missing values generated)
+(0 real changes made)
+(228 real changes made, 228 to missing)
+(0 real changes made)
+(228 real changes made, 228 to missing)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(note: file C:\Users\shermo\AppData\Local\Temp\11\ST_c34f4_000003.tmp not found
+> )
+file C:\Users\shermo\AppData\Local\Temp\11\ST_c34f4_000003.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
     not matched                             0
-    matched                            67,524  
+    matched                            90,032  
     -----------------------------------------
-(34,473 observations deleted)
-(10,355 missing values generated)
-(10,355 missing values generated)
-(note: file C:\Users\diegog\AppData\Local\Temp\6\ST_14a4c_000003.tmp not found)
-file C:\Users\diegog\AppData\Local\Temp\6\ST_14a4c_000003.tmp saved
+(45,964 observations deleted)
+(21,001 missing values generated)
+(21,001 missing values generated)
+(note: file C:\Users\shermo\AppData\Local\Temp\11\ST_c34f4_000003.tmp not found
+> )
+file C:\Users\shermo\AppData\Local\Temp\11\ST_c34f4_000003.tmp saved
 
     Result                           # of obs.
     -----------------------------------------
-    not matched                         1,422
-        from master                     1,422  
+    not matched                         1,896
+        from master                     1,896  
         from using                          0  
 
-    matched                            66,102  
+    matched                            88,136  
     -----------------------------------------
  Counterfactual: fed_10pc
     Unique CBAs: 176
@@ -275,68 +303,68 @@ file C:\Users\diegog\AppData\Local\Temp\6\ST_14a4c_000003.tmp saved
                              rho
 -------------------------------------------------------------
       Percentiles      Smallest
- 1%     .0404541      -.0187939
- 5%     .0606224      -.0102525
-10%     .0718498      -.0084348       Obs              10,187
-25%     .0936329      -.0058144       Sum of Wgt.      10,187
+ 1%     .0432641       -.020094
+ 5%     .0648341      -.0109619
+10%     .0768363      -.0090185       Obs              10,187
+25%     .1001052      -.0062168       Sum of Wgt.      10,187
 
-50%       .12843                      Mean           .1396455
-                        Largest       Std. Dev.       .062345
-75%     .1724725       .4542883
-90%     .2236845       .5275847       Variance       .0038869
-95%     .2596698        .607181       Skewness       1.075711
-99%     .3278658       .6695996       Kurtosis       4.930184
+50%     .1373453                      Mean           .1493096
+                        Largest       Std. Dev.      .0666487
+75%     .1843952       .4856921
+90%     .2391468       .5641124       Variance        .004442
+95%     .2776199       .6491525       Skewness       1.075834
+99%     .3505295         .71589       Kurtosis       4.931055
     Distribution of rho for strongly affected CBAs
 
                              rho
 -------------------------------------------------------------
       Percentiles      Smallest
- 1%     .0342739      -.0187939
- 5%      .052867      -.0102525
-10%     .0622177      -.0084348       Obs               4,553
-25%     .0769177      -.0058144       Sum of Wgt.       4,553
+ 1%     .0366552       -.020094
+ 5%     .0565402      -.0109619
+10%     .0665406      -.0090185       Obs               4,553
+25%     .0822614      -.0062168       Sum of Wgt.       4,553
 
-50%     .0973773                      Mean           .1075447
-                        Largest       Std. Dev.      .0457637
-75%      .128878       .3435856
-90%     .1658275        .345189       Variance       .0020943
-95%       .19344       .3671993       Skewness       1.496148
-99%     .2687252       .5275847       Kurtosis       7.297596
+50%     .1041427                      Mean            .115003
+                        Largest       Std. Dev.      .0489257
+75%     .1378323       .3673506
+90%     .1772909       .3690593       Variance       .0023937
+95%     .2068123       .3925827       Skewness       1.495729
+99%     .2873013       .5641124       Kurtosis       7.297182
  Counterfactual: fed_9usd
     Unique CBAs: 176
-    Unique CBAs strongly affected: 116
+    Unique CBAs strongly affected: 115
     Distribution of rho
 
                              rho
 -------------------------------------------------------------
       Percentiles      Smallest
- 1%     .0382074      -.0219505
- 5%     .0574285       -.011072
-10%     .0676893      -.0093015       Obs              10,239
-25%     .0849373      -.0065018       Sum of Wgt.      10,239
+ 1%     .0408488      -.0234712
+ 5%     .0614289      -.0118394
+10%     .0723841      -.0099464       Obs              10,239
+25%     .0908387      -.0069526       Sum of Wgt.      10,239
 
-50%     .1164068                      Mean           .1307714
-                        Largest       Std. Dev.      .0619435
-75%     .1635336       .4481634
-90%     .2149944       .4542788       Variance        .003837
-95%     .2510253       .6071758       Skewness       1.234517
-99%     .3268197       .6695645       Kurtosis       5.311416
+50%     .1245199                      Mean           .1398405
+                        Largest       Std. Dev.      .0662139
+75%     .1748597       .4793063
+90%     .2298603       .4856837       Variance       .0043843
+95%     .2684073       .6491479       Skewness       1.234534
+99%     .3494117       .7158591       Kurtosis       5.312744
     Distribution of rho for strongly affected CBAs
 
                              rho
 -------------------------------------------------------------
       Percentiles      Smallest
- 1%     .0341354      -.0219505
- 5%     .0528072       -.011072
-10%     .0619095      -.0093015       Obs               6,364
-25%     .0762088      -.0065018       Sum of Wgt.       6,364
+ 1%     .0365093      -.0234712
+ 5%     .0564322      -.0118394
+10%     .0662001      -.0099464       Obs               6,352
+25%     .0815146      -.0069526       Sum of Wgt.       6,352
 
-50%     .0946939                      Mean           .1042412
-                        Largest       Std. Dev.      .0432637
-75%     .1235769       .3434856
-90%     .1593145       .3671921       Variance       .0018718
-95%      .184074       .4481634       Skewness       1.754021
-99%     .2499016       .6695645       Kurtosis       11.10249
+50%     .1012554                      Mean           .1113735
+                        Largest       Std. Dev.      .0461394
+75%     .1320414       .3672625
+90%     .1702887       .3925764       Variance       .0021288
+95%     .1967613       .4793063       Skewness       1.757043
+99%     .2664402       .7158591       Kurtosis       11.18446
  Counterfactual: fed_15usd
     Unique CBAs: 176
     Unique CBAs strongly affected: 176
@@ -345,38 +373,126 @@ file C:\Users\diegog\AppData\Local\Temp\6\ST_14a4c_000003.tmp saved
                              rho
 -------------------------------------------------------------
       Percentiles      Smallest
- 1%     .0345466       .0033703
- 5%     .0531953       .0076803
-10%      .062859        .009659       Obs              10,271
-25%     .0773789       .0104571       Sum of Wgt.      10,271
+ 1%     .0370295       .0036042
+ 5%     .0569798       .0082151
+10%     .0673517       .0103475       Obs              10,271
+25%     .0828533       .0111835       Sum of Wgt.      10,271
 
-50%     .0962532                      Mean           .1053034
-                        Largest       Std. Dev.      .0442915
-75%     .1235269       .4336201
-90%     .1573149       .4537176       Variance       .0019617
-95%     .1864764       .5316336       Skewness       1.918908
-99%     .2598985       .6064213       Kurtosis       10.70576
+50%     .1030857                      Mean            .112756
+                        Largest       Std. Dev.      .0473726
+75%      .132248       .4637387
+90%     .1684843       .4851892       Variance       .0022442
+95%     .1995233       .5690328       Skewness       1.915076
+99%     .2779276       .6484831       Kurtosis       10.68604
     Distribution of rho for strongly affected CBAs
 
                              rho
 -------------------------------------------------------------
       Percentiles      Smallest
- 1%     .0345466       .0033703
- 5%     .0531953       .0076803
-10%      .062859        .009659       Obs              10,271
-25%     .0773789       .0104571       Sum of Wgt.      10,271
+ 1%     .0370295       .0036042
+ 5%     .0569798       .0082151
+10%     .0673517       .0103475       Obs              10,271
+25%     .0828533       .0111835       Sum of Wgt.      10,271
 
-50%     .0962532                      Mean           .1053034
-                        Largest       Std. Dev.      .0442915
-75%     .1235269       .4336201
-90%     .1573149       .4537176       Variance       .0019617
-95%     .1864764       .5316336       Skewness       1.918908
-99%     .2598985       .6064213       Kurtosis       10.70576
-(note: file ../output/data_counterfactuals.dta not found)
-file ../output/data_counterfactuals.dta saved
-(note: file ../output/data_counterfactuals.csv not found)
-file ../output/data_counterfactuals.csv saved
-(44,828 observations deleted)
+50%     .1030857                      Mean            .112756
+                        Largest       Std. Dev.      .0473726
+75%      .132248       .4637387
+90%     .1684843       .4851892       Variance       .0022442
+95%     .1995233       .5690328       Skewness       1.915076
+99%     .2779276       .6484831       Kurtosis       10.68604
+ Counterfactual: chi14
+    Unique CBAs: 176
+    Unique CBAs strongly affected: 1
+    Distribution of rho
+
+                             rho
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%     .0536162       .0188599
+ 5%     .0849867       .0216964
+10%     .0990635       .0270471       Obs               5,304
+25%     .1216774       .0301319       Sum of Wgt.       5,304
+
+50%      .153024                      Mean           .1644682
+                        Largest       Std. Dev.      .0608871
+75%     .1975511       .4386733
+90%     .2459937       .4401419       Variance       .0037072
+95%     .2783669       .4645642       Skewness       1.019098
+99%     .3485695       .7159102       Kurtosis       5.271307
+    Distribution of rho for strongly affected CBAs
+
+                             rho
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%     .0410718       .0188599
+ 5%     .0612363       .0216964
+10%     .0761821       .0325141       Obs                 369
+25%     .1140014       .0410718       Sum of Wgt.         369
+
+50%     .1489418                      Mean           .1504163
+                        Largest       Std. Dev.      .0563982
+75%      .184802       .2940975
+90%     .2183631       .3094341       Variance       .0031808
+95%     .2505415       .3406161       Skewness       .4485809
+99%     .2940975       .3689497       Kurtosis       3.574121
+(data now sorted by zipcode counterfactual year)
+  variable cbsa_low_inc_increase was float now byte
+  variable no_direct_treatment was float now byte
+  variable fully_affected was float now byte
+  variable year was double now int
+  variable month was double now byte
+  (1,980,704 bytes saved)
+===============================================================================
+File: ../../../drive/analysis_large/counterfactuals/data_counterfactuals.dta
+Key: zipcode counterfactual year
+===============================================================================
+  90032:29(72020):3056401839:2362181924
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     zipcode |          0
+counterfac~l |          0
+        year |     90,032      2019.5    .5000028       2019       2020
+       month |     90,032         6.5    5.500031          1         12
+  mw_wkp_tot |     90,032    2.302862    .2462724    1.60842   2.750013
+-------------+---------------------------------------------------------
+statutory_mw |     89,576    10.33884    2.689903       7.25         17
+      mw_res |     89,576    2.303301    .2532923   1.981001   2.833213
+    d_mw_wkp |     45,016    .1458903    .2235173          0   .7270488
+    d_mw_res |     44,788    .1493795    .2301897          0   .7270488
+     diff_mw |     44,788   -.0034421    .0246483  -.6357015   .3103828
+-------------+---------------------------------------------------------
+    diff_qts |     44,788    5.266098    3.098421          1         10
+        cbsa |          0
+  urban_cbsa |     90,032           1           0          1          1
+    safmr2br |     88,520    1258.366    501.1314        640       4680
+wage_per_w~y |     82,624    5742.226    3620.925   1018.056   83906.45
+-------------+---------------------------------------------------------
+           s |     82,184    .2469149    .0897624   .0229275   1.059083
+safmr2br_i~d |     89,536    1249.916    471.6714    619.341       2810
+wage_per_w~d |     88,176    5580.228    2892.665    1247.48   17753.74
+   s_imputed |     88,152    .2471932    .0855633   .0913048   .5074598
+change_ln_~s |     44,788    .0067317    .0103228    -.00964   .0339118
+-------------+---------------------------------------------------------
+change_ln_~l |     44,788    .0147907    .0226567          0   .0736863
+perc_incr_~t |     44,788    .0068083    .0104781  -.0095937   .0344934
+perc_incr_~l |     44,788    .0151643    .0234115          0   .0764691
+ratio_incr~s |     38,495    .5510996    .2257681  -27.66665   .6759769
+         rho |     36,001    .1384212    .0633404  -.0234712   .7159102
+-------------+---------------------------------------------------------
+rho_with_i~d |     38,045    .1377871    .0610175  -.1456035   .3430295
+cbsa_low_i~e |     90,032    .4765195    .4994511          0          1
+no_direct_~t |     46,134    .1233364    .3288265          0          1
+fully_affe~d |     46,134    .8766636    .3288265          0          1
+
+
+
+
+file ../../../drive/analysis_large/counterfactuals/data_counterfactuals.dta sav
+> ed
+file ../../../drive/analysis_large/counterfactuals/data_counterfactuals.csv sav
+> ed
+(66,965 observations deleted)
 (0 observations deleted)
 (note: file ../output/tot_incidence.csv not found)
 file ../output/tot_incidence.csv saved
@@ -422,71 +538,85 @@ running c:\ado\personal\profile.do ...
 
 . 
 . program main
-  1.     local instub      "../output"
-  2.     local in_wages    "../../twfe_wages/output"
-  3.     local in_zip      "../../../drive/derived_large/zipcode"
+  1.     local in_large "../../../drive/analysis_large/counterfactuals"
+  2.     local in_wages "../../twfe_wages/output"
+  3.     local in_zip   "../../../drive/derived_large/zipcode"
   4. 
-.     use "`instub'/data_counterfactuals.dta", clear
+.     foreach cf in fed_9usd chi14 {
   5. 
-.     keep if counterfactual == "fed_9usd" & year == 2020
-  6.     keep if !cbsa_low_inc_increase
+.         use "`in_large'/data_counterfactuals.dta" ///
+>             if counterfactual == "`cf'" & year == 2020, clear
+  6. 
+.         keep if !cbsa_low_inc_increase
   7. 
-.     foreach var in d_mw_res d_mw_wkp rho rho_with_imputed ///
->                    change_ln_rents change_ln_wagebill s_imputed {
-  8.         
-.         get_xlabel, var(`var')
-  9.         local x_lab = r(x_lab)
- 10.         
-.         local scale_opts ""
- 11.         local bin_opt    ""
- 12.         if inlist("`var'", "d_mw_res", "d_mw_wkp") {
- 13.             local scale_opts "yscale(r(0 53.5)) xscale(r(0 0.23))"
- 14.             local bin_opt    "bin(25)"
- 15.         }
- 16.         if inlist("`var'", "rho", "rho_with_imputed", "change_ln_rents", /
-> //
->             "change_ln_wagebill") {
- 17.             local bin_opt    "bin(30)"
- 18.             if !inlist("`var'", "rho", "rho_with_imputed") {
- 19.                 local scale_opts "yscale(r(0 40))"
- 20.             }
- 21.         }
- 22.         if inlist("`var'", "s_imputed") {
- 23.             local bin_opt    "bin(30)"
- 24.             local scale_opts "yscale(r(0 8))"
- 25.         }
- 26. 
-.         hist `var', percent `bin_opt'                                   ///
->             xtitle("`x_lab'") ytitle("Percentage") `scale_opts'         ///
->             graphregion(color(white)) bgcolor(white)                    ///
->             plotregion(margin(b = 1.5))
- 27.         
-.         graph export "../output/hist_`var'.png", replace width(2221) height(1
-> 615)
- 28.         graph export "../output/hist_`var'.eps", replace
- 29.     }
- 30. 
-.     collapse (mean) rho rho_with_imputed, by(diff_qts)
- 31. 
-.     foreach stub in `""' `"_with_imputed"' {
- 32. 
-.         twoway (line     rho`stub'  diff_qts, lcol(navy))                    
->                ///
->                (scatter  rho`stub'  diff_qts, mcol(navy)),                   
->                ///
->             xtitle("Difference between change in wrk. MW and change in res. M
-> W (deciles)")  ///
->             ytitle("Mean share pocketed")                                    
->                ///
->             xlabel(1(1)10) ylabel(0.04(0.04)0.16)                            
->                   ///
+.         local vars "rho_with_imputed"
+  8.         if "`cf'" == "fed_9usd" {
+  9.             local vars "d_mw_res d_mw_wkp rho rho_with_imputed"
+ 10.             local vars "`vars' change_ln_rents change_ln_wagebill s_impute
+> d"
+ 11.         }
+ 12. 
+.         foreach var of local vars {
+ 13.             
+.             get_xlabel, var(`var')
+ 14.             local x_lab = r(x_lab)
+ 15.             
+.             local scale_opts ""
+ 16.             local lab_opts   ""
+ 17.             local bin_opt    ""
+ 18.             if inlist("`var'", "d_mw_res", "d_mw_wkp") {
+ 19.                 local scale_opts "yscale(r(0 60)) xscale(r(0 0.23))"
+ 20.                 local lab_opts   "ylab(0(15)60) xlab(0(0.05)0.2)"
+ 21.                 local bin_opt    "bin(25)"
+ 22.             }
+ 23.             if inlist("`var'", "rho", "rho_with_imputed", "change_ln_rents
+> ", "change_ln_wagebill") {
+ 24.                 local bin_opt    "bin(30)"
+ 25.                 if !inlist("`var'", "rho", "rho_with_imputed") {
+ 26.                     local scale_opts "yscale(r(0 40))"
+ 27.                 }
+ 28.             }
+ 29.             if inlist("`var'", "s_imputed") {
+ 30.                 local bin_opt    "bin(30)"
+ 31.                 local scale_opts "yscale(r(0 8))"
+ 32.             }
+ 33. 
+.             hist `var', percent `bin_opt'                                    
+>   ///
+>                 xtitle("`x_lab'") ytitle("Percentage") `scale_opts' `lab_opts
+> ' ///
+>                 graphregion(color(white)) bgcolor(white)                     
+>   ///
+>                 plotregion(margin(b = 1.5))
+ 34.             
+.             local filename "../output/hist_`var'_`cf'"
+ 35.             if inlist("`var'", "s_imputed") {
+ 36.                 local filename "../output/hist_`var'"
+ 37.             }
+ 38.             
+.             graph export "`filename'.png", replace width(2221) height(1615)
+ 39.             graph export "`filename'.eps", replace
+ 40.         }
+ 41. 
+.         collapse (mean) rho_with_imputed, by(diff_qts)
+ 42. 
+.         twoway (line     rho_with_imputed  diff_qts, lcol(navy))             
+>           ///
+>                (scatter  rho_with_imputed  diff_qts, mcol(navy)),            
+>           ///
+>             xtitle("Difference between ch. in wkp. MW and ch. in res. MW (dec
+> iles)")   ///
+>             ytitle("Mean share pocketed by landlords")                       
+>           ///
+>             xlabel(1(1)10) ylabel(0.06(0.04)0.18)                            
+>           ///
 >             graphregion(color(white)) bgcolor(white) legend(off)
- 33.             
-.         graph export "../output/deciles_diff`stub'.png", width(2221) height(1
-> 615) replace
- 34.         graph export "../output/deciles_diff`stub'.eps", replace
- 35.     }
- 36. end
+ 43.             
+.         graph export "../output/deciles_diff_`cf'.png", width(2221) height(16
+> 15) replace
+ 44.         graph export "../output/deciles_diff_`cf'.eps", replace
+ 45.     }
+ 46. end
 
 . 
 . program get_xlabel, rclass
@@ -519,51 +649,56 @@ running c:\ado\personal\profile.do ...
 . 
 . 
 . main
-(56,270 observations deleted)
-(4,302 observations deleted)
+(4,317 observations deleted)
 (bin=25, start=0, width=.00864892)
-(note: file ../output/hist_d_mw_res.png not found)
-(file ../output/hist_d_mw_res.png written in PNG format)
-(note: file ../output/hist_d_mw_res.eps not found)
-(file ../output/hist_d_mw_res.eps written in EPS format)
+(note: file ../output/hist_d_mw_res_fed_9usd.png not found)
+(file ../output/hist_d_mw_res_fed_9usd.png written in PNG format)
+(note: file ../output/hist_d_mw_res_fed_9usd.eps not found)
+(file ../output/hist_d_mw_res_fed_9usd.eps written in EPS format)
 (bin=25, start=0, width=.00864892)
-(note: file ../output/hist_d_mw_wkp.png not found)
-(file ../output/hist_d_mw_wkp.png written in PNG format)
-(note: file ../output/hist_d_mw_wkp.eps not found)
-(file ../output/hist_d_mw_wkp.eps written in EPS format)
-(bin=30, start=-.02195047, width=.0230505)
-(note: file ../output/hist_rho.png not found)
-(file ../output/hist_rho.png written in PNG format)
-(note: file ../output/hist_rho.eps not found)
-(file ../output/hist_rho.eps written in EPS format)
-(bin=30, start=-.13616866, width=.01523383)
-(note: file ../output/hist_rho_with_imputed.png not found)
-(file ../output/hist_rho_with_imputed.png written in PNG format)
-(note: file ../output/hist_rho_with_imputed.eps not found)
-(file ../output/hist_rho_with_imputed.eps written in EPS format)
+(note: file ../output/hist_d_mw_wkp_fed_9usd.png not found)
+(file ../output/hist_d_mw_wkp_fed_9usd.png written in PNG format)
+(note: file ../output/hist_d_mw_wkp_fed_9usd.eps not found)
+(file ../output/hist_d_mw_wkp_fed_9usd.eps written in EPS format)
+(bin=30, start=-.0234712, width=.02464434)
+(note: file ../output/hist_rho_fed_9usd.png not found)
+(file ../output/hist_rho_fed_9usd.png written in PNG format)
+(note: file ../output/hist_rho_fed_9usd.eps not found)
+(file ../output/hist_rho_fed_9usd.eps written in EPS format)
+(bin=30, start=-.14560348, width=.01628763)
+(note: file ../output/hist_rho_with_imputed_fed_9usd.png not found)
+(file ../output/hist_rho_with_imputed_fed_9usd.png written in PNG format)
+(note: file ../output/hist_rho_with_imputed_fed_9usd.eps not found)
+(file ../output/hist_rho_with_imputed_fed_9usd.eps written in EPS format)
 (bin=30, start=-.0047281, width=.00049378)
-(note: file ../output/hist_change_ln_rents.png not found)
-(file ../output/hist_change_ln_rents.png written in PNG format)
-(note: file ../output/hist_change_ln_rents.eps not found)
-(file ../output/hist_change_ln_rents.eps written in EPS format)
-(bin=30, start=0, width=.00078097)
-(note: file ../output/hist_change_ln_wagebill.png not found)
-(file ../output/hist_change_ln_wagebill.png written in PNG format)
-(note: file ../output/hist_change_ln_wagebill.eps not found)
-(file ../output/hist_change_ln_wagebill.eps written in EPS format)
+(note: file ../output/hist_change_ln_rents_fed_9usd.png not found)
+(file ../output/hist_change_ln_rents_fed_9usd.png written in PNG format)
+(note: file ../output/hist_change_ln_rents_fed_9usd.eps not found)
+(file ../output/hist_change_ln_rents_fed_9usd.eps written in EPS format)
+(bin=30, start=0, width=.00073047)
+(note: file ../output/hist_change_ln_wagebill_fed_9usd.png not found)
+(file ../output/hist_change_ln_wagebill_fed_9usd.png written in PNG format)
+(note: file ../output/hist_change_ln_wagebill_fed_9usd.eps not found)
+(file ../output/hist_change_ln_wagebill_fed_9usd.eps written in EPS format)
 (bin=30, start=.09130484, width=.01387183)
 (note: file ../output/hist_s_imputed.png not found)
 (file ../output/hist_s_imputed.png written in PNG format)
 (note: file ../output/hist_s_imputed.eps not found)
 (file ../output/hist_s_imputed.eps written in EPS format)
-(note: file ../output/deciles_diff.png not found)
-(file ../output/deciles_diff.png written in PNG format)
-(note: file ../output/deciles_diff.eps not found)
-(file ../output/deciles_diff.eps written in EPS format)
-(note: file ../output/deciles_diff_with_imputed.png not found)
-(file ../output/deciles_diff_with_imputed.png written in PNG format)
-(note: file ../output/deciles_diff_with_imputed.eps not found)
-(file ../output/deciles_diff_with_imputed.eps written in EPS format)
+(note: file ../output/deciles_diff_fed_9usd.png not found)
+(file ../output/deciles_diff_fed_9usd.png written in PNG format)
+(note: file ../output/deciles_diff_fed_9usd.eps not found)
+(file ../output/deciles_diff_fed_9usd.eps written in EPS format)
+(10,866 observations deleted)
+(bin=30, start=.03480626, width=.01026937)
+(note: file ../output/hist_rho_with_imputed_chi14.png not found)
+(file ../output/hist_rho_with_imputed_chi14.png written in PNG format)
+(note: file ../output/hist_rho_with_imputed_chi14.eps not found)
+(file ../output/hist_rho_with_imputed_chi14.eps written in EPS format)
+(note: file ../output/deciles_diff_chi14.png not found)
+(file ../output/deciles_diff_chi14.png written in PNG format)
+(note: file ../output/deciles_diff_chi14.eps not found)
+(file ../output/deciles_diff_chi14.eps written in EPS format)
 
 . 
 end of do-file
@@ -606,25 +741,27 @@ running c:\ado\personal\profile.do ...
 
 . 
 . program main
-  1.     local in_data        "../output"
-  2.     local in_baseline    "../../fd_baseline/output"
-  3.     local in_wages     "../../twfe_wages/output"
-  4.     local out_autofill   "../output"
+  1.     local in_data       "../../../drive/analysis_large/counterfactuals"
+  2.     local in_baseline   "../../fd_baseline/output"
+  3.     local in_wages      "../../twfe_wages/output"
+  4.     local out_autofill  "../output"
   5. 
 .     load_parameters, in_baseline(`in_baseline') in_wages(`in_wages')
   6.     local beta    = r(beta)
   7.     local gamma   = r(gamma)
   8.     local epsilon = r(epsilon)
   9. 
-.     import delimited `in_data'/tot_incidence.csv, clear
+.     import delimited ../output/tot_incidence.csv, clear
  10.     qui sum tot_incidence if counterfactual == "fed_9usd"
- 11.     local tot_inc = r(mean)
- 12. 
-.     use `in_data'/data_counterfactuals.dta, clear
- 13. 
-.     make_autofill_values, beta(`beta') gamma(`gamma') epsilon(`epsilon') tot_
-> inc(`tot_inc')
+ 11.     local tot_inc_fed_9usd = r(mean)
+ 12.     qui sum tot_incidence if counterfactual == "chi14"
+ 13.     local tot_inc_chi14 = r(mean)
  14. 
+.     use `in_data'/data_counterfactuals.dta, clear
+ 15. 
+.     make_autofill_values, beta(`beta') gamma(`gamma') epsilon(`epsilon') ///
+>         tot_inc_fed_9usd(`tot_inc_fed_9usd') tot_inc_chi14(`tot_inc_chi14')
+ 16. 
 . end
 
 . 
@@ -646,112 +783,146 @@ running c:\ado\personal\profile.do ...
 
 . 
 . program make_autofill_values
-  1.     syntax, gamma(real) beta(real) epsilon(real) tot_inc(real)
+  1.     syntax, gamma(real) beta(real) epsilon(real) tot_inc_fed_9usd(real) to
+> t_inc_chi14(real)
   2. 
-.     local tot_inc_cents = `tot_inc'*100
-  3. 
-.     qui tab cbsa if cbsa_low_inc_increase == 1 & counterfactual == "fed_9usd"
-  4.     local cbsa_low_inc = r(r)
-  5. 
-.     keep if counterfactual == "fed_9usd" & cbsa_low_inc_increase == 0
-  6.     gen nonmiss_cond = !missing(s_imputed) & !missing(perc_incr_rent)  ///
->                                            & !missing(perc_incr_wagebill)
-  7. 
-.     qui sum rho if nonmiss_cond == 1, d
-  8.         
-.     local rho_median    = r(p50)
-  9.     local rho_med_cents = r(p50)*100
- 10. 
-.     qui sum rho if nonmiss_cond == 1 & year == 2020 & no_direct_treatment == 
-> 0, d
- 11.     local rho_meddir_cent = 100 * r(p50)
- 12. 
-.     qui sum rho if nonmiss_cond == 1 & year == 2020 & no_direct_treatment == 
-> 1, d
- 13.     local rho_medind_cent = 100 * r(p50)
- 14.         
-.     qui count if nonmiss_cond == 1 & year == 2020
- 15.     local zip_total = r(N)
- 16. 
-.     qui count if nonmiss_cond == 1 & year == 2020 & no_direct_treatment == 1
- 17.     local zip_no_treat = r(N)
- 18.     local zip_notr_pct = 100*`zip_no_treat'/`zip_total'
- 19.         
-.     qui count if nonmiss_cond == 1 & year == 2020 & no_direct_treatment == 0
- 20.     local zip_treat    = r(N)
- 21.     local zip_tr_pct   = 100*`zip_treat'/`zip_total'
- 22. 
-.     qui count if year == 2019 & no_direct_treatment == 0 & statutory_mw == 7.
-> 25
- 23.     local zip_bound     = r(N)  
- 24.     local zip_bound_pct = 100*`zip_bound'/`zip_total'
- 25. 
-.     qui sum d_mw_res if nonmiss_cond == 1, d
- 26.     local avg_change_mw_res = 100 * r(mean)
- 27.     local med_change_mw_res = 100 * r(p50)
- 28. 
-.     qui sum d_mw_wkp if nonmiss_cond == 1, d
- 29.     local avg_change_mw_wkp = 100 * r(mean)
- 30.     local med_change_mw_wkp = 100 * r(p50)
- 31. 
 .     cap file close f
- 32.     file open   f using "../output/autofill_counterfactuals.tex", write re
+  3.     file open   f using "../output/autofill_counterfactuals.tex", write re
 > place
- 33.     file write  f "\newcommand{\gammaCf}{\textnormal{"                    
+  4.     file write  f "\newcommand{\gammaCf}{\textnormal{"                    
 > %5.4f  (`gamma')           "}}" _n
- 34.     file write  f "\newcommand{\betaCf}{\textnormal{"                     
+  5.     file write  f "\newcommand{\betaCf}{\textnormal{"                     
 > %5.4f  (`beta')            "}}" _n
- 35.     file write  f "\newcommand{\epsilonCf}{\textnormal{"                  
+  6.     file write  f "\newcommand{\epsilonCf}{\textnormal{"                  
 > %5.4f  (`epsilon')         "}}" _n
- 36.     file write  f "\newcommand{\totIncidenceFedNine}{\textnormal{"        
-> %4.3f  (`tot_inc')         "}}" _n
- 37.     file write  f "\newcommand{\totIncidenceCentsFedNine}{\textnormal{"   
-> %3.1f  (`tot_inc_cents')   "}}" _n
- 38.     file write  f "\newcommand{\rhoMedianFedNine}{\textnormal{"           
-> %4.3f  (`rho_median')      "}}" _n
- 39.     file write  f "\newcommand{\rhoMedianCentsFedNine}{\textnormal{"      
-> %1.0f  (`rho_med_cents')   "}}" _n
- 40.     file write  f "\newcommand{\rhoMedCentsIndirFedNine}{\textnormal{"    
-> %4.1f  (`rho_medind_cent') "}}" _n
- 41.     file write  f "\newcommand{\rhoMedCentsDirFedNine}{\textnormal{"      
-> %4.1f  (`rho_meddir_cent') "}}" _n
- 42.     file write  f "\newcommand{\zipcodesFedNine}{\textnormal{"            
-> %5.0fc (`zip_total')       "}}" _n
- 43.     file write  f "\newcommand{\zipNoIncFedNine}{\textnormal{"            
-> %5.0fc (`zip_no_treat')    "}}" _n
- 44.     file write  f "\newcommand{\zipIncFedNine}{\textnormal{"              
-> %5.0fc (`zip_treat')       "}}" _n
- 45.     file write  f "\newcommand{\zipBoundFedNine}{\textnormal{"            
-> %5.0fc (`zip_bound')       "}}" _n
- 46.     file write  f "\newcommand{\zipNoIncPctFedNine}{\textnormal{"         
-> %4.1f  (`zip_notr_pct')    "}}" _n
- 47.     file write  f "\newcommand{\zipIncPctFedNine}{\textnormal{"           
-> %4.1f  (`zip_tr_pct')      "}}" _n
- 48.     file write  f "\newcommand{\zipBoundPctFedNine}{\textnormal{"         
-> %4.1f  (`zip_bound_pct')   "}}" _n
- 49.     file write  f "\newcommand{\AvgChangeMWResFedNine}{\textnormal{"      
-> %4.1f  (`avg_change_mw_res') "}}" _n
- 50.     file write  f "\newcommand{\MedChangeMWResFedNine}{\textnormal{"      
-> %4.1f  (`med_change_mw_res') "}}" _n
- 51.     file write  f "\newcommand{\AvgChangeMWWkpFedNine}{\textnormal{"      
-> %4.1f  (`avg_change_mw_wkp') "}}" _n
- 52.     file write  f "\newcommand{\MedChangeMWWkpFedNine}{\textnormal{"      
-> %4.1f  (`med_change_mw_wkp') "}}" _n
- 53.     file write  f "\newcommand{\cbsaLowIncFedNine}{\textnormal{"          
-> %2.0f  (`cbsa_low_inc')     "}}" _n
- 54.     file close  f
- 55. end
+  7. 
+.     foreach cf in "fed_9usd" "chi14" {
+  8. 
+.         if "`cf'" == "fed_9usd" {
+  9.             local cfname "FedNine"
+ 10.             local tot_inc = `tot_inc_fed_9usd'
+ 11.         }
+ 12.         else if "`cf'" == "chi14" {
+ 13.             local cfname "ChiFourteen"
+ 14.             local tot_inc = `tot_inc_chi14'
+ 15.         }
+ 16. 
+.         preserve
+ 17.             local tot_inc_cents = `tot_inc'*100
+ 18.             
+.             qui tab cbsa if cbsa_low_inc_increase == 1 & counterfactual == "`
+> cf'"
+ 19.             local cbsa_low_inc = r(r)
+ 20. 
+.             keep if counterfactual == "`cf'" & cbsa_low_inc_increase == 0
+ 21.             gen nonmiss_cond = !missing(s_imputed) & !missing(perc_incr_re
+> nt)  ///
+>                 & !missing(perc_incr_wagebill)
+ 22. 
+.             qui sum rho if nonmiss_cond == 1, d
+ 23. 
+.             local rho_median    = r(p50)
+ 24.             local rho_med_cents = r(p50)*100
+ 25. 
+.             qui sum rho if nonmiss_cond == 1 & year == 2020 & no_direct_treat
+> ment == 0, d
+ 26.             local rho_meddir_cent = 100 * r(p50)
+ 27. 
+.             qui sum rho if nonmiss_cond == 1 & year == 2020 & no_direct_treat
+> ment == 1, d
+ 28.             local rho_medind_cent = 100 * r(p50)
+ 29. 
+.             qui count if nonmiss_cond == 1 & year == 2020
+ 30.             local zip_total = r(N)
+ 31. 
+.             qui count if nonmiss_cond == 1 & year == 2020 & no_direct_treatme
+> nt == 1
+ 32.             local zip_no_treat = r(N)
+ 33.             local zip_notr_pct = 100*`zip_no_treat'/`zip_total'
+ 34. 
+.             qui count if nonmiss_cond == 1 & year == 2020 & no_direct_treatme
+> nt == 0
+ 35.             local zip_treat    = r(N)
+ 36.             local zip_tr_pct   = 100*`zip_treat'/`zip_total'
+ 37. 
+.             qui count if year == 2019 & no_direct_treatment == 0 & statutory_
+> mw == 7.25
+ 38.             local zip_bound     = r(N)    
+ 39.             local zip_bound_pct = 100*`zip_bound'/`zip_total'
+ 40. 
+.             qui sum d_mw_res if nonmiss_cond == 1, d
+ 41.             local avg_change_mw_res = 100 * r(mean)
+ 42.             local med_change_mw_res = 100 * r(p50)
+ 43. 
+.             qui sum d_mw_wkp if nonmiss_cond == 1, d
+ 44.             local avg_change_mw_wkp = 100 * r(mean)
+ 45.             local med_change_mw_wkp = 100 * r(p50)
+ 46. 
+.             file write  f "\newcommand{\totIncidence`cfname'}{\textnormal{"  
+>       %4.3f   (`tot_inc')         "}}" _n
+ 47.             file write  f "\newcommand{\totIncidenceCents`cfname'}{\textno
+> rmal{"   %3.1f   (`tot_inc_cents')   "}}" _n
+ 48.             file write  f "\newcommand{\rhoMedian`cfname'}{\textnormal{"  
+>          %4.3f   (`rho_median')      "}}" _n
+ 49.             file write  f "\newcommand{\cbsaLowInc`cfname'}{\textnormal{" 
+>          %2.0f   (`cbsa_low_inc')     "}}" _n
+ 50. 
+.             if "`cf'" == "chi14" {
+ 51.                 file write  f "\newcommand{\zipNoInc`cfname'}{\textnormal{
+> "        %3.0fc  (`zip_no_treat')    "}}" _n
+ 52.                 file write  f "\newcommand{\zipInc`cfname'}{\textnormal{" 
+>          %2.0fc  (`zip_treat')       "}}" _n
+ 53.             }
+ 54.             else if "`cf'" == "fed_9usd" {
+ 55.                 file write  f "\newcommand{\zipNoInc`cfname'}{\textnormal{
+> "        %5.0fc  (`zip_no_treat')    "}}" _n
+ 56.                 file write  f "\newcommand{\zipInc`cfname'}{\textnormal{" 
+>          %5.0fc  (`zip_treat')       "}}" _n
+ 57.             }
+ 58. 
+.             if "`cf'" == "fed_9usd" {
+ 59.                 file write  f "\newcommand{\rhoMedianCents`cfname'}{\textn
+> ormal{"   %1.0f   (`rho_med_cents')   "}}" _n
+ 60.                 file write  f "\newcommand{\rhoMedCentsIndir`cfname'}{\tex
+> tnormal{" %4.1f   (`rho_medind_cent') "}}" _n
+ 61.                 file write  f "\newcommand{\rhoMedCentsDir`cfname'}{\textn
+> ormal{"   %4.1f   (`rho_meddir_cent') "}}" _n
+ 62.                 file write  f "\newcommand{\zipcodes`cfname'}{\textnormal{
+> "         %5.0fc  (`zip_total')       "}}" _n
+ 63.                 file write  f "\newcommand{\zipNoIncPct`cfname'}{\textnorm
+> al{"      %4.1f   (`zip_notr_pct')    "}}" _n
+ 64.                 file write  f "\newcommand{\zipIncPct`cfname'}{\textnormal
+> {"        %4.1f   (`zip_tr_pct')      "}}" _n
+ 65.                 file write  f "\newcommand{\zipBoundPct`cfname'}{\textnorm
+> al{"      %3.1f   (`zip_bound_pct')   "}}" _n
+ 66.                 file write  f "\newcommand{\zipBound`cfname'}{\textnormal{
+> "         %5.0fc  (`zip_bound')       "}}" _n
+ 67.                 file write  f "\newcommand{\AvgChangeMWRes`cfname'}{\textn
+> ormal{"   %3.1f   (`avg_change_mw_res') "}}" _n
+ 68.                 file write  f "\newcommand{\MedChangeMWRes`cfname'}{\textn
+> ormal{"   %3.1f   (`med_change_mw_res') "}}" _n
+ 69.                 file write  f "\newcommand{\AvgChangeMWWkp`cfname'}{\textn
+> ormal{"   %3.1f   (`avg_change_mw_wkp') "}}" _n 
+ 70.                 file write  f "\newcommand{\MedChangeMWWkp`cfname'}{\textn
+> ormal{"   %3.1f   (`med_change_mw_wkp') "}}" _n 
+ 71.             }
+ 72. 
+.         restore
+ 73.     }
+ 74.     file close  f
+ 75. end
 
 . 
 . main
 (6 observations deleted)
-(5 vars, 3 obs)
-(53,620 observations deleted)
+(5 vars, 4 obs)
 (note: file ../output/autofill_counterfactuals.tex not found)
+(76,158 observations deleted)
+(89,256 observations deleted)
 
 . 
 . 
-.         
+. 
 . 
 end of do-file
 
@@ -780,41 +951,44 @@ Type 'q()' to quit R.
 > library(data.table)
 > 
 > main <- function() {
-+   instub  <- "../output"
-+   outstub <- "../output"
++   instub   <- "../output"
++   in_large <- "../../../drive/analysis_large/counterfactuals"
++   outstub  <- "../output"
 +   
-+   dt <- fread(file.path(instub, "data_counterfactuals.csv"))
++   dt <- fread(file.path(in_large, "data_counterfactuals.csv"))
 +   
-+   dt_cf <- dt[counterfactual == "fed_9usd" 
-+              & year == 2020 
-+              & cbsa_low_inc_increase == 0]
++   txt <- c("<tab:counterfactuals>")
 + 
-+   txt <- c("<tab:counterfactuals_fed_9usd>")
++   for (cf in c("fed_9usd", "chi14")) {
 + 
-+   for (sample in c("fully_affected", "no_direct_treatment")) {
-+     
-+     dt_sample <- dt_cf[get(sample) == 1]
-+     
++     dt_cf <- dt[counterfactual == cf
++                 & year == 2020 
++                 & cbsa_low_inc_increase == 0]
++ 
++     for (sample in c("fully_affected", "no_direct_treatment")) {
++       dt_sample <- dt_cf[get(sample) == 1]
++       
++       txt <- c(txt, 
++                   paste(dim(dt_sample)[1],
++                         median(dt_sample[["d_mw_res"]],         na.rm = T),
++                         median(dt_sample[["d_mw_wkp"]],         na.rm = T),
++                         median(dt_sample[["s_imputed"]],        na.rm = T),
++                         median(dt_sample[["rho_with_imputed"]], na.rm = T),
++                         sep = "\t"))
++     }
++ 
++     dt_tot_incidence <- fread(file.path(instub, "tot_incidence.csv"))
++     dt_tot_incidence <- dt_tot_incidence[counterfactual == cf]
 +     txt <- c(txt, 
-+             paste(dim(dt_sample)[1],
-+                   median(dt_sample[["d_mw_res"]],         na.rm = T),
-+                   median(dt_sample[["d_mw_wkp"]],         na.rm = T),
-+                   median(dt_sample[["s_imputed"]],        na.rm = T),
-+                   median(dt_sample[["rho_with_imputed"]], na.rm = T),
-+                   sep = "\t"))
++           paste(dt_tot_incidence$N,
++                 dt_tot_incidence$tot_incidence,
++                 sep = "\t"))
 +   }
-+ 
-+   dt_tot_incidence <- fread(file.path(instub, "tot_incidence.csv"))
-+   dt_tot_incidence <- dt_tot_incidence[counterfactual == "fed_9usd"]
-+   txt <- c(txt, 
-+         paste(dt_tot_incidence$N,
-+               dt_tot_incidence$tot_incidence,
-+               sep = "\t"))
-+   
-+   fileConn <- file(file.path(outstub, "counterfactuals_fed_9usd.txt"))
++   fileConn <- file(file.path(outstub, "counterfactuals.txt"))
 +   writeLines(txt, fileConn)
 +   close(fileConn)
-+ 
++  
++   # Other Federal Counterfactual policies  
 +   txt <- c("<tab:counterfactuals_other>")
 + 
 +   for (cf in c("fed_10pc", "fed_15usd")) {
@@ -852,7 +1026,7 @@ Type 'q()' to quit R.
 > 
 > proc.time()
    user  system elapsed 
-   0.59    0.34    0.81 
+   0.53    0.54    0.86 
 
 
 Execute:  R CMD BATCH --no-save "./map_cfs.R" map_cfs.Rout
@@ -877,16 +1051,11 @@ Type 'q()' to quit R.
 
 > remove(list = ls())
 > 
-> library(data.table)
 > library(sf)
 Linking to GEOS 3.9.1, GDAL 3.2.1, PROJ 7.2.1
 > library(dplyr)
 
 Attaching package: 'dplyr'
-
-The following objects are masked from 'package:data.table':
-
-    between, first, last
 
 The following objects are masked from 'package:stats':
 
@@ -904,9 +1073,9 @@ repos='https://nowosad.github.io/drat/', type='source')`
 > library(tmaptools)
 > library(ggplot2)
 > 
-> main <- function(){
-+   in_map  <- "../../../drive/raw_data/shapefiles/USPS_zipcodes"
-+   in_data <- "../output/"
+> main <- function() {
++   in_map   <- "../../../drive/raw_data/shapefiles/USPS_zipcodes"
++   in_large <- "../../../drive/analysis_large/counterfactuals"
 + 
 +   USPS_zipcodes <- read_sf(dsn = in_map, 
 +                            layer = "USPS_zipcodes_July2020") %>%
@@ -914,66 +1083,70 @@ repos='https://nowosad.github.io/drat/', type='source')`
 +     rename(zipcode = ZIP_CODE, zipcode_name = PO_NAME,
 +            state_name = STATE)
 +   
-+   df_all <- fread(file.path(in_data, "data_counterfactuals.csv"),
-+                   colClasses = c(zipcode = "character")) %>%
-+     filter(counterfactual == "fed_9usd",
-+            year           == 2020)
++   df_cf_data <- data.table::fread(file.path(in_large, "data_counterfactuals.csv"),
++                                   colClasses = c(zipcode = "character")) %>%
++     filter(year == 2020)
++   
++   # Housing expenditure  
++   df_all <- df_cf_data %>%
++     filter(counterfactual == "fed_9usd")
 + 
 +   df_all <- left_join(USPS_zipcodes, df_all, by = "zipcode")
 + 
 +   df_chicago <- df_all %>% filter(cbsa == 16980)
 + 
-+   max_break_mw <- round(max(df_chicago$d_mw_res, na.rm = TRUE), digits = 2)
++   min_break <- round(min(df_chicago$s_imputed, na.rm = TRUE), digits = 3)
++   max_break <- round(max(df_chicago$s_imputed, na.rm = TRUE), digits = 3)
 +   
-+   build_map(data = df_chicago, 
-+             var = "d_mw_res", 
-+             var_legend ="Change in\nresidence MW", 
-+             break_values = c(0, max_break_mw/2, max_break_mw), 
-+             map_name = "chicago_d_mw_res")
-+   
-+   build_map(data = df_chicago, 
-+             var = "d_mw_wkp", 
-+             var_legend ="Change in\nworkplace MW", 
-+             break_values = c(0, max_break_mw/2, max_break_mw), 
-+             map_name = "chicago_d_mw_wkp")
-+   
-+   min_break_rents <- round(min(df_chicago$change_ln_rents, na.rm = TRUE), digits = 2)
-+   max_break_rents <- round(max(df_chicago$change_ln_rents, na.rm = TRUE), digits = 2)
-+   
-+   build_map(data = df_chicago, 
-+             var = "change_ln_rents", 
-+             var_legend ="Change in log rents\nper sq. foot", 
-+             break_values = c(min_break_rents, (min_break_rents + max_break_rents)/2, max_break_rents), 
-+             map_name = "chicago_d_ln_rents")
++   build_map(data         = df_chicago, 
++             var          = "s_imputed", 
++             var_legend   ="Share of expenditure in housing", 
++             break_values = c(min_break, (min_break + max_break)/2, max_break), 
++             map_name     = "chicago_s_imputed")
 + 
-+   min_break_wagebill <- round(min(df_chicago$change_ln_wagebill, na.rm = TRUE), digits = 2)
-+   max_break_wagebill <- round(max(df_chicago$change_ln_wagebill, na.rm = TRUE), digits = 2)
++   # Maps for each counterfactual
 +   
-+   build_map(data = df_chicago, 
-+             var = "change_ln_wagebill", 
-+             var_legend ="Change in\nlog total wages", 
-+             break_values = c(min_break_wagebill, (min_break_wagebill + max_break_wagebill)/2, max_break_wagebill), 
-+             map_name = "chicago_d_ln_wagebill")
++   plotsdata_list <- list(
++     c("d_mw_res",           "Change in\nresidence MW",           "chicago_d_mw_res",      "d_mw_res"),
++     c("d_mw_wkp",           "Change in\nworkplace MW",           "chicago_d_mw_wkp",      "d_mw_res"),
++     c("change_ln_rents",    "Change in log rents\nper sq. foot", "chicago_d_ln_rents",    "change_ln_rents"),
++     c("change_ln_wagebill", "Change in\nlog total wages",        "chicago_d_ln_wagebill", "change_ln_wagebill"),
++     c("rho_with_imputed",   "Share pocketed\nby landlords",      "chicago_rho_with_imputed", "rho_with_imputed"))
++       # Var                 # Legend                             # Plot name              # Break var
++   
++   for (cf in c("fed_9usd", "chi14")) {
++     
++     df_all <- left_join(USPS_zipcodes, 
++                         df_cf_data %>% filter(counterfactual == cf), 
++                         by = "zipcode")
++     df_chicago <- df_all %>% filter(cbsa == 16980)
 + 
-+   df <- df_chicago %>% 
-+     filter(is.na(s_imputed) == FALSE)
-+   min_break_s_imputed <- round(min(df$s_imputed, na.rm = TRUE), digits = 3)
-+   max_break_s_imputed <- round(max(df$s_imputed, na.rm = TRUE), digits = 3)
-+   
-+   build_map(data = df, 
-+             var = "s_imputed", 
-+             var_legend ="Share of expenditure in housing", 
-+             break_values = c(min_break_s_imputed, (min_break_s_imputed + max_break_s_imputed)/2, max_break_s_imputed), 
-+             map_name = "chicago_s_imputed")
++     lapply(plotsdata_list, 
++       function(plt_data) {
 + 
-+   min_break_rho_with_imputed <- round(min(df_chicago$rho_with_imputed, na.rm = TRUE), digits = 3)
-+   max_break_rho_with_imputed <- round(max(df_chicago$rho_with_imputed, na.rm = TRUE), digits = 3)
-+   
-+   build_map(data = df_chicago, 
-+             var = "rho_with_imputed", 
-+             var_legend ="Share pocketed\nby landlords", 
-+             break_values = c(min_break_rho_with_imputed, (min_break_rho_with_imputed + max_break_rho_with_imputed)/2, max_break_rho_with_imputed), 
-+             map_name = "chicago_rho_with_imputed")
++         yvar        <- plt_data[1]
++         legend_name <- plt_data[2]
++         plot_name   <- paste0(plt_data[3], "_", cf)
++         break_var   <- plt_data[4]
++ 
++         min_break <- round(min(df_chicago[[break_var]], na.rm = TRUE), digits = 3)
++         max_break <- round(max(df_chicago[[break_var]], na.rm = TRUE), digits = 3)
++         print(min_break)
++         print(max_break)
++ 
++         if ("mw" %in% yvar) {
++           break_vals <- c(0, max_break/2, max_break)
++         } else {
++           break_vals <- c(min_break, (min_break + max_break)/2, max_break)
++         }
++         
++         build_map(data         = df_chicago, 
++                   var          = yvar, 
++                   var_legend   = legend_name, 
++                   break_values = break_vals, 
++                   map_name     = plot_name)
++     })
++   }
 + }
 > 
 > build_map <- function(data, var, var_legend, break_values,
@@ -998,40 +1171,85 @@ repos='https://nowosad.github.io/drat/', type='source')`
 + }
 > 
 > main()
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res.png
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_s_imputed.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res.eps
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_s_imputed.eps
 Size: 6.117331 by 8.010029 inches
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp.png
+[1] 0
+[1] 0.216
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res_fed_9usd.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp.eps
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res_fed_9usd.eps
 Size: 6.117331 by 8.010029 inches
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents.png
+[1] 0
+[1] 0.216
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp_fed_9usd.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents.eps
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp_fed_9usd.eps
 Size: 6.117331 by 8.010029 inches
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill.png
+[1] 0.001
+[1] 0.01
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents_fed_9usd.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill.eps
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents_fed_9usd.eps
 Size: 6.117331 by 8.010029 inches
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_s_imputed.png
+[1] 0.001
+[1] 0.021
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill_fed_9usd.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_s_imputed.eps
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill_fed_9usd.eps
 Size: 6.117331 by 8.010029 inches
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_rho_with_imputed.png
+[1] 0.025
+[1] 0.341
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_rho_with_imputed_fed_9usd.png
 Resolution: 1529.333 by 2002.507 pixels
 Size: 6.117331 by 8.010029 inches (250 dpi)
-Map saved to C:\Users\diegog\Desktop\Diego\min_wage_rent\analysis\counterfactuals\output\chicago_rho_with_imputed.eps
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_rho_with_imputed_fed_9usd.eps
 Size: 6.117331 by 8.010029 inches
-There were 18 warnings (use warnings() to see them)
+[1] 0
+[1] 0.074
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res_chi14.png
+Resolution: 1529.333 by 2002.507 pixels
+Size: 6.117331 by 8.010029 inches (250 dpi)
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_res_chi14.eps
+Size: 6.117331 by 8.010029 inches
+[1] 0
+[1] 0.074
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp_chi14.png
+Resolution: 1529.333 by 2002.507 pixels
+Size: 6.117331 by 8.010029 inches (250 dpi)
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_mw_wkp_chi14.eps
+Size: 6.117331 by 8.010029 inches
+[1] 0
+[1] 0.002
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents_chi14.png
+Resolution: 1529.333 by 2002.507 pixels
+Size: 6.117331 by 8.010029 inches (250 dpi)
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_rents_chi14.eps
+Size: 6.117331 by 8.010029 inches
+[1] 0
+[1] 0.006
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill_chi14.png
+Resolution: 1529.333 by 2002.507 pixels
+Size: 6.117331 by 8.010029 inches (250 dpi)
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_d_ln_wagebill_chi14.eps
+Size: 6.117331 by 8.010029 inches
+[1] 0.035
+[1] 0.343
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_rho_with_imputed_chi14.png
+Resolution: 1529.333 by 2002.507 pixels
+Size: 6.117331 by 8.010029 inches (250 dpi)
+Map saved to C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\counterfactuals\output\chicago_rho_with_imputed_chi14.eps
+Size: 6.117331 by 8.010029 inches
+There were 47 warnings (use warnings() to see them)
 > 
 > proc.time()
    user  system elapsed 
-  87.92   76.98  175.68 
+ 128.57   96.57  234.73 
 
- make.py ended: 2022-06-09 13:42:08
+ make.py ended: 2022-07-05 09:17:29

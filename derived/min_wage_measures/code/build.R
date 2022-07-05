@@ -7,7 +7,7 @@ paquetes <- c("data.table", "zoo")
 lapply(paquetes, require, character.only = TRUE) -> l
 
 library(parallel)
-n_cores <- 18
+n_cores <- 12
 
 main <- function(paquetes, n_cores){
   in_mw    <- "../../../drive/derived_large/min_wage_panels"

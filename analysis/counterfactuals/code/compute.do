@@ -1,6 +1,7 @@
 clear all
 set more off
 set maxvar 32000
+adopath + ../../../lib/stata/gslab_misc/ado
 
 program main
     local in_cf_mw     "../../../drive/derived_large/min_wage_measures"
@@ -8,6 +9,7 @@ program main
     local in_wages     "../../twfe_wages/output"
     local in_exp_share "../../../drive/analysis_large/expenditure_shares"
     local in_zip       "../../../drive/derived_large/zipcode"
+    local out_large    "../../../drive/analysis_large/counterfactuals"
 
     load_parameters, in_baseline(`in_baseline') in_wages(`in_wages')
     local beta    = r(beta)
@@ -25,7 +27,7 @@ program main
     flag_unaffected_cbsas
     flag_treatment_status
 
-    foreach cf in fed_10pc fed_9usd fed_15usd {
+    foreach cf in fed_10pc fed_9usd fed_15usd chi14 {
 
         qui unique cbsa if counterfactual == "`cf'"
         local n_cbsas           = `r(unique)'
@@ -42,8 +44,9 @@ program main
         sum rho if counterfactual == "`cf'" & year == 2020 & cbsa_low_inc_increase == 0, d
     }
 
-    save             "../output/data_counterfactuals.dta", replace
-    export delimited "../output/data_counterfactuals.csv", replace
+    save_data  "`out_large'/data_counterfactuals.dta", key(zipcode counterfactual year) ///
+        log("../output/data_file_manifest.log") replace
+    export delimited "`out_large'/data_counterfactuals.csv", replace
 
     preserve
         compute_tot_incidence
@@ -84,8 +87,8 @@ program load_counterfactuals
     bysort zipcode counterfactual (year month): ///
         gen d_mw_res = mw_res[_n] - mw_res[_n - 1]
     
-    gen   diff_mw  = d_mw_wkp - d_mw_res
-    xtile diff_qts = diff_mw, nquantiles(10)
+    gen        diff_mw  = d_mw_wkp - d_mw_res
+    gquantiles diff_qts = diff_mw, xtile nquantiles(10) by(counterfactual)
 end
 
 program select_urban_zipcodes
@@ -109,6 +112,12 @@ program compute_vars
 
     gen rho              = s*ratio_increases
     gen rho_with_imputed = s_imputed*ratio_increases
+
+    foreach var in change_ln_rents change_ln_wagebill perc_incr_rent perc_incr_wagebill ///
+                   ratio_increases rho rho_with_imputed {
+        
+        replace `var' = . if missing(d_mw_res)
+    }
 end
 
 program flag_unaffected_cbsas
