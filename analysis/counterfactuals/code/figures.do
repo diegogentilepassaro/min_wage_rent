@@ -26,9 +26,11 @@ program main
             local x_lab = r(x_lab)
             
             local scale_opts ""
+            local lab_opts   ""
             local bin_opt    ""
             if inlist("`var'", "d_mw_res", "d_mw_wkp") {
-                local scale_opts "yscale(r(0 53.5)) xscale(r(0 0.23))"
+                local scale_opts "yscale(r(0 60)) xscale(r(0 0.23))"
+                local lab_opts   "ylab(0(15)60) xlab(0(0.05)0.2)"
                 local bin_opt    "bin(25)"
             }
             if inlist("`var'", "rho", "rho_with_imputed", "change_ln_rents", "change_ln_wagebill") {
@@ -42,9 +44,9 @@ program main
                 local scale_opts "yscale(r(0 8))"
             }
 
-            hist `var', percent `bin_opt'                                   ///
-                xtitle("`x_lab'") ytitle("Percentage") `scale_opts'         ///
-                graphregion(color(white)) bgcolor(white)                    ///
+            hist `var', percent `bin_opt'                                      ///
+                xtitle("`x_lab'") ytitle("Percentage") `scale_opts' `lab_opts' ///
+                graphregion(color(white)) bgcolor(white)                       ///
                 plotregion(margin(b = 1.5))
             
             local filename "../output/hist_`var'_`cf'"
