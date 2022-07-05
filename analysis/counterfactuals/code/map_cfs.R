@@ -21,7 +21,6 @@ main <- function() {
                                   colClasses = c(zipcode = "character")) %>%
     filter(year == 2020)
   
-
   # Housing expenditure  
   df_all <- df_cf_data %>%
     filter(counterfactual == "fed_9usd")
