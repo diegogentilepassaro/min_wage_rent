@@ -30,7 +30,7 @@ main <- function() {
   vars_for_table <- c("statutory_mw", "mw_res", "mw_wkp_tot_17",
                       "mw_wkp_earn_under1250_17", "mw_wkp_age_under29_17",
                       "medrentprice_SFCC", "medrentpricepsqft_SFCC", "ln_rents", 
-                      paste0("ln_rents_", c("SF", "CC", "Studio", "1BR", "2BR", "3BR", "Mfr5Plus")), 
+                      #paste0("ln_rents_", c("SF", "CC", "Studio", "1BR", "2BR", "3BR", "Mfr5Plus")), 
                       "ln_emp_bizserv", "ln_estcount_bizserv", "ln_avgwwage_bizserv", 
                       "ln_emp_info", "ln_estcount_info", "ln_avgwwage_info", 
                       "ln_emp_fin", "ln_estcount_fin", "ln_avgwwage_fin")
@@ -38,10 +38,10 @@ main <- function() {
   txt <- c("<tab:stats_est_panel>")
   writeLines(txt, "../output/stats_est_panel.txt")
   for (var in vars_for_table) {
-   var_row <- build_panel_stats_row(baseline_panel, var)
-   write.table(var_row, "../output/stats_est_panel.txt",
-               append = TRUE, sep = "\t", dec = ".",
-               row.names = FALSE, col.names = FALSE)
+    var_row <- build_panel_stats_row(baseline_panel, var)
+    write.table(var_row, "../output/stats_est_panel.txt",
+                append = TRUE, sep = "\t", dec = ".",
+                row.names = FALSE, col.names = FALSE)
   }
 }
 
