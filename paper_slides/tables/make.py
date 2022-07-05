@@ -98,9 +98,9 @@ tablefill(input    = os.path.join(autocorr_dir, "autocorrelation.txt"),
           template = "input/autocorrelation.tex", 
           output   = "output/autocorrelation.tex")
 
-tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals_fed_9usd.txt"),
-          template = "input/counterfactuals_fed_9usd.tex",
-          output   = "output/counterfactuals_fed_9usd.tex")
+tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals.txt"),
+          template = "input/counterfactuals.tex",
+          output   = "output/counterfactuals.tex")
 
 tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals_other.txt"),
           template = "input/counterfactuals_other.tex",
@@ -117,10 +117,6 @@ tablefill(input    = os.path.join(migration_dir, "share_migration.txt"),
 tablefill(input    = os.path.join(migration_dir, "total_migration.txt"), 
           template = "input/total_migration.tex", 
           output   = "output/total_migration.tex")
-
-tablefill(input    = os.path.join(fd_cf_dir, "counterfactuals_chi14.txt"), 
-          template = "input/counterfactuals_chi14.tex", 
-          output   = "output/counterfactuals_chi14.tex")
 
 end_make_logging()
 
