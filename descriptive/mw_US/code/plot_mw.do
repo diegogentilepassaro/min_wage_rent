@@ -135,15 +135,15 @@ program make_autofill_values
         use "../temp/places_with_mw_and_their_levels_over_time.dta", clear
         unique place_code
         local nbr_places_with_mw = r(unique)
-		
-		local nbr_local_with_mw = `nbr_county_with_mw' + `nbr_places_with_mw'
+
+        local nbr_local_with_mw = `nbr_county_with_mw' + `nbr_places_with_mw'
 
         cap file close f
         file open   f using "../output/autofill.tex", write replace
         file write  f "\newcommand{\stateBindingMW}{\textnormal{"  %2.0f  (`nbr_state_with_mw')  "}}" _n
         file write  f "\newcommand{\countyBindingMW}{\textnormal{" %2.0f  (`nbr_county_with_mw') "}}" _n
         file write  f "\newcommand{\placeBindingMW}{\textnormal{"  %2.0f  (`nbr_places_with_mw') "}}" _n
-		file write  f "\newcommand{\localBindingMW}{\textnormal{"  %2.0f  (`nbr_local_with_mw')  "}}" _n
+        file write  f "\newcommand{\localBindingMW}{\textnormal{"  %2.0f  (`nbr_local_with_mw')  "}}" _n
         file close  f
     restore
 end
