@@ -9,24 +9,19 @@ library(leaflet)
 library(ggplot2)
 
 main <- function(){
-  in_map_states  <- "../../../drive/raw_data/shapefiles/states"
-  in_map_zip  <- "../../../drive/raw_data/shapefiles/USPS_zipcodes"
-  in_data <- "../../../drive/derived_large/min_wage_panels"
+  in_map_states <- "../../../drive/raw_data/shapefiles/states"
+  in_map_zip    <- "../../../drive/raw_data/shapefiles/USPS_zipcodes"
+  in_data       <- "../../../drive/derived_large/min_wage_panels"
   
-  data_for_map <- prepare_data(in_map_zip, in_data)
+  data_for_map <- prepare_data_all(in_map_zip, in_data)
+  data_states  <- prepare_data_states(in_map_states)
   
-  data_states <- read_sf(dsn = in_map_states, layer = "state") %>%
-    select(STPOSTAL) %>%
-    rename(state_name = STPOSTAL) %>%
-    filter(!(state_name %in% c("AK", "HI", "VI", "MP", "PR", "GU", "AS")))
-  data_states <- data_states[st_is_valid(data_states),]
-  
-  build_map(data_for_map, data_states,  "change_perc_statutory_mw", 
-  	        "Percentage change in statutory MW", 
+  build_map(data_for_map, data_states, "change_perc_statutory_mw", 
+  	        "Percentage change in\nstatutory MW", 
             paste0("US", "change_perc_statutory_mw"))
 }
 
-prepare_data <- function(in_map_zip, in_data) {
+prepare_data_all <- function(in_map_zip, in_data) {
   USPS_zipcodes <- read_sf(dsn = in_map_zip, 
                            layer = "USPS_zipcodes_July2020") %>%
     select(ZIP_CODE, PO_NAME, STATE, POPULATION, SQMI, POP_SQMI) %>%
@@ -50,8 +45,18 @@ prepare_data <- function(in_map_zip, in_data) {
   return(data_for_map)
 }
 
+prepare_data_states <- function(in_map_states) {
+  
+  data_states <- read_sf(dsn = in_map_states, layer = "state") %>%
+    select(STPOSTAL) %>%
+    rename(state_name = STPOSTAL) %>%
+    filter(!(state_name %in% c("AK", "HI", "VI", "MP", "PR", "GU", "AS")))
+
+  return(data_states[st_is_valid(data_states),])
+}
+
 build_map <- function(data_zip, data_states, var, var_legend, map_name,
-                      .dpi = 600){
+                      .dpi = 600) {
   map <- tm_shape(data_states) +
     tm_polygons(lwd = 0.5) +
     tm_shape(data_zip) +
