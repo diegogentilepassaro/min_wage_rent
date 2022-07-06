@@ -38,13 +38,13 @@ main <- function(){
       build_map(df, "change_wkp_ln_mw", "Change in\nworkplace MW", 
                 c(0, max_break_mw/2, max_break_mw), 
                 paste0(event[[1]], event[[3]], "-", event[[4]], "_wkp_mw"))
-      build_map(df, "change_ln_rents", "Change in\nlog(rents)",
+      build_map(df, "change_ln_rents", "Change in\nlog rents",
                 c(0, max_break_rents/2, max_break_rents),
                 paste0(event[[1]], event[[3]], "-", event[[4]], "_rents"))
-      build_map(df, "change_resid_ln_rents", "Change in residuals\nlog(rents)",
+      build_map(df, "change_resid_ln_rents", "Residualized change\nin log rents",
                 c(0, max_break_r_rents/2, max_break_r_rents),
                 paste0(event[[1]], event[[3]], "-", event[[4]], "_r_rents"))
-      build_map(df, "change_resid_wkp_on_res", "Change in residuals\nworkplace MW ",
+      build_map(df, "change_resid_wkp_on_res", "Residualized change\nin workplace MW ",
                 c(0, max_break_r_wkp/2, max_break_r_wkp),
                 paste0(event[[1]], event[[3]], "-", event[[4]], "_r_wkp"))
     }
