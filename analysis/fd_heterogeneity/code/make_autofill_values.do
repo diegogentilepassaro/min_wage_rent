@@ -31,14 +31,14 @@ program main
 
     cap file close f
     file open   f using "../output/autofill_heterogeneity.tex", write replace
-    file write  f "\newcommand{\TildeGammaZero}{\textnormal{"               %4.3f  (`tilde_gamma_zero')             "}}" _n
-    file write  f "\newcommand{\TildeGammaZeroSE}{\textnormal{"             %4.3f  (`tilde_gamma_zero_se')          "}}" _n
-    file write  f "\newcommand{\TildeBetaZero}{\textnormal{"                %4.3f  (`tilde_beta_zero')              "}}" _n
-    file write  f "\newcommand{\TildeBetaZeroSE}{\textnormal{"              %4.3f  (`tilde_beta_zero_se')           "}}" _n
-    file write  f "\newcommand{\TildeGammaZeroPlusGammaOne}{\textnormal{"   %4.3f  (`tilde_gamma_zero_plus_one')    "}}" _n
-    file write  f "\newcommand{\TildeGammaZeroPlusGammaOneSE}{\textnormal{" %4.3f  (`tilde_gamma_zero_plus_one_se') "}}" _n
-    file write  f "\newcommand{\TildeBetaZeroPlusBetaOne}{\textnormal{"     %4.3f  (`tilde_beta_zero_plus_one')     "}}" _n
-    file write  f "\newcommand{\TildeBetaZeroPlusBetaOneSE}{\textnormal{"   %4.3f  (`tilde_beta_zero_plus_one_se')  "}}" _n
+    file write  f "\newcommand{\TildeGammaZero}{"               %4.3f  (`tilde_gamma_zero')             "}" _n
+    file write  f "\newcommand{\TildeGammaZeroSE}{"             %4.3f  (`tilde_gamma_zero_se')          "}" _n
+    file write  f "\newcommand{\TildeBetaZero}{"                %4.3f  (`tilde_beta_zero')              "}" _n
+    file write  f "\newcommand{\TildeBetaZeroSE}{"              %4.3f  (`tilde_beta_zero_se')           "}" _n
+    file write  f "\newcommand{\TildeGammaZeroPlusGammaOne}{"   %4.3f  (`tilde_gamma_zero_plus_one')    "}" _n
+    file write  f "\newcommand{\TildeGammaZeroPlusGammaOneSE}{" %4.3f  (`tilde_gamma_zero_plus_one_se') "}" _n
+    file write  f "\newcommand{\TildeBetaZeroPlusBetaOne}{"     %4.3f  (`tilde_beta_zero_plus_one')     "}" _n
+    file write  f "\newcommand{\TildeBetaZeroPlusBetaOneSE}{"   %4.3f  (`tilde_beta_zero_plus_one_se')  "}" _n
     file close  f
 end
 

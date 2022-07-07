@@ -47,9 +47,9 @@ program make_autofill_values
 
     cap file close f
     file open   f using "../output/autofill_counterfactuals.tex", write replace
-    file write  f "\newcommand{\gammaCf}{\textnormal{"                    %5.4f  (`gamma')           "}}" _n
-    file write  f "\newcommand{\betaCf}{\textnormal{"                     %5.4f  (`beta')            "}}" _n
-    file write  f "\newcommand{\epsilonCf}{\textnormal{"                  %5.4f  (`epsilon')         "}}" _n
+    file write  f "\newcommand{\gammaCf}{"    %5.4f  (`gamma')   "}" _n
+    file write  f "\newcommand{\betaCf}{"     %5.4f  (`beta')    "}" _n
+    file write  f "\newcommand{\epsilonCf}{"  %5.4f  (`epsilon') "}" _n
 
     foreach cf in "fed_9usd" "chi14" {
 
