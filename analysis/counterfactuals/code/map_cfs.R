@@ -65,12 +65,19 @@ main <- function() {
 
         min_break <- round(min(df_chicago[[break_var]], na.rm = TRUE), digits = 3)
         max_break <- round(max(df_chicago[[break_var]], na.rm = TRUE), digits = 3)
-        print(min_break)
-        print(max_break)
 
         if ("mw" %in% yvar) {
           break_vals <- c(0, max_break/2, max_break)
-        } else {
+        } 
+        else {
+          if (grepl("rents|wage", yvar)) {
+            min_break <- round(min(min(df_chicago$change_ln_wagebill, na.rm = T),
+                                   min(df_chicago$change_ln_rents, na.rm = T)), 
+                                digits = 3)
+            max_break <- round(max(max(df_chicago$change_ln_wagebill, na.rm = T),
+                                   max(df_chicago$change_ln_rents, na.rm = T)), 
+                                digits = 3)
+          }
           break_vals <- c(min_break, (min_break + max_break)/2, max_break)
         }
         
