@@ -16,14 +16,14 @@ program main
     use "`instub'/fullbal_sample_with_vars_for_het.dta", clear
     xtset zipcode_num year_month
 
-    estimate_dist_lag_model, depvar(ln_rents)                         ///
+    estimate_dist_lag_model if fullbal_sample_SFCC == 1, depvar(ln_rents)                         ///
         dyn_var(mw_wkp_tot_17) w(0) stat_var(mw_res)                  ///
         controls(`controls') absorb(`absorb') cluster(`cluster_vars') ///
         model_name(static_both)
         
     reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_sh_mw_wkrs_statutory ///
         c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_sh_mw_wkrs_statutory  ///
-        D.(`controls'), nocons                                          ///
+        D.(`controls') if fullbal_sample_SFCC == 1, nocons                                          ///
         absorb(`absorb') cluster(`cluster_vars')
     process_sum, het_var(std_sh_mw_wkrs_statutory) model(het_mw_shares)
     process_estimates, res_var(mw_res_std_sh_mw_wkrs_statutory)         ///
@@ -31,7 +31,7 @@ program main
 
     reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_med_hhld_inc_acs2014 ///
         c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_med_hhld_inc_acs2014  ///
-        D.(`controls'), nocons                                          ///
+        D.(`controls') if fullbal_sample_SFCC == 1, nocons                                          ///
         absorb(`absorb') cluster(`cluster_vars')
     process_sum, het_var(std_med_hhld_inc_acs2014) model(het_med_inc)   
     process_estimates, res_var(mw_res_std_med_hhld_inc)                 ///
@@ -39,7 +39,7 @@ program main
 
     reghdfe D.ln_rents c.D.mw_res c.D.mw_res#c.std_sh_public_housing    ///
         c.D.mw_wkp_tot_17 c.D.mw_wkp_tot_17#c.std_sh_public_housing     ///
-        D.(`controls'), nocons                                          ///
+        D.(`controls') if fullbal_sample_SFCC == 1, nocons                                          ///
         absorb(year_month) cluster(`cluster_vars')
   	process_sum, het_var(std_sh_public_housing) model(het_public_hous)    
     process_estimates, res_var(mw_res_high_public_hous)                 ///
