@@ -110,6 +110,8 @@ program make_autofill_values
             file write  f "\newcommand{\totIncidenceCents`cfname'}{\textnormal{"   %3.1f   (`tot_inc_cents')   "}}" _n
             file write  f "\newcommand{\rhoMedian`cfname'}{\textnormal{"           %4.3f   (`rho_median')      "}}" _n
             file write  f "\newcommand{\cbsaLowInc`cfname'}{\textnormal{"          %2.0f   (`cbsa_low_inc')     "}}" _n
+            file write  f "\newcommand{\rhoMedCentsIndir`cfname'}{\textnormal{"    %4.1f   (`rho_medind_cent') "}}" _n
+            file write  f "\newcommand{\rhoMedCentsDir`cfname'}{\textnormal{"      %4.1f   (`rho_meddir_cent') "}}" _n
 
             if "`cf'" == "chi14" {
                 file write  f "\newcommand{\zipNoInc`cfname'}{\textnormal{"        %3.0fc  (`zip_no_treat')    "}}" _n
@@ -122,8 +124,6 @@ program make_autofill_values
 
             if "`cf'" == "fed_9usd" {
                 file write  f "\newcommand{\rhoMedianCents`cfname'}{\textnormal{"   %1.0f   (`rho_med_cents')   "}}" _n
-                file write  f "\newcommand{\rhoMedCentsIndir`cfname'}{\textnormal{" %4.1f   (`rho_medind_cent') "}}" _n
-                file write  f "\newcommand{\rhoMedCentsDir`cfname'}{\textnormal{"   %4.1f   (`rho_meddir_cent') "}}" _n
                 file write  f "\newcommand{\zipcodes`cfname'}{\textnormal{"         %5.0fc  (`zip_total')       "}}" _n
                 file write  f "\newcommand{\zipNoIncPct`cfname'}{\textnormal{"      %4.1f   (`zip_notr_pct')    "}}" _n
                 file write  f "\newcommand{\zipIncPct`cfname'}{\textnormal{"        %4.1f   (`zip_tr_pct')      "}}" _n
