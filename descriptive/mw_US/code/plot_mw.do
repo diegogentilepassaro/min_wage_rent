@@ -29,7 +29,7 @@ program flag_states_with_mw
         collapse (mean) fed_mw state_mw, by(statefips statefips_num year_month)
         keep if !missing(state_mw)
         bysort statefips: egen max_state_mw = max(state_mw)
-        keep if (round(max_state_mw, 0.001) > round(fed_mw, 0.001))
+        keep if (round(max_state_mw, 0.00001) > round(fed_mw, 0.00001))
         save_data "../temp/states_with_mw_and_their_levels_over_time.dta", ///
             replace key(statefips year_month) log(none)
     restore
@@ -39,9 +39,9 @@ program flag_county_or_local_with_mw
     preserve
         collapse (mean) fed_mw state_mw county_mw, ///
             by(countyfips statefips year_month)
-        egen max_state_fed = rowmax(state_mw fed_mw)
         keep if !missing(county_mw)
-        keep if (round(county_mw, 0.001) > round(max_state_fed, 0.001))
+        egen max_state_fed = rowmax(state_mw fed_mw)
+        keep if (round(county_mw, 0.00001) > round(max_state_fed, 0.00001))
         keep countyfips year_month county_mw
         save_data "../temp/counties_with_mw_and_their_levels_over_time.dta", ///
             replace key(countyfips year_month) log(none)		
@@ -52,7 +52,7 @@ program flag_county_or_local_with_mw
             by(place_code countyfips statefips year_month)
         egen max_county_state_fed = rowmax(county_mw state_mw fed_mw)
         keep if !missing(local_mw)
-        keep if (round(local_mw, 0.001) > round(max_county_state_fed, 0.001))
+        keep if (round(local_mw, 0.00001) > round(max_county_state_fed, 0.00001))
         duplicates drop place_code year_month, force /* Some places are in more than one county*/
         unique place_code
         keep place_code year_month local_mw
@@ -100,6 +100,7 @@ program plot_mw_levels
 
     xtset jur_code_num year_month
     unique jur_code
+	
     local n_jur = r(unique)
     local plotopts ""
     forval i = 1(1)`n_jur'{
