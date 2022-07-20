@@ -1,5 +1,5 @@
 
- make.py started: 2022-07-20 04:04:53 C:\Users\diegog\Desktop\Diego\min_wage_rent\descriptive\mw_US\code 
+ make.py started: 2022-07-20 11:01:22 C:\Users\shermo\Documents\GitHub\min_wage_rent\descriptive\mw_US\code 
 
 
 
@@ -55,22 +55,19 @@ running c:\ado\personal\profile.do ...
   5.     merge m:1 zipcode using "`in_zip_master'/zipcode_master.dta", nogen //
 > /
 >         assert(3) keepusing(place_code countyfips cbsa statefips)
-  6.     drop if (year == 2020 & month >= 7)
+  6.     drop if year == 2020
   7.     destring(statefips), gen(statefips_num)
   8.     gen year_month = ym(year, month)
   9.     format year_month %tm
  10.     drop year month
- 11.         replace state_mw = round(state_mw, 0.01)
- 12.         replace county_mw = round(county_mw, 0.01)
- 13.         replace local_mw = round(local_mw, 0.01)
- 14. 
+ 11. 
 .     flag_states_with_mw
- 15.     flag_county_or_local_with_mw
- 16. 
+ 12.     flag_county_or_local_with_mw
+ 13. 
 .     make_autofill_values
- 17. 
+ 14. 
 .     plot_mw_levels, outstub(`outstub')
- 18. end
+ 15. end
 
 . 
 . program flag_states_with_mw
@@ -79,7 +76,7 @@ running c:\ado\personal\profile.do ...
 > onth)
   3.         keep if !missing(state_mw)
   4.         bysort statefips: egen max_state_mw = max(state_mw)
-  5.         keep if max_state_mw > fed_mw
+  5.         keep if (round(max_state_mw, 0.001) > round(fed_mw, 0.001))
   6.         save_data "../temp/states_with_mw_and_their_levels_over_time.dta",
 >  ///
 >             replace key(statefips year_month) log(none)
@@ -91,36 +88,31 @@ running c:\ado\personal\profile.do ...
   1.     preserve
   2.         collapse (mean) fed_mw state_mw county_mw, ///
 >             by(countyfips statefips year_month)
-  3.         keep if !missing(county_mw)
-  4.         egen max_state_fed = rowmax(state_mw fed_mw)
-  5.         gen binding_county_mw = 1 if county_mw > max_state_fed
-  6.                 bysort countyfips: egen ever_binding_county_mw = max(bindi
-> ng_county_mw)
-  7.                 keep if ever_binding_county_mw == 1
-  8.         keep countyfips year_month county_mw
-  9.         save_data "../temp/counties_with_mw_and_their_levels_over_time.dta
+  3.         egen max_state_fed = rowmax(state_mw fed_mw)
+  4.         keep if !missing(county_mw)
+  5.         keep if (round(county_mw, 0.001) > round(max_state_fed, 0.001))
+  6.         keep countyfips year_month county_mw
+  7.         save_data "../temp/counties_with_mw_and_their_levels_over_time.dta
 > ", ///
->             replace key(countyfips year_month) log(none)                
- 10.     restore 
- 11. 
+>             replace key(countyfips year_month) log(none)        
+  8.     restore 
+  9. 
 .     preserve
- 12.         collapse (mean) fed_mw state_mw county_mw local_mw, ///
+ 10.         collapse (mean) fed_mw state_mw county_mw local_mw, ///
 >             by(place_code countyfips statefips year_month)
- 13.         egen max_county_state_fed = rowmax(county_mw state_mw fed_mw)
- 14.         keep if !missing(local_mw)
- 15.         gen binding_local_mw = 1 if local_mw > max_county_state_fed
- 16.                 bysort place_code: egen ever_binding_local_mw = max(bindin
-> g_local_mw)
- 17.                 keep if ever_binding_local_mw == 1
- 18.         duplicates drop place_code year_month, force /* Some places are in
+ 11.         egen max_county_state_fed = rowmax(county_mw state_mw fed_mw)
+ 12.         keep if !missing(local_mw)
+ 13.         keep if (round(local_mw, 0.001) > round(max_county_state_fed, 0.00
+> 1))
+ 14.         duplicates drop place_code year_month, force /* Some places are in
 >  more than one county*/
- 19.         unique place_code
- 20.         keep place_code year_month local_mw
- 21.         save_data "../temp/places_with_mw_and_their_levels_over_time.dta",
+ 15.         unique place_code
+ 16.         keep place_code year_month local_mw
+ 17.         save_data "../temp/places_with_mw_and_their_levels_over_time.dta",
 >  ///
->             replace key(place_code year_month) log(none)        
- 22.     restore
- 23. end
+>             replace key(place_code year_month) log(none)    
+ 18.     restore
+ 19. end
 
 . 
 . program plot_mw_levels
@@ -145,7 +137,7 @@ running c:\ado\personal\profile.do ...
 > ///
 >         xtitle("Monthly date") ytitle("Minimum wage level ($)")              
 > ///
->         xlabel(`=mofd(td(01jun2010))'(6)`=mofd(td(01jun2020))', labsize(small
+>         xlabel(`=mofd(td(01jun2010))'(6)`=mofd(td(01dec2019))', labsize(small
 > ) angle(45)) ///
 >         ylabel(7(2)17, labsize(small))                                       
 > ///
@@ -170,8 +162,7 @@ running c:\ado\personal\profile.do ...
  22. 
 .     xtset jur_code_num year_month
  23.     unique jur_code
- 24.         
-.     local n_jur = r(unique)
+ 24.     local n_jur = r(unique)
  25.     local plotopts ""
  26.     forval i = 1(1)`n_jur'{
  27.         local plotopts "`plotopts' plot`i'(lcol(gray))"
@@ -184,7 +175,7 @@ running c:\ado\personal\profile.do ...
 > ///
 >         xtitle("Monthly date") ytitle("Minimum wage level ($)")              
 > ///
->         xlabel(`=mofd(td(01jun2010))'(6)`=mofd(td(01jun2020))', labsize(small
+>         xlabel(`=mofd(td(01jun2010))'(6)`=mofd(td(01dec2019))', labsize(small
 > ) angle(45)) ///
 >         ylabel(7(2)17, labsize(small))                                       
 > ///
@@ -239,119 +230,113 @@ running c:\ado\personal\profile.do ...
     not matched                             0
     matched                         4,201,032  
     -----------------------------------------
-(190,956 observations deleted)
+(381,912 observations deleted)
 statefips: all characters numeric; statefips_num generated as byte
-(199,707 real changes made)
-(741 real changes made)
-(3,362 real changes made)
 (0 observations deleted)
-(2,016 observations deleted)
+(2,520 observations deleted)
 (data now sorted by statefips year_month)
   variable year_month was float now int
-  (8,820 bytes saved)
+  (7,200 bytes saved)
 ===============================================================================
 File: ../temp/states_with_mw_and_their_levels_over_time.dta
 Key: statefips year_month
 ===============================================================================
-  4410:6(71642):340575172:2400172799
+  3600:6(71642):1509240307:2279430510
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
    statefips |          0
-  year_month |      4,410       662.5    36.37605        600        725
-statefips_~m |      4,410        26.8    14.96604          2         54
-      fed_mw |      4,410        7.25           0       7.25       7.25
-    state_mw |      4,410    8.354078    1.262852       7.25         14
+  year_month |      3,600       659.5    34.64463        600        719
+statefips_~m |      3,600    25.93333    15.21819          2         54
+      fed_mw |      3,600        7.25           0       7.25       7.25
+    state_mw |      3,600    8.440394    1.175762       7.25         14
 -------------+---------------------------------------------------------
-max_state_mw |      4,410    10.02882    1.837607   7.250011         14
+max_state_mw |      3,600    10.04295    1.457677        7.5         14
 
 
 
 
 (note: file ../temp/states_with_mw_and_their_levels_over_time.dta not found)
 file ../temp/states_with_mw_and_their_levels_over_time.dta saved
-(393,750 observations deleted)
-(702 missing values generated)
-(0 observations deleted)
+(375,000 observations deleted)
+(743 observations deleted)
 (data now sorted by countyfips year_month)
   variable year_month was float now int
-  (2,520 bytes saved)
+  (914 bytes saved)
 ===============================================================================
 File: ../temp/counties_with_mw_and_their_levels_over_time.dta
 Key: countyfips year_month
 ===============================================================================
-  1260:3(41526):1551125683:3093382491
+  457:3(41526):1393419121:2185853766
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
   countyfips |          0
-  year_month |      1,260       662.5    36.38636        600        725
-   county_mw |      1,260    8.915621    1.744177       7.25      14.25
+  year_month |        457    690.9869    18.90082        642        719
+   county_mw |        457    10.53335    1.407204          8      14.25
 
 
 
 
 (note: file ../temp/counties_with_mw_and_their_levels_over_time.dta not found)
 file ../temp/counties_with_mw_and_their_levels_over_time.dta saved
-(1,809,360 observations deleted)
-(3,416 missing values generated)
-(1008 missing values generated)
-(1,008 observations deleted)
+(1,723,200 observations deleted)
+(3,393 observations deleted)
 
 Duplicates in terms of place_code year_month
 
-(504 observations deleted)
-Number of unique values of place_code is  28
-Number of records is  3528
+(144 observations deleted)
+Number of unique values of place_code is  26
+Number of records is  1263
 (data now sorted by place_code year_month)
   variable year_month was float now int
-  (7,056 bytes saved)
+  (2,526 bytes saved)
 ===============================================================================
 File: ../temp/places_with_mw_and_their_levels_over_time.dta
 Key: place_code year_month
 ===============================================================================
-  3528:3(32776):3670282400:1655426553
+  1263:3(32776):121800581:4098822821
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
   place_code |          0
-  year_month |      3,528       662.5    36.37708        600        725
-    local_mw |      3,528    9.726043    2.394021       7.25      16.39
+  year_month |      1,263    683.7902    26.19029        600        719
+    local_mw |      1,263    11.81675    2.272173   8.009583      16.09
 
 
 
 
 (note: file ../temp/places_with_mw_and_their_levels_over_time.dta not found)
 file ../temp/places_with_mw_and_their_levels_over_time.dta saved
-Number of unique values of statefips is  35
-Number of records is  4410
+Number of unique values of statefips is  30
+Number of records is  3600
 Number of unique values of countyfips is  10
-Number of records is  1260
-Number of unique values of place_code is  28
-Number of records is  3528
+Number of records is  457
+Number of unique values of place_code is  26
+Number of records is  1263
 (note: file ../output/autofill.tex not found)
-(4,375 missing values generated)
+(3,570 missing values generated)
        panel variable:  statefips_num (strongly balanced)
-        time variable:  year_month, 2010m1 to 2020m6
+        time variable:  year_month, 2010m1 to 2019m12
                 delta:  1 month
-Number of unique values of statefips is  35
-Number of records is  4410
+Number of unique values of statefips is  30
+Number of records is  3600
 (note: file ../output/state_mw_levels.png not found)
 (file ../output/state_mw_levels.png written in PNG format)
 (note: file ../output/state_mw_levels.eps not found)
 (file ../output/state_mw_levels.eps written in EPS format)
-(3,528 missing values generated)
+(1,263 missing values generated)
 variable jur_code was str5 now str7
-(3,528 real changes made)
+(1,263 real changes made)
 jur_code: all characters numeric; jur_code_num generated as long
-(3,528 missing values generated)
-(3,528 real changes made)
-       panel variable:  jur_code_num (strongly balanced)
-        time variable:  year_month, 2010m1 to 2020m6
+(1,263 missing values generated)
+(1,263 real changes made)
+       panel variable:  jur_code_num (unbalanced)
+        time variable:  year_month, 2010m1 to 2019m12, but with gaps
                 delta:  1 month
-Number of unique values of jur_code is  38
-Number of records is  4788
-(4,750 missing values generated)
+Number of unique values of jur_code is  36
+Number of records is  1720
+(1,684 missing values generated)
 (note: file ../output/local_mw_levels.png not found)
 (file ../output/local_mw_levels.png written in PNG format)
 (note: file ../output/local_mw_levels.eps not found)
@@ -360,4 +345,4 @@ Number of records is  4788
 . 
 end of do-file
 
- make.py ended: 2022-07-20 04:05:59
+ make.py ended: 2022-07-20 11:02:31
