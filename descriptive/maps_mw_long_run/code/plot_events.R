@@ -31,7 +31,7 @@ prepare_data_all <- function(in_map_zip, in_data) {
   mw_rent_data <- data.table::fread(file.path(in_data, "zip_statutory_mw.csv"),
                                     select = list(character = c("zipcode"),
                                                   numeric   = c("year", "month", "statutory_mw"))) %>%
-    filter((year == 2010 & month == 1) | (year == 2020 & month == 6)) %>%
+    filter((year == 2010 & month == 1) | (year == 2019 & month == 12)) %>%
     group_by(zipcode) %>%
     summarise(change_perc_statutory_mw = 100*(last(statutory_mw) - first(statutory_mw))/first(statutory_mw)) %>%
     ungroup()
