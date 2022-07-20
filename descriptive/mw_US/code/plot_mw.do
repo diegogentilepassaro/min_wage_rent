@@ -44,7 +44,9 @@ program flag_county_or_local_with_mw
             by(countyfips statefips year_month)
         keep if !missing(county_mw)
         egen max_state_fed = rowmax(state_mw fed_mw)
-        keep if county_mw > max_state_fed
+        gen binding_county_mw = 1 if county_mw > max_state_fed
+		bysort countyfips: egen ever_binding_county_mw = max(binding_county_mw)
+		keep if ever_binding_county_mw == 1
         keep countyfips year_month county_mw
         save_data "../temp/counties_with_mw_and_their_levels_over_time.dta", ///
             replace key(countyfips year_month) log(none)		
@@ -55,7 +57,9 @@ program flag_county_or_local_with_mw
             by(place_code countyfips statefips year_month)
         egen max_county_state_fed = rowmax(county_mw state_mw fed_mw)
         keep if !missing(local_mw)
-        keep if local_mw > max_county_state_fed
+        gen binding_local_mw = 1 if local_mw > max_county_state_fed
+		bysort place_code: egen ever_binding_local_mw = max(binding_local_mw)
+		keep if ever_binding_local_mw == 1
         duplicates drop place_code year_month, force /* Some places are in more than one county*/
         unique place_code
         keep place_code year_month local_mw
