@@ -15,7 +15,7 @@ program main
     prepare_state, outstub(`outstub') temp(`temp') finaldate(31Dec2020)
 
     local mw_list = "mw mw_smallbusiness"
-    prepare_finaldata, temp(`temp') finaldate(31Jan2020) target_mw(`mw_list')
+    prepare_finaldata, temp(`temp') finaldate(31Dec2020) target_mw(`mw_list')
 
     export_substate_monthly,   outstub(`outstub') temp(`temp') target_mw(`mw_list')
     export_substate_quarterly, outstub(`outstub') temp(`temp') target_mw(`mw_list')
