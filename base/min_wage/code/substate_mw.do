@@ -8,14 +8,16 @@ program main
     local outstub "../output"
     local temp    "../temp"
 
+    local enddate "31Dec2020"
+
     import_crosswalk, instub(`xwalk') outstub(`temp')
 
     substate_min_wage_change, instub(`raw') outstub(`temp') temp(`temp')
     prepare_local, temp(`temp')
-    prepare_state, outstub(`outstub') temp(`temp') finaldate(31Dec2020)
+    prepare_state, outstub(`outstub') temp(`temp') finaldate(`enddate')
 
     local mw_list = "mw mw_smallbusiness"
-    prepare_finaldata, temp(`temp') finaldate(31Dec2020) target_mw(`mw_list')
+    prepare_finaldata, temp(`temp') finaldate(`enddate') target_mw(`mw_list')
 
     export_substate_monthly,   outstub(`outstub') temp(`temp') target_mw(`mw_list')
     export_substate_quarterly, outstub(`outstub') temp(`temp') target_mw(`mw_list')
