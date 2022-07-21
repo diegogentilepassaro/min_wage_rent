@@ -2,13 +2,18 @@ import os
 import time
 import subprocess
 
-folders_to_run = ["autocorrelation",
-                  "fd_baseline",
+folders_to_run = ["fd_baseline",
+                  "non_parametric",
                   "fd_geos_times",
                   "fd_heterogeneity",
                   "fd_robustness",
                   "fd_stacked",
-                  "twfe_wages"]
+                  "twfe_wages",
+                  "counterfactuals",
+                  "autocorrelation",
+                  "alternative_outcomes",
+                  "long_run",
+                  "maps_events"]
 
 log_file = open("run.log", 'w')
 log_file.write("Started at " + time.strftime('%I:%M:%S%p %Z on %b %d, %Y\n\n'))
