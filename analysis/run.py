@@ -12,7 +12,6 @@ folders_to_run = ["fd_baseline",
                   "counterfactuals",
                   "autocorrelation",
                   "alternative_outcomes",
-                  "long_run",
                   "maps_events"]
 
 log_file = open("run.log", 'w')
