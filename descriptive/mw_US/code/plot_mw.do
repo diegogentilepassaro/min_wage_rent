@@ -44,7 +44,7 @@ program flag_county_or_local_with_mw
         keep if (round(county_mw, 0.001) > round(max_state_fed, 0.001))
         keep countyfips year_month county_mw
         save_data "../temp/counties_with_mw_and_their_levels_over_time.dta", ///
-            replace key(countyfips year_month) log(none)		
+            replace key(countyfips year_month) log(none)        
     restore 
 
     preserve
@@ -57,7 +57,7 @@ program flag_county_or_local_with_mw
         unique place_code
         keep place_code year_month local_mw
         save_data "../temp/places_with_mw_and_their_levels_over_time.dta", ///
-            replace key(place_code year_month) log(none)	
+            replace key(place_code year_month) log(none)    
     restore
 end
 

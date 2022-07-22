@@ -36,12 +36,11 @@ program load_and_clean
 
     use zipcode statefips cbsa year_month zipcode_num ln_rents mw_res  ///
         mw_wkp_tot_17 fullbal_sample_SFCC `controls'                   ///
-        using "`instub'/zipcode_months.dta" if fullbal_sample_SFCC == 1, clear
-    drop fullbal_sample_SFCC
+        using "`instub'/zipcode_months.dta", clear
     xtset zipcode_num year_month
 
     merge m:1 zipcode using "`incross'/zipcode_cross.dta", nogen       ///
-        keep(3) keepusing(sh_mw_wkrs_statutory med_hhld_inc_acs2014 n_hhlds_cens2010)
+        keep(1 3) keepusing(sh_mw_wkrs_statutory med_hhld_inc_acs2014 n_hhlds_cens2010)
 
     foreach var in sh_mw_wkrs_statutory med_hhld_inc_acs2014 {
 	    qui sum `var'

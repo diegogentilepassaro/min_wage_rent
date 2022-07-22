@@ -11,8 +11,8 @@ folders_to_run = ["fd_baseline",
                   "twfe_wages",
                   "counterfactuals",
                   "autocorrelation",
-                  "alternative_outcomes",
-                  "maps_events"]
+                  #"maps_events",
+                  "alternative_outcomes"]
 
 log_file = open("run.log", 'w')
 log_file.write("Started at " + time.strftime('%I:%M:%S%p %Z on %b %d, %Y\n\n'))
