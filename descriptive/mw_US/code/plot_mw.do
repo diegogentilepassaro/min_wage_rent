@@ -10,7 +10,7 @@ program main
     use "`in_mw_panels'/zip_statutory_mw.dta", clear
     merge m:1 zipcode using "`in_zip_master'/zipcode_master.dta", nogen ///
         assert(3) keepusing(place_code countyfips cbsa statefips)
-    drop if year == 2020
+    drop if (year == 2020 & month > 6)
     destring(statefips), gen(statefips_num)
     gen year_month = ym(year, month)
     format year_month %tm
@@ -80,7 +80,7 @@ program plot_mw_levels
 
     xtline state_mw, overlay                                                 ///
         xtitle("Monthly date") ytitle("Minimum wage level ($)")              ///
-        xlabel(`=mofd(td(01jun2010))'(6)`=mofd(td(01dec2019))', labsize(small) angle(45)) ///
+        xlabel(`=mofd(td(01jun2010))'(6)`=mofd(td(01jun2020))', labsize(small) angle(45)) ///
         ylabel(7(2)17, labsize(small))                                       ///
         graphregion(color(white)) bgcolor(white) legend(off)                 ///
         addplot(scatter state_mw_at_min_year_month min_year_month,           ///
@@ -111,7 +111,7 @@ program plot_mw_levels
     
     xtline jur_mw, overlay                                                   ///
         xtitle("Monthly date") ytitle("Minimum wage level ($)")              ///
-        xlabel(`=mofd(td(01jun2010))'(6)`=mofd(td(01dec2019))', labsize(small) angle(45)) ///
+        xlabel(`=mofd(td(01jun2010))'(6)`=mofd(td(01jun2020))', labsize(small) angle(45)) ///
         ylabel(7(2)17, labsize(small))                                       ///
         graphregion(color(white)) bgcolor(white) legend(off)                 ///
         addplot(scatter jur_mw_at_min_year_month min_year_month,             ///
