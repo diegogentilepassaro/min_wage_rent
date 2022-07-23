@@ -1,6 +1,7 @@
 remove(list = ls())
 library(data.table)
 
+
 source('../../../lib/R/write_command.R')
 
 main <- function() {
@@ -30,16 +31,16 @@ main <- function() {
       
       if (combination_exists) {
       
-        estim     <- write_command(paste0(mm, vv, 'Base'),      round(dt_comb$b,     4))
-        estim10   <- write_command(paste0(mm, vv, 'BaseTen'),   round(10*dt_comb$b,  2))
-        estimSE   <- write_command(paste0(mm, vv, 'BaseSE'),    round(dt_comb$se,    4))
-        estimSE10 <- write_command(paste0(mm, vv, 'BaseTenSE'), round(10*dt_comb$se, 2))
-        tstat     <- write_command(paste0(mm, vv, 'BasetStat'), round(dt_comb$t,     2))
+        estim     <- write_command(paste0(mm, vv, 'Base'),      sprintf("%1.4f", dt_comb$b), textnormal = F)
+        estim10   <- write_command(paste0(mm, vv, 'BaseTen'),   sprintf("%1.2f", 10*dt_comb$b), textnormal = F)
+        estimSE   <- write_command(paste0(mm, vv, 'BaseSE'),    sprintf("%1.4f", dt_comb$se), textnormal = F)
+        estimSE10 <- write_command(paste0(mm, vv, 'BaseTenSE'), sprintf("%1.2f", 10*dt_comb$se), textnormal = F)
+        tstat     <- write_command(paste0(mm, vv, 'BasetStat'), sprintf("%1.2f", dt_comb$t), textnormal = F)
         
         if (dt_comb$b < 0) {
           
-          estimAbs   <- write_command(paste0(mm, vv, 'BaseAbs'),    round(abs(dt_comb$b),    4))          
-          estimAbs10 <- write_command(paste0(mm, vv, 'BaseTenAbs'), round(10*abs(dt_comb$b), 2))
+          estimAbs   <- write_command(paste0(mm, vv, 'BaseAbs'),    sprintf("%1.4f", abs(dt_comb$b)), textnormal = F)
+          estimAbs10 <- write_command(paste0(mm, vv, 'BaseTenAbs'), sprintf("%1.2f", 10*abs(dt_comb$b)), textnormal = F)
 
           txt <- paste0(txt, estim, estimAbs, estimSE, estim10, estimAbs10, estimSE10, tstat)
           
@@ -51,7 +52,7 @@ main <- function() {
   }
   
   est  <- dt[model == 'Both', unique(p_equality)]  
-  comm <- write_command('GammaEqBetaBasePval', round(est, 3))
+  comm <- write_command('GammaEqBetaBasePval', sprintf("%1.3f", est), textnormal = F)
   
   txt <- paste0(txt, comm)
   
@@ -67,16 +68,16 @@ main <- function() {
     
     name <- 'BothWkpDyn'
     
-    estim   <- write_command(paste0(name, vv, 'Base'),      round(dt_comb$b,     4))
-    estim10 <- write_command(paste0(name, vv, 'BaseTen'),   round(10*dt_comb$b,  2))
-    estimSE <- write_command(paste0(mm, vv,   'BaseSE'),    round(dt_comb$se,    4))
-    estimSE <- write_command(paste0(mm, vv,   'BaseTenSE'), round(10*dt_comb$se, 2)) 
-    tstat   <- write_command(paste0(name, vv, 'BasetStat'), round(dt_comb$t,     2))
+    estim   <- write_command(paste0(name, vv, 'Base'),      sprintf("%1.4f", dt_comb$b), textnormal = F)
+    estim10 <- write_command(paste0(name, vv, 'BaseTen'),   sprintf("%1.2f", 10*dt_comb$b), textnormal = F)
+    estimSE <- write_command(paste0(mm, vv,   'BaseSE'),    sprintf("%1.4f", dt_comb$se), textnormal = F)
+    estimSE <- write_command(paste0(mm, vv,   'BaseTenSE'), sprintf("%1.2f", 10*dt_comb$se), textnormal = F)
+    tstat   <- write_command(paste0(name, vv, 'BasetStat'), sprintf("%1.2f", dt_comb$t), textnormal = F)
     
     if (dt_comb$b < 0) {
       
-      estimAbs   <- write_command(paste0(name, vv, 'BaseAbs'),    round(abs(dt_comb$b),    4))      
-      estimAbs10 <- write_command(paste0(name, vv, 'BaseTenAbs'), round(10*abs(dt_comb$b), 2))
+      estimAbs   <- write_command(paste0(name, vv, 'BaseAbs'),    sprintf("%1.4f", abs(dt_comb$b)), textnormal = F)
+      estimAbs10 <- write_command(paste0(name, vv, 'BaseTenAbs'), sprintf("%1.2f", 10*abs(dt_comb$b)), textnormal = F)
       
       txt <- paste0(txt, estim, estimAbs, estim10, estimAbs10, tstat)
     } else {
@@ -87,12 +88,12 @@ main <- function() {
   }
   
   est  <- dt[var == 'Sum', p_equality]  
-  comm <- write_command('GammaEqBetaBaseDynPval', round(est, 3))
+  comm <- write_command('GammaEqBetaBaseDynPval', sprintf("%1.3f", est), textnormal = F)
   
   txt  <- paste0(txt, comm)
   
   est  <- dt[var == 'Sum', p_pretrend]  
-  comm <- write_command('BetaPretrendDynBasePVal', round(est, 3))
+  comm <- write_command('BetaPretrendDynBasePVal', sprintf("%1.3f", est), textnormal = F)
   
   txt <- paste0(txt, comm)
   
@@ -103,7 +104,7 @@ main <- function() {
 
 load_data <- function(path, panel) {
   
-  name <- paste0('estimates_',panel,'.csv')
+  name <- paste0('estimates_', panel, '.csv')
   
   data <- fread(file.path(path, name))
   

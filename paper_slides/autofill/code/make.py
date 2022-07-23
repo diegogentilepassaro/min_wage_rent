@@ -13,6 +13,9 @@ def main():
         tempfile = open(os.path.join(in_main, row[0], row[1] + '.tex'), 'r').read()
         if tempfile[-2:] == '\n\n': #Algunos archivos tienen dos espacios al final
             tempfile = tempfile[:-1]
+
+        tempfile = tempfile.replace("{ ", "{")
+
         f.write(tempfile)
     f.close()
 
