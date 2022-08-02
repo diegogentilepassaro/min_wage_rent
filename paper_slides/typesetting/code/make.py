@@ -17,16 +17,21 @@ def main():
     
     shutil.make_archive(outstub, 'zip', outstub)
     shutil.rmtree(outstub)
+    ## IMPORTANT: Need to manually add the file .bbl for the references to work
 
 def clear_output_folders(outstub):
     
-    for filename in os.listdir(outstub):
-        file_path = os.path.join(outstub, filename)
-        
-        if os.path.isfile(file_path):
-            os.unlink(file_path)
-        elif os.path.isdir(file_path):
-            shutil.rmtree(file_path)
+    if os.path.isdir(outstub):
+        for filename in os.listdir(outstub):
+            file_path = os.path.join(outstub, filename)
+            
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+    else:
+        os.mkdir(outstub)
+        os.unlink(outstub + '.zip')
         
     for foldername in ['figures', 'tables', 'graphics']:
         os.mkdir(os.path.join(outstub, foldername))
@@ -40,9 +45,13 @@ def move_tex_files(in_paper, outstub):
     
     with open(os.path.join(in_paper, "min_wage_rent.tex")) as f:
         paper = f.read()
-        
+    
+    paper = paper.replace(r'\addbibresource{../biblio.bib}',
+                          r'\addbibresource{biblio.bib}')
     paper = paper.replace(r'\graphicspath{{../../analysis}{../../descriptive}}',
                           r'\graphicspath{{graphics}}')
+    paper = paper.replace(r'\usepackage{epstopdf}\n',
+                          r'')
     
     p          = re.compile("input{(.*?)}")
     all_inputs = p.findall(paper)
@@ -70,7 +79,6 @@ def move_tex_files(in_paper, outstub):
             if 'autofill' in full_filename:
                 shutil.copy(src = os.path.join('..', full_filename),
                             dst = os.path.join(outstub, filename))
-                
     
     paper = paper.replace('../autofill/output/', '')
     paper = paper.replace('../figures/',         'figures/')
@@ -84,11 +92,18 @@ def move_tex_files(in_paper, outstub):
 
 def move_inputs_and_graphics(all_inputs, outstub):
     
-    fig_inputs = [inp for inp in all_inputs 
-                      if 'figures' in inp]
-    tab_inputs = [inp for inp in all_inputs 
-                      if 'tables' in inp]
-
+    # Tables
+    tab_inputs = [inp for inp in all_inputs if 'tables' in inp]
+    out_folder = os.path.join(outstub, 'tables')
+    
+    for full_filename in tab_inputs:
+        filename = full_filename.split('/')[-1]
+        
+        shutil.copy(src = os.path.join('..', full_filename),
+                    dst = os.path.join(outstub, 'tables', filename))
+    
+    # Figures
+    fig_inputs = [inp for inp in all_inputs if 'figures' in inp]
     out_folder = os.path.join(outstub, 'figures')
 
     for full_filename in fig_inputs:
@@ -103,29 +118,34 @@ def move_inputs_and_graphics(all_inputs, outstub):
         for graphic in all_graphics:
             graphic_filename = graphic.split('/')[-1]
             
-            fig = fig.replace(graphic, graphic_filename)
+            is_eps = len(graphic_filename.split('.')) == 1
+            
+            if is_eps:
+                fig = fig.replace(graphic, graphic_filename + '.pdf')
+            else:
+                fig = fig.replace(graphic, graphic_filename)
             
             for instub in ['descriptive', 'analysis']:
-                graphic_fullname = '../../../' + instub + '/' + graphic
-                dst_fullname     = os.path.join(outstub, 'graphics', graphic_filename)
-                if len(graphic.split('.')) == 1:    # EPS figures, which have no extension in latex files
-                    graphic_fullname = graphic_fullname + '.eps'
-                    dst_fullname     = os.path.join(outstub, 'graphics', graphic_filename + '.eps')
                 
-                if os.path.isfile(graphic_fullname):
-                    shutil.copy(src = graphic_fullname,
-                                dst = dst_fullname)
+                src_fullname = '../../../' + instub + '/' + graphic
+                dst_fullname = os.path.join(outstub, 'graphics', graphic_filename)
+                
+                if is_eps:
+                    if os.path.isfile(src_fullname + '.eps'):
+                        os.system('epstopdf ' + src_fullname + '.eps')   # Transform eps to pdf
+                        
+                        src_fullname = src_fullname + '.pdf'
+                        dst_fullname = dst_fullname + '.pdf'
+                
+                if os.path.isfile(src_fullname):
+                    shutil.copy(src = src_fullname, dst = dst_fullname)
+
+                    if is_eps:    # Drop transformed eps
+                        os.unlink(src_fullname)
         
         with open(os.path.join(out_folder, filename), 'w') as f:
             f.write(fig)
     
-    out_folder = os.path.join(outstub, 'tables')
-
-    for full_filename in tab_inputs:
-        filename = full_filename.split('/')[-1]
-        
-        shutil.copy(src = os.path.join('..', full_filename),
-                    dst = os.path.join(outstub, 'tables', filename))
 
 
 if __name__ == '__main__':
