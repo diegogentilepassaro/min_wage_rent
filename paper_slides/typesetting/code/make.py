@@ -49,7 +49,7 @@ def move_tex_files(in_paper, outstub):
     paper = paper.replace(r'\addbibresource{../biblio.bib}',
                           r'\addbibresource{biblio.bib}')
     paper = paper.replace(r'\graphicspath{{../../analysis}{../../descriptive}}',
-                          r'\graphicspath{{graphics}}')
+                          r'')
     paper = paper.replace(r'\usepackage{epstopdf}\n',
                           r'')
     
@@ -121,9 +121,9 @@ def move_inputs_and_graphics(all_inputs, outstub):
             is_eps = len(graphic_filename.split('.')) == 1
             
             if is_eps:
-                fig = fig.replace(graphic, graphic_filename + '.pdf')
+                fig = fig.replace(graphic, 'graphics/' + graphic_filename + '.pdf')
             else:
-                fig = fig.replace(graphic, graphic_filename)
+                fig = fig.replace(graphic, 'graphics/' + graphic_filename)
             
             for instub in ['descriptive', 'analysis']:
                 
