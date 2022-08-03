@@ -90,7 +90,8 @@ def move_tex_files(in_paper, outstub):
     return(all_inputs)
 
 
-def move_inputs_and_graphics(all_inputs, outstub):
+def move_inputs_and_graphics(all_inputs, outstub,
+                             excl_replacements = ['hudSAFMR', 'hudPreamble']):
     
     # Tables
     tab_inputs = [inp for inp in all_inputs if 'tables' in inp]
@@ -116,32 +117,33 @@ def move_inputs_and_graphics(all_inputs, outstub):
         all_graphics = p.findall(fig)
         
         for graphic in all_graphics:
-            graphic_filename = graphic.split('/')[-1]
-            
-            is_eps = len(graphic_filename.split('.')) == 1
-            
-            if is_eps:
-                fig = fig.replace(graphic, 'graphics/' + graphic_filename + '.pdf')
-            else:
-                fig = fig.replace(graphic, 'graphics/' + graphic_filename)
-            
-            for instub in ['descriptive', 'analysis']:
+            if graphic not in excl_replacements:
+                graphic_filename = graphic.split('/')[-1]
                 
-                src_fullname = '../../../' + instub + '/' + graphic
-                dst_fullname = os.path.join(outstub, 'graphics', graphic_filename)
+                is_eps = len(graphic_filename.split('.')) == 1
                 
                 if is_eps:
-                    if os.path.isfile(src_fullname + '.eps'):
-                        os.system('epstopdf ' + src_fullname + '.eps')   # Transform eps to pdf
-                        
-                        src_fullname = src_fullname + '.pdf'
-                        dst_fullname = dst_fullname + '.pdf'
+                    fig = fig.replace(graphic, 'graphics/' + graphic_filename + '.pdf')
+                else:
+                    fig = fig.replace(graphic, 'graphics/' + graphic_filename)
                 
-                if os.path.isfile(src_fullname):
-                    shutil.copy(src = src_fullname, dst = dst_fullname)
+                for instub in ['descriptive', 'analysis']:
+                    
+                    src_fullname = '../../../' + instub + '/' + graphic
+                    dst_fullname = os.path.join(outstub, 'graphics', graphic_filename)
+                    
+                    if is_eps:
+                        if os.path.isfile(src_fullname + '.eps'):
+                            os.system('epstopdf ' + src_fullname + '.eps')   # Transform eps to pdf
+                            
+                            src_fullname = src_fullname + '.pdf'
+                            dst_fullname = dst_fullname + '.pdf'
+                    
+                    if os.path.isfile(src_fullname):
+                        shutil.copy(src = src_fullname, dst = dst_fullname)
 
-                    if is_eps:    # Drop transformed eps
-                        os.unlink(src_fullname)
+                        if is_eps:    # Drop transformed eps
+                            os.unlink(src_fullname)
         
         with open(os.path.join(out_folder, filename), 'w') as f:
             f.write(fig)
