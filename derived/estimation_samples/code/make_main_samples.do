@@ -206,7 +206,7 @@ end
 
 program drop_vars
     foreach var in pctlistings_pricedown_SFCC SalesPrevForeclosed_Share ///
-                   zhvi_2BR zhvi_SFCC zhvi_C zhvi_SF zri_SFCCMF zri_MF Sale_Counts {
+                   zhvi_2BR zhvi_SFCC zhvi_C zhvi_SF Sale_Counts { //  zri_SFCCMF zri_MF
         cap drop `var'
     }
 
