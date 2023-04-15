@@ -34,7 +34,8 @@ program main
 	gen d_mw_res = D.mw_res
 	
 	reghdfe D.ln_rents ///
-	  c.d_mw_wkp##i.state_model c.d_mw_res##state_model, ///
+	  c.d_mw_wkp##i.state_model c.d_mw_res##state_model ///
+	  c.D.(ln_emp*)##state_model c.D.(ln_avg*)##state_model c.D.(ln_est*)##state_model, ///
 	  absorb(state_num##year_month) nocons ///
 	  cluster(statefips_num##state_model)
 	
@@ -54,7 +55,8 @@ program main
 	local test_wkp_pval = 2*normal(`test_wkp_t')
 	
 	reghdfe D.ln_rents ///
-	  c.d_mw_wkp##i.state_model c.d_mw_res##state_model, ///
+	  c.d_mw_wkp##i.state_model c.d_mw_res##state_model ///
+	  c.D.(ln_emp*)##state_model c.D.(ln_avg*)##state_model c.D.(ln_est*)##state_model, ///
 	  absorb(state_num##year_month) nocons ///
 	  cluster(statefips_num##state_model)
 	
