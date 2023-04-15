@@ -10,7 +10,7 @@ program main
     make_bounds
     offset_x_axis
     
-    local y_label    "-0.20(0.04)0.28"
+    local y_label    "-0.25(0.05)0.3"
     local mw_wkp_var "mw_wkp_tot_17"
     sum at
     local w = r(max)
@@ -24,14 +24,21 @@ program main
             color_stat_var(maroon) symbol_stat_var(square) ///
             x_label(-6(1)6) name(fd_`model'_both_mw_wkp_only_dyn)
     }
-
+    
+	plot_dynamics_both, model(time_fe_baseline_rents) dyn_var(`mw_wkp_var') ///
+        legend_dyn_var(Workplace MW) y_label(`y_label') ///
+        color_dyn_var(navy) symbol_dyn_var(cirlce) ///
+        stat_var(mw_res) legend_stat_var(Residence MW) ///
+        color_stat_var(maroon) symbol_stat_var(square) ///
+        x_label(-6(1)6) name(fd_time_fe_baseline_wkp_dyn)
+	
     foreach geo in statefips cbsa county {
-        plot_dynamics_both, model(`geo'_time_fe_rents) dyn_var(`mw_wkp_var') ///
+        plot_dynamics_both, model(time_fe_`geo'_rents) dyn_var(`mw_wkp_var') ///
             legend_dyn_var(Workplace MW) y_label(`y_label') ///
             color_dyn_var(navy) symbol_dyn_var(cirlce) ///
             stat_var(mw_res) legend_stat_var(Residence MW) ///
             color_stat_var(maroon) symbol_stat_var(square) ///
-            x_label(-6(1)6) name(fd_`geo'_time_fe_wkp_dyn)
+            x_label(-6(1)6) name(fd_time_fe_`geo'_wkp_dyn)
     }
 
 	plot_dynamics_both, model(monthly_listings) dyn_var(`mw_wkp_var') ///

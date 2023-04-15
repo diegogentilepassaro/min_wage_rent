@@ -24,13 +24,20 @@ program main
     
     local specifications "`r(specifications)'"
 
+    estimate_dist_lag_model if fullbal_sample_SFCC == 1,                        ///
+        depvar(ln_rents) dyn_var(`mw_wkp_var') w(6) stat_var(mw_res)            ///
+        controls(`controls') absorb(year_month) cluster(`cluster')   ///
+        model_name(time_fe_baseline_rents) test_equality
+        
+    local specifications "`specifications' time_fe_baseline_rents"
+    
     foreach geo in statefips cbsa county {
         estimate_dist_lag_model if fullbal_sample_SFCC == 1,                        ///
             depvar(ln_rents) dyn_var(`mw_wkp_var') w(6) stat_var(mw_res)            ///
             controls(`controls') absorb(year_month##`geo'_num) cluster(`cluster')   ///
-            model_name(`geo'_time_fe_rents) test_equality
+            model_name(time_fe_`geo'_rents) test_equality
         
-        local specifications "`specifications' `geo'_time_fe_rents"   
+        local specifications "`specifications' time_fe_`geo'_rents"   
     }
 
     * Listings
