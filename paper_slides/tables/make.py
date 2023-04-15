@@ -118,6 +118,10 @@ tablefill(input    = os.path.join(migration_dir, "total_migration.txt"),
           template = "input/total_migration.tex", 
           output   = "output/total_migration.tex")
 
+tablefill(input    = "../../analysis/fd_test/output/test_stateFE.txt", 
+          template = "input/test_stateFE.tex", 
+          output   = "output/test_stateFE.tex")
+
 end_make_logging()
 
 shutil.rmtree("gslab_make")
