@@ -34,11 +34,20 @@ program main
     gen d_mw_res = D.mw_res
     
     reghdfe D.ln_rents ///
-      c.d_mw_wkp##i.state_model c.d_mw_res##state_model ///
+      c.d_mw_wkp##state_model c.d_mw_res##state_model ///
       c.D.(ln_emp*)##state_model c.D.(ln_avg*)##state_model c.D.(ln_est*)##state_model, ///
       absorb(state_num##year_month) nocons ///
       cluster(statefips_num##state_model)
     
+    mat B = e(b)
+	local beta_base           = B[1,1]
+	local beta_st_minus_base  = B[1,5]
+	local beta_st             = `beta_st_minus_base' + `beta_base'
+	
+	local gamma_base          = B[1,6]
+	local gamma_st_minus_base = B[1,8]
+	local gamma_st            = `gamma_st_minus_base' + `gamma_base'
+	
     // beta^base : effect in baseline model
     // beta^st : effect in model with state-by-time FE
     // 
@@ -77,10 +86,12 @@ program main
     file open f using "`outstub'/test_stateFE.txt", write replace
     file write f "<tab:test_stateFE>" _n
 
-    file write f    (test_wkp_coef[1,1]) _tab (test_wkp_se[1,1]) ///
-               _tab (`test_wkp_t')  _tab  (`test_wkp_pval') _n
-    file write f    (test_res_coef[1,1]) _tab (test_res_se[1,1]) ///
-               _tab (`test_res_t')  _tab  (`test_res_pval') _n
+    file write f (`beta_st')          _tab (`beta_base')      _tab  ///
+                 (test_wkp_coef[1,1]) _tab (test_wkp_se[1,1]) _tab  ///
+                 (`test_wkp_t')       _tab  (`test_wkp_pval') _n
+    file write f (`gamma_st')         _tab (`gamma_base')     _tab  ///
+                 (test_res_coef[1,1]) _tab (test_res_se[1,1]) _tab  ///
+                 (`test_res_t')       _tab  (`test_res_pval') _n
     
     file close f
 end
