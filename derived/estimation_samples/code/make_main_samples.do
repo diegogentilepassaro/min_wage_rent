@@ -11,7 +11,7 @@ program main
     local logfile      "../output/data_file_manifest.log"
 
     local rent_var          "medrentpricepsqft"
-    local rentvar_stubs     "SFCC SF CC Studio 1BR 2BR 3BR 4BR 5BR MFdxtx Mfr5Plus zori_2023"
+    local rentvar_stubs     "SFCC SF CC Studio 1BR 2BR 3BR 4BR 5BR MFdxtx Mfr5Plus"
 
     local start_year_month         "2010m1"
     local end_year_month           "2020m6"
@@ -84,21 +84,15 @@ program create_unbalanced_panel
 
         local j = 0
         foreach stub of local stubs {
-            
-            local var_to_use "`rent_var'_`stub'"
-            if "`stub'"=="zori_2023" {
-                local var_to_use "zori_2023"
-            }
-            
             if `j'==0 {
-                local if_statement "if !missing(`var_to_use')"
+                local if_statement "if !missing(`rent_var'_`stub')"
             }
             else {
-                local if_statement "`if_statement' | !missing(`var_to_use')"
+                local if_statement "`if_statement' | !missing(`rent_var'_`stub')"
             }
             
             forvalues i = 1(1)`w' {
-                local if_statement "`if_statement' | !missing(F`i'.`var_to_use') | !missing(L`i'.`var_to_use')"
+                local if_statement "`if_statement' | !missing(F`i'.`rent_var'_`stub') | !missing(L`i'.`rent_var'_`stub')"
             }
             local j = `j' + 1
         }
@@ -116,12 +110,10 @@ program gen_vars
 
     if "`geo'" == "zipcode"{
         foreach stub of local stubs {
-            if !inlist("`stub'", "SFCC", "zori_2023") {
+            if "`stub'"!="SFCC" {
                 gen ln_rents_`stub' = log(medrentpricepsqft_`stub')
             }
         }
-
-        gen ln_zori23 = log(zori_2023)
     }
 
     foreach ctrl_type in emp estcount avgwwage {
@@ -135,14 +127,8 @@ end
 program gen_date_of_entry
     syntax, rent_var(str) stub(str)
 
-    local var_to_use "`rent_var'_`stub'"
-    if "`stub'"=="zori_2023" {
-        local var_to_use "zori_2023"
-        local stub       "zori23"
-    }
-
     preserve
-        keep if !missing(`var_to_use')
+        keep if !missing(`rent_var'_`stub')
         collapse (min) ym_entry_to_zillow_`stub' = year_month, by(zipcode)
 
         gen     yr_entry_to_zillow_`stub'  = year(dofm(ym_entry_to_zillow_`stub'))
@@ -160,17 +146,11 @@ program flag_samples
     syntax, instub(str) geo(str) geo_name(str) ///
         rent_var(str) stub(str) target_ym(str)
 
-    local var_to_use "`rent_var'_`stub'"
-    if "`stub'"=="zori_2023" {
-        local var_to_use "zori_2023"
-        local stub       "zori23"
-    }
-
     preserve
         clear
-        use year_month `geo_name' `var_to_use'         ///
-            using "`instub'/`geo'_month_panel.dta"    ///
-            if !missing(`var_to_use')
+        use year_month `geo_name' `rent_var'_`stub'    ///
+            using "`instub'/`geo'_month_panel.dta"     ///
+            if !missing(`rent_var'_`stub')
         keep if year_month == `=tm(`target_ym')'
         keep `geo_name'
         gen fullbal_sample_`stub' = 1
@@ -182,12 +162,12 @@ program flag_samples
     merge m:1 `geo_name' using "../temp/fullbal_`geo'.dta", ///
         nogen assert(1 3) keep(1 3)
 
-    replace fullbal_sample_`stub' = 0 if year_month < `=tm(`target_ym')' & !missing(`var_to_use')
+    replace fullbal_sample_`stub' = 0 if year_month < `=tm(`target_ym')' & !missing(`rent_var'_`stub')
     replace fullbal_sample_`stub' = 0 if missing(fullbal_sample_`stub')
-    replace fullbal_sample_`stub' = . if missing(`var_to_use')
+    replace fullbal_sample_`stub' = . if missing(`rent_var'_`stub')
 
     gen     unbalanced_sample_`stub' = 1
-    replace unbalanced_sample_`stub' = . if missing(`var_to_use')
+    replace unbalanced_sample_`stub' = . if missing(`rent_var'_`stub')
 end
 
 program compute_weights
@@ -226,7 +206,7 @@ end
 
 program drop_vars
     foreach var in pctlistings_pricedown_SFCC SalesPrevForeclosed_Share ///
-                   zhvi_2BR zhvi_SFCC zhvi_C zhvi_SF Sale_Counts { //  zri_SFCCMF zri_MF zori_2023
+                   zhvi_2BR zhvi_SFCC zhvi_C zhvi_SF zri_SFCCMF zri_MF Sale_Counts {
         cap drop `var'
     }
 
