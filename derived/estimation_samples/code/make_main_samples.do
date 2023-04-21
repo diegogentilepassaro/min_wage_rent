@@ -13,18 +13,23 @@ program main
     local rent_var          "medrentpricepsqft"
     local rentvar_stubs     "SFCC SF CC Studio 1BR 2BR 3BR 4BR 5BR MFdxtx Mfr5Plus"
 
-    local start_year_month         "2010m1"
-    local end_year_month           "2020m6"
-    local fullbal_start_year_month "2015m1"
+    local start_ym         "2010m1"
+    local end_ym           "2020m6"
+    local fullbal_start_ym "2015m1"
     #delimit ;
     local target_vars  "sh_hhlds_renteroccup_cens2010 
                         sh_workers_under1250_2014 sh_residents_under1250_2014";
     #delimit cr
 
     * Zipcode-months
+    prepare_zori_data, instub(`in_zip_mth') target_ym("2015m9")            ///
+        start_ym(`start_ym') end_ym(`end_ym')
+
+    save "../temp/zori_data.dta", replace
+    
     create_unbalanced_panel, instub(`in_zip_mth')                           ///
         geo(zipcode) rent_var(`rent_var') stubs(`rentvar_stubs')            ///
-        start_ym(`start_year_month') end_ym(`end_year_month')
+        start_ym(`start_ym') end_ym(`end_ym')
 
     gen_vars, rent_var(`rent_var') stubs(`rentvar_stubs') geo(zipcode)
 
@@ -33,8 +38,11 @@ program main
         gen_date_of_entry, rent_var(`rent_var') stub(`stub')
 
         flag_samples, instub(`in_zip_mth') geo(zipcode) geo_name(zipcode)    ///
-            rent_var(`rent_var') stub(`stub') target_ym(`fullbal_start_year_month')
+            rent_var(`rent_var') stub(`stub') target_ym(`fullbal_start_ym')
     }
+            
+    merge 1:1 zipcode year_month using "../temp/zori_data.dta",              ///
+        nogen assert(1 2 3) keep(1 2 3)
 
     compute_weights, instub(`in_zipcode') target_vars(`target_vars')
     merge 1:1 zipcode year_month using "../temp/weights.dta",                ///
@@ -65,10 +73,41 @@ program main
     export delimited "`outstub'/county_months.csv", replace
 end
 
+program prepare_zori_data
+    syntax, instub(str) target_ym(str) start_ym(str) end_ym(str) [w(int 6)]
+
+    use zipcode year_month zori_2023                                     ///
+        using "`instub'/zipcode_month_panel.dta"                         ///
+        if inrange(year_month, `=tm(`start_ym')', `=tm(`end_ym')'), clear
+            
+    destring_geographies
+    xtset zipcode_num year_month
+
+    keep if !missing(F`w'.zori_2023) & !missing(L`w'.zori_2023)
+    
+    preserve
+        keep if year_month == `=tm(`target_ym')'
+        keep zipcode
+        gen fullbal_sample_zori23 = 1
+
+        tempfile fullbal_zori
+        save    `fullbal_zori', replace
+    restore
+
+    merge m:1 zipcode using `fullbal_zori', nogen assert(1 3) keep(1 3)
+    replace fullbal_sample_zori23 = 0 if year_month < `=tm(`target_ym')' & !missing(zori_2023)
+    replace fullbal_sample_zori23 = 0 if missing(fullbal_sample_zori23)
+
+    gen_date_of_entry, rent_var(zori_2023) stub(zori2023)
+
+    drop zipcode_num
+    gen ln_zori_23 = log(zori_2023)
+end
+
 program create_unbalanced_panel
     syntax, instub(str) geo(str) rent_var(str) [stubs(str)]      ///
             start_ym(str) end_ym(str) [w(int 6)]
-       
+    
     use "`instub'/`geo'_month_panel.dta" ///
         if inrange(year_month, `=tm(`start_ym')', `=tm(`end_ym')'), clear
 
@@ -128,7 +167,12 @@ program gen_date_of_entry
     syntax, rent_var(str) stub(str)
 
     preserve
-        keep if !missing(`rent_var'_`stub')
+        if "`rent_var'"=="zori_2023" {
+            keep if !missing(zori_2023)
+        }
+        else {
+            keep if !missing(`rent_var'_`stub')
+        }
         collapse (min) ym_entry_to_zillow_`stub' = year_month, by(zipcode)
 
         gen     yr_entry_to_zillow_`stub'  = year(dofm(ym_entry_to_zillow_`stub'))
@@ -206,7 +250,7 @@ end
 
 program drop_vars
     foreach var in pctlistings_pricedown_SFCC SalesPrevForeclosed_Share ///
-                   zhvi_2BR zhvi_SFCC zhvi_C zhvi_SF zri_SFCCMF zri_MF Sale_Counts {
+                   zhvi_2BR zhvi_SFCC zhvi_C zhvi_SF Sale_Counts { //  zri_SFCCMF zri_MF zori_2023
         cap drop `var'
     }
 
