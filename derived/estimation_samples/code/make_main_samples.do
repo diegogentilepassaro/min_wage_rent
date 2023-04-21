@@ -53,7 +53,7 @@ program main
     export delimited "`outstub'/zipcode_months.csv", replace
 
     create_monthly_listings_panel, instub(`in_zip_mth')                      ///
-        geo(zipcode) start_ym(`start_year_month') end_ym(`end_year_month')
+        geo(zipcode) start_ym(`start_ym') end_ym(`end_ym')
     
     save_data "`outstub'/zipcode_months_listings.dta", key(zipcode year_month) ///
         replace log(`logfile')
@@ -61,12 +61,12 @@ program main
     * County-months
     create_unbalanced_panel, instub(`in_cty_mth')                            ///
         geo(county) rent_var(`rent_var')                                     ///
-        start_ym(`start_year_month') end_ym(`end_year_month')
+        start_ym(`start_ym') end_ym(`end_ym')
 
     gen_vars, rent_var(`rent_var') geo(county)
 
     flag_samples, instub(`in_cty_mth') geo(county) geo_name(countyfips)      ///
-        rent_var(`rent_var') stub(SFCC) target_ym(`fullbal_start_year_month')
+        rent_var(`rent_var') stub(SFCC) target_ym(`fullbal_start_ym')
 
     save_data "`outstub'/county_months.dta", key(countyfips year_month)      ///
         replace log(`logfile')
