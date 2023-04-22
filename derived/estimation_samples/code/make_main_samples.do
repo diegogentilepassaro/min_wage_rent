@@ -125,6 +125,7 @@ program create_unbalanced_panel
         foreach stub of local stubs {
             if `j'==0 {
                 local if_statement "if !missing(`rent_var'_`stub')"
+                local if_statement "`if_statement' | !missing(F`w'.zori_2023) | !missing(L`w'.zori_2023)"
             }
             else {
                 local if_statement "`if_statement' | !missing(`rent_var'_`stub')"
