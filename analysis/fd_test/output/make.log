@@ -1,0 +1,399 @@
+
+ make.py started: 2023-06-19 19:16:38 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\fd_test\code 
+
+
+
+
+Execute:  StataMP-64 /e do "./test.do"
+
+  ___  ____  ____  ____  ____ (R)
+ /__    /   ____/   /   ____/
+___/   /   /___/   /   /___/   15.1   Copyright 1985-2017 StataCorp LLC
+  Statistics/Data Analysis            StataCorp
+                                      4905 Lakeway Drive
+     MP - Parallel Edition            College Station, Texas 77845 USA
+                                      800-STATA-PC        http://www.stata.com
+                                      979-696-4600        stata@stata.com
+                                      979-696-4601 (fax)
+
+Single-user 32-core Stata perpetual license:
+       Serial number:  501506205566
+         Licensed to:  KU Leuven FEB (CES)
+                       KU Leuven
+
+Notes:
+      1.  Stata is running in batch mode.
+      2.  Unicode is supported; see help unicode_advice.
+      3.  More than 2 billion observations are allowed; see help obs_advice.
+      4.  Maximum number of variables is set to 5000; see help set_maxvar.
+
+
+running c:\ado\personal\profile.do ...
+
+. do ./test.do 
+
+. clear all
+
+. set more off
+
+. 
+. program main
+  1.     local instub  "../../../drive/derived_large/estimation_samples"
+  2.     local outstub "../output"
+  3. 
+.     #delimit ;
+delimiter now ;
+.     local keep_vars 
+>        "zipcode_num year_month fullbal_sample_SFCC 
+>         county_num cbsa_num statefips_num 
+>         ln_rents mw_wkp_tot_17 mw_res ln_emp* ln_estc* ln_avg* ";
+  4.     #delimit cr
+delimiter now cr
+.     
+.     use `keep_vars' using `instub'/zipcode_months.dta, clear
+  5.     keep if fullbal_sample_SFCC == 1
+  6.     drop fullbal_sample_SFCC
+  7.     
+.     gen state_model = 0
+  8.     tempfile baseline_data
+  9.     save    `baseline_data', replace
+ 10.     
+.     replace state_model = 1
+ 11.     append using `baseline_data'
+ 12.     
+.     gen zip_model = state_model*1e7 + zipcode_num
+ 13.     
+.     xtset zip_model year_month
+ 14.     
+.     gen state_num = statefips_num
+ 15.     replace state_num = 10000 if state_model == 0
+ 16.     
+.     gen d_mw_wkp = D.mw_wkp_tot_17
+ 17.     gen d_mw_res = D.mw_res
+ 18.     
+.     reghdfe D.ln_rents ///
+>       c.d_mw_wkp##state_model c.d_mw_res##state_model ///
+>       c.D.(ln_emp*)##state_model c.D.(ln_avg*)##state_model c.D.(ln_est*)##st
+> ate_model, ///
+>       absorb(state_num##year_month) nocons ///
+>       cluster(statefips_num##state_model)
+ 19.     
+.     mat B = e(b)
+ 20.         local beta_base           = B[1,1]
+ 21.         local beta_st_minus_base  = B[1,5]
+ 22.         local beta_st             = `beta_st_minus_base' + `beta_base'
+ 23.         
+.         local gamma_base          = B[1,6]
+ 24.         local gamma_st_minus_base = B[1,8]
+ 25.         local gamma_st            = `gamma_st_minus_base' + `gamma_base'
+ 26.         
+.     // beta^base : effect in baseline model
+.     // beta^st : effect in model with state-by-time FE
+.     // 
+.     // d_mw_wkp               estimates beta^base
+.     // d_mw_wkp#1.state_model estimates beta^st - beta^base
+.     // We want to test equality of coefficients, or `beta^st - beta^base`, so
+>  the below is enough!
+.     lincomest d_mw_wkp#1.state_model
+ 27.     
+.     mat test_wkp_coef = e(b)
+ 28.     mat test_wkp_var = e(V)
+ 29.     mat test_wkp_se = test_wkp_var[1,1]^.5
+ 30.     
+.     local test_wkp_t    = test_wkp_coef[1,1]/test_wkp_se[1,1]
+ 31.     local test_wkp_pval = 2*normal(`test_wkp_t')
+ 32.     
+.     reghdfe D.ln_rents ///
+>       c.d_mw_wkp##i.state_model c.d_mw_res##state_model ///
+>       c.D.(ln_emp*)##state_model c.D.(ln_avg*)##state_model c.D.(ln_est*)##st
+> ate_model, ///
+>       absorb(state_num##year_month) nocons ///
+>       cluster(statefips_num##state_model)
+ 33.     
+.     // Now we test for residence MW, i.e.,
+.     // `gamma^st - gamma^base`
+.     lincomest d_mw_res#1.state_model
+ 34.     
+.     mat test_res_coef = e(b)
+ 35.     mat test_res_var = e(V)
+ 36.     mat test_res_se = test_res_var[1,1]^.5
+ 37.     
+.     local test_res_t    = test_res_coef[1,1]/test_res_se[1,1]
+ 38.     local test_res_pval = 2*(1-normal(`test_res_t'))
+ 39.     
+.     // Strictly speaking the lincomest is not necessary. Leaving it to be cle
+> ar on the intention!
+.     
+.     
+.     file open f using "`outstub'/test_stateFE.txt", write replace
+ 40.     file write f "<tab:test_stateFE>" _n
+ 41. 
+.     file write f (`beta_st')          _tab (`beta_base')      _tab  ///
+>                  (test_wkp_coef[1,1]) _tab (test_wkp_se[1,1]) _tab  ///
+>                  (`test_wkp_t')       _tab  (`test_wkp_pval') _n
+ 42.     file write f (`gamma_st')         _tab (`gamma_base')     _tab  ///
+>                  (test_res_coef[1,1]) _tab (test_res_se[1,1]) _tab  ///
+>                  (`test_res_t')       _tab  (`test_res_pval') _n
+ 43.     
+.     file close f
+ 44. end
+
+. 
+. 
+. main
+(274,409 observations deleted)
+(note: file C:\Users\shermo\AppData\Local\Temp\6\ST_a80c_000001.tmp not found)
+file C:\Users\shermo\AppData\Local\Temp\6\ST_a80c_000001.tmp saved
+(80,700 real changes made)
+       panel variable:  zip_model (strongly balanced)
+        time variable:  year_month, 2015m1 to 2019m12
+                delta:  1 month
+(80,700 real changes made)
+(2,690 missing values generated)
+(2,690 missing values generated)
+(dropped 309 singleton observations)
+note: 1bn.state_model is probably collinear with the fixed effects (all partial
+> led-out values are close to zero; tol = 1.0e-09)
+(MWFE estimator converged in 1 iterations)
+note: 1.state_model omitted because of collinearity
+
+HDFE Linear regression                            Number of obs   =    157,515
+Absorbing 1 HDFE group                            F(  22,     76) =       2.83
+Statistics robust to heteroskedasticity           Prob > F        =     0.0004
+                                                  R-squared       =     0.0393
+                                                  Adj R-squared   =     0.0258
+                                                  Within R-sq.    =     0.0003
+Number of clusters (statefips_num##state_model) =         77Root MSE=     0.029
+> 5
+
+            (Std. Err. adjusted for 77 clusters in statefips_num##state_model)
+------------------------------------------------------------------------------
+             |               Robust
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+    d_mw_wkp |   .0687172    .029833     2.30   0.024     .0092995    .1281349
+1.state_mo~l |          0  (omitted)
+             |
+ state_model#|
+  c.d_mw_wkp |
+          1  |  -.0848865   .0687339    -1.24   0.221    -.2217819    .0520089
+             |
+    d_mw_res |  -.0199171   .0195234    -1.02   0.311    -.0588013     .018967
+             |
+ state_model#|
+  c.d_mw_res |
+          1  |   .0375045   .0337748     1.11   0.270    -.0297639    .1047729
+             |
+ln_emp_biz~v |
+         D1. |   .0183028   .0087492     2.09   0.040     .0008773    .0357284
+             |
+ ln_emp_info |
+         D1. |   .0023708   .0044202     0.54   0.593    -.0064327    .0111743
+             |
+  ln_emp_fin |
+         D1. |   .0113835   .0078098     1.46   0.149    -.0041712    .0269382
+             |
+ state_model#|
+         cD. |
+ln_emp_biz~v |
+          1  |  -.0084575   .0116768    -0.72   0.471    -.0317139    .0147989
+             |
+ state_model#|
+         cD. |
+ ln_emp_info |
+          1  |   .0013987   .0060081     0.23   0.817    -.0105675    .0133649
+             |
+ state_model#|
+         cD. |
+  ln_emp_fin |
+          1  |   .0014445   .0122416     0.12   0.906    -.0229367    .0258257
+             |
+ln_avgwwag~v |
+         D1. |   .0024521   .0041607     0.59   0.557    -.0058346    .0107387
+             |
+ln_avgwwag~o |
+         D1. |   -.000489   .0016409    -0.30   0.767    -.0037571    .0027792
+             |
+ln_avgwwag~n |
+         D1. |  -.0021355   .0015504    -1.38   0.172    -.0052234    .0009524
+             |
+ state_model#|
+         cD. |
+ln_avgwwag~v |
+          1  |   -.002933   .0053561    -0.55   0.586    -.0136005    .0077345
+             |
+ state_model#|
+         cD. |
+ln_avgwwag~o |
+          1  |  -.0006178   .0027582    -0.22   0.823    -.0061112    .0048756
+             |
+ state_model#|
+         cD. |
+ln_avgwwag~n |
+          1  |   .0000405   .0027802     0.01   0.988    -.0054967    .0055778
+             |
+ln_estcoun~v |
+         D1. |   .0126444   .0176497     0.72   0.476    -.0225081    .0477968
+             |
+ln_estcoun~o |
+         D1. |   .0035645   .0088233     0.40   0.687    -.0140086    .0211376
+             |
+ln_estcoun~n |
+         D1. |  -.0125562   .0194594    -0.65   0.521    -.0513128    .0262005
+             |
+ state_model#|
+         cD. |
+ln_estcoun~v |
+          1  |   .0047336   .0363408     0.13   0.897    -.0676454    .0771126
+             |
+ state_model#|
+         cD. |
+ln_estcoun~o |
+          1  |  -.0079108   .0135271    -0.58   0.560    -.0348524    .0190308
+             |
+ state_model#|
+         cD. |
+ln_estcoun~n |
+          1  |   .0048959    .030118     0.16   0.871    -.0550892    .0648811
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+----------------------------------------------------------------+
+            Absorbed FE | Categories  - Redundant  = Num. Coefs |
+------------------------+---------------------------------------|
+   state_num#year_month |      2155           0        2155     |
+----------------------------------------------------------------+
+Confidence interval for formula:
+d_mw_wkp#1.state_model
+
+------------------------------------------------------------------------------
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |  -.0848865   .0687339    -1.24   0.221    -.2217819    .0520089
+------------------------------------------------------------------------------
+(dropped 309 singleton observations)
+note: 1bn.state_model is probably collinear with the fixed effects (all partial
+> led-out values are close to zero; tol = 1.0e-09)
+(MWFE estimator converged in 1 iterations)
+note: 1.state_model omitted because of collinearity
+
+HDFE Linear regression                            Number of obs   =    157,515
+Absorbing 1 HDFE group                            F(  22,     76) =       2.83
+Statistics robust to heteroskedasticity           Prob > F        =     0.0004
+                                                  R-squared       =     0.0393
+                                                  Adj R-squared   =     0.0258
+                                                  Within R-sq.    =     0.0003
+Number of clusters (statefips_num##state_model) =         77Root MSE=     0.029
+> 5
+
+            (Std. Err. adjusted for 77 clusters in statefips_num##state_model)
+------------------------------------------------------------------------------
+             |               Robust
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+    d_mw_wkp |   .0687172    .029833     2.30   0.024     .0092995    .1281349
+1.state_mo~l |          0  (omitted)
+             |
+ state_model#|
+  c.d_mw_wkp |
+          1  |  -.0848865   .0687339    -1.24   0.221    -.2217819    .0520089
+             |
+    d_mw_res |  -.0199171   .0195234    -1.02   0.311    -.0588013     .018967
+             |
+ state_model#|
+  c.d_mw_res |
+          1  |   .0375045   .0337748     1.11   0.270    -.0297639    .1047729
+             |
+ln_emp_biz~v |
+         D1. |   .0183028   .0087492     2.09   0.040     .0008773    .0357284
+             |
+ ln_emp_info |
+         D1. |   .0023708   .0044202     0.54   0.593    -.0064327    .0111743
+             |
+  ln_emp_fin |
+         D1. |   .0113835   .0078098     1.46   0.149    -.0041712    .0269382
+             |
+ state_model#|
+         cD. |
+ln_emp_biz~v |
+          1  |  -.0084575   .0116768    -0.72   0.471    -.0317139    .0147989
+             |
+ state_model#|
+         cD. |
+ ln_emp_info |
+          1  |   .0013987   .0060081     0.23   0.817    -.0105675    .0133649
+             |
+ state_model#|
+         cD. |
+  ln_emp_fin |
+          1  |   .0014445   .0122416     0.12   0.906    -.0229367    .0258257
+             |
+ln_avgwwag~v |
+         D1. |   .0024521   .0041607     0.59   0.557    -.0058346    .0107387
+             |
+ln_avgwwag~o |
+         D1. |   -.000489   .0016409    -0.30   0.767    -.0037571    .0027792
+             |
+ln_avgwwag~n |
+         D1. |  -.0021355   .0015504    -1.38   0.172    -.0052234    .0009524
+             |
+ state_model#|
+         cD. |
+ln_avgwwag~v |
+          1  |   -.002933   .0053561    -0.55   0.586    -.0136005    .0077345
+             |
+ state_model#|
+         cD. |
+ln_avgwwag~o |
+          1  |  -.0006178   .0027582    -0.22   0.823    -.0061112    .0048756
+             |
+ state_model#|
+         cD. |
+ln_avgwwag~n |
+          1  |   .0000405   .0027802     0.01   0.988    -.0054967    .0055778
+             |
+ln_estcoun~v |
+         D1. |   .0126444   .0176497     0.72   0.476    -.0225081    .0477968
+             |
+ln_estcoun~o |
+         D1. |   .0035645   .0088233     0.40   0.687    -.0140086    .0211376
+             |
+ln_estcoun~n |
+         D1. |  -.0125562   .0194594    -0.65   0.521    -.0513128    .0262005
+             |
+ state_model#|
+         cD. |
+ln_estcoun~v |
+          1  |   .0047336   .0363408     0.13   0.897    -.0676454    .0771126
+             |
+ state_model#|
+         cD. |
+ln_estcoun~o |
+          1  |  -.0079108   .0135271    -0.58   0.560    -.0348524    .0190308
+             |
+ state_model#|
+         cD. |
+ln_estcoun~n |
+          1  |   .0048959    .030118     0.16   0.871    -.0550892    .0648811
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+----------------------------------------------------------------+
+            Absorbed FE | Categories  - Redundant  = Num. Coefs |
+------------------------+---------------------------------------|
+   state_num#year_month |      2155           0        2155     |
+----------------------------------------------------------------+
+Confidence interval for formula:
+d_mw_res#1.state_model
+
+------------------------------------------------------------------------------
+  D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0375045   .0337748     1.11   0.270    -.0297639    .1047729
+------------------------------------------------------------------------------
+(note: file ../output/test_stateFE.txt not found)
+
+. 
+end of do-file
+
+ make.py ended: 2023-06-19 19:16:55
