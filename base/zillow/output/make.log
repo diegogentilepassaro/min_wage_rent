@@ -1,13 +1,13 @@
 
- make.py started: 2021-05-30 13:36:20 C:\Users\diegog\Desktop\Diego\min_wage_rent\base\zillow\code 
+ make.py started: 2023-04-02 16:24:08 C:\Users\shermo\Documents\GitHub\min_wage_rent\base\zillow\code 
 
 
 
 
 Execute:  R CMD BATCH --no-save "./build_county.R" build_county.Rout
 
-R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
-Copyright (C) 2020 The R Foundation for Statistical Computing
+R version 4.1.1 (2021-08-10) -- "Kick Things"
+Copyright (C) 2021 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64 (64-bit)
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
@@ -51,9 +51,14 @@ The following objects are masked from 'package:dplyr':
 
     between, first, last
 
+Warning messages:
+1: package 'dplyr' was built under R version 4.1.3 
+2: package 'data.table' was built under R version 4.1.3 
 > source("fix_varnames.R")
 > 
 > load_packages(c('stringr', 'data.table'))
+Warning message:
+package 'stringr' was built under R version 4.1.3 
 > 
 > main <- function() {
 +    
@@ -138,13 +143,13 @@ The following objects are masked from 'package:dplyr':
 > 
 > proc.time()
    user  system elapsed 
-   2.78    0.71    4.26 
+   3.14    1.07    8.89 
 
 
 Execute:  R CMD BATCH --no-save "./build_zipcode.R" build_zipcode.Rout
 
-R version 4.0.3 (2020-10-10) -- "Bunny-Wunnies Freak Out"
-Copyright (C) 2020 The R Foundation for Statistical Computing
+R version 4.1.1 (2021-08-10) -- "Kick Things"
+Copyright (C) 2021 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64 (64-bit)
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
@@ -188,15 +193,21 @@ The following objects are masked from 'package:dplyr':
 
     between, first, last
 
+Warning messages:
+1: package 'dplyr' was built under R version 4.1.3 
+2: package 'data.table' was built under R version 4.1.3 
 > source("fix_varnames.R")
 > 
 > load_packages(c('stringr', 'data.table'))
+Warning message:
+package 'stringr' was built under R version 4.1.3 
 > 
 > main <- function() {
 +    
-+    datadir  <- "../../../drive/raw_data/zillow/Zip_122019"
-+    outdir   <- "../../../drive/base_large/zillow"
-+    log_file <- "../output/data_file_manifest.log"
++    datadir      <- "../../../drive/raw_data/zillow/Zip_122019"
++    datadir_2023 <- "../../../drive/raw_data/zillow_2023/orig"
++    outdir       <- "../../../drive/base_large/zillow"
++    log_file     <- "../output/data_file_manifest.log"
 +    
 +    raw_filenames <- list.files(datadir, pattern = "*.csv", full.names = T)
 +    raw_filenames <- raw_filenames[!str_detect(raw_filenames, "_Summary.csv")]
@@ -214,6 +225,9 @@ The following objects are masked from 'package:dplyr':
 +    dt[, c('year', 'month') :=  .(as.numeric(substr(date, 1, 4)),
 +                                  as.numeric(substr(date, 6, 7)))]
 +    dt[, date := NULL]
++    
++    dt <- add_data_2023(dt, datadir_2023)
++    
 +    dt[, zipcode := str_pad(zipcode, 5, pad = 0)]
 +    
 +    save_data(dt, key = c('zipcode', 'year', 'month'), 
@@ -273,6 +287,36 @@ The following objects are masked from 'package:dplyr':
 +    ))
 + }
 > 
+> add_data_2023 <- function(dt, datadir_2023) {
++   
++   zori <- fread(file.path(datadir_2023, "Zip_zori_sm_month.csv"))
++   
++   date_vars <- names(zori)[grepl("20", names(zori))]
++   keep_vars <- c("RegionID", date_vars)
++   
++   zori <- zori[, ..keep_vars]
++   setnames(zori, old = "RegionID", new = "zipcode")
++   
++   zori <- melt(zori,
++                id.vars = "zipcode",
++                measure.vars = date_vars,
++                variable.name = "date",
++                value.name = "zori_2023",
++                variable.factor = F)
++   
++   zori[, year  := as.numeric(substr(date, 1, 4))]
++   zori[, month := as.numeric(substr(date, 6, 7))]
++   zori[, date := NULL]
++   
++   zori <- zori[year <= 2020]   # Drop years after 2020
++   
++   dt <- merge(dt, zori, 
++               all = T,  # Keep all matches
++               by = c("zipcode", "year", "month"))
++   
++   return(dt)
++ }
+> 
 > # Execute
 > main()
 [1] "File '../temp/Zip_MedianDailyListings_NSA_AllHomes.csv' saved successfully."
@@ -323,6 +367,6 @@ There were 12 warnings (use warnings() to see them)
 > 
 > proc.time()
    user  system elapsed 
- 340.89  210.26  400.85 
+ 415.67  157.62  410.87 
 
- make.py ended: 2021-05-30 13:43:08
+ make.py ended: 2023-04-02 16:31:12
