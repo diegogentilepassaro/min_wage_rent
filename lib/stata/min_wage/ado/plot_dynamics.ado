@@ -13,7 +13,7 @@ program plot_dynamics
             legend(order(1 `"`legend_var'"'))                                  ///
             graphregion(color(white)) bgcolor(white)
         
-        graph export "../output/`name'.png", replace width(`width') height(`height')
+        graph export "../output/`name'_png.png", replace width(`width') height(`height')
         graph export "../output/`name'.eps", replace
     restore
 end

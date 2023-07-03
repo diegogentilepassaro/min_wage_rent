@@ -47,7 +47,7 @@ program plot_dynamics_both
                          `leg_num_sec' `"`leg_name_sec'"'))                     ///
             graphregion(color(white)) bgcolor(white)
         
-        graph export "../output/`name'.png", replace width(`width') height(`height')
+        graph export "../output/`name'_png.png", replace width(`width') height(`height')
         graph export "../output/`name'.eps", replace
     restore
 end
