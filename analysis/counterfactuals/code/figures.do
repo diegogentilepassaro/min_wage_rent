@@ -1,6 +1,7 @@
 clear all
 set more off
 set maxvar 32000
+set scheme s2color, permanently
 
 program main
     local in_large "../../../drive/analysis_large/counterfactuals"
