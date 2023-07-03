@@ -110,7 +110,7 @@ restrict_and_build_changes <- function(data, cbsa_code, year_lb, month_lb,
 }
 
 build_map <- function(data, counties, states, var, var_legend, break_values,
-                      map_name, .dpi = 250){
+                      map_name, .dpi = 300){
   
   map <- tm_shape(data) + 
     tm_fill(col = var,
@@ -119,15 +119,15 @@ build_map <- function(data, counties, states, var, var_legend, break_values,
             palette = c("#A6E1F4", "#077187"),
             breaks = break_values,
             textNA = "NA") +
-    tm_borders(col = "white", lwd = .008, alpha = 0.5) +
+    tm_borders(col = "white", lwd = .008, alpha = 0.9) +
     tm_layout(legend.position = c("left", "bottom"),
     	      frame = FALSE) +
     tm_shape(counties) +
-    tm_borders(col = "black", lwd = 0.012,
+    tm_borders(col = "black", lwd = 0.008,
                alpha = 0.5) +
     tm_shape(states) +
-    tm_borders(col = "navyblue", lwd = 0.016,
-               alpha = 0.5) +
+    tm_borders(col = "blue", lwd = 0.024,
+               alpha = 1) +
     tmap_options(check.and.fix = TRUE)
   
   tmap_save(map, 
