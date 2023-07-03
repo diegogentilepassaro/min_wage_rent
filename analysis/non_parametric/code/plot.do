@@ -1,6 +1,7 @@
 clear all
 set more off
 set maxvar 32000
+set scheme s2color, permanently
 
 program main 
     local instub   "../../../drive/analysis_large/non_parametric"
