@@ -10,10 +10,22 @@ library(ggplot2)
 
 main <- function(){
   in_map   <- "../../../drive/raw_data/shapefiles/USPS_zipcodes"
+  in_counties   <- "../../../drive/raw_data/shapefiles/counties"
+  in_states   <- "../../../drive/raw_data/shapefiles/states"
   in_resid <- "../../fd_baseline/output"
   in_data  <- "../../../drive/derived_large/zipcode_month"
   
   data_for_map <- prepare_data(in_map, in_data, in_resid)
+  
+  counties <- read_sf(dsn = in_counties, 
+                      layer = "cb_2018_us_county_500k") %>%
+    select(COUNTYFP) %>%
+    rename(countyfp = COUNTYFP)
+  
+  states <- read_sf(dsn = in_states, 
+                      layer = "state") %>%
+    select(STFIPS) %>%
+    rename(stfips = STFIPS)
   
   events <- list(list("chicago",   16980, 2019, 6,  2019, 7),
                  list("san_diego", 41740, 2018, 12, 2019, 1),
@@ -32,19 +44,24 @@ main <- function(){
       max_break_r_rents <- round(max(df$change_resid_ln_rents, na.rm = TRUE), digits = 2)
       max_break_r_wkp   <- round(max(df$change_resid_wkp_on_res, na.rm = TRUE), digits = 2)
       
-      build_map(df, "change_ln_statutory_mw", "Change in\nresidence MW", 
+      build_map(df, counties, states, 
+                "change_ln_statutory_mw", "Change in\nresidence MW", 
                 c(0, max_break_mw/2, max_break_mw), 
                 paste0(event[[1]], "_", event[[3]], "-", event[[4]], "_statutory_mw"))
-      build_map(df, "change_wkp_ln_mw", "Change in\nworkplace MW", 
+      build_map(df, counties, states, 
+                "change_wkp_ln_mw", "Change in\nworkplace MW", 
                 c(0, max_break_mw/2, max_break_mw), 
                 paste0(event[[1]], event[[3]], "-", event[[4]], "_wkp_mw"))
-      build_map(df, "change_ln_rents", "Change in\nlog rents",
+      build_map(df, counties, states, 
+                "change_ln_rents", "Change in\nlog rents",
                 c(0, max_break_rents/2, max_break_rents),
                 paste0(event[[1]], event[[3]], "-", event[[4]], "_rents"))
-      build_map(df, "change_resid_ln_rents", "Residualized change\nin log rents",
+      build_map(df, counties, states, 
+                "change_resid_ln_rents", "Residualized change\nin log rents",
                 c(0, max_break_r_rents/2, max_break_r_rents),
                 paste0(event[[1]], event[[3]], "-", event[[4]], "_r_rents"))
-      build_map(df, "change_resid_wkp_on_res", "Residualized change\nin workplace MW ",
+      build_map(df, counties, states, 
+                "change_resid_wkp_on_res", "Residualized change\nin workplace MW ",
                 c(0, max_break_r_wkp/2, max_break_r_wkp),
                 paste0(event[[1]], event[[3]], "-", event[[4]], "_r_wkp"))
     }
@@ -92,7 +109,7 @@ restrict_and_build_changes <- function(data, cbsa_code, year_lb, month_lb,
     ungroup()
 }
 
-build_map <- function(data, var, var_legend, break_values,
+build_map <- function(data, counties, states, var, var_legend, break_values,
                       map_name, .dpi = 250){
   
   map <- tm_shape(data) + 
@@ -102,9 +119,16 @@ build_map <- function(data, var, var_legend, break_values,
             palette = c("#A6E1F4", "#077187"),
             breaks = break_values,
             textNA = "NA") +
-    tm_borders(col = "white", lwd = .01, alpha = 0.7) +
+    tm_borders(col = "white", lwd = .008, alpha = 0.5) +
     tm_layout(legend.position = c("left", "bottom"),
-    	      frame = FALSE)
+    	      frame = FALSE) +
+    tm_shape(counties) +
+    tm_borders(col = "black", lwd = 0.012,
+               alpha = 0.5) +
+    tm_shape(states) +
+    tm_borders(col = "navyblue", lwd = 0.016,
+               alpha = 0.5) +
+    tmap_options(check.and.fix = TRUE)
   
   tmap_save(map, 
             paste0("../output/", map_name, ".png"),
