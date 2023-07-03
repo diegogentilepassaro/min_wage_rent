@@ -1,5 +1,6 @@
 clear all
 set more off
+set scheme s2color, permanently
 
 program main 
 
@@ -37,7 +38,7 @@ program make_plot
     graph bar `yvar', over(`xvar') ytitle(`y_title') ///
         b1title(`x_title') graphregion(color(white)) bgcolor(white) bar(1, fcolor(`color'))
 
-    graph export "../output/`name'.png", replace width(`width') height(`height')
+    graph export "../output/`name'_png.png", replace width(`width') height(`height')
     graph export "../output/`name'.eps", replace
 
 end
@@ -52,7 +53,7 @@ program make_stacked_plot
         b1title(`x_title') graphregion(color(white)) bgcolor(white) ///
         asyvars stack
 
-    graph export "../output/`name'.png", replace width(`width') height(`height')
+    graph export "../output/`name'_png.png", replace width(`width') height(`height')
     graph export "../output/`name'.eps", replace
 
 end
