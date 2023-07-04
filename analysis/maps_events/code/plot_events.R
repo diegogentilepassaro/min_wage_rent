@@ -126,7 +126,7 @@ build_map <- function(data, counties, states, var, var_legend, break_values,
     tm_borders(col = "black", lwd = 0.008,
                alpha = 0.5) +
     tm_shape(states) +
-    tm_borders(col = "blue", lwd = 0.024,
+    tm_borders(col = "blue", lwd = 0.05,
                alpha = 1) +
     tmap_options(check.and.fix = TRUE)
   
