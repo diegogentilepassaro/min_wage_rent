@@ -33,6 +33,7 @@ start_make_logging()
 
 run_rbatch(program = 'prepare.R')
 run_stata(program = 'plot.do', executable = stata)
+run_rbatch(program = 'make_autofill_values.R')
 
 end_make_logging()
 
