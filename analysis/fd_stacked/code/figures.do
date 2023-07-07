@@ -1,7 +1,8 @@
 clear all
 set more off
 adopath + ../../../lib/stata/min_wage/ado
-set maxvar 32000 
+set maxvar 32000
+set scheme s2color, permanently
 
 program main
 	foreach w in 3 6 9 {

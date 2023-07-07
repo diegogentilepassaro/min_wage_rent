@@ -1,6 +1,7 @@
 clear all
 set more off
 set maxvar 32000
+set scheme s2color, permanently
 
 program main
     local in_large "../../../drive/analysis_large/counterfactuals"
@@ -54,7 +55,7 @@ program main
                 local filename "../output/hist_`var'"
             }
             
-            graph export "`filename'.png", replace width(2221) height(1615)
+            graph export "`filename'_png.png", replace width(2221) height(1615)
             graph export "`filename'.eps", replace
         }
 
@@ -67,7 +68,7 @@ program main
             xlabel(1(1)10) ylabel(0.06(0.04)0.18)                                      ///
             graphregion(color(white)) bgcolor(white) legend(off)
             
-        graph export "../output/deciles_diff_`cf'.png", width(2221) height(1615) replace
+        graph export "../output/deciles_diff_`cf'_png.png", width(2221) height(1615) replace
         graph export "../output/deciles_diff_`cf'.eps", replace
     }
 end

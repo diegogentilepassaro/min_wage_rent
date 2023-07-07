@@ -5,14 +5,16 @@ import subprocess
 folders_to_run = ["fd_baseline",
                   "non_parametric",
                   "fd_geos_times",
-                  "fd_heterogeneity",
+                  #"expenditure_shares",
+                  #"fd_heterogeneity",
                   "fd_robustness",
                   "fd_stacked",
-                  "twfe_wages",
-                  "counterfactuals",
-                  "autocorrelation",
+                  #"twfe_wages",
+                  #"fd_test",
+                  #"autocorrelation",
                   #"maps_events",
-                  "alternative_outcomes"]
+                  #"alternative_outcomes",
+                  "counterfactuals"]
 
 log_file = open("run.log", 'w')
 log_file.write("Started at " + time.strftime('%I:%M:%S%p %Z on %b %d, %Y\n\n'))

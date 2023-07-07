@@ -2,8 +2,11 @@ import os
 import time
 import subprocess
 
-folders_to_run = ["min_wage_panels",
-                  "min_wage_measures",
+folders_to_run = ["demographics_at_baseline",
+                  #"min_wage_panels",
+                  #"min_wage_measures",
+                  #"od_shares",
+                  "zipcode",
                   "zipcode_month",
                   "county_month",
                   "cbsa_month",
