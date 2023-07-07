@@ -108,12 +108,12 @@ build_map <- function(data, counties, var, var_legend, break_values,
             palette = c("#A6E1F4", "#077187"),
             breaks = break_values,
             textNA = "NA") +
-    tm_borders(col = "white", lwd = .008, alpha = 1) +
+    tm_borders(col = "white", lwd = .006, alpha = 1) +
     tm_layout(legend.position = c("left", "bottom"),
               legend.bg.color = "white",
               frame = FALSE) +
     tm_shape(counties) +
-    tm_borders(col = "black", lwd = 0.008,
+    tm_borders(col = "black", lwd = .002,
                alpha = 1) +
     tmap_options(check.and.fix = TRUE)
   
