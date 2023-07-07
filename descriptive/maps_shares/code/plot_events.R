@@ -10,10 +10,16 @@ library(ggplot2)
 
 main <- function(){
   in_map  <- "../../../drive/raw_data/shapefiles/USPS_zipcodes"
+  in_counties   <- "../../../drive/raw_data/shapefiles/counties"
   in_geo  <- "../../../drive/base_large/zipcode_master"
   in_data <- "../../../drive/derived_large/od_shares"
   
   df_data <- prepare_data(in_map, in_geo, in_data)
+
+  counties <- read_sf(dsn   = in_counties, 
+                      layer = "cb_2018_us_county_500k") %>%
+    select(COUNTYFP) %>%
+    rename(countyfp = COUNTYFP)
   
   events <- list(list("chicago",   16980, 2018),
                  #list("san_diego", 41740, 2018),
@@ -40,11 +46,11 @@ main <- function(){
         max_break <- round(max(c(df[[resid_var]], df[[workers_var]]), 
                                na.rm = TRUE), digits = 2)
         
-        build_map(df, resid_var, 
+        build_map(df, counties, resid_var, 
                   paste0("Share", lab, "\nresidents (%)"), 
                   c(0, max_break/2, max_break), 
                   paste0(event[[1]], event[[3]], "_share_residents", tt))
-        build_map(df, workers_var, 
+        build_map(df, counties, workers_var, 
                   paste0("Share", lab, "\nworkers (%)"), 
                   c(0, max_break/2, max_break), 
                   paste0(event[[1]], event[[3]], "_share_workers", tt))
@@ -55,7 +61,7 @@ main <- function(){
 
 prepare_data <- function(in_map, in_geo, in_data) {
   
-  df_map <- read_sf(dsn = in_map, 
+  df_map <- read_sf(dsn   = in_map, 
                     layer = "USPS_zipcodes_July2020") %>%
     select(ZIP_CODE) %>%
     rename(zipcode = ZIP_CODE)
@@ -95,8 +101,8 @@ prepare_event_data <- function(data, cbsa_code, year_num) {
     replace(is.na(.), 0)
 }
 
-build_map <- function(data, var, var_legend, break_values,
-                      map_name, .dpi = 250) {
+build_map <- function(data, counties, var, var_legend, break_values,
+                      map_name, .dpi = 300) {
   
   map <- tm_shape(data) + 
     tm_fill(col = var,
@@ -105,12 +111,17 @@ build_map <- function(data, var, var_legend, break_values,
             palette = c("#A6E1F4", "#077187"),
             breaks = break_values,
             textNA = "NA") +
-    tm_borders(col = "white", lwd = .01, alpha = 0.7) +
+    tm_borders(col = "white", lwd = .006, alpha = 1) +
     tm_layout(legend.position = c("left", "bottom"),
-    	      frame = FALSE)
+              legend.bg.color = "white",
+              frame = FALSE) +
+    tm_shape(counties) +
+    tm_borders(col = "black", lwd = .002,
+               alpha = 1) +
+    tmap_options(check.and.fix = TRUE)
   
   tmap_save(map, 
-            paste0("../output/", map_name, ".png"),
+            paste0("../output/", map_name, "_png.png"),
             dpi = .dpi)
   tmap_save(map, 
             paste0("../output/", map_name, ".eps"))
