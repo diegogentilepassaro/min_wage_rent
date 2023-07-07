@@ -16,7 +16,7 @@ main <- function(){
   
   df_data <- prepare_data(in_map, in_geo, in_data)
 
-  counties <- read_sf(dsn = in_counties, 
+  counties <- read_sf(dsn   = in_counties, 
                       layer = "cb_2018_us_county_500k") %>%
     select(COUNTYFP) %>%
     rename(countyfp = COUNTYFP)
@@ -61,7 +61,7 @@ main <- function(){
 
 prepare_data <- function(in_map, in_geo, in_data) {
   
-  df_map <- read_sf(dsn = in_map, 
+  df_map <- read_sf(dsn   = in_map, 
                     layer = "USPS_zipcodes_July2020") %>%
     select(ZIP_CODE) %>%
     rename(zipcode = ZIP_CODE)

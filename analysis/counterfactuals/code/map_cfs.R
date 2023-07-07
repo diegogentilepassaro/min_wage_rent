@@ -12,13 +12,13 @@ main <- function() {
   in_counties   <- "../../../drive/raw_data/shapefiles/counties"
   in_large <- "../../../drive/analysis_large/counterfactuals"
 
-  USPS_zipcodes <- read_sf(dsn = in_map, 
+  USPS_zipcodes <- read_sf(dsn   = in_map, 
                            layer = "USPS_zipcodes_July2020") %>%
     select(ZIP_CODE, PO_NAME, STATE, POPULATION, SQMI, POP_SQMI) %>%
     rename(zipcode = ZIP_CODE, zipcode_name = PO_NAME,
            state_name = STATE)
 
-    counties <- read_sf(dsn = in_counties, 
+  counties <- read_sf(dsn   = in_counties, 
                       layer = "cb_2018_us_county_500k") %>%
     select(COUNTYFP) %>%
     rename(countyfp = COUNTYFP)

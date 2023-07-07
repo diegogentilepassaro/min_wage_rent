@@ -9,23 +9,23 @@ library(leaflet)
 library(ggplot2)
 
 main <- function(){
-  in_map   <- "../../../drive/raw_data/shapefiles/USPS_zipcodes"
-  in_counties   <- "../../../drive/raw_data/shapefiles/counties"
+  in_map      <- "../../../drive/raw_data/shapefiles/USPS_zipcodes"
+  in_counties <- "../../../drive/raw_data/shapefiles/counties"
   in_states   <- "../../../drive/raw_data/shapefiles/states"
-  in_resid <- "../../fd_baseline/output"
-  in_data  <- "../../../drive/derived_large/zipcode_month"
+  in_resid    <- "../../fd_baseline/output"
+  in_data     <- "../../../drive/derived_large/zipcode_month"
   
   data_for_map <- prepare_data(in_map, in_data, in_resid)
   
-  counties <- read_sf(dsn = in_counties, 
+  counties <- read_sf(dsn   = in_counties, 
                       layer = "cb_2018_us_county_500k") %>%
     select(COUNTYFP) %>%
     rename(countyfp = COUNTYFP)
   
-  states <- read_sf(dsn = in_states, 
-                      layer = "state") %>%
-    select(STFIPS) %>%
-    rename(stfips = STFIPS)
+  #states <- read_sf(dsn   = in_states, 
+  #                  layer = "state") %>%
+  #  select(STFIPS) %>%
+  #  rename(stfips = STFIPS)
   
   events <- list(list("chicago",   16980, 2019, 6,  2019, 7),
                  list("san_diego", 41740, 2018, 12, 2019, 1),
@@ -44,23 +44,23 @@ main <- function(){
       max_break_r_rents <- round(max(df$change_resid_ln_rents, na.rm = TRUE), digits = 2)
       max_break_r_wkp   <- round(max(df$change_resid_wkp_on_res, na.rm = TRUE), digits = 2)
       
-      build_map(df, counties, states, 
+      build_map(df, counties, 
                 "change_ln_statutory_mw", "Change in\nresidence MW", 
                 c(0, max_break_mw/2, max_break_mw), 
                 paste0(event[[1]], "_", event[[3]], "-", event[[4]], "_statutory_mw"))
-      build_map(df, counties, states, 
+      build_map(df, counties, 
                 "change_wkp_ln_mw", "Change in\nworkplace MW", 
                 c(0, max_break_mw/2, max_break_mw), 
                 paste0(event[[1]], event[[3]], "-", event[[4]], "_wkp_mw"))
-      build_map(df, counties, states, 
+      build_map(df, counties, 
                 "change_ln_rents", "Change in\nlog rents",
                 c(0, max_break_rents/2, max_break_rents),
                 paste0(event[[1]], event[[3]], "-", event[[4]], "_rents"))
-      build_map(df, counties, states, 
+      build_map(df, counties, 
                 "change_resid_ln_rents", "Residualized change\nin log rents",
                 c(0, max_break_r_rents/2, max_break_r_rents),
                 paste0(event[[1]], event[[3]], "-", event[[4]], "_r_rents"))
-      build_map(df, counties, states, 
+      build_map(df, counties, 
                 "change_resid_wkp_on_res", "Residualized change\nin workplace MW ",
                 c(0, max_break_r_wkp/2, max_break_r_wkp),
                 paste0(event[[1]], event[[3]], "-", event[[4]], "_r_wkp"))
@@ -109,7 +109,7 @@ restrict_and_build_changes <- function(data, cbsa_code, year_lb, month_lb,
     ungroup()
 }
 
-build_map <- function(data, counties, states, var, var_legend, break_values,
+build_map <- function(data, counties, var, var_legend, break_values, #, states
                       map_name, .dpi = 300){
   
   map <- tm_shape(data) + 
@@ -128,7 +128,6 @@ build_map <- function(data, counties, states, var, var_legend, break_values,
                alpha = 1) +
     # tm_fill(col = "statefp",
     #         style = "fixed",
-    #         palette = c("red", "orange", "yellow", "green"),
     #         alpha = 0.2) +
     # tm_shape(states) +
     # tm_borders(col = "blue", lwd = 0.05,
