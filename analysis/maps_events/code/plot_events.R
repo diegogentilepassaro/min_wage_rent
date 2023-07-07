@@ -119,19 +119,24 @@ build_map <- function(data, counties, states, var, var_legend, break_values,
             palette = c("#A6E1F4", "#077187"),
             breaks = break_values,
             textNA = "NA") +
-    tm_borders(col = "white", lwd = .008, alpha = 0.9) +
+    tm_borders(col = "white", lwd = .008, alpha = 1) +
     tm_layout(legend.position = c("left", "bottom"),
-    	      frame = FALSE) +
+              legend.bg.color = "white",
+    	        frame = FALSE) +
     tm_shape(counties) +
     tm_borders(col = "black", lwd = 0.008,
-               alpha = 0.5) +
-    tm_shape(states) +
-    tm_borders(col = "blue", lwd = 0.05,
                alpha = 1) +
+    # tm_fill(col = "statefp",
+    #         style = "fixed",
+    #         palette = c("red", "orange", "yellow", "green"),
+    #         alpha = 0.2) +
+    # tm_shape(states) +
+    # tm_borders(col = "blue", lwd = 0.05,
+    #            alpha = 1) +
     tmap_options(check.and.fix = TRUE)
   
   tmap_save(map, 
-            paste0("../output/", map_name, ".png"),
+            paste0("../output/", map_name, "_png.png"),
             dpi = .dpi)
   tmap_save(map, 
             paste0("../output/", map_name, ".eps"))
