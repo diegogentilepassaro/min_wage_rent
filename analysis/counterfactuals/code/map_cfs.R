@@ -9,6 +9,7 @@ library(ggplot2)
 
 main <- function() {
   in_map   <- "../../../drive/raw_data/shapefiles/USPS_zipcodes"
+  in_counties   <- "../../../drive/raw_data/shapefiles/counties"
   in_large <- "../../../drive/analysis_large/counterfactuals"
 
   USPS_zipcodes <- read_sf(dsn = in_map, 
@@ -16,6 +17,11 @@ main <- function() {
     select(ZIP_CODE, PO_NAME, STATE, POPULATION, SQMI, POP_SQMI) %>%
     rename(zipcode = ZIP_CODE, zipcode_name = PO_NAME,
            state_name = STATE)
+
+    counties <- read_sf(dsn = in_counties, 
+                      layer = "cb_2018_us_county_500k") %>%
+    select(COUNTYFP) %>%
+    rename(countyfp = COUNTYFP)
   
   df_cf_data <- data.table::fread(file.path(in_large, "data_counterfactuals.csv"),
                                   colClasses = c(zipcode = "character")) %>%
@@ -33,6 +39,7 @@ main <- function() {
   max_break <- round(max(df_chicago$s_imputed, na.rm = TRUE), digits = 3)
   
   build_map(data         = df_chicago, 
+            counties     = counties,
             var          = "s_imputed", 
             var_legend   ="Share of expenditure in housing", 
             break_values = c(min_break, (min_break + max_break)/2, max_break), 
@@ -82,6 +89,7 @@ main <- function() {
         }
         
         build_map(data         = df_chicago, 
+                  counties     = counties,
                   var          = yvar, 
                   var_legend   = legend_name, 
                   break_values = break_vals, 
@@ -90,8 +98,8 @@ main <- function() {
   }
 }
 
-build_map <- function(data, var, var_legend, break_values,
-                      map_name, .dpi = 250) {
+build_map <- function(data, counties, var, var_legend, break_values,
+                      map_name, .dpi = 300) {
   
   map <- tm_shape(data) + 
     tm_fill(col = var,
@@ -100,12 +108,17 @@ build_map <- function(data, var, var_legend, break_values,
             palette = c("#A6E1F4", "#077187"),
             breaks = break_values,
             textNA = "NA") +
-    tm_borders(col = "white", lwd = .01, alpha = 0.7) +
+    tm_borders(col = "white", lwd = .008, alpha = 1) +
     tm_layout(legend.position = c("left", "bottom"),
-            frame = FALSE)
+              legend.bg.color = "white",
+              frame = FALSE) +
+    tm_shape(counties) +
+    tm_borders(col = "black", lwd = 0.008,
+               alpha = 1) +
+    tmap_options(check.and.fix = TRUE)
   
   tmap_save(map, 
-            paste0("../output/", map_name, ".png"),
+            paste0("../output/", map_name, "_png.png"),
             dpi = .dpi)
   tmap_save(map, 
             paste0("../output/", map_name, ".eps"))
