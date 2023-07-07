@@ -72,7 +72,7 @@ program make_plots
         xtitle(`xlab1') ytitle("Log rents")                          ///
         graphregion(color(white)) bgcolor(white) legend(off) 
 
-    graph export "../output/`mgroup'_`mw_var'.png", replace           ///
+    graph export "../output/`mgroup'_`mw_var'_png.png", replace           ///
         width(`width') height(`height')
     graph export "../output/`mgroup'_`mw_var'.pdf", replace
 
@@ -90,7 +90,7 @@ program make_plots
         xtitle(`xlab2') ytitle("Log rents (residualized)")              ///
         bgcolor(white) graphregion(color(white)) legend(off)
 
-    graph export "../output/`mgroup'_`mw_var'`vtype'.png", replace       ///
+    graph export "../output/`mgroup'_`mw_var'`vtype'_png.png", replace       ///
         width(`width') height(`height')
     graph export "../output/`mgroup'_`mw_var'`vtype'.pdf", replace
     
