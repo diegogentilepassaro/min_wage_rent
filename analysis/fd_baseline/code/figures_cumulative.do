@@ -9,11 +9,6 @@ program main
 
     use "`instub'/estimates_dynamic.dta", replace
 
-    local y_label    "-0.08(0.02).14"
-    local mw_wkp_var "mw_wkp_tot_17"
-    sum at
-    local w = r(max)
-
     keep if model == "both_mw_wkp_dynamic"
 
     sum b if var == "mw_wkp_tot_17" & at == 0
@@ -31,13 +26,13 @@ program main
     replace b_cum_both = `beta' + `gamma' if at >= 0
 
     twoway   ///
-           (line b_cum_onlywkp at, mcol(navy)   msymbol(circle))                      ///
-           (line b_cum_both    at, mcol(maroon) msymbol(square)),                     ///
-        yline(0, lcol(grey) lpattern(dot))                                            ///
-        xlabel(-6(1)6,              labsize(small)) xtitle("")                        ///
-        ylabel(-0.08(0.02).14, grid labsize(small)) ytitle("Implied cumulative path") ///
-        legend(order(1 `"Only workplace MW"'                                          ///
-                    2 `"Both workplace and residence MW"'))                           ///
+           (line b_cum_onlywkp at, mcol(navy)   msymbol(circle))                     ///
+           (line b_cum_both    at, mcol(maroon) msymbol(square)),                    ///
+        yline(0, lcol(grey) lpattern(dot))                                           ///
+        xlabel(-6(1)6,              labsize(small)) xtitle("")                       ///
+        ylabel(-0.04(0.02).1, grid labsize(small)) ytitle("Implied cumulative path") ///
+        legend(order(1 `"Only workplace MW"'                                         ///
+                    2 `"Both workplace and residence MW"'))                          ///
         graphregion(color(white)) bgcolor(white)
 	
     graph export "../output/implied_cumulative_png.png", replace width(2221) height(1615)
