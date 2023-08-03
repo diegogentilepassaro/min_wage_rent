@@ -28,25 +28,5 @@ program main
     graph export "../output/incidence_by_epsilon.eps", replace
 end
 
-program get_xlabel, rclass
-    syntax, var(str)
-
-    if inlist("`var'", "p_d_ln_rents", "p_d_ln_rents_with_fe", ///
-              "p_d_ln_rents_zillow", "p_d_ln_rents_with_fe_zillow") {
-        return local x_lab "Change in log rents"
-    }
-
-    if "`var'"=="d_mw_res"           return local x_lab "Change in residence MW"
-    if "`var'"=="d_mw_wkp"           return local x_lab "Change in workplace MW"
-
-    if "`var'"=="change_ln_rents"    return local x_lab "Change in log rents per sq. foot"
-    if "`var'"=="change_ln_wagebill" return local x_lab "Change in log total wages"
-
-    if "`var'"=="rho"                return local x_lab "Share pocketed by landlords"
-    if "`var'"=="rho_with_imputed"   return local x_lab "Share pocketed by landlords"
-
-    if "`var'"=="s_imputed"          return local x_lab "Housing expenditure share"
-end
-
 
 main
