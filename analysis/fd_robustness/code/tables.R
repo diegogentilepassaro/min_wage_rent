@@ -56,7 +56,6 @@ main <- function() {
               paste(est[model == "baseline"           & var == "cumsum_from0",][[stat]],
                     est[model == "baseline_wgt"        & var == "cumsum_from0",][[stat]],
                     est[model == "unbal_by_entry"     & var == "cumsum_from0",][[stat]],
-                    est[model == "unbal_by_entry_wgt" & var == "cumsum_from0",][[stat]],
                     sep = "\t"))
   }
 
