@@ -43,13 +43,11 @@ main <- function() {
               paste(est[model == "baseline"           & var == xvar,]$b,
                     est[model == "baseline_wgt"        & var == xvar,]$b,
                     est[model == "unbal_by_entry"     & var == xvar,]$b,
-                    est[model == "unbal_by_entry_wgt" & var == xvar,]$b,
                     sep = "\t"))
     txt  <- c(txt, 
               paste(est[model == "baseline"           & var == xvar,]$se,
                     est[model == "baseline_wgt"        & var == xvar,]$se,
                     est[model == "unbal_by_entry"     & var == xvar,]$se,
-                    est[model == "unbal_by_entry_wgt" & var == xvar,]$se,
                     sep = "\t"))
   }
 
