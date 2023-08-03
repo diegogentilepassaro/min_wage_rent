@@ -1,5 +1,5 @@
 
- make.py started: 2023-07-02 16:31:12 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\fd_heterogeneity\code 
+ make.py started: 2023-08-02 17:37:07 C:\Users\shermo\Documents\GitHub\min_wage_rent\analysis\fd_heterogeneity\code 
 
 
 
@@ -69,62 +69,64 @@ running c:\ado\personal\profile.do ...
   6.     keep if program_label == "Public Housing"
   7.     keep if year == 2017
   8.     keep zipcode total_units
-  9.     save_data "`outstub'/public_housing_2017.dta", key(zipcode) replace lo
-> g(none)
+  9.     save_data "../temp/public_housing_2017.dta", key(zipcode) replace log(
+> none)
  10. 
 .     load_and_clean, instub(`instub') incross(`incross')
  11. 
-.     merge m:1 zipcode using "`outstub'/public_housing_2017.dta",    ///
->         nogen keep(1 3)
- 12. 
-.     prepare_public_housing
- 13. 
 .     save_data "`outstub'/fullbal_sample_with_vars_for_het.dta",     ///
 >         key(zipcode year_month) replace log(none)
- 14. end
+ 12. end
 
 . 
 . 
 . program load_and_clean
   1.     syntax, instub(str) incross(str)
   2. 
+.     use zipcode fullbal_sample_SFCC  ///
+>         using "`instub'/zipcode_months.dta", clear
+  3.         
+.         keep if fullbal_sample_SFCC == 1
+  4.         duplicates drop
+  5.         
+.         tempfile baseline_sample
+  6.         save    `baseline_sample'
+  7.         
+.     use zipcode sh_mw_wkrs_statutory med_hhld_inc_acs2014 n_hhlds_cens2010 //
+> /
+>                 using "`incross'/zipcode_cross.dta", clear
+  8.         
+.         merge 1:1 zipcode using `baseline_sample',                 ///
+>                 assert(1 3) keep(3) nogen
+  9.         merge 1:1 zipcode using "../temp/public_housing_2017.dta", ///
+>                 assert(1 2 3) keep(1 3) nogen
+ 10. 
+.     replace total_units       = 0 if missing(total_units)
+ 11.     gen     sh_public_housing = total_units/n_hhlds_cens2010
+ 12.         
+.     foreach var in sh_mw_wkrs_statutory med_hhld_inc_acs2014 sh_public_housin
+> g {
+ 13.         egen avg_`var' = mean(`var')
+ 14.         egen sd_`var'  = sd(`var')
+ 15.                                 
+.         gen std_`var' = (`var' - avg_`var')/sd_`var'
+ 16.     }
+ 17.         
+.         tempfile std_vars
+ 18.         save    `std_vars'
+ 19.         
 .     define_controls
-  3.     local controls     "`r(economic_controls)'"
-  4. 
+ 20.     local controls     "`r(economic_controls)'"
+ 21. 
 .     use zipcode statefips cbsa year_month zipcode_num ln_rents mw_res  ///
 >         mw_wkp_tot_17 fullbal_sample_SFCC `controls'                   ///
 >         using "`instub'/zipcode_months.dta", clear
-  5.     xtset zipcode_num year_month
-  6. 
-.     merge m:1 zipcode using "`incross'/zipcode_cross.dta", nogen       ///
->         keep(1 3) keepusing(sh_mw_wkrs_statutory med_hhld_inc_acs2014 n_hhlds
-> _cens2010)
-  7. 
-.     foreach var in sh_mw_wkrs_statutory med_hhld_inc_acs2014 {
-  8.             qui sum `var'
-  9.         local avg_`var' = r(mean)
- 10.         local sd_`var' = r(sd)
- 11.         gen std_`var' = (`var' - `avg_`var'')/`sd_`var''
- 12.     }
- 13. end
+ 22.     xtset zipcode_num year_month
+ 23.                 
+.     merge m:1 zipcode using `std_vars', nogen assert(1 3) keep(3)
+ 24. end
 
 . 
-. program prepare_public_housing
-  1. 
-.     gen     public_housing = (total_units > 0) if !missing(total_units)
-  2.     replace public_housing = 0 if missing(total_units)
-  3. 
-.     gen     sh_public_housing = total_units/n_hhlds_cens2010
-  4.     replace sh_public_housing = 0 if missing(total_units)
-  5. 
-.     qui sum sh_public_housing
-  6.     local avg_sh_public_housing = r(mean)
-  7.     local sd_sh_public_housing  = r(sd)
-  8. 
-.     gen std_sh_public_housing   = (sh_public_housing - `avg_sh_public_housing
-> ')/`sd_sh_public_housing'
-  9. end
-
 . 
 . main
 (310,972 observations deleted)
@@ -148,6 +150,33 @@ Key: zipcode
 
 (note: file ../temp/public_housing_2017.dta not found)
 file ../temp/public_housing_2017.dta saved
+(274,409 observations deleted)
+
+Duplicates in terms of all variables
+
+(79,355 observations deleted)
+file C:\Users\shermo\AppData\Local\Temp\8\ST_66bc_000002.tmp saved
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                             1,345  
+    -----------------------------------------
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                           898
+        from master                       898  
+        from using                          0  
+
+    matched                               447  
+    -----------------------------------------
+(898 real changes made)
+(9 missing values generated)
+(82 missing values generated)
+(51 missing values generated)
+(9 missing values generated)
+file C:\Users\shermo\AppData\Local\Temp\8\ST_66bc_000003.tmp saved
        panel variable:  zipcode_num (unbalanced)
         time variable:  year_month, 2010m1 to 2020m6, but with gaps
                 delta:  1 month
@@ -155,67 +184,56 @@ file ../temp/public_housing_2017.dta saved
     Result                           # of obs.
     -----------------------------------------
     not matched                             0
-    matched                           355,109  
+    matched                           151,184  
     -----------------------------------------
-(18,327 missing values generated)
-(13,288 missing values generated)
-
-    Result                           # of obs.
-    -----------------------------------------
-    not matched                       229,639
-        from master                   229,639  
-        from using                          0  
-
-    matched                           125,470  
-    -----------------------------------------
-(229,639 missing values generated)
-(229,639 real changes made)
-(230,708 missing values generated)
-(229,639 real changes made)
-(1,069 missing values generated)
 (data now sorted by zipcode year_month)
-  variable public_housing was float now byte
-  (1,065,327 bytes saved)
+  (0 bytes saved)
 ===============================================================================
 File: ../temp/fullbal_sample_with_vars_for_het.dta
 Key: zipcode year_month
 ===============================================================================
-  355109:27(83670):145282617:2825914516
+  151184:32(44472):3320689506:2169973548
 
     Variable |        Obs        Mean    Std. Dev.       Min        Max
 -------------+---------------------------------------------------------
      zipcode |          0
-  year_month |    355,109    684.4037    30.30951        600        725
- zipcode_num |    355,109    56535.27    30239.01       1060      99827
+  year_month |    151,184    668.7668    33.26308        600        725
+ zipcode_num |    151,184    53421.13    29001.43       2109      99577
    statefips |          0
         cbsa |          0
 -------------+---------------------------------------------------------
-      mw_res |    355,109    2.151174    .1901822   1.981001   2.796671
-mw_wkp_to~17 |    354,229    2.154042    .1862173   1.981001   2.742209
-    ln_rents |    197,978    .1260564    .4678614  -2.215314   3.176775
-ln_emp_biz~v |    321,915    10.65503    1.926324          0   13.38876
- ln_emp_info |    315,423    8.653098    1.889772   1.098612   12.38988
+      mw_res |    151,184    2.094302    .1516782   1.981001   2.796671
+mw_wkp_to~17 |    151,184     2.09697    .1485789   1.981057   2.742209
+    ln_rents |    133,600    .0763131    .4611457  -.8722227   3.100092
+ln_emp_biz~v |    143,114    11.14567    1.363482   5.796058   13.38876
+ ln_emp_info |    142,354    9.011185    1.532935   2.397895   12.38988
 -------------+---------------------------------------------------------
-  ln_emp_fin |    321,928    9.747678    1.808521   1.386294   12.89542
-ln_estcoun~v |    323,330    8.196229    1.738925          0   10.96353
-ln_estcoun~o |    322,479    5.710685    1.716774          0   9.531191
-ln_estcoun~n |    323,273    7.544622    1.623452          0   10.33748
-ln_avgwwag~v |    321,915    7.107521    .3343329   5.370638   10.20196
+  ln_emp_fin |    143,086    10.20136     1.41832    4.75359   12.89542
+ln_estcoun~v |    143,114    8.685269    1.241875   4.127134   10.96353
+ln_estcoun~o |    143,114    6.107783    1.331024   1.386294   9.531191
+ln_estcoun~n |    143,114    7.983425     1.19925   3.496508   10.33748
+ln_avgwwag~v |    143,114    7.088391    .3087373   5.420535   8.432724
 -------------+---------------------------------------------------------
-ln_avgwwag~o |    315,423    7.278253    .4095916   4.219508   9.584453
-ln_avgwwag~n |    321,928    7.251429    .3834304    5.97381   9.163982
-fullbal_sa~C |    197,978     .407621    .4913933          0          1
-n_hhlds~2010 |    355,109    13195.11    6958.384          0      48073
-med_hhl~2014 |    341,821    53884.25     25537.9         25   196272.2
+ln_avgwwag~o |    142,354    7.269368    .3436672   5.891644   8.906665
+ln_avgwwag~n |    143,086    7.243089    .3698844   6.216606   9.163982
+fullbal_sa~C |    133,600    .6040419    .4890573          0          1
+n_hhlds~2010 |    151,184    16124.82    5854.712          0      48073
+med_hhl~2014 |    145,357    60362.17    22850.66      15041   176169.7
 -------------+---------------------------------------------------------
-sh_mw_wkrs~y |    336,782    .1615454    .0540559          0   .6626087
-std_sh_mw_~y |    336,782   -4.63e-10           1   -2.98849   9.269358
-std_med~2014 |    341,821    4.62e-10           1  -2.108993   5.575556
- total_units |    125,470    224.4675    468.7269          0      10966
-public_hou~g |    355,109    .3523369    .4776989          0          1
+sh_mw_wkrs~y |    142,095    .1498804    .0467857   .0132085   .5346981
+ total_units |    151,184    73.83693    359.1998          0      10966
+sh_public_~g |    150,194    .0041936    .0166307          0   .3458869
+avg_sh_mw_~y |    151,184    .1496538           0   .1496538   .1496538
+sd_sh_mw_w~y |    151,184    .0468274           0   .0468274   .0468274
 -------------+---------------------------------------------------------
-sh_public_~g |    354,040    .0057108    .0184737          0   .4383979
-std_sh_pub~g |    354,040    6.48e-09           1  -.3091314   23.42176
+std_sh_mw_~y |    142,095    .0048405    .9991106  -2.913794   8.222636
+avg_med~2014 |    151,184    60456.92           0   60456.92   60456.92
+sd_med_~2014 |    151,184    22922.85           0   22922.85   22922.85
+std_med~2014 |    145,357   -.0041335    .9968506  -1.981251   5.047921
+avg_sh_pub~g |    151,184    .0043822           0   .0043822   .0043822
+-------------+---------------------------------------------------------
+sd_sh_publ~g |    151,184    .0173372           0   .0173372   .0173372
+std_sh_pub~g |    150,194   -.0108803    .9592514  -.2527651   19.69778
 
 
 
@@ -391,7 +409,7 @@ running c:\ado\personal\profile.do ...
 . 
 . main
        panel variable:  zipcode_num (unbalanced)
-        time variable:  year_month, 2010m1 to 2020m6, but with gaps
+        time variable:  year_month, 2010m1 to 2020m6
                 delta:  1 month
 (MWFE estimator converged in 1 iterations)
 
@@ -450,7 +468,7 @@ Absorbed degrees of freedom:
 -----------------------------------------------------+
 (note: file ../temp/estimates.dta not found)
 file ../temp/estimates.dta saved
-(355,107 observations deleted)
+(151,182 observations deleted)
 (0 observations deleted)
 (1 missing value generated)
 (1 real change made)
@@ -491,19 +509,19 @@ Number of clusters (statefips) =         39       Root MSE        =     0.0296
   D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
       mw_res |
-         D1. |  -.0686723   .0269481    -2.55   0.015    -.1232258   -.0141187
+         D1. |  -.0483409   .0196067    -2.47   0.018    -.0880325   -.0086493
              |
    cD.mw_res#|
           c. |
-std_sh_mw_~y |  -.0924202   .0452154    -2.04   0.048    -.1839539   -.0008865
+std_sh_mw_~y |  -.0800615    .039169    -2.04   0.048    -.1593551   -.0007679
              |
 mw_wkp_to~17 |
-         D1. |   .1182656   .0369016     3.20   0.003     .0435622     .192969
+         D1. |   .0969021   .0300317     3.23   0.003     .0361061    .1576981
              |
          cD. |
 mw_wkp_to~17#|
           c. |
-std_sh_mw_~y |    .097112   .0513763     1.89   0.066    -.0068938    .2011179
+std_sh_mw_~y |   .0841259   .0445061     1.89   0.066    -.0059719    .1742238
              |
 ln_emp_biz~v |
          D1. |   .0160749   .0072194     2.23   0.032       .00146    .0306897
@@ -545,7 +563,7 @@ Absorbed degrees of freedom:
 ------------------------------------------------------------------------------
   D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |  -.1610924   .0690941    -2.33   0.025    -.3009661   -.0212187
+         (1) |  -.1284024    .053618    -2.39   0.022    -.2369463   -.0198584
 ------------------------------------------------------------------------------
 
  ( 1)  D.mw_wkp_tot_17 + cD.mw_wkp_tot_17#c.std_sh_mw_wkrs_statutory = 0
@@ -553,13 +571,13 @@ Absorbed degrees of freedom:
 ------------------------------------------------------------------------------
   D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |   .2153777   .0816832     2.64   0.012     .0500186    .3807367
+         (1) |    .181028   .0647333     2.80   0.008     .0499823    .3120738
 ------------------------------------------------------------------------------
-(355,107 observations deleted)
+(151,182 observations deleted)
 (1 real change made)
 (note: file ../temp/sum_het_mw_shares.dta not found)
 file ../temp/sum_het_mw_shares.dta saved
-(355,105 observations deleted)
+(151,180 observations deleted)
 (0 observations deleted)
 (4 real changes made)
 (2 real changes made)
@@ -583,19 +601,19 @@ Number of clusters (statefips) =         40       Root MSE        =     0.0295
   D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
       mw_res |
-         D1. |  -.0522643   .0311355    -1.68   0.101    -.1152418    .0107131
+         D1. |  -.0377464   .0253929    -1.49   0.145    -.0891084    .0136157
              |
    cD.mw_res#|
           c. |
-std_med~2014 |   .0564091   .0296538     1.90   0.065    -.0035713    .1163895
+std_med~2014 |   .0506329   .0266173     1.90   0.065    -.0032056    .1044714
              |
 mw_wkp_to~17 |
-         D1. |   .1036528   .0431411     2.40   0.021     .0163916    .1909139
+         D1. |   .0862158   .0355619     2.42   0.020     .0142851    .1581465
              |
          cD. |
 mw_wkp_to~17#|
           c. |
-std_med~2014 |  -.0677508   .0383472    -1.77   0.085    -.1453153    .0098137
+std_med~2014 |  -.0608132   .0344205    -1.77   0.085    -.1304352    .0088088
              |
 ln_emp_biz~v |
          D1. |    .015498   .0078586     1.97   0.056    -.0003976    .0313937
@@ -637,7 +655,7 @@ Absorbed degrees of freedom:
 ------------------------------------------------------------------------------
   D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |   .0041448   .0190042     0.22   0.828    -.0342948    .0425843
+         (1) |   .0128865   .0205982     0.63   0.535    -.0287774    .0545504
 ------------------------------------------------------------------------------
 
  ( 1)  D.mw_wkp_tot_17 + cD.mw_wkp_tot_17#c.std_med_hhld_inc_acs2014 = 0
@@ -645,13 +663,13 @@ Absorbed degrees of freedom:
 ------------------------------------------------------------------------------
   D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |    .035902   .0252089     1.42   0.162    -.0150878    .0868918
+         (1) |   .0254026   .0266223     0.95   0.346    -.0284461    .0792513
 ------------------------------------------------------------------------------
-(355,107 observations deleted)
+(151,182 observations deleted)
 (1 real change made)
 (note: file ../temp/sum_het_med_inc.dta not found)
 file ../temp/sum_het_med_inc.dta saved
-(355,105 observations deleted)
+(151,180 observations deleted)
 (0 observations deleted)
 (4 real changes made)
 (2 real changes made)
@@ -661,60 +679,60 @@ file ../temp/sum_het_med_inc.dta saved
 file ../temp/estimates_het_med_inc.dta saved
 (MWFE estimator converged in 1 iterations)
 
-HDFE Linear regression                            Number of obs   =     79,941
-Absorbing 1 HDFE group                            F(  13,     40) =       4.64
+HDFE Linear regression                            Number of obs   =     79,701
+Absorbing 1 HDFE group                            F(  13,     39) =       4.76
 Statistics robust to heteroskedasticity           Prob > F        =     0.0001
                                                   R-squared       =     0.0213
                                                   Adj R-squared   =     0.0204
                                                   Within R-sq.    =     0.0005
-Number of clusters (statefips) =         41       Root MSE        =     0.0295
+Number of clusters (statefips) =         40       Root MSE        =     0.0295
 
-                             (Std. Err. adjusted for 41 clusters in statefips)
+                             (Std. Err. adjusted for 40 clusters in statefips)
 ------------------------------------------------------------------------------
              |               Robust
   D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
       mw_res |
-         D1. |  -.0223774    .015962    -1.40   0.169    -.0546378     .009883
+         D1. |  -.0158416   .0149943    -1.06   0.297    -.0461706    .0144873
              |
    cD.mw_res#|
           c. |
-std_sh_pub~g |  -.0337936   .0348759    -0.97   0.338    -.1042804    .0366932
+std_sh_pub~g |  -.0336422   .0329747    -1.02   0.314    -.1003397    .0330554
              |
 mw_wkp_to~17 |
-         D1. |   .0703578   .0271416     2.59   0.013     .0155026     .125213
+         D1. |   .0644767     .02578     2.50   0.017     .0123317    .1166216
              |
          cD. |
 mw_wkp_to~17#|
           c. |
-std_sh_pub~g |   .0305144   .0396121     0.77   0.446    -.0495447    .1105734
+std_sh_pub~g |   .0306369   .0374098     0.82   0.418    -.0450315    .1063053
              |
 ln_emp_biz~v |
-         D1. |   .0161291   .0078935     2.04   0.048     .0001757    .0320824
+         D1. |   .0159133   .0078866     2.02   0.051    -.0000389    .0318654
              |
  ln_emp_info |
-         D1. |    .002491   .0044376     0.56   0.578    -.0064777    .0114596
+         D1. |    .002603   .0044016     0.59   0.558    -.0063001    .0115061
              |
   ln_emp_fin |
-         D1. |   .0085069   .0073644     1.16   0.255    -.0063772    .0233909
+         D1. |   .0084598   .0073724     1.15   0.258    -.0064523    .0233719
              |
 ln_estcoun~v |
-         D1. |   .0031625   .0203632     0.16   0.877    -.0379931    .0443182
+         D1. |    .003947   .0203373     0.19   0.847    -.0371891    .0450832
              |
 ln_estcoun~o |
-         D1. |   .0033706   .0078577     0.43   0.670    -.0125105    .0192517
+         D1. |   .0033139   .0078676     0.42   0.676    -.0125999    .0192276
              |
 ln_estcoun~n |
-         D1. |  -.0064856   .0188616    -0.34   0.733    -.0446063    .0316351
+         D1. |  -.0066031   .0188258    -0.35   0.728    -.0446818    .0314757
              |
 ln_avgwwag~v |
-         D1. |   .0019782   .0036511     0.54   0.591    -.0054009    .0093573
+         D1. |   .0019873   .0036598     0.54   0.590    -.0054153    .0093899
              |
 ln_avgwwag~o |
-         D1. |  -.0001872   .0016669    -0.11   0.911    -.0035563    .0031818
+         D1. |  -.0002157   .0016625    -0.13   0.897    -.0035784     .003147
              |
 ln_avgwwag~n |
-         D1. |   -.001604    .001552    -1.03   0.308    -.0047407    .0015327
+         D1. |  -.0015821   .0015625    -1.01   0.318    -.0047425    .0015783
 ------------------------------------------------------------------------------
 
 Absorbed degrees of freedom:
@@ -729,7 +747,7 @@ Absorbed degrees of freedom:
 ------------------------------------------------------------------------------
   D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |   -.056171   .0392201    -1.43   0.160    -.1354378    .0230958
+         (1) |  -.0494838    .034283    -1.44   0.157    -.1188277    .0198601
 ------------------------------------------------------------------------------
 
  ( 1)  D.mw_wkp_tot_17 + cD.mw_wkp_tot_17#c.std_sh_public_housing = 0
@@ -737,13 +755,13 @@ Absorbed degrees of freedom:
 ------------------------------------------------------------------------------
   D.ln_rents |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
 -------------+----------------------------------------------------------------
-         (1) |   .1008722   .0506946     1.99   0.053    -.0015854    .2033298
+         (1) |   .0951136   .0456168     2.09   0.044     .0028448    .1873823
 ------------------------------------------------------------------------------
-(355,107 observations deleted)
+(151,182 observations deleted)
 (1 real change made)
 (note: file ../temp/sum_het_public_hous.dta not found)
 file ../temp/sum_het_public_hous.dta saved
-(355,105 observations deleted)
+(151,180 observations deleted)
 (0 observations deleted)
 (4 real changes made)
 (2 real changes made)
@@ -787,12 +805,15 @@ Type 'q()' to quit R.
 > library(data.table)
 Warning message:
 package 'data.table' was built under R version 4.1.3 
+> library(haven)
 > 
 > main <- function() {
 +   instub  <- "../output/"
 +   outstub <- "../output/"
 +   
 +   est <- fread(file.path(instub, "estimates_het.csv"))
++   dt  <- read_dta("../temp/fullbal_sample_with_vars_for_het.dta")
++   setDT(dt)
 +   
 +   txt <- c("<tab:heterogeneity>")
 +   txt <- c(txt, 
@@ -858,7 +879,19 @@ package 'data.table' was built under R version 4.1.3
 +                  sep = "\t"),
 +             paste(est[model == "het_public_hous" & var == "mw_wkp_high_public_hous" & at == 1,]$se, 
 +                  sep = "\t"))
-+   
++    
++    txt <- c(txt, 
++             paste(unique(dt$avg_sh_mw_wkrs_statutory),
++                   unique(dt$avg_med_hhld_inc_acs2014),
++                   unique(dt$avg_sh_public_housing),
++                   sep = "\t"))
++    
++    txt <- c(txt, 
++             paste(unique(dt$sd_sh_mw_wkrs_statutory),
++                   unique(dt$sd_med_hhld_inc_acs2014),
++                   unique(dt$sd_sh_public_housing),
++                   sep = "\t"))
++    
 +   txt <- c(txt, 
 +            paste(est[model == "static_both"    & var == "mw_wkp_tot_17",]$r2,
 +                  est[model == "het_mw_shares"  & var == "mw_wkp_std_sh_mw_wkrs_statutory" & at == 0,]$r2,
@@ -882,7 +915,7 @@ package 'data.table' was built under R version 4.1.3
 > 
 > proc.time()
    user  system elapsed 
-   0.85    0.20    1.07 
+   3.59    1.10    5.84 
 
 
 Execute:  StataMP-64 /e do "./make_autofill_values.do"
@@ -978,4 +1011,4 @@ running c:\ado\personal\profile.do ...
 . 
 end of do-file
 
- make.py ended: 2023-07-02 16:31:49
+ make.py ended: 2023-08-02 17:37:38
