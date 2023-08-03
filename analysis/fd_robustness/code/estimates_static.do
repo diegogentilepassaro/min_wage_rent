@@ -127,7 +127,7 @@ program estimate_sample_specifications, rclass
 
         local absorb_vars "`absorb'"
         if "`sample'" == "unbal_by_entry" {
-            local absorb_vars "`absorb'##yr_entry_to_zillow_SFCC"
+            local absorb_vars "`absorb'##qtr_entry_to_zillow_SFCC"
         }
 
         estimate_dist_lag_model if unbalanced_sample_SFCC == 1,                          ///
