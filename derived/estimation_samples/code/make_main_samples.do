@@ -17,8 +17,8 @@ program main
     local end_ym           "2020m6"
     local fullbal_start_ym "2015m1"
     #delimit ;
-    local target_vars  "sh_hhlds_renteroccup_cens2010 
-                        sh_workers_under1250_2014 sh_residents_under1250_2014";
+    local target_vars  "sh_hhlds_renteroccup_cens2010 sh_urb_pop_cens2010
+                        sh_white_cens2010";
     #delimit cr
 
     * Zipcode-months
