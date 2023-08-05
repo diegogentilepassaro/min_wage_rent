@@ -15,7 +15,7 @@ program main
     local mw_wkp_var  "mw_wkp_tot_17"
     local zillow_cats "SF CC Studio 1BR 2BR 3BR Mfr5Plus"
 
-    ** STATIC	
+    ** STATIC
     use "`instub'/zipcode_months.dta", clear
     xtset zipcode_num `absorb'
 

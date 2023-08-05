@@ -14,7 +14,8 @@ program main
     load_parameters, in_baseline(`in_baseline') in_wages(`in_wages')
     local beta    = r(beta)
     local gamma   = r(gamma)
-    local epsilon = r(epsilon)
+    *local epsilon = r(epsilon)
+    local epsilon = 0.1
 
     di "Beta, Gamma, and Epsilon: `beta', `gamma', `epsilon'"
 
