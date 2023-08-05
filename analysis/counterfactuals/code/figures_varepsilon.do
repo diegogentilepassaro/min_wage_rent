@@ -15,7 +15,7 @@ program main
     gen base = (epsilon > .099) & (epsilon < 0.101)
 
     twoway (line    tot_incidence epsilon if cofa == "fed_9usd",             lcol(navy))    ///
-           (line    tot_incidence epsilon if cofa == "chi14",                lcol(maroon))  ///
+           (line    tot_incidence epsilon if cofa == "chi14",                lcol(maroon) lpat(dash))  ///
            (scatter tot_incidence epsilon if cofa == "fed_9usd" & base == 1, mcol(navy))    ///
            (scatter tot_incidence epsilon if cofa == "chi14"    & base == 1, mcol(maroon)), ///
         xtitle("Elasticity of wage income to the minimum wage") xline(0.1, lpat(dash) lcol(gray)) ///
