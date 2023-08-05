@@ -26,13 +26,14 @@ program main
     replace b_cum_both = `beta' + `gamma' if at >= 0
 
     twoway   ///
-           (line b_cum_onlywkp at, mcol(navy)   msymbol(circle))                     ///
-           (line b_cum_both    at, mcol(maroon) msymbol(square)),                    ///
-        yline(0, lcol(grey) lpattern(dot))                                           ///
-        xlabel(-6(1)6,              labsize(small)) xtitle("")                       ///
-        ylabel(-0.04(0.02).1, grid labsize(small)) ytitle("Implied cumulative path") ///
-        legend(order(1 `"Only workplace MW"'                                         ///
-                    2 `"Both workplace and residence MW"'))                          ///
+           (line b_cum_onlywkp at, lcol(navy))                         ///
+           (line b_cum_both    at, lcol(maroon) lpat(dash)),           ///
+        yline(0, lcol(grey) lpattern(dot))                             ///
+        xlabel(-6(1)6,              labsize(small)) xtitle("")         ///
+        ylabel(-0.04(0.02).1, grid labsize(small))                     ///
+        ytitle("Implied cumulative path")                              ///
+        legend(order(1 `"Only workplace MW"'                           ///
+                     2 `"Both workplace and residence MW"'))           ///
         graphregion(color(white)) bgcolor(white)
 	
     graph export "../output/implied_cumulative_png.png", replace width(2221) height(1615)
