@@ -120,7 +120,7 @@ def move_inputs_and_graphics(all_inputs, outstub,
             if graphic not in excl_replacements:
                 graphic_filename = graphic.split('/')[-1]
                 
-                is_eps = len(graphic_filename.split('.')) == 1
+                is_eps = not ('png' in graphic_filename or 'pdf' in graphic_filename)
                 
                 if is_eps:
                     fig = fig.replace(graphic, 'graphics/' + graphic_filename + '.pdf')
@@ -138,6 +138,11 @@ def move_inputs_and_graphics(all_inputs, outstub,
                             
                             src_fullname = src_fullname + '.pdf'
                             dst_fullname = dst_fullname + '.pdf'
+                    else:
+                        if os.path.isfile(src_fullname + '.png'):
+                            
+                            src_fullname = src_fullname + '.png'
+                            dst_fullname = dst_fullname + '.png'
                     
                     if os.path.isfile(src_fullname):
                         shutil.copy(src = src_fullname, dst = dst_fullname)
