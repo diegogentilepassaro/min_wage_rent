@@ -11,7 +11,7 @@ main <- function() {
   
   # These data are aggregated at the block group level
   ## Need to use a crosswalk to aggregate
-  folder_names <- folder_names[folder_names != "gross_rent_as_a_percentage"]
+  folder_names <- folder_names[!grepl("gross_rent_as_a_percentage", folder_names)]
   
   for (folder_name in folder_names) {
     dt <- make_data_folder(instub, folder_name)
