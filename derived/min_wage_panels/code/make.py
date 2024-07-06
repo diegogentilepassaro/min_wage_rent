@@ -32,7 +32,8 @@ if "StataSE" in envir_vars:
 
 start_make_logging()
 
-run_rbatch(program = 'build.R')
+run_rbatch(program = 'build_usps.R')
+run_rbatch(program = 'build_zcta.R')
 
 end_make_logging()
 
