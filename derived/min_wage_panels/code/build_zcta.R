@@ -142,6 +142,7 @@ assemble_statutory_mw <- function(dt, dt_mw) {
   dt <- dt_mw$local[dt,  on = c("statefips", "place_name",  "year", "month")][, event := NULL]
   
   ## Assign federal MW to zipcodes under 00199
+  #### DO WE NEED THIS??
   dt[as.numeric(zipcode) <= 199, fed_mw    := 7.25]
   dt[as.numeric(zipcode) <= 199, state_mw  := NA_real_]
   dt[as.numeric(zipcode) <= 199, county_mw := NA_real_]
@@ -168,11 +169,11 @@ assemble_statutory_mw <- function(dt, dt_mw) {
 }
 
 
-collapse_data <- function(dt, key_vars = c("zipcode", "year", "month")) {
+collapse_data <- function(dt, key_vars = c("zcta", "year", "month")) {
   
   # Impute num_house10 = 1 for locations that have no housing, eg, university zip codes
-  if ("zipcode" %in% key_vars) {
-    dt[, sum_houses_geo := sum(num_house10), by = .(zipcode)]
+  if ("zcta" %in% key_vars) {
+    dt[, sum_houses_geo := sum(num_house10), by = .(zcta)]
   } else {
     dt[, sum_houses_geo := sum(num_house10), by = .(countyfips)]
   }
@@ -197,7 +198,7 @@ collapse_data <- function(dt, key_vars = c("zipcode", "year", "month")) {
 
 compute_counterfactual <- function(dt) {
 
-  dt <- dt[, .(block, zipcode, cbsa, countyfips, place_code, num_house10,
+  dt <- dt[, .(block, zcta, cbsa, countyfips, place_code, num_house10,
                fed_mw, state_mw, county_mw, local_mw, statutory_mw)]
   
   dt_cf_2019 <- copy(dt)
@@ -233,7 +234,7 @@ compute_counterfactual <- function(dt) {
                local_mw_cf_chi14     = weighted.mean(local_mw_cf_chi14,     num_house10),
                county_mw             = weighted.mean(county_mw,             num_house10),
                state_mw              = weighted.mean(state_mw,              num_house10)),
-           by = .(zipcode, year, month)]
+           by = .(zcta, year, month)]
   
   dt[, c("cbsa", "countyfips") := NULL]
   
