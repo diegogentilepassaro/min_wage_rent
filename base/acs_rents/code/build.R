@@ -9,8 +9,8 @@ main <- function() {
   
   folder_names <- list.files(instub, pattern = "B2*")
   
-  # These data are aggregated at the block group level
-  ## Need to use a crosswalk to aggregate
+  # Data on rent as % of income are aggregated at the block group level
+  ## We exclude it for now (we'd need to use a crosswalk to aggregate them up to zcta)
   folder_names <- folder_names[!grepl("gross_rent_as_a_percentage", folder_names)]
   
   for (folder_name in folder_names) {
