@@ -25,8 +25,7 @@ main <- function(){
   dt[, c("year", "month") := .(yy, mm)]
 
   dt <- assemble_statutory_mw(dt, dt_mw)
-  dt <- dt[, c("block", "tract", 
-               "fed_mw", "state_mw", "county_mw", "local_mw", "statutory_mw",
+  dt <- dt[, c("block", "tract", "fed_mw", "state_mw", "county_mw", "local_mw", "statutory_mw",
                "num_house10")]
   dt <- collapse_data(dt)
 

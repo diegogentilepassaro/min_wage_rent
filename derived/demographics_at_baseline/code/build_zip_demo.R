@@ -12,32 +12,46 @@ main <- function(){
   log_file  <- "../output/zip_data_manifest.log"
 
   dt_geo <- fread(file.path(in_master, "census_block_master.csv"),
-                  select = list(character = c("block", "tract", "zipcode"),
+                  select = list(character = c("block", "tract", "zcta", "zipcode"),
                                 numeric   = c("num_house10")))
 
-  dt_zip_demo  <- block_to_zip(in_demo, copy(dt_geo))
-  dt_zip_mwers <- tract_to_zip(in_demo, dt_geo)
-  rm(dt_geo)
+  dt_zip_demo  <- block_to_zip(in_demo, copy(dt_geo), "zipcode")
+  dt_zip_mwers <- tract_to_zip(in_demo, copy(dt_geo), "zipcode")
 
-  dt <- merge(dt_zip_demo, dt_zip_mwers, by = c("zipcode"), all = T)
+  dt_zip <- merge(dt_zip_demo, dt_zip_mwers, by = c("zipcode"), all = T)
+  rm(dt_zip_demo, dt_zip_mwers)
 
-  dt <- compute_shares(dt)
+  dt_zip <- compute_shares(dt_zip)
 
-  save_data(dt, key  = c("zipcode"),
+  save_data(dt_zip, key  = c("zipcode"),
             filename = file.path(outstub, "zipcode.dta"),
             logfile  = log_file)
-  fwrite(dt,
+  fwrite(dt_zip,
          file = file.path(outstub, "zipcode.csv"))
+
+  dt_zcta_demo  <- block_to_zip(in_demo, copy(dt_geo), "zcta")
+  dt_zcta_mwers <- tract_to_zip(in_demo, copy(dt_geo), "zcta")
+  rm(dt_geo)
+
+  dt_zcta <- merge(dt_zcta_demo, dt_zcta_mwers, by = c("zcta"), all = T)
+
+  dt_zcta <- compute_shares(dt_zcta)
+
+  save_data(dt_zcta, key  = c("zcta"),
+            filename = file.path(outstub, "zcta.dta"),
+            logfile  = log_file)
+  fwrite(dt_zcta,
+         file = file.path(outstub, "zcta.csv"))
 }
 
-block_to_zip <- function(instub, dt_geo) {
+block_to_zip <- function(instub, dt_geo, zipvar) {
   
   dt <- fread(file.path(instub, "block.csv"),
               colClasses = c(block   = "character"))
 
   dt <- dt_geo[dt,  on = c("block")]
 
-  dt <- dt[zipcode != ""]
+  dt <- dt[zipvar != ""]
 
   dt <- dt[, .(population_cens2010          = sum(population,              na.rm = T),
                n_male_cens2010              = sum(n_male,                  na.rm = T),
@@ -47,18 +61,18 @@ block_to_zip <- function(instub, dt_geo) {
                n_hhlds_cens2010             = sum(n_hhlds,                 na.rm = T),
                n_hhlds_urban_cens2010       = sum(n_hhlds_urban,           na.rm = T),
                n_hhlds_renteroccup_cens2010 = sum(n_hhlds_renter_occupied, na.rm = T)),
-           by = .(zipcode)]
+           by = c(zipvar)]
 
   dt <- dt[, rural_pop_cens2010 := population_cens2010 - urb_pop_cens2010]
   
   return(dt)
 }
 
-tract_to_zip <- function(instub, dt_geo) {
+tract_to_zip <- function(instub, dt_geo, zipvar) {
   
   # Tract-to-zip crosswalk
   dt_geo <- dt_geo[, .(num_house10 = sum(num_house10)),
-                   by = .(tract, zipcode)]
+                   by = c("tract", zipvar)]
 
   # Make zipcode level dataset
   vars = c("population", "n_workers", "med_hhld_inc",
@@ -68,7 +82,7 @@ tract_to_zip <- function(instub, dt_geo) {
               colClasses = c(tract = "character"))
 
   dt <- dt_geo[dt,  on = c("tract")]
-  dt <- dt[zipcode != ""]
+  dt <- dt[zipvar != ""]
   
   # Assign var to each zip code
   dt[, share_in_zip := num_house10/sum(num_house10),
@@ -83,7 +97,7 @@ tract_to_zip <- function(instub, dt_geo) {
                n_mw_wkrs_state        = sum(n_mw_workers_state),
                n_mw_wkrs_fed          = sum(n_mw_workers_fed),
                med_hhld_inc_acs2014   = weighted.mean(med_hhld_inc, num_house10)),
-           by = .(zipcode)]
+           by = c(zipvar)]
 
   return(dt)
 }
