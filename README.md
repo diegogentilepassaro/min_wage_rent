@@ -1,14 +1,14 @@
-# Do Minimum Wages Affect Rents?
+# Do Minimum Wage Policies Have Spatial Effects on Rents?
 
-In this project we explore the short-run effect of minimum wage policies on the
-housing market across metropolitan areas.
+In this project we explore the effect of minimum wage policies on the
+housing market within metropolitan areas.
 
 ## How to use
 
-- Data is stored in Brown's Google Drive [here](https://drive.google.com/drive/u/1/folders/1PRXhH-6Ny_jNGUcS7vjb0A-QzfNEt816).
+- Data is stored in a Google Drive folder [here]([https://drive.google.com/drive/u/1/folders/1PRXhH-6Ny_jNGUcS7vjb0A-QzfNEt816](https://drive.google.com/drive/folders/1OzTPlXiyifR5B1-LZo-fXBOW95awPVVJ?usp=drive_link)).
 
    - Make a local copy of the Google Drive folder.
-   - Create a juncture link to the datastore in the root of the repo. In windows, run `mklink /J "<Root of repo>/drive/" "<Local Google Drive folder>"` from the command line.
+   - If appropriate, create a juncture link to the datastore in the root of the repo. In windows, run `mklink /J "<Root of repo>/drive/" "<Local Google Drive folder>"` from the command line.
    - A python 2 compiler is required to run the code in this repo. We recommend to install [Anaconda](https://www.anaconda.com/products/individual) and create a python2 environment.
 
 ## Repository structure
@@ -75,7 +75,7 @@ Note that none of these folders is compiled using `make` nor `SCons`.
     - When the reference is not specific _do not_ use caps. E.g., `The following section shows that ..` or `.. according to the table ..`
 
   - To cite math or an equation do `\eqref{eq:eq_name}` or `equation \eqref{eq:eq_name}` when appropriate.
-      - Equations are part of a paragraph
+      - Equations are part of a paragraph, use punctuations marks around them when appropriate
 
 
 ### Editors 
