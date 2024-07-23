@@ -8,7 +8,7 @@ program main
     local outstub "../output"
     local temp    "../temp"
 
-    local enddate "31Dec2020"
+    local enddate "31Dec2024"
 
     import_crosswalk, instub(`xwalk') outstub(`temp')
 
@@ -223,7 +223,6 @@ program fix_name_locality
     replace locality = "New York"         if locality == "New York City"
     replace locality = "St. Paul"         if locality == "Saint Paul"
     replace locality = "Daly City"        if locality == "Daly city"
-    replace locality = "Redwood City"     if locality == "Readwood City"
     replace locality = locality + " city" if strpos(locality, "County") == 0
 
     replace locality = "Lexington-Fayette urban county" if locality == "Lexington city"
