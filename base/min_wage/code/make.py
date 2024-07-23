@@ -29,8 +29,6 @@ stata = "StataMP-64"
 if "StataSE" in envir_vars:
     stata = "StataSE-64"
 
-#stata = "StataSE-64"
-
 start_make_logging()
 
 run_stata(program = 'state_mw.do', executable = stata)
@@ -41,3 +39,4 @@ end_make_logging()
 
 shutil.rmtree('gslab_make')
 input('\n Press <Enter> to exit.')
+
