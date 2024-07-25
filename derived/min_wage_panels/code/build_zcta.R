@@ -63,11 +63,6 @@ main <- function(){
         dt_year_zip_prev[, month := mm]
         
         dt_year_zip <- rbindlist(list(dt_year_zip, dt_year_zip_prev))
-        
-        dt_year_cnty_prev <- copy(dt_year_cnty[year == yy & month == mm-1])
-        dt_year_cnty_prev[, month := mm]
-        
-        dt_year_cnty <- rbindlist(list(dt_year_cnty, dt_year_cnty_prev))
       }
     }
     
@@ -140,13 +135,7 @@ assemble_statutory_mw <- function(dt, dt_mw) {
   dt <- dt_mw$state[dt,  on = c("statefips",                "year", "month")][, event := NULL]
   dt <- dt_mw$county[dt, on = c("statefips", "county_name", "year", "month")][, event := NULL]
   dt <- dt_mw$local[dt,  on = c("statefips", "place_name",  "year", "month")][, event := NULL]
-  
-  ## Assign federal MW to zipcodes under 00199
-  #### DO WE NEED THIS??
-  dt[as.numeric(zipcode) <= 199, fed_mw    := 7.25]
-  dt[as.numeric(zipcode) <= 199, state_mw  := NA_real_]
-  dt[as.numeric(zipcode) <= 199, county_mw := NA_real_]
-  
+    
   # Compute statutory MW
   dt[, statutory_mw             := pmax(local_mw, county_mw, state_mw, fed_mw, na.rm = T)]
   dt[, statutory_mw_ignorelocal := pmax(state_mw, fed_mw, na.rm = T)]
