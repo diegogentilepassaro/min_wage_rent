@@ -10,6 +10,7 @@ from ratelimit import limits, sleep_and_retry
 import logging
 import numpy as np
 from typing import Union
+import glob
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -28,6 +29,8 @@ YEARS = range(2011, 2023)  # ACS 5-year estimates are typically available up to 
 
 # Define the tables and variables we want to fetch
 TABLES_AND_VARIABLES = {
+    
+    # Population and Housing Data
     'B01003': ['B01003_001E'],  # Total Population
     'B25001': ['B25001_001E'],  # Total Housing Units
     'B19013': ['B19013_001E'],  # Median Household Income
@@ -39,7 +42,20 @@ TABLES_AND_VARIABLES = {
                'B19001_006E', 'B19001_007E', 'B19001_008E', 'B19001_009E', 
                'B19001_010E', 'B19001_011E', 'B19001_012E', 'B19001_013E', 
                'B19001_014E', 'B19001_015E', 'B19001_016E', 'B19001_017E'],  # Income Distribution
-    'B08122': ['B08122_001E', 'B08122_002E', 'B08122_003E', 'B08122_004E', 'B08122_005E']  # Earnings by Workers' Characteristics
+    'B08122': ['B08122_001E', 'B08122_002E', 'B08122_003E', 'B08122_004E', 'B08122_005E'],  # Earnings by Workers' Characteristics
+    
+    # Rent Data
+    'B25026': ['B25026_001E', 'B25026_002E', 'B25026_009E'],  # Population in Occupied Units 
+    'B25057': ['B25057_001E'],  # Lower Contract Rent Quartile (Dollars) 
+    'B25058': ['B25058_001E'],  # Median Contract Rent Quartile (Dollars) 
+    'B25059': ['B25059_001E'],  # Upper Contract Rent Quartile (Dollars) 
+    'B25060': ['B25060_001E'],  # Aggregate Contract Rent (Dollars) 
+    'B25070': ['B25070_001E', 'B25070_002E', 'B25070_003E', 
+               'B25070_004E', 'B25070_005E', 'B25070_006E', 
+               'B25070_007E', 'B25070_008E', 'B25070_009E', 
+               'B25070_010E', 'B25070_011E'],  # Gross Rent as a Percentage of Household Income in the Past 12 Months 
+
+
 }
 
 
@@ -166,6 +182,24 @@ def process_final_dataset(df):
         'B08122_003E': 'Workers_Earning_10000_to_14999',
         'B08122_004E': 'Workers_Earning_15000_to_24999',
         'B08122_005E': 'Workers_Earning_25000_to_34999',
+        'B25026_001E': 'total_occ_housing_units', 
+        'B25026_002E': 'owner_occ_housing_units', 
+        'B25026_009E': 'renter_occ_housing_units', 
+        'B25057_001E': 'rent_p25', 
+        'B25058_001E': 'rent_median', 
+        'B25059_001E': 'rent_p75', 
+        'B25060_001E': 'rent_aggregate', 
+        'B25070_001E': 'rent_share_hh_income_Total', 
+        'B25070_002E': 'rent_share_hh_income_10pct', 
+        'B25070_003E': 'rent_share_hh_income_10_15pct', 
+        'B25070_004E': 'rent_share_hh_income_15_20pct', 
+        'B25070_005E': 'rent_share_hh_income_20_25pct', 
+        'B25070_006E': 'rent_share_hh_income_20_30pct', 
+        'B25070_007E': 'rent_share_hh_income_30_35pct', 
+        'B25070_008E': 'rent_share_hh_income_35_40pct', 
+        'B25070_009E': 'rent_share_hh_income_40_45pct', 
+        'B25070_010E': 'rent_share_hh_income_45_50pct', 
+        'B25070_011E': 'rent_share_hh_income_50Pluspct', 
     }
 
     df = df.rename(columns=column_names)
@@ -214,7 +248,7 @@ def process_final_dataset(df):
     return df[index_cols + [x for x in df.columns if x not in index_cols]]
 
 
-test_data_availability()
+# test_data_availability()  # Uncomment and Run if needed
 
 
 if __name__ == "__main__":
@@ -224,8 +258,14 @@ if __name__ == "__main__":
     output_path = os.path.join(output_path, 'output')
     if not os.path.exists(output_path):
         os.makedirs(output_path)
-    root_path  = os.path.dirname(os.path.dirname(output_path))
-    data_path  = os.path.join(root_path, "drive", "raw_data", "ahs")
+    
+    root_path  = os.path.dirname(
+        os.path.dirname(
+            os.path.dirname(
+                os.path.dirname(
+                    os.path.realpath(__file__)))))
+    
+    data_path  = os.path.join(root_path, "drive", "raw_data", "acs_rents")
     
     # Initialize config files
     logging.basicConfig(filename = os.path.join(output_path, 'build.log'), filemode = 'w', 
@@ -271,7 +311,14 @@ if __name__ == "__main__":
         logger.info(f"Sample of the final dataset:\n{final_df.head()}")
 
         # Save as compressed CSV
-        final_df.to_csv(os.path.join(output_path, 'acs_zcta_data.csv'), index=False)
-        logger.info(f"Data saved to {output_path}")
+        if not os.path.exists(data_path):
+            os.mkdir(data_path)
+        final_df.to_csv(os.path.join(data_path, 'acs_zcta_data.csv'), index=False)
+        logger.info(f"Data saved to {data_path}")
+        # Remove the temporary JSON files
+        json_list = glob.glob(f"{os.getcwd()}/*.json")
+        for file in json_list:
+            os.remove(file)
+        logger.info("Temporary JSON files removed!")
     else:
         logger.warning("No data was fetched for any year.")
