@@ -8,11 +8,11 @@ program main
     local logfile "../output/data_file_manifest.log"
 
     * Zip files
-    foreach y in "09" "10" "11" "12" "13" "14" "15" "16" "17" "18" "19" "20" {
+    foreach y in "09" "10" "11" "12" "13" "14" "15" "16" "17" "18" "19" "20" "21" "22" {
         read_total_file, instub(`instub') yr(`y')
     }
     use "../temp/zbp_totals_09.dta", clear
-    foreach y in "10" "11" "12" "13" "14" "15" "16" "17" "18" "19" "20" {
+    foreach y in "10" "11" "12" "13" "14" "15" "16" "17" "18" "19" "20" "21" "22" {
         append using "../temp/zbp_totals_`y'.dta"
     }
     save_data "`outstub'/zbp_totals.dta", key(zipcode year) ///
@@ -20,11 +20,11 @@ program main
     export delimited "`outstub'/zbp_totals.csv", replace
 
     * Zip by industry files
-    foreach y in "09" "10" "11" "12" "13" "14" "15" "16" "17" "18" "19" "20" {
+    foreach y in "09" "10" "11" "12" "13" "14" "15" "16" "17" "18" "19" "20" "21" "22" {
         read_detail_file, instub(`instub') yr(`y')
     }
     use "../temp/zbp_detail_09.dta", clear
-    foreach y in "10" "11" "12" "13" "14" "15" "16" "17" "18" "19" "20" {
+    foreach y in "10" "11" "12" "13" "14" "15" "16" "17" "18" "19" "20" "21" "22" {
         append using "../temp/zbp_detail_`y'.dta"
     }
     save_data "`outstub'/zbp_by_naics.dta", key(zipcode naics6 year) ///
