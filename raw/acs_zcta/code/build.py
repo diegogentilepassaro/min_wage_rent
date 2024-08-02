@@ -12,9 +12,6 @@ import numpy as np
 from typing import Union
 import glob
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 
 # Your API key
 API_KEY = 'f0aadefd118cba2a1047e3f4be068bb384908cb2'
@@ -248,11 +245,8 @@ def process_final_dataset(df):
     return df[index_cols + [x for x in df.columns if x not in index_cols]]
 
 
-# test_data_availability()  # Uncomment and Run if needed
-
-
 if __name__ == "__main__":
-    
+        
     # Initialize paths
     output_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     output_path = os.path.join(output_path, 'output')
@@ -265,13 +259,13 @@ if __name__ == "__main__":
                 os.path.dirname(
                     os.path.realpath(__file__)))))
     
-    data_path  = os.path.join(root_path, "drive", "raw_data", "acs_rents")
+    data_path  = os.path.join(root_path, "drive", "raw_data", "acs_zcta")
     
-    # Initialize config files
+    # Initialize log file
     logging.basicConfig(filename = os.path.join(output_path, 'build.log'), filemode = 'w', 
                         format = '%(asctime)s %(message)s', level = logging.INFO, datefmt = '%Y-%m-%d %H:%M:%S')
     logger = logging.getLogger()
-
+    
     # Run the test_data_availability function if needed
     # test_data_availability()
     n_workers = 5
