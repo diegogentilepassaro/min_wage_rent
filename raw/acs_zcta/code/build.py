@@ -12,7 +12,6 @@ import numpy as np
 from typing import Union
 import glob
 
-
 # Your API key
 API_KEY = 'f0aadefd118cba2a1047e3f4be068bb384908cb2'
 
@@ -24,6 +23,9 @@ BASE_URL = 'https://api.census.gov/data'
 # Define the years to fetch data for
 YEARS = range(2011, 2023)  # ACS 5-year estimates are typically available up to 2-3 years before the current year
 
+# Specify the geographic level
+GEO = 'zip code tabulation area:*'
+
 # Define the tables and variables we want to fetch
 TABLES_AND_VARIABLES = {
     
@@ -33,8 +35,8 @@ TABLES_AND_VARIABLES = {
     'B19013': ['B19013_001E'],  # Median Household Income
     'B19025': ['B19025_001E'],  # Aggregate Household Income
     'B17001': ['B17001_002E'],  # Number of Persons Below Poverty Level
-    'B00001': ['B00001_001E'],  # Unweighted_Sample_Count_Population
-    'B00002': ['B00002_001E'],  # Unweighted_Sample_Count_Housing
+    'B00001': ['B00001_001E'],  # Unweighted_Sample_Count_Population 2011-2018
+    'B00002': ['B00002_001E'],  # Unweighted_Sample_Count_Housing 2011-2018
     'B19001': ['B19001_002E', 'B19001_003E', 'B19001_004E', 'B19001_005E', 
                'B19001_006E', 'B19001_007E', 'B19001_008E', 'B19001_009E', 
                'B19001_010E', 'B19001_011E', 'B19001_012E', 'B19001_013E', 
@@ -55,9 +57,6 @@ TABLES_AND_VARIABLES = {
 
 }
 
-
-# Specify the geographic level
-GEO = 'zip code tabulation area:*'
 
 def save_progress(year, data):
     with open(f'acs_{year}.json', 'w') as f:
@@ -158,22 +157,22 @@ def process_final_dataset(df):
         'B17001_002E': 'Persons_Below_Poverty_Level',
         'B00001_001E': 'Unweighted_Sample_Count_Population',
         'B00002_001E': 'Unweighted_Sample_Count_Housing',
-        'B19001_002E': 'Income_Less_10000',
-        'B19001_003E': 'Income_10000_14999',
-        'B19001_004E': 'Income_15000_19999',
-        'B19001_005E': 'Income_20000_24999',
-        'B19001_006E': 'Income_25000_29999',
-        'B19001_007E': 'Income_30000_34999',
-        'B19001_008E': 'Income_35000_39999',
-        'B19001_009E': 'Income_40000_44999',
-        'B19001_010E': 'Income_45000_49999',
-        'B19001_011E': 'Income_50000_59999',
-        'B19001_012E': 'Income_60000_74999',
-        'B19001_013E': 'Income_75000_99999',
-        'B19001_014E': 'Income_100000_124999',
-        'B19001_015E': 'Income_125000_149999',
-        'B19001_016E': 'Income_150000_199999',
-        'B19001_017E': 'Income_200000_or_more',
+        'B19001_002E': 'hh_income_Less_10000',
+        'B19001_003E': 'hh_income_10000_14999',
+        'B19001_004E': 'hh_income_15000_19999',
+        'B19001_005E': 'hh_income_20000_24999',
+        'B19001_006E': 'hh_income_25000_29999',
+        'B19001_007E': 'hh_income_30000_34999',
+        'B19001_008E': 'hh_income_35000_39999',
+        'B19001_009E': 'hh_income_40000_44999',
+        'B19001_010E': 'hh_income_45000_49999',
+        'B19001_011E': 'hh_income_50000_59999',
+        'B19001_012E': 'hh_income_60000_74999',
+        'B19001_013E': 'hh_income_75000_99999',
+        'B19001_014E': 'hh_income_100000_124999',
+        'B19001_015E': 'hh_income_125000_149999',
+        'B19001_016E': 'hh_income_150000_199999',
+        'B19001_017E': 'hh_income_200000_or_more',
         'B08122_001E': 'Workers_16_and_over',
         'B08122_002E': 'Workers_Earning_1_to_9999',
         'B08122_003E': 'Workers_Earning_10000_to_14999',
@@ -203,7 +202,9 @@ def process_final_dataset(df):
     
     # Convert relevant columns to numeric type
     for col in df.columns:
-        if col.startswith(('B', 'Income_', 'Workers_', 'Total_', 'Median_', 'Aggregate_', 'Persons_', 'Universe_', 'Unweighted_')):
+        if col.startswith(('B', 'hh_income_', 'Workers_', 'Total_', 'Median_', 
+            'Aggregate_', 'Persons_', 'Universe_', 'Unweighted_', 
+            'rent_share_hh_', 'rent_', 'total_', 'owner_', 'renter_')):
             df[col] = pd.to_numeric(df[col], errors='coerce')
 
     # Calculate derived variables    
@@ -223,13 +224,13 @@ def process_final_dataset(df):
 
     # Calculate approximate sample size (this is an approximation, not the actual sample size)
     if 'Total_Housing_Units' in df.columns and 'Unweighted_Sample_Count_Housing' in df.columns:
-        df['Approximate_Sample_Size_Housing'] = df['Unweighted_Sample_Count_Housing'] / df['Total_Housing_Units'] 
+        df['Approximate_Sample_Size_Housing'] = df['Unweighted_Sample_Count_Housing'] / df['Total_Housing_Units'].replace(0, np.nan) 
         logger.info(f"Approximate_Sample_Size - Housing column created. Sample values: {df['Approximate_Sample_Size_Housing'].head().tolist()}")
     else:
         logger.warning("Unable to calculate Approximate_Sample_Size Housing due to missing data")
 
     if 'Total_Population' in df.columns and 'Unweighted_Sample_Count_Population' in df.columns:
-        df['Approximate_Sample_Size_Population'] = df['Unweighted_Sample_Count_Population'] / df['Total_Population'] 
+        df['Approximate_Sample_Size_Population'] = df['Unweighted_Sample_Count_Population'] / df['Total_Population'].replace(0, np.nan) 
         logger.info(f"Approximate_Sample_Size - Population column created. Sample values: {df['Approximate_Sample_Size_Population'].head().tolist()}")
     else:
         logger.warning("Unable to calculate Approximate_Sample_Size Population due to missing data")
@@ -242,7 +243,34 @@ def process_final_dataset(df):
         logger.warning(f"The following expected columns are missing from the dataset: {missing_columns}")
 
     index_cols = ['zcta', 'Year']
+    cols_to_drop = ['NAME']
+    df.drop(columns=cols_to_drop, inplace=True)
     return df[index_cols + [x for x in df.columns if x not in index_cols]]
+
+
+def save_data_manifest(df, outpath):
+    
+    
+    # first identify numerical columns
+    cols_numerical = df.select_dtypes(include=[np.number, 'float', 'int']).columns.tolist()
+    cols_other = [x for x in df.columns if x not in cols_numerical]
+
+    stat_dict_numerical = {x: ['count', 'mean', 'std', 'min', 'max'] for x in cols_numerical}
+    stat_dict_other = {x: ['nunique'] for x in cols_other}
+
+    stat_dict_all = {**stat_dict_other, **stat_dict_numerical}
+
+    df_manifest = df.copy()
+
+    df_manifest = df_manifest.agg(stat_dict_all).T
+
+    with open(f"{outpath}/data_file_manifest.txt", mode='w') as file_object:
+        print(df_manifest, file=file_object)
+
+    logger.info(f"""
+        Data file manifest saved: 
+        {df_manifest}
+    """)
 
 
 if __name__ == "__main__":
@@ -309,6 +337,7 @@ if __name__ == "__main__":
             os.mkdir(data_path)
         final_df.to_csv(os.path.join(data_path, 'acs_zcta_data.csv'), index=False)
         logger.info(f"Data saved to {data_path}")
+        save_data_manifest(final_df, output_path)       
         # Remove the temporary JSON files
         json_list = glob.glob(f"{os.getcwd()}/*.json")
         for file in json_list:
