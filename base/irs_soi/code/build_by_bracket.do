@@ -15,18 +15,22 @@ program main
         append using "`instub'/irs_zip_`y'.dta"
     }
     
-    drop if num_hhlds_irs == 0.0001
-    drop if num_hhlds_irs == 0
     collapse (sum) num_hhlds_irs pop_irs adj_gross_inc      ///
         num_wage_hhlds_irs total_wage num_ret_int total_int           ///
         num_ret_div total_div num_bus_hhlds_irs total_bizinc num_farm_hhlds_irs, ///
-      by(zipcode statefips year)
+      by(zipcode statefips year agi_stub)
     
+    local reshapevars "zipcode statefips year agi_stub"
+    ds `reshapevars', not
+    local widevars `r(varlist)'
+    
+    reshape wide "`widevars'", i(zipcode statefips year) j(agi_stub)
+
     create_variables
 
-    save_data "`outstub'/irs_zip.dta", key(zipcode statefips year) ///
+    save_data "`outstub'/irs_by_bracket_zip.dta", key(zipcode statefips year) ///
         log(`logfile') replace
-    export delimited "`outstub'/irs_zip.csv", replace
+    export delimited "`outstub'/irs_by_bracket_zip.csv", replace
 end
 
 program read_excel_files
@@ -35,7 +39,7 @@ program read_excel_files
     import delimited "`instub'/20`yr'/`yr'zpallagi.csv", clear ///
         stringcols(1 2 3)
 
-    keep statefips zipcode n1 n2 a00100 n00200 a00200 ///
+    keep statefips zipcode agi_stub n1 n2 a00100 n00200 a00200 ///
         n00300 a00300 n00600 a00600 n00900 a00900 schf
 
     rename (n1            n2      a00100        n00200             a00200) ///
@@ -52,18 +56,21 @@ end
 
 program create_variables
 
-    gen agi_per_hhld = adj_gross_inc/num_hhlds_irs*1000
-    gen agi_per_cap  = adj_gross_inc/pop_irs*1000
+    forval i = 1(1)6 {
+        gen agi_per_hhld`i' = adj_gross_inc`i'/num_hhlds_irs`i'*1000
+        gen agi_per_cap`i'  = adj_gross_inc`i'/pop_irs`i'*1000
 
-    gen wage_per_wage_hhld = total_wage/num_wage_hhlds_irs*1000
-    gen wage_per_hhld      = total_wage/num_hhlds_irs*1000
-    gen wage_per_cap       = total_wage/pop_irs*1000
+        gen wage_per_wage_hhld`i' = total_wage`i'/num_wage_hhlds_irs`i'*1000
+        gen wage_per_hhld`i'      = total_wage`i'/num_hhlds_irs`i'*1000
+        gen wage_per_cap`i'       = total_wage`i'/pop_irs`i'*1000
 
-    gen bussines_rev_per_owner = total_bizinc/num_bus_hhlds_irs*1000
+        gen bussines_rev_per_owner`i' = total_bizinc`i'/num_bus_hhlds_irs`i'*1000
 
-    gen share_wage_hhlds      = num_wage_hhlds_irs/num_hhlds_irs
-    gen share_bussiness_hhlds = num_bus_hhlds_irs/num_hhlds_irs
-    gen share_farmer_hhlds    = num_farm_hhlds_irs/num_hhlds_irs
+        gen share_wage_hhlds`i'      = num_wage_hhlds_irs`i'/num_hhlds_irs`i'
+        gen share_bussiness_hhlds`i' = num_bus_hhlds_irs`i'/num_hhlds_irs`i'
+        gen share_farmer_hhlds`i'    = num_farm_hhlds_irs`i'/num_hhlds_irs`i'
+
+    }
 end
 
 * Execute
